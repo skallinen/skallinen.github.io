@@ -12,6 +12,15 @@
     
     
     <item>
+      <title>Playing</title>
+      <link>http://www.1-bit-wonder.net/posts/hey/</link>
+      <pubDate>Mon, 09 Mar 2020 00:44:39 +0200</pubDate>
+      
+      <guid>http://www.1-bit-wonder.net/posts/hey/</guid>
+      <description>Playing with org-mode and hugo. Trying images as well. </description>
+    </item>
+    
+    <item>
       <title>About</title>
       <link>http://www.1-bit-wonder.net/about/</link>
       <pubDate>Mon, 09 Mar 2020 00:39:05 +0200</pubDate>
