@@ -6,7 +6,7 @@
     <description>Recent content in Posts on 1-bit-wonder</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 09 Mar 2020 01:14:57 +0200</lastBuildDate>
+    <lastBuildDate>Mon, 09 Mar 2020 01:30:31 +0200</lastBuildDate>
     
 	<atom:link href="http://www.1-bit-wonder.net/posts/index.xml" rel="self" type="application/rss+xml" />
     
@@ -14,10 +14,10 @@
     <item>
       <title>Playing</title>
       <link>http://www.1-bit-wonder.net/posts/hey/</link>
-      <pubDate>Mon, 09 Mar 2020 01:14:57 +0200</pubDate>
+      <pubDate>Mon, 09 Mar 2020 01:30:31 +0200</pubDate>
       
       <guid>http://www.1-bit-wonder.net/posts/hey/</guid>
-      <description>Playing with org-mode and hugo. Trying images as well. </description>
+      <description>Playing wth org-mode and hugo. Trying images as well. </description>
     </item>
     
   </channel>
