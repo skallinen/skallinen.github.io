@@ -6,10 +6,28 @@
     <description>Recent content on 1-bit-wonder</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 09 Mar 2020 04:26:35 +0200</lastBuildDate>
+    <lastBuildDate>Mon, 09 Mar 2020 04:28:20 +0200</lastBuildDate>
     
 	<atom:link href="http://www.1-bit-wonder.net/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>A diagram</title>
+      <link>http://www.1-bit-wonder.net/posts/hey/</link>
+      <pubDate>Mon, 09 Mar 2020 04:28:46 +0200</pubDate>
+      
+      <guid>http://www.1-bit-wonder.net/posts/hey/</guid>
+      <description>This is a part of a CRT television </description>
+    </item>
+    
+    <item>
+      <title>A diagram</title>
+      <link>http://www.1-bit-wonder.net/hey/</link>
+      <pubDate>Mon, 09 Mar 2020 04:28:20 +0200</pubDate>
+      
+      <guid>http://www.1-bit-wonder.net/hey/</guid>
+      <description>This is a part of a CRT television </description>
+    </item>
     
     <item>
       <title>About me</title>
