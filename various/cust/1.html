@@ -1,42 +1,23 @@
 <!doctype html>
 <html>
 <head>
-<title>Yle ja elämä</title>
-<style type="text/css">
-  body {background-color:black}
- .video-wrapper {display:none;}
- @media (-webkit-min-device-pixel-ratio: 0) and (min-device-width:1024px) 
- {
-  .video-wrapper { display:block!important; }
-  .video-fallback { display:none!important; }
- }
-  @supports (-webkit-overflow-scrolling:touch) and (color:#ffffffff) {
-    div[class^=video-wrapper] { display:block!important; }
-    div[class^=video-fallback] { display:none!important; }
-  }
-  #MessageViewBody .video-wrapper { display:block!important; }
-  #MessageViewBody .video-fallback { display:none!important; }
-</style>
+  <title>Yle ja elämä</title>
+  <style type="text/css">
+    body {background-color: "black";
+          margin:auto;}
+    video {
+        
+        display: flex;
+        justify-content: center;
+        height: 100vh;
+}
+  </style>
+
 </head>
 <body>
-<B>Video in Email Test</B><BR>
-
-<!-- video section -->
-<div class="video-wrapper" style="display:none;">
-  <p>Video</p>
-<video width="270" height="440" controls="controls"  poster="https://1-bit-wonder.net/various/cust/ep1.png" src="https://1-bit-wonder.net/various/cust/1586952315.mp4">
-      <!-- fallback 1 -->
-      <a href="https://1-bit-wonder.net/various/cust/1.html" ><img height="440" 
-        src="https://1-bit-wonder.net/various/cust/ep1.png" width="270" /></a>
-</video>
-</div>
-
-<!-- fallback section -->
-<div class="video-fallback">
-  <p>Fallback</p>
-  <a href="https://1-bit-wonder.net/various/cust/1.html"><img height="440" 
-    src="https://1-bit-wonder.net/various/cust/ep1.png" width="270" /></a>
-</div>
+<!-- <div id="positioning-context"> -->
+  <video  controls="controls"  poster="https://1-bit-wonder.net/various/cust/ep1.png" src="https://1-bit-wonder.net/various/cust/1586952315.mp4">
+<!-- </div> -->
 
 </body>
 </html>
