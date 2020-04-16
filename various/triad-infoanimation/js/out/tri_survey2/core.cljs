@@ -30,14 +30,14 @@
 
 
 (def texts
-  {:triad-top                 "Wow! Innovatiivinen ja innoistava"
+  {:triad-top                 "Wow! Innovatiivinen ja innostava"
    :triad-left                "Toimiva ja vaivaton"
    :triad-right               "Paljon parannettavaa"
    :main-header               "Yle ja elämä infoanimaatio"
    :service                   "Tarkasteltava palvelu:"
    :micronarrative1           "1. Kuvittele, että keskustelet kollegasi kanssa infoanimaatiosta. Hän ei ole aikaisemmin kokeillut sellaista. Mieti hetken ja kuvaa hänelle lyhyesti ja totuudenmukaisesti sekä palvelun HYVIÄ että HUONOJA puolia.*"
    :micro-placeholder         "Kuvaa tähän"
-   :analyze1                  "2. Lue, mieti ja analysoi kuvaustasi yllä, ja aseta sen valossa kolmion sisälle piste suhteessa kolmion kulmissa mainittuihin piirtesiin* Lue, mieti ja analysoi kuvaustasi yllä. Jos mielestäsi Painota alla olevia määreitä nimenomaan kirjoittamasi kuvauksen mukaisesti ja suhteessa toisiinsa."
+   :analyze1                  "2. Lue, mieti ja analysoi kuvaustasi yllä, ja aseta sen valossa kolmion sisälle piste suhteessa kolmion kulmissa mainittuihin piirteisiin* Lue, mieti ja analysoi kuvaustasi yllä. Jos mielestäsi kaksi piirrettä on yhtä hyviä/huonoija aseta piste niiden keskele. Painota alla olevia määreitä kirjoittamasi kuvauksen mukaisesti ja suhteessa toisiinsa."
    :favorite-service-question "Mikä verkkopalvelu tai mobiilisovellus on suosikkisi (mainitse yksi)*"
    :application-label         "3. Sovellus"
    :application-placeholder   "Sovelluksen nimi"
