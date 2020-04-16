@@ -18,11 +18,11 @@ return goog.object.get(window,"WebSocket");
 } else {
 if(figwheel.client.utils.node_env_QMARK_.call(null)){
 try{return require("ws");
-}catch (e31602){if((e31602 instanceof Error)){
-var e = e31602;
+}catch (e31603){if((e31603 instanceof Error)){
+var e = e31603;
 return null;
 } else {
-throw e31602;
+throw e31603;
 
 }
 }} else {
@@ -78,14 +78,14 @@ return and__4174__auto__;
 return false;
 }
 });
-figwheel.client.socket.open = (function figwheel$client$socket$open(p__31603){
-var map__31604 = p__31603;
-var map__31604__$1 = (((((!((map__31604 == null))))?(((((map__31604.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__31604.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__31604):map__31604);
-var opts = map__31604__$1;
-var retry_count = cljs.core.get.call(null,map__31604__$1,new cljs.core.Keyword(null,"retry-count","retry-count",1936122875));
-var retried_count = cljs.core.get.call(null,map__31604__$1,new cljs.core.Keyword(null,"retried-count","retried-count",-2127867357));
-var websocket_url = cljs.core.get.call(null,map__31604__$1,new cljs.core.Keyword(null,"websocket-url","websocket-url",-490444938));
-var build_id = cljs.core.get.call(null,map__31604__$1,new cljs.core.Keyword(null,"build-id","build-id",1642831089));
+figwheel.client.socket.open = (function figwheel$client$socket$open(p__31604){
+var map__31605 = p__31604;
+var map__31605__$1 = (((((!((map__31605 == null))))?(((((map__31605.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__31605.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__31605):map__31605);
+var opts = map__31605__$1;
+var retry_count = cljs.core.get.call(null,map__31605__$1,new cljs.core.Keyword(null,"retry-count","retry-count",1936122875));
+var retried_count = cljs.core.get.call(null,map__31605__$1,new cljs.core.Keyword(null,"retried-count","retried-count",-2127867357));
+var websocket_url = cljs.core.get.call(null,map__31605__$1,new cljs.core.Keyword(null,"websocket-url","websocket-url",-490444938));
+var build_id = cljs.core.get.call(null,map__31605__$1,new cljs.core.Keyword(null,"build-id","build-id",1642831089));
 var temp__5733__auto__ = figwheel.client.socket.get_websocket_imp.call(null);
 if(cljs.core.truth_(temp__5733__auto__)){
 var WebSocket = temp__5733__auto__;
@@ -146,4 +146,4 @@ return figwheel.client.utils.log.call(null,new cljs.core.Keyword(null,"debug","d
 }
 });
 
-//# sourceMappingURL=socket.js.map?rel=1587041656808
+//# sourceMappingURL=socket.js.map?rel=1587042627302
