@@ -1,0 +1,576 @@
+Fexprs as the basis of
+
+Lisp function application
+
+or
+
+$vau : the ultimate abstraction
+
+by
+
+John N. Shutt
+
+A Dissertation
+
+Submitted to the Faculty
+
+of the
+
+WORCESTER POLYTECHNIC INSTITUTE
+
+in partial fulfillment of the requirements for the
+
+Degree of Doctor of Philosophy
+
+in
+
+Computer Science
+
+August 23, 2010
+
+Approved:
+
+Prof. Michael A. Gennert, Advisor
+
+Head of Department
+
+Prof. Daniel J. Dougherty
+
+Prof. Carolina Ruiz
+
+Prof. Shriram Krishnamurthi
+
+Computer Science Department, Brown University
+
+Abstract
+
+Abstraction creates custom programming languages that facilitate programming for specific problem domains. It is traditionally partitioned according to a two-phase model of program evaluation, into syntactic abstraction enacted at translation time, and semantic abstraction enacted at run time. Abstractions pigeon-holed into one phase cannot interact freely with those in the other, since they are required to occur at logically distinct times.
+
+Fexprs are a Lisp device that subsumes the capabilities of syntactic abstraction, but is enacted at run-time, thus eliminating the phase barrier between abstractions.
+
+Lisps of recent decades have avoided fexprs because of semantic ill-behavedness that accompanied fexprs in the dynamically scoped Lisps of the 1960s and 70s.
+
+This dissertation contends that the severe difficulties attendant on fexprs in the past are not essential, and can be overcome by judicious coordination with other elements of language design. In particular, fexprs can form the basis for a simple, well-behaved Scheme-like language, subsuming traditional abstractions without a multi-phase model of evaluation.
+
+The thesis is supported by a new Scheme-like language called Kernel, created for this work, in which each Scheme-style procedure consists of a wrapper that induces evaluation of operands, around a fexpr that acts on the resulting arguments.
+
+This arrangement enables Kernel to use a simple direct style of selectively evaluating subexpressions, in place of most Lisps’ indirect quasiquotation style of selectively suppressing subexpression evaluation. The semantics of Kernel are treated through a new family of formal calculi, introduced here, called vau calculi. Vau calculi use direct subexpression-evaluation style to extend lambda calculus, eliminating a long-standing incompatibility between lambda calculus and fexprs that would otherwise trivialize their equational theories.
+
+The impure vau calculi introduce non-functional binding constructs and unconventional forms of substitution. This strategy avoids a difficulty of Felleisen’s lambda-v-CS calculus, which modeled impure control and state using a partially non-compatible reduction relation, and therefore only approximated the Church–Rosser and Plotkin’s Correspondence Theorems. The strategy here is supported by an abstract class of Regular Substitutive Reduction Systems, generalizing Klop’s Regular Combinatory Reduction Systems.
+
+
+
+
+
+Preface
+
+
+The concept of first-class object is due to Christopher Strachey (1916–1975).
+
+A first-class object in any given programming language is an object that can be employed freely in all the ways that one would ordinarily expect of a general value in that language. The “rights and privileges” of first-class objects —the ways one expects they may be freely employed— depend on the language. Although one might draw up a partial list of first-class rights and privileges for a given language, e.g. [AbSu96,
+
+§1.3.4], a complete list is never quite possible, because (as in human societies) the rights and privileges of first-class-ness are difficult to recognize until they are missed.
+
+Strachey’s prime example, then, of second -class objects was procedures in Algol.
+
+Procedures in Algol can be called, or passed as arguments to procedure calls, but
+
+—unlike numbers— cannot be stored as the values of variables, nor returned as the results of procedure calls. Thus Algol procedures cannot be denoted by compound expressions, nor by aliases; as [Stra67, §3.5] put it, they “need to appear in person under their own names.”
+
+The Scheme programming language pioneered first-class treatment of several types of objects, notably procedures (whose promotion to first-class status will be discussed in this dissertation in §3.3.2). However, for those cases in which the operands in an expression are not to be evaluated automatically, special reserved operator symbols are used; and the evaluation rules denoted by these reserved symbols cannot be evoked in any other way — they always have to appear in person under their own names.1
+
+The Kernel programming language is a redesign of Scheme for the current work2
+
+that grants first-class status to the objects named by Scheme’s special-form operators (both built-in and user-defined). Why, how, and with what consequences it does so are the concerns of this dissertation.
+
+In place of Scheme’s single type of first-class procedures, Kernel has two types of first-class combiners: applicatives, which are analogous to Scheme procedures; and operatives (known historically in the Lisp community as fexprs), which take their operands unevaluated and correspond to Scheme’s special-form combiners. To avoid gratuitous confusion between the two, Kernel conventionally prefixes the names of its 1A more detailed discussion of first-class-ness, both in general and in the particular case of Scheme, appears in [Shu09, App. B (First-class objects)].
+
+2That is, Kernel and this dissertation are both part of the same work, by the same author. See
+
+§3.5.
+
+iii
+
+operatives with “$” (a convention that enhances the lucidity of even mundane Kernel code, independent of any exotic use of first-class operatives).
+
+The elegance of Kernel’s support for first-class operatives arises from the synergism of two distinct innovations.
+
+The flashier innovation is the $vau operative, which behaves nearly identically to $lambda except that its result is operative rather than applicative. $vau also differs from $lambda by having an extra parameter, appearing after the usual parameter tree, which locally binds the dynamic environment from which the constructed operative is called. One could, for example, write
+
+($define! $if
+
+($vau (x y z) env
+
+(0.1)
+
+($cond ((eval x env) (eval y env))
+
+(#t
+
+(eval z env))))) ,
+
+deriving a compound operative $if from pre-existing operative $cond . As an alternative to hygienic macro declarations, $vau gains clarity by using ordinary Scheme/
+
+Kernel tools rather than a separate macro sublanguage, and by specifying its evaluations —and its uses of the dynamic environment— explicitly; but the more elegant, and subtler, innovation of Kernel’s operative support lies in its treatment of first-class applicatives.
+
+A Kernel applicative is simply a shell, or wrapper, to induce argument evaluation, around some other underlying combiner (which may even be another applicative).
+
+The constructor of applicatives is an applicative wrap. The introduction of wrap as a primitive, evidently orthogonal to $vau , obviates the need for a primitive $lambda , since $lambda can then be constructed as a compound operative: ($define! $lambda
+
+($vau (ptree . body) static-env
+
+(0.2)
+
+(wrap (eval (list* $vau ptree #ignore body)
+
+static-env)))) .
+
+The introduction of an inverse operation unwrap completes the orthogonalization of Kernel combiner semantics, by allowing apply to be constructed as well: ($define! apply
+
+($lambda (applicative argument-tree)
+
+(0.3)
+
+(eval (cons (unwrap applicative) argument-tree)
+
+(make-environment)))) .
+
+Content of the dissertation
+
+The main content of the dissertation is divided into two parts: Part I addresses Kernel (the practical instrument of the thesis, designed by the author for the extended work), while Part II addresses vau calculi (its theoretical instrument, designed as part of the iv
+
+dissertation). Each part begins with a chapter of background materials preliminary to that part. Chapter 1 contains background materials that motivate and clarify the thesis, and therefore logically precede both parts. Chapter 2 contains background materials on the use of language in the dissertation that cross-cut the division between theory and practice.
+
+Much of the background material is historical. Historical background serves three functions: it clarifies where we are, by explaining how we got here; it explains why we got here, laying motivational foundation for where to go next; and it reviews related work.
+
+The background chapters also concern themselves not only with how programming languages specify computations (semantics), but with how programming languages influence the way programmers think (psychological bias). This introduces a subjective element, occasionally passing within hailing distance of philosophy; and the thesis, since it is meant to be defended, mostly avoids this element by concerning itself with semantics. However, the background chapters are also meant to discuss language design motivations, and psychology is integral to that discussion because it often dominates programmer productivity. Semantics may make some intended computations difficult to specify, but rarely makes them impossible — especially in Lisp, which doesn’t practice strong typing; whereas psychological bias may prevent entire classes of computations outright, just by preventing programmers from intending them.
+
+Chapter 16 contains concluding remarks on the dissertation as a whole.
+
+Several appendices contain material either tediously uninsightful (and therefore deferred from the dissertation proper) but technically necessary to the thesis defense; or not directly addressing the thesis, but of immediate interest in relation to it. Appendix A gives complete Kernel code for the meta-circular evaluators of Chapter 6.
+
+Appendix B discusses efficient compilation of Kernel programs. Appendix C discourses briefly on the history of the letter vau, and how its typeset form for this document was chosen.
+
+
+
+
+
+Acknowledgements
+
+
+My work on this dissertation owes a subtle intellectual debt to Prof. Lee Becker (1946–2004), who served on my dissertation committee from 2001 until his passing in July 2004; and who introduced me to many of the programming-language concepts that shaped my thinking over the years, starting at the outset of my college career (in the mid-1980s) with my first exposure to Lisp.
+
+I owe a more overt debt to the members of my dissertation committee, past and present —Lee Becker, Dan Dougherty, Mike Gennert, Shriram Krishnamurthi, and Carolina Ruiz— for their support and guidance throughout the formal dissertation process.
+
+Between these extremes (subtle and overt), thanks go to my current graduate ad-v
+
+visor, Mike Gennert, and to my past graduate advisor, Roy Rubinstein, for nurturing my graduate career so that it could reach its dissertation phase.
+
+Particular thanks to Mike Gennert, also, for drawing me back into the Scheme fold, after several years of apostasy in the non-Lisp wilderness where I would never have met $vau .
+
+For discussions, feedback, and suggestions, thanks to the members of NEPLS
+
+(New England Programming Languages and Systems Symposium Series).
+
+Thanks also to my family, especially my parents, for putting up with me throughout the dissertation ordeal; and to my family, friends, and colleagues, for letting me try out my ideas on them (repeatedly).
+
+
+Chapter 1
+
+
+The thesis
+
+
+1.1
+
+Abstraction
+
+The acts of the mind, wherein it exerts its power over its simple ideas, are chiefly these three: (1) Combining several simple ideas into one compound one; and thus all complex ideas are made. (2) The second is bringing two ideas, whether simple or complex, together, so as to take a view of them at once, without uniting them into one; by which way it gets all its ideas of relations. (3) The third is separating them from all other ideas that accompany them in their real existence: this is called abstraction: and thus all its general ideas are made.
+
+— John Locke, An Essay Concerning
+
+Human Understanding ([Lo1690]),
+
+Bk. II Ch. xii §1.1
+
+Ideally, one would like to express each program in terms of an abstract view of computation —i.e., in a programming language— that is natural to its intended problem domain. The ideal is pursued by a process of abstraction, in which new abstract views of computation are derived from pre-existing views.
+
+In other words, abstraction uses the facilities of an existing programming language to define a new programming language (presumably, a new language closer to what we want for some intended problem domain).2
+
+1Traditionally, epigraph attributions gave only the name of the author and perhaps the title of the work; but that approach is only manageable if the body of literature is small and tightly controlled. Epigraphs tend to be worth repeating, being often selected for just that property; and in the modern electronic culture, any underattributed quotation that is worth repeating will tend over time to become a misattributed misquotation: if not enough information is provided to readily double-check the source, replication errors are unlikely to be corrected when they occur.
+
+2For the philosophically inclined reader:
+
+What we first called an abstract view of computation, and then (and hereafter) a programming 1
+
+
+
+This section traces the history of abstraction in programming, and explains why the development of well-behaved fexprs is central to advancing the state of the abstractive art. Fexprs are contrasted with macros; and most of the major elements of the thesis are derived.
+
+1.1.1
+
+Some history
+
+In the early years of computing, people called programmers designed programs and wrote them down in mnemonic shorthand, which was then given to people called coders who translated the shorthand into binary machine code. Later, programmers wrote input for assembler programs, and later still, programmers in most problem domains wrote input for compiler programs (over some objections that this reduces programmer control of the machine3).
+
+Throughout this historical progression, the source, or programming, language (which the programmer writes) exists ultimately to be translated into a target language of a different order (which the machine reads). Translation of assembly source to machine target is nearly one-to-one (except for expansion of calls to macros, which were in use by the late 1950s and will be discussed momentarily).
+
+The idea of an abstract target language for a programming language was promoted by the uncol movement, which peaked around 1960 and faded in the following few years.4 An uncol ( UNiversal Computer Oriented Language) was supposed to be an intermediate-level language into which all programming languages could be translated, and from which all machine languages could be generated ([Sa69, §x.2]).
+
+In the uncol model, programming languages are treated as monolithic entities, each specified by its translator into uncol. The idea that each program could define its own specialized programming language was advanced by the extensible-languages language, corresponds to what John Locke in the above epigraph called an idea — though Locke notably didn’t delineate just what an “idea” is. Our requirement that the new programming language be defined using facilities of the pre-existing language corresponds to Locke’s constraint that abstraction only ‘separates’ a general idea from a complex of ideas in which it was already latently present.
+
+When relating the principle of abstraction in programming to the same-named principle in metaphysics, we prefer Locke’s account of abstraction over that of other classical philosophers because he casts abstraction in the role of a constructive process, not because we have any essential commitment to Locke’s conceptualism. As computer scientists, we don’t care whether our programming languages exist in reality (Plato), in concept (Locke), or only in name (Ockham), as long as we can design and use them.
+
+3The objectors were quite right, of course.
+
+4We’re simplifying our selective tour of programming-language design history by identifying major ideas with major trends in which they occurred. Each idea has earlier roots — as does each trend.
+
+In the case of uncol, [Share58, p. 14] remarks,
+
+It might not be difficult to prove that “this was well-known to Babbage,” so no effort has been made to give credit to the originator, if indeed there was a unique originator.
+
+2
+
+
+
+movement of the 1960s.5 Classically, an extensible language consists of a source-level base language together with meta-level definitional facilities to extend the base language ([Chr69]). A program then consists of two parts, a meta-level part that specifies an extension of the base language followed by a source-level part written in the extended language.
+
+Traditional macros use simple polynomial substitution to perform localized source-code transformations from the extended language to the base language, which can then correspond substantially one-to-one with a simple abstract target language. Because polynomial substitution is entirely independent of the semantics of the base (and of the target) language, it was well suited for language extension in an era when unstructured programming languages were commonplace; and, because its simplicity incurred no start-up development time, it was available for immediate deployment.
+
+Accordingly, traditional macros were the principal means of extension used in the extensible-languages movement, to the point of near-synonymity with the movement as a whole. (A second technology of adaptive grammars was also begun by the extensible-languages movement, but required significant development time, and consequently would not mature until long after the extensible-languages movement had died.6)
+
+The extensible-languages movement peaked around 1970, and faded rapidly over the next few years. Its fatal flaw was complexity: one layer of extension to the base language might be effected by an ordinary user, but additional layers were difficult to manage, as each additional layer would have to attend to the details of all the layers that preceded it ([Sta75]). In retrospect, this was a limitation especially of the extension technology used, traditional macros. Because a traditional macro call expands source-to-source, the call is only permissible if the code it expands to would also be permitted, so that every facility used by the macro must be visible where the macro is called. Hence, if multiple layers of macros are built up, the macro programmer has to contend simultaneously with the cumulative detail of all the layers.
+
+The idea of selectively hiding information, thus mitigating the information overload from successive language extensions, was advanced by a new abstraction movement in language design, which emerged as the extensible-languages movement ebbed (and which would later come to be dominated by the object-oriented paradigm, much as extensibility had been by macros). The new movement did view abstraction as a process of language construction (e.g., [Dij72]); but as just noted, traditional macros 5M.D. McIlroy’s 1960 paper on macros, [McI60], is usually cited in association with the beginning of the extensible-languages movement.
+
+6The idea of adding new grammar rules to a base language occurs in one of the earliest articulations of the extensibility principle, [BrMo62] (note that the paper was received in 1960). The idea of an internally adaptive grammar came somewhat later ([Car63]), and adaptive grammar formalisms only began to emerge in the 1970s (e.g., [Wegb80]), as the extensible-languages movement was winding down. Adaptive grammars then developed largely as a fringe technology until around 1990; see [Shu03b, Ch. 3], and for some more recent developments, http://www.pcs.usp.br/~lta/
+
+(the Laboratório de Linguagens e Técnicas Adaptivas at the Universidade de S˜
+
+ao Paulo).
+
+3
+
+
+
+can’t work properly in the presence of information-hiding, so language-construction by traditional macros wasn’t viewed as abstraction. For roughly the next two decades, macros had no part in the abstraction movement. Macros did continue in two mainstream non-assembly-language settings: the C language (where macros provide basic support for several key features7); and the Lisp language family (where the base-language syntax is extremely sparse, and there is a proportionately vigorous tradition of language extension).
+
+Around 1990, there was a climate shift in the programming-language design community. Existing abstraction techniques were showing signs of reaching their limits (see for example [GaSt90]); also, efforts by the Lisp community during the 1980s had produced hygienic variants of macros that were less aggressively anti-encapsulatory than the traditional form. In this changed atmosphere, macros were tentatively admitted under the abstraction umbrella, by granting them the pseudonym syntactic abstractions ([Ga89]).
+
+The term syntactic abstraction ties in neatly with the two-phase model of language extension. Most modern forms of abstraction (notably, OOP class hierarchies) are integrated into the semantics of the base language, so that they appear to the programmer as run-time phenomena, i.e., as part of computation by the target abstract machine; while traditional macros, being by definition source-to-source translations, are eliminated before the target program is generated. Following this distinction, we will call abstractions semantic when they are integrated into the programmer’s abstract model of run-time behavior, syntactic when they are, observably to the programmer, eliminated before run-time.
+
+Syntactic abstractions do not have to be macros. A class of non-macro syntactic abstractions is proposed, under the name micros, in [Kr01]; a micro specifies a transformation directly source-to-target (rather than source-to-source, as macros), which is clearly syntactic since its processing must be completed before the target abstract machine begins computation.8 Micros are a universal syntactic abstraction, in that they can be used to assign any possible (computable) semantics to source programs.
+
+(However, they won’t play a significant role in this dissertation, because they aren’t a traditional abstraction, so aren’t within the scope of the thesis.9) 7In traditional C ([KeRi78]), the macro preprocessor supports symbolic constants, for loops, and simple inlining (for efficiency by avoiding function calls), simplifying the implementation of a minimal C compiler. On the wider significance of simple implementation, see [Ga91].
+
+8[Kr01] reserves the term syntactic abstraction for source-to-source transformations, i.e., macros, and uses linguistic abstraction for the class including both macros and micros.
+
+9One might ask whether the claims of the thesis could be extended to include micros — that is, whether the fexpr-based approach described in the dissertation can subsume abstractions achieved via micros. The present work provides no basis to conjecture either yes or no on this question.
+
+Micro-based abstraction connects closely with issues of separately compiled modules; and since fexprs intrinsically defy the compilation/execution phase distinction, how to handle separately compiled modules in the presence of fexprs is itself a major question beyond the scope of the dissertation.
+
+4
+
+
+
+1.1.2
+
+Abstractive power
+
+Each extensible language is surrounded by an envelope of possible extensions reachable by modest amounts of labor by un-sophisticated users.
+
+— [Sta75, p. 20].
+
+We now turn to the question of how to design a programming language so as to maximize its abstractive power.
+
+First of all, we need to be clear on what we mean by abstractive power. The extensible-languages movement had always viewed the process of language extension (mostly, syntactic abstraction10) as literally specifying a programming language; and the abstraction movement has traditionally viewed the process of abstraction the same way, though usually not in quite such a technically literal sense.11 We therefore take the view here (similarly to the above epigraph) that the measure of the abstractive power of a programming language is the class of programming languages that it can readily specify — or, more to the point (but also more subjectively), the class of problem domains that the language, including its readily achieved abstractive extensions, can readily address.
+
+Our goal, then, is to construct arbitrarily long sequences of languages, hopscotch-ing by abstraction from a starting language to ever more conceptually distant languages. As a convenient metaphor, we refer to the maximum feasible distance thus reachable from a given starting language as its radius of abstraction.
+
+So, what would a language with a very high radius of abstraction look like?
+
+We immediately dismiss from consideration the issue of call syntax, i.e., the mechanics of how the parts of an expression (generically, operator and operands) are put together — as writing (a+b) versus (+ a b), add(a,b), etc. While call syntax is a highly visible feature of programming languages (and, accordingly, received a good deal of attention from the extensible-languages movement; see [Wegb80]), it is also largely superficial, in that it should affect convenience of expression more-or-less uniformly across the board, with no impact on what can be expressed — especially, no 10Despite the dominance of macros in the movement, there were always some extensible languages that admitted semantic abstraction as extension (e.g., Proteus, [Be69]). However, by 1975 the extensible-languages and abstraction movements were carefully segregating themselves from each other; so that [Sta75], despite a very broad-minded definition of extension that technically seems to admit semantic abstraction, was in practice a critique only of languages that still self-identified as extensible. The schism was recent. Only a few years earlier, Simula 67 had presented itself as an extensible language ([Ic71]); and even its defining document was titled Common Base Language ([DaMyNy70]). A few years later, [Gua78] would recount the history of programming abstraction from the invention of assembly language up to 1978 without any hint that the extensibility tradition had ever existed.
+
+11Usually, abstraction research that takes the language-specification concept literally has direct technological ties back to the extensible-languages movement — e.g., [Chr88] building on adaptive grammars, or [Kr01] building on macros.
+
+5
+
+
+
+impact on the kinds of abstraction possible (beyond its uniform effect on convenience of expression in the abstracting and abstracted languages). Intuitively, call syntax should account for a constant factor rather than an asymptotic class distinction in abstractive radius. (However, a constant factor can have great practical importance within an asymptotic class, so it should be well worthwhile —though outside the scope of the current work— to revisit the issue of call syntax once the underlying semantics of abstraction have been settled.)
+
+A language property of great interest here is that the abstractive facilities apply to the base language in a free and uniform way. This is roughly what M.D. McIlroy, in the context of syntactic abstraction, called smoothness ([McI69]); and we will adopt his term. In semantics —where there are no crisp bounds to what could be considered abstraction, since semantic abstractions are, by definition, integrated into the semantics— similar properties have long been advocated under the names orthogonality (due to Adriann van Wijngaarden, [vW65]), and first-class objects (due to Christopher Strachey, [Stra67]).
+
+Our interest in smoothness is based on the conjecture that (Smoothness Conjecture) Every roughness (violation of smoothness) in a language design ultimately bounds its radius of abstraction.
+
+The intuition here is that a butterfly effect occurs, in which the consequences of roughness are compounded by successive abstractions until, sooner or later depending on the degree of roughness, cumulative resistance drags down further abstraction through the fuzzy threshold from feasible to infeasible.
+
+The intuited butterfly effect —thus, chaos— underlying the conjecture makes it an unlikely subject for formal defense: we actually expect to be unable to anticipate, at design time, specific advantages of a smooth facility that will later emerge from its actual use. (See, for example, [Li93, §3.4.4].) However, the conjecture brings us a step closer to a thesis —i.e., to what we do propose to formally defend— by allowing us to select a thesis based on immediate, though still subjective, properties (smoothness) rather than long-term effects (abstractive power).12
+
+Syntactic abstractions are, by definition, restricted in their interaction with semantic abstractions (since syntactic abstractions are observably processed before run-time). Therefore, by reasoning from the conjecture, syntactic abstractions should bound abstractive power. This bound is inherent in the syntactic approach to abstraction, so the only way to eliminate the bound would be to eliminate support for syntactic abstraction; but if the semantic facilities of the language can’t achieve 12As an alternative to steering clear of the problem of abstractive power, one might choose to confront it directly, by developing a rigorous mathematical definition of abstractive power, and subsequent theory. The definition would seem to be justifiable only by accumulated weight of evidence, in the subsequent theory, that the mathematical phenomena of the theory really correspond to the subjective phenomena of abstractive power. A mathematical definition of abstractive power is proposed in [Shu08].
+
+6
+
+
+
+all the abstractions of the eliminated syntactic facilities, then the elimination, while removing the fuzzy bound caused by roughness, would also introduce a hard bound caused by loss of capabilities. So we want to eliminate syntactic abstraction, but in doing so we need a semantic facility that can duplicate the capabilities of syntactic abstraction.
+
+A semantic facility of just this kind, traditionally called fexprs, was used by Lisp languages of the 1960s and 70s. (The term fexpr identifies the strategy, but in a modern context is purely ad hoc; so when we don’t need to identify the strategy and aren’t discussing history, we prefer the more systematic terminology developed hereafter in §2.2.2.) Each fexpr specifies a computation directly from the (target-language) operands of the fexpr call to a final result, bypassing automatic operand evaluation and thus giving the programmer complete semantic control over computation from the target language.13 Unfortunately, as traditionally realized, fexprs are even more badly behaved than traditional macros: by making it impossible to determine the meanings of subexpressions at translation time, they destroy locality of information in the source-code — thus undermining not only encapsulation (as do traditional macros), but most everything else in the language semantics as well. So around 1980, the Lisp community abandoned fexprs, turning its collective energies instead to mitigating the problems of macros.
+
+Hygienic macros, which partially solve the anti-encapsulation problem of traditional macros, were developed by around 1990. To address the problem, some assumptions had to be made about the nature of encapsulation in the base-language (otherwise one wouldn’t know what kind of encapsulation to make one’s facility compatible with), and therefore the solution is only valid for the class of languages on which the assumptions hold. However, hygienic macros are still syntactic abstractions — which is to say that, despite the interaction with encapsulation required for hygiene, they don’t interact at all with most of the language semantics, nor interact closely even with encapsulation. This limited interaction is both an advantage and a disadvantage: on one hand, the solution assumes only one facet of the language semantics, and should therefore be valid on a broad class of languages satisfying this weak assumption (roughly, the class of all languages with static scope); while on the other hand, the solution can’t exploit the language semantics to do any of its work 13A remarkably parallel statement can be made about micros ([Kr01]): each micro specifies a translation directly from the (source-language) operands of the micro call to a target expression, bypassing automatic operand translation and thus giving the programmer complete syntactic control over translation from the source language. Thus, micros are to translation what fexprs are to computation. The parameters of the analogy are that micros bypass processing that would happen after a macro call, and are inherently syntactic; while fexprs bypass processing that would happen before a procedure call, and are inherently semantic.
+
+The analogy also extends to internal mechanics of the devices: micros, as treated in [Kr01], rely heavily on a function dispatch that explicitly performs source translations, compensating for the loss of automatic operand translations — just as fexprs (treated here) rely heavily on a function eval that explicitly performs evaluations, compensating for the loss of automatic operand evaluations.
+
+7
+
+
+
+for it, and so is technically complicated to implement.
+
+Because fexprs are semantic abstractions, we expect any well-behaved solution for fexprs —if such exists— to contrast with hygienic macros on all the above points.
+
+Fexprs must interact closely with the entire language semantics, so well-behavedness should require much stronger assumptions (though smoothness, which is the point of the exercise, should alleviate this as it entails simple interactions), and any solution should be valid only on a proportionately narrower class of languages; while, with the entire language semantics available to lean on, it should be possible to achieve a technically simple solution (which is also an aspect, or at least a symptom, of smoothness).
+
+The essence of our thesis —to be defended by demonstration— is that such a solution does in fact exist: a combination of semantic assumptions that supports fexprs in a well-behaved and simple way.
+
+1.1.3
+
+Scheme
+
+The smoothness criterion is suited to improving an existing language design, but doesn’t provide enough detail to design a language from scratch; so in staging a demonstration of the thesis, we need to choose an existing design from which to start. The language we’ve chosen is Scheme (primarily R5R Scheme, [KeClRe98]).
+
+The choice of a Lisp language has two main technical advantages:
+
+• Lisp uses the same trivial syntax for all compound expressions, thus dismissing concrete syntax from consideration, as recommended above (early in §1.1.2).14
+
+• Lisp treats programs as data. This is a signature feature of Lisp languages, and fexprs can’t be supported smoothly without it: the technical utility of fexprs is in their ability to explicitly manipulate their target-language operands, and the only way to achieve that without introducing a phase distinction is to treat target-language expressions as data.15
+
+Among Lisps, Scheme is particularly suited to the work, in several ways:
+
+• Scheme is a particularly smooth Lisp, with stated design goals to that effect and various pioneering smooth features (though not under the name smoothness; see 14Following the recommendation, we disregard various attempts to add more features to Lisp syntax, such as keyword parameters in Common Lisp ([Ste90, §5.2.2]).
+
+15In contemplating the impact of the programs-as-data feature on abstractive power, note the following remark of M.C. Harrison at the 1969 extensible languages symposium ([Wegn69, p. 53]): Any programming language in which programs and data are essentially interchangeable can be regarded as an extendible language. I think this can be seen very easily from the fact that Lisp has been used as an extendible language for years.
+
+(Harrison preferred extendible rather than extensible because, he said, extensible sounds too much like extensive.)
+
+8
+
+
+
+[KeClRe98, p. 2]). So, starting from Scheme gives us a head start in achieving a smooth demonstration language. Smoothness of the demonstration language is not explicitly claimed by the thesis, but should facilitate well-behavedness and simplicity, which are claimed. (We also wouldn’t be upset if our demonstration language had an unprecedentedly high radius of abstraction, both for the value of the achievement itself, and because it would lend additional post-facto justification to the pursuit of the thesis.)
+
+• Scheme is a particularly simple language. Besides being specifically claimed in the thesis, simplicity is at least a strong correlate with smoothness; and, plainly, a simple system is easier to work with.
+
+• Scheme is representative of the class of languages on which the classical hygienic-macro solution is valid (which is to say, mostly, that it has static scope). So, placing well-behaved fexprs in a similar setting should facilitate comparison and contrast between the two technologies.
+
+1.2
+
+Semantics
+
+This section considers a second thread in the history of programming languages: the use of mathematical calculi to describe programming-language semantics. Whereas the previous section explained why well-behaved fexprs are of interest, this section explains broadly how well-behavedness of fexprs can be addressed by calculi. The principal programming activity of interest here will be meta-programming. There will be no role in the discussion for macros, which address abstraction but not meta-programming; and fexprs, which address both, will be contrasted with quotation (which addresses meta-programming but not abstraction).
+
+Of interest here are, on the programming side, Lisp, and on the mathematics side, λ-calculus.
+
+Alonzo Church created the λ-calculus in the early 1930s ([Bare84, §1.1]; see also
+
+§8.1). The original theory treated logic as well as functions; but inconsistencies (antinomies) were quickly discovered in the logic, and in [Chu41] he recommended a far less ambitious subset that omitted the logical connectives, leaving only an intensional theory of functions.16 Pure λ-calculus as usually formulated today is a slight generalization of Church’s 1941 calculus.17
+
+16That’s intensional, with an s, an adjective contrasted in logical discourse to extensional.
+
+Roughly, a function definition by extension is a graph, i.e., a set of input-output pairs, while a function definition by intension is a rule for deriving output from input; see [Chu41, §2]. The idea of viewing functions extensionally is commonly attributed to Dirichlet, who more-or-less described it in a paper in 1837 (a huge step in a progressive generalization of the notion of function that had been going on since the later 1700s; see [Kli72, §40.2]).
+
+17The usual modern λ-calculus is sometimes called the λK-calculus to distinguish it from Church’s 9
+
+
+
+In the late 1950s, John McCarthy set out to design an algebraic list processing language for artificial intelligence work ([McC78]; see also §3.3.2). Seeking a suitably
+
+‘algebraic’ notation for specifying functions, and being aware of Church’s intensional theory of functions, he adapted λ-notation for his language. He named the language Lisp (acronym for LISt Processing).
+
+1.2.1
+
+Well-behavedness
+
+Programmers spend much of their time reasoning informally about programs. Formal reasoning about programs may be used, on occasion, to prove that particular programs are correct; but more powerfully, to prove that general classes of program transformations preserve the meanings of programs. The general transformations are then safe for use in meta-programs —such as optimizing compilers— and also for use in subsequent program correctness proofs. The general classes of transformations manifest as equation schemata in an equational theory, i.e., a formal theory whose provable formulae equate expressions, M = N. (When M and N must be closed terms, M = N is an equation; when they may contain free variables, it’s a schema.18
+
+Re formal theories, see §8.2, §8.3.1.)
+
+The stronger the equational theory —i.e., the more expressions it equates— the more opportunities it will afford for program optimization. The more general the schemata —i.e., the more equations are expressed by each schema, hence the more strength the theory derives per schema— and the fewer separate schemata must be considered, the more feasible it will be for a compiler to automatically discover suitable optimizations. Ideal for optimization would be a strong theory based on a few schemata. On the other hand, from the programmer’s perspective, informal reasoning will be facilitated by language simplicity; and by separability of interpretation concerns, a.k.a. good hygiene (Chapter 5). But language simplicity manifests formally as a small number of schemata; and, likewise, separability of interpretation concerns manifests formally as the existence of very general schemata (whereas interference between concerns would tend to fragment the theory into many special cases). So a simple, clear language fosters a simple, strong theory, and vice versa.
+
+Lisp began as a simple, clear (if exotic) programming language; and these properties have formed a definite theme in the subsequent evolution of the Lisp family 1941 λI-calculus, which differs by the constraint that a term λx.M is syntactically permissible only if x occurs free in M . [Chu41] does mention λK-calculus, but strongly recommends λI-calculus (which he calls simply λ-calculus) for the theorem —true for λI-calculus but not for λK-calculus—
+
+that, for all terms M , if M has a normal form then every subterm of M has a normal form. (We will have more to say on this point in Footnote 25 of §8.3; for the undiluted technical arguments, see [Chu41, §17], [Bare84, §2.2].)
+
+18Here we mean semantically closed terms, versus free semantic variables, semantic meaning interpreted by the human audience, rather than interpreted by the formal system itself. Semantic versus syntactic variables will be discussed in §2.1; by the notation introduced there, “x = y” is an equation (likely unprovable), “x = y” a schema (enumerating an equation for each choice of x, y).
+
+10
+
+
+
+— and, in particular, of the Scheme branch of the family. Therefore, Lisp/Scheme ought to support a simple, strong formal theory. On the other hand, λ-calculus is a simple, strong theory (or to be technically precise, its theory, called λ, is a simple, strong theory); and with the lambda constructor playing such a prominent role in Lisp, naturally there has been much interest over the decades in using λ-calculus as a semantic basis for Lisp/Scheme.
+
+Unfortunately, despite their superficial similarities, at the outset Lisp and λ-
+
+calculus were profoundly mismatched. λ-calculus had been designed to describe functions as perceived by traditional (actually, eighteenth-century) mathematics; while Lisp was first and foremost a programming language, borrowing from λ-calculus only its notation for function definitions.
+
+1.2.2
+
+Order of operations
+
+In traditional mathematics, the calculation of a function is specified by a single expression with applicative structure. That is, each compound expression is an operator applied to subexpressions; and, in computing the value of the expression, the only constraint on the order of operations is that each subexpression must be evaluated by the time its resultant value must be used by a primitive function (as opposed to a compound function constructed from primitives).19 λ-calculus, in particular, is strictly applicative; and the theory λ derives its considerable strength from this thoroughgoing disregard for detailed order of operations (see §2.3.3, §8.3).
+
+In the earliest programming languages —assembly languages— the order of operations was completely explicit. Later languages tended toward specifying functions algebraically; which, besides aiding program clarity, also eliminated accidental syntactic constraints on the order of operations; and Lisp, with its thoroughly applicative syntax and its lambda constructor, represented a major advance in this trend. As more abstract programming language syntax has provided opportunities for flexibility in actual order of operations, (some) programming language designers have used that flexibility to eliminate more and more accidental semantic constraints on order of operations — and, in doing so, have gradually revealed how the essential order-constraints of programming deviate from the applicative model.
+
+Scheme takes the moderately conservative step of allowing the arguments to a function to be evaluated in any order.20 This could be viewed as a separation of 19This is the general sense of applicative throughout the dissertation. It is borrowed directly from [Bac78, §2.2.2], which refined it from the sense disseminated by Peter Landin (as a result of his theoretical study of programming languages encouraged by his mentor, Christopher Strachey;
+
+[La64], [Cam85, §4]). There is an unrelated and incompatible term applicative-order sometimes used to describe eager argument evaluation, and opposed to normal-order for lazy argument evaluation ([AbSu96, §1.1.5]); for this distinction, we will prefer the more direct adjectives lazy and eager.
+
+20Demonstrating the lack of consensus on eliminating order constraints, PLT Scheme restricts standard Scheme by specifying the exact order of argument evaluation ([Fl10, §2.7]).
+
+11
+
+
+
+interpretation concerns (good hygiene), since it means that the syntactic device for function application is separate from the syntactic device for explicit command sequencing. Scheme does require that all arguments must be evaluated before the function is applied — so-called eager argument evaluation, which isn’t purely applicative because the applicative model only requires arguments to be evaluated when the function to be applied is primitive; but, against this possible drawback, eager argument evaluation separates the concern of forced argument evaluation from that of compound-versus-primitive functions (good hygiene again), thereby enhancing the treatment of compound functions as first-class objects by rendering them indistinguishable from primitives.
+
+Some languages, such as Haskell, allow argument evaluation to be postponed past the application of a compound function — lazy argument evaluation; but in general this takes out too much of the order of operations, so that the language interpreter must either do additional work to put back in some of the lost order, or else lose efficiency.21 A few languages, such as Haskell, have taken the applicative trend to its logical extreme, by eliminating non-applicative semantics from the language entirely — rendering these languages inapplicable to general-purpose programming, for which time-dependent interaction with the external world is often part of the purpose of the program. Haskell has addressed this shortcoming, in turn, by allowing functions to be parameterized by a mathematical model of the time-dependent external world (originally, a monad) — thus allowing purely applicative programs to describe non-applicative computations, but dumping the original problem of the programming/mathematics mismatch back onto the mathematical model. It is not yet clear whether the mathematical models used in ‘monadic’ programming will eventually find a useful balance between expressiveness and simplicity; see [Shu03a], [Hu00].
+
+As an alternative to radically altering the structure of programming languages, one could approach the problem entirely from the mathematical side by modifying the λ -calculus to incorporate various non-applicative features. A watershed effort in this direction was Plotkin’s λv-calculus, introduced in [Plo75], which uses eager argument evaluation. Plotkin recommended a paradigmatic set of theorems to relate language to calculus and establish the well-behavedness of both. In the late 1980s, Felleisen ([Fe87]) refined the paradigm and developed variant λ-calculi incorporating imperative control structures (first-class continuations) and mutable data structures (variables).
+
+21The problem is with the use of tail recursion for iteration. A properly tail recursive implementation prevents tail calls from needlessly filling up memory with trivial stack-frames; but if lazy argument evaluation is practiced naively, then memory may fill up instead with lazily unevaluated expressions. This was the original reason why Scheme opted for eager argument evaluation; [SuSt75, p. 40] notes, “we . . . experimentally discovered how call-by-name screws iteration, and rewrote it to use call-by-value.” That paper discusses the issue in more detail on [SuSt75, pp. 24–26].
+
+12
+
+
+
+1.2.3
+
+Meta-programming
+
+In meta-programming, a representation of an object-program is manipulated, and in particular may be executed, by a meta-program. How this impacts the applicativity of the meta-language —and the simplicity and clarity of the meta-language—and the simplicity and strength of its theory— depends on a somewhat muddled convergence of several factors. (If it were straightforward, the outstanding issues would have been resolved years ago.)
+
+1.2.3.1
+
+Trivialization of theory
+
+First of all, we may divide the meta-language capabilities that support meta-programming into two levels: construction and evaluation of object-programs (nominal support); and examination and manipulation of object-programs (full support). For short, we’ll call these respectively object-evaluation and object-examination.
+
+Object-evaluation permits a meta-program p to evaluate an object-expression e and use the result; since e is evaluated before use, applicativity may be preserved.
+
+Object-examination, however, is inherently non-applicative: in order for p to exam-ine the internal structure of e, p must use e without evaluating it first — directly violating the operation-order constraint imposed by the applicative model. Object-examination thus differs qualitatively from the non-applicative features addressed by the aforementioned variant λ-calculi (of Plotkin and Felleisen), all of which, broadly speaking, added further order-constraints to the model without disturbing the one native order-constraint central to λ-calculus.
+
+More technically, expressions in ordinary λ-calculus are considered equal —thus, interchangeable in any context— if they behave the same way under evaluation. Using object-examination, however, a meta-program might distinguish between object-expressions e1, e2 even if they have identical behavior, so that e1, e2 are no longer interchangeable in meta-programs, and cannot be equated in the theory of the meta-language. Thus the meta-language theory will have little or nothing useful to say about object-expressions. Moreover, it is a common practice among Lisps to use the meta-language as the object-language22 — so that a meta-language theory with nothing useful to say about object-expressions has nothing useful to say at all. (See
+
+§8.4.)
+
+The trivialization of equational theory is actually not inherent in meta-programming. It emerges from an interaction between the native structure of λ-calculus, 22McCarthy wanted to show the existence of a universal Lisp function, which by definition requires that the object-language be isomorphic to all of Lisp. McCarthy’s early papers used an explicit isomorphism between partially distinct sublanguages; but most implemented Lisps use a single syntax for object- and meta-languages. We assume the single-syntax approach in our discussion here, as the additional complexity of the dual-syntax approach would tend to obscure the issues we are interested in. The dual-syntax approach is useful in addressing certain other issues, relating to object-languages whose meta-programming capability may be strictly less than that of the meta-language; see [Mu92].
+
+13
+
+
+
+and the means used to specify which subexpressions are and are not to be evaluated before use. We consider here two common devices for this specification: quotation, and fexprs.
+
+1.2.3.2
+
+Quotation
+
+The quotation device, in its simplest form, is an explicit operator designating that its operand is to be used without evaluation. An explicit operator usually does something (i.e., designates an action), and so one may naturally suppose that the quotation operator suppresses evaluation of its operand. One is thus guided subtly into a conceptual framework in which all subexpressions are evaluated before use unless explicitly otherwise designated by context. We will refer to this conceptual framework as the implicit-evaluation paradigm. Just as quotation suggests implicit evaluation, implicit evaluation suggests quotation (the most straightforward way for a context to designate non-evaluation), and so the device and paradigm usually occur together in a language — even though they are not inseparable, as will emerge below.
+
+Quotation and implicit evaluation are the norm in natural-language discussions, where most text is discussion but occasionally some text is the subject of discussion; and, given this familiar precedent, it’s unsurprising that quotation was used to support meta-programming in the original description of Lisp.
+
+In principle, simple quotation is sufficient to support the paradigm; but in practice, the demands of the paradigm naturally favor the development of increasingly sophisticated forms of quasiquotation, a family of devices in which object-expressions are constructed by admixtures of quotation with subexpression evaluation.23 Support for quasiquotation generally entails a distinct specialized quasiquotation sublanguage of the meta-language; and, accordingly, use of quasiquotation generally entails specialized programmer expertise orthogonal to programmer expertise in the rest (i.e., the applicative portion) of the meta-language. On the evolution of quasiquotation in Lisp, see [Baw99]; for an example of full quasiquotation support outside the Lisp family of languages, see [Ta99].
+
+Mathematically, the addition of quotation to λ-calculus is the immediate technical cause of the trivialization of equational theory mentioned earlier. Any potentially evaluable expression becomes unevaluable in context when it occurs as an operand to quotation; thus, the equational theory can never distinguish the evaluation behavior of any expression from its syntax, and only syntactically identical expressions can be equated. The trivialization could be prevented by introducing a notation into the calculus that guarantees certain designated subexpressions will be evaluated regardless of context. An equation relating the evaluation behaviors of two expressions would then be distinct from an equation relating the expressions themselves. This solution, 23This pattern of development occurred not only in the computational setting of Lisp, but also (to a lesser degree) in the natural-language context of the mathematical logic of W.V. Quine, who coined the term quasi-quotation circa 1940 ([Baw99, §4]).
+
+14
+
+
+
+however, requires the researcher to step outside the implicit-evaluation paradigm —
+
+which is not an obvious step, because the paradigm commands considerable credibility by providing, through quotation and quasiquotation, both full support for the functionality of meta-programming (though the support may not always be entirely convenient), and a conventionally well-behaved reduction system (though without an associated useful equational theory).
+
+The alternative paradigm implicit in this technical fix, in which subexpressions are not evaluated unless their evaluation is explicitly designated by context, we will refer to as explicit evaluation. Practical use of explicit-evaluation techniques as an alternative to quotation will be explored in §7.3.
+
+1.2.3.3
+
+Fexprs
+
+The fexpr device, in its simplest form, allows arbitrary, otherwise ordinary functions to be tagged as fexprs, and provides that whenever a fexpr is called, its operands are passed to it unevaluated. Which particular subexpressions are and are not to be evaluated before use must then be determined, in general, at run-time, when each operator is evaluated and determined to be or not to be a fexpr. Thus, static program analysis can’t always determine which subexpressions will and will not be evaluated before use, retarding optimization. Worse, in a statically scoped language (where the body of a compound function is evaluated in the static environment where the function was constructed), it is necessary to give the fexpr access to its dynamic environment (the environment where the function is called), compromising language hygiene and causing difficulties for the programmer, the optimizer, and the equational theory. Mitigation of these difficulties is discussed in Chapter 5.
+
+The fexpr device is crudely compatible with both the implicit- and explicit-evaluation paradigms — the distinction being simply whether fexprs suppress evaluation of their operands (implicit evaluation), or non-fexpr functions induce evaluation of their operands (explicit evaluation).24 From the latter view, it is a small step to view each non-fexpr function as the literal composition of a fexpr with an operand-evaluation wrapper. This approach is the central subject of the current dissertation.
+
+Traditionally, however, fexprs have been treated as a separate type of function, coexisting independently with ordinary functions — and coexisting also, in Lisp, with a quasiquotation sublanguage. When fexprs are juxtaposed with quasiquotation, the quasiquotation operators themselves appear as fexprs, promoting association of fexprs with the implicit-evaluation paradigm.
+
+Around 1980, the Lisp community responded to the various difficulties of fexpr technology by abandoning it in favor of macros (§1.1, §3.2). Even as fexprs disappeared from mainstream Lisps, though, they were taken up by a new, largely experimental family of reflective Lisps.
+
+24Fexprs do have a bias toward explicit evaluation, which will be brought out in §3.1.3.
+
+15
+
+
+
+1.2.4
+
+Reflection
+
+Reflection, in programming, means giving a program the capacity to view and modify the state of its own computation. Reflection as a programming activity does not bear directly on the current work. However, owing to the fact that reflective Lisps have been the primary consumers of fexpr technology in the past two decades,25 the common perception of fexprs has been colored by their use in reflection. We therefore overview the interplay of fexprs with reflection, and ultimately consider why it has tended to reinforce the association of fexprs with the implicit-evaluation paradigm.
+
+In order to achieve reflection, reflective Lisps allow a running program to capture concrete representations of various aspects of computational state that, in a traditional non-reflective Lisp, would not be made available to the program. The three aspects usually captured are operands, environments, and continuations. Unhygienic properties of fexprs that would otherwise be frowned upon —that they capture operands and environments— thus become virtues in a reflective setting; and some reflective Lisps use a variant form of fexprs that capture continuations as well (subsuming the functionality of Scheme’s call-with-current-continuation ). Fexprs used in a reflective setting are generally called reifying procedures, and the act of capturing these various partial representations of state is called reification.
+
+The verb reify is borrowed from philosophy. Derived from the Latin res, meaning thing or object, it means to “thingify”: to treat a noun as if it refers to an actual thing when it does not. Philosophers accuse one another of reification. As a few examples among many, abstractions, concepts, or sensations might be reified. To understand each such accusation, one must fine-tune one’s understanding of thing accordingly (e.g., one might be accused of reification for treating an infinity as a number, or for treating a number as a material object); so that, rather than belabor the definitions of words, one might more usefully understand the mistake of reasoning as a type error, in which a thing of one type is treated as if it belonged to a different type [Bl94,
+
+“reification”].
+
+Because Lisp has a fairly well-defined notion of object as —mostly— something that can be the value of a variable,26 it seems that reification in reflective programming would be the act of giving object status to something that otherwise wouldn’t have it. Environments are the most clearcut example: they are not objects in (modern) 25Reflective Lisp research began with Brian Smith’s 3-LISP, on which see [Sm84]. Subsequent work used additional reflective Lisps to explore the roots of the reflective power of 3-LISP; see
+
+[FrWa84, WaFr86, Baw88].
+
+26We’re really referring to the notion of first-class object, which was discussed in the Preface, and for which nameability by variables is just one particular requirement; but in Lisps, most objects nameable by variables have all the rights and privileges of first-class-ness.
+
+Christopher Strachey, by the way, originally evolved the notion of first-class value from W.V.
+
+Quine’s principle To be is to be the value of a variable ([La00]); and Quine, after deriving the principle in his essay “On What There Is” [Qu61, pp. 1–19], had applied it to reification in another essay, “Logic and the Reification of Universals” [Qu61, pp. 102–129].
+
+16
+
+
+
+non-reflective Lisps, but they become objects when captured —reified— by fexprs.
+
+This definition of Lisp reification is not without difficulty, as we shall see; and, as in philosophy, the choice of terminology will be superficial to the underlying issue. But for the choice of terminology to be credible, any definition of reification (“making into an object”) in programming must include the granting of object status — that is, there is no reification if the thing already was an object, or if it doesn’t become one.
+
+Based on this criterion alone, we observe that whether or not operand capturing, the hallmark behavior of fexprs, can possibly qualify as reification depends on whether one considers it in terms of the implicit-evaluation paradigm, or the explicit-evaluation paradigm. Under the implicit-evaluation paradigm, the operands in a combination are initially expected to be evaluated, thus expected to be unavailable to the program, and so, arguably, they do not qualify as objects. Hence, their subsequent capture assigns (or perhaps restores) object status to things that had been without it, and the capture meets our necessary criterion for reification. Under the explicit-evaluation paradigm, however, since there is no prior expectation that the operands would be evaluated, the operands are objects to begin with; so their capture isn’t reification.
+
+Our suspicion that this criterion is not sufficient stems from the observation that merely providing an object to the program is an empty gesture if one does not additionally provide suitable operations on the object ( methods, in OOP parlance).
+
+Recalling the case of environment capturing, it is of no use for a fexpr to capture its dynamic environment unless it also has, at least, the ability to evaluate expressions in a captured environment;27 without that ability, the captured environment is simply an inert value.
+
+Moreover, for the purposes of reflective Lisps, it is not always sufficient to supply just those operations on the captured object that would otherwise have been possible on uncaptured objects of its type. To endow the language with reflective capabilities, environments are given some particular representation, whose concrete operations can then be exploited in the captured object to achieve various reflective effects.
+
+The degree of reflection depends, in part, on the choice of representation. (On this choice of representation, see [Baw88].) Thus, to achieve reflection we have really made two changes to our treatment of environments: we have given them the status of objects; and we have also broken their abstraction barrier, replacing the abstract environment type of non-reflective Lisp with a more concrete type that supports additional reflective operations. This abstraction violation is analogous to the kind of type error that the philosophers were objecting to under the name reification.
+
+With all the various background elements in place, we can now properly explain the chain of associations from fexprs, through reflection, to implicit evaluation.
+
+27We could have said, the ability to look up symbols in a captured environment. Given the usual Lisp primitives apply etc., the expression-evaluation and symbol-lookup operations are equal in power.
+
+17
+
+1. In a climate where fexprs are supported only by reflective Lisps, fexprs are perceived as a reflective feature.
+
+2. Standard usage in the reflective Lisp community refers to capturing, including operand capturing, as reification.
+
+3. In viewing operand capturing as reification, one embraces the implicit-evaluation paradigm — because under explicit evaluation, it wouldn’t be reification.
+
+As we have seen, a careful analysis of the issues suggests that none of these three associations is necessary; but, absent a particular interest (such as ours) in the explicit-evaluation paradigm, there has been little motivation for such an analysis. Thus, the prevailing terminology for fexprs in reflective Lisp has promoted a paradigm that is orthogonal to both fexprs and reflection.
+
+1.3
+
+Thesis
+
+This dissertation contends that the severe difficulties attendant on fexprs in the past are not essential, and can be overcome by judicious coordination with other elements of language design. In particular, fexprs can form the basis for a simple, well-behaved Scheme-like language, subsuming traditional abstractions without a multi-phase model of evaluation.
+
+The thesis is supported by a new Scheme-like language called Kernel, created for this work, in which each Scheme-style procedure consists of a wrapper that induces evaluation of operands, around a fexpr that acts on the resulting arguments.
+
+This arrangement enables Kernel to use a simple direct style of selectively evaluating subexpressions (explicit evaluation), in place of most Lisps’ indirect quasiquotation style of selectively suppressing subexpression evaluation (implicit evaluation). The semantics of Kernel are treated through a new family of formal calculi, introduced here, called vau calculi. Vau calculi use explicit-evaluation style to extend lambda calculus, eliminating a long-standing incompatibility between lambda calculus and fexprs that would otherwise trivialize their equational theories.
