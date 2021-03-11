@@ -1,0 +1,574 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+</head>
+
+<body>
+MEDIAN
+
+VALTAAJAT
+
+Huominen kuuluu niille, jotka kuulevat sen saapuvan.
+
+– David Bowie
+
+ESIPUHE
+
+New York marraskuussa vuonna 2014. Istun Columbia Uni-versityn Pulitzer Hallissa kuuntelemassa luentoa siitä, miten journalismi muuttui Edward Snowdenin tietovuotojen jälkeen.
+
+Puhujana on Ethan Zuckerman Massachusettsin teknillisestä korkeakoulusta MIT:stä. Hän kertoo asioista, joista en aiemmin ollut kuullutkaan: millaista valvontaa datan kerääminen mahdol istaa, mikä on tietosuojamme tila, millaiset tietomurrot ovat mahdollisia ja mitä tapahtuu Tor-verkossa. Ajatukseni kar-kaavat luennon aikana, ja huomaan kysyväni itseltäni, tiedänkö internetin kehityksestä, muutoksesta ja vaikutuksesta lopulta paljoakaan. Ymmärränkö, miten valtava vaikutus sillä on koko median ekosysteemiin ja median murrokseen? Näen tuolloin internetin vielä lupauksena, joka mahdollistaa äänen ja työkalut kaikille, joilla on sanottavaa.
+
+Yhdysvaltojen opintomatkan jälkeen kirjan kirjoittaminen median murroksesta alkoi vaivata minua. Kun itse olin tun-tenut suurta tietämättömyyttä yliopiston penkillä istuessani, aloin seurata, mitä ja miten suomalaisessa mediassa internetin kehityksestä ja vaikutuksista kerrottiin. Huomasin, että globaalit teknologiayhtiöt tarjosivat isolle osalle suomalaista mediaa lähinnä talousuutisia. Teknologia koettiin taloutta vahvistavaksi 9
+
+tekijäksi, johon suhtauduttiin hyvin positiivisesti. Yritysten voitoista ja niiden uusista johtamisen tavoista kerrottiin ahkerasti. Analyyttisiä ja kriittisiä juttuja median käytöstä, sisällöistä, tiedon laadusta ja kyvystämme ymmärtää maailman menoa oli melko vähän. Aiheita kuten tietosuojakysymykset ja kansalaisten valistaminen siitä, miten dataa kerätään ja millaisia uhkia datavalvontaan liittyi, oli kovin vähän tarjolla.
+
+Hämmennykseni oli vieläkin suurempaa, kun vuosina 2018
+
+ja 2019 järjestimme Kaapelitehtaalla yhteistyössä monien toimijoiden kanssa kaksi median ja kulttuurialojen tulevaisuutta käsittelevää LIFT-tapahtumaa. Olimme saaneet molempiin pääpuhujiksi alan huiput, sekä Yhdysvalloissa että maailmalla erittäin arvostetut puhujat: The Filter Bubble -kirjan kirjoittajan Eli Pariserin ja internetin poliittisesta vaikuttamisesta ensimmäisenä kirjoittaneen ja puhuneen Zeynep Tüfekçin. Tüfekçi varoitti jo vuonna 2011 Twitterin kyvystä vahvistaa yhteiskunnal ista li kehdintää, vuonna 2013 si tä, että Facebook kykenee vahvistamaan rasismia, ja vuonna 2017, miten YouTuben algoritmin suositukset tukevat radikalisoitumista. Tarjosimme uutistoimituksille mahdollisuuden haastatella heitä, mutta kiinnostusta ei ollut. Kun Tüfekçi vieraili samalla matkalla Norjas-sa, hänen arvonsa ymmärrettiin. Norjan yleisradioyhtiö NRK
+
+haastatteli häntä, ja Aftonbladet julkaisi hänestä ison kahden aukeaman jutun viikonloppunumerossaan. Aloin miettiä, oliko 10
+
+suomalainen uutismedia hyvin perillä ja kiinnostunut teknoyhtiöiden todellisesta vallan kasvusta. Eivätkö mediaa ja toimittajia kiinnostaneet globaalien teknojättien vaikutukset.
+
+Tammikuussa 2021 kaikki on toisin. Trumpin kannattajat ovat tunkeutuneet kongressitaloon Washingtonissa, väistyvän presidentin sometilit on suljettu. Euroopan johtavat poliitikot ovat ottaneet kantaa teknoyhtiöiden toimintaan ja haluavat säädellä sitä. Viimeistään nyt on herätty huomaamaan, että yhtiöiden valta on kasvanut pelottavaksi. Olemme riippuvaisia niiden palveluista sekä työssämme että yhteydenpidossamme.
+
+Vaihtoehtoja ei ole.
+
+Toinen seikka, joka sai minut kirjoittamaan kirjan mediasta, on työni. Olen työskennellyt mediassa koko aikuisen ikäni ja kokenut itse median muutoksen vaikutukset. Tein Ylessä vuonna 1995 television merkityksestä kertovan sarjan Ruudun hurma, joka toimi pitkään myös Audiovisuaalisen kulttuurin opetuksen osana Avoimessa yliopistossa. Olin mukana sisältöjen kehittämisessä sekä kotimaassa että kansainvälisillä markkinoilla vuosina 2006–2012 toimiessani tilaajana. Sitä ennen olin osal-listunut Euroopan yleisradiounionin EBU:n kansainvälisten tuotantojen kehittämiseen ja tekemiseen. Vuosina 2012–2020
+
+työni oli kansainvälisen mediamuutoksen seuraaminen erityisesti julkaisu ratkaisujen näkökulmasta.
+
+
+
+
+
+
+
+Tämän kirjan punaisena lankana kulkee televisio ja se, miten internet ja koko median digitalisoituminen on muuttanut median liiketoimintamallia, sisältöjä, julkaisemista ja käyttöä.
+
+Television kautta on helpompi hahmottaa muutosta ja myös tarkastella kaupallisen ja julkisen palvelun eroja ja yhtäläisyyk-siä. Tämä kirja ei kuitenkaan käsittele erityisesti suomalaista mediamaisemaa ja sen kehitystä vaan luo laajempaa kuvaa kansainvälisestä muutoksesta, isoista trendeistä ja käännekohdista.
+
+Niiden mukana muutumme myös me.
+
+Muutoksen ison kuvan hahmottaminen on ollut haastavaa.
+
+Tämän haasteen kanssa kamppailevat nyt myös monet kansainväliset toimijat. Internet ja sosiaalinen media ovat varsin nuoria, mutta niiden vaikutus kansainväliseen mediasysteemiin on ollut hyvin nopeaa ja aika ajoin suorastaan röyhkeää. Toivottavasti pystyn kuvaamaan muutosta tavalla, joka auttaa ymmärtämään, miten suuresta muutoksesta on lopulta kyse. Hyödynnän laajasti kansainvälistä kirjallisuutta ja tutkimusta ja lukuisia kansainvälisten asiantuntijoiden ja media-ammattilaisten haastatteluja, joita olen tehnyt vuosina 2014–2018. Tämä kirja perustuu kuitenkin itse koettuun ja opittuun.
+
+Kerron mediasysteemin muutoksesta sisältä ulospäin, ja tärkeimmät havaintoni koskevat globaalien teknologiayhtiöiden valtaa ja vaikutusta median ekosysteemiin. Onkin kiinnostavaa, että niihin suhtaudutaan teknologiana, kun ne ovat mullistaneet 12
+
+sen, miten me mediaa
+
+käytämme ja miten si- ”KÄYTTÄJIEN TIETOJEN
+
+sältöjä tehdään, jael-
+
+JATKUVA KERÄÄMINEN
+
+laan ja markkinoidaan.
+
+MAHDOLLISTAA
+
+Median liiketoiminta-
+
+KANSALAISTEN
+
+malli on muuttunut, ja
+
+VALVONNAN JA MYÖS
+
+mainosmarkkinat ovat
+
+isolta osin siirtyneet
+
+HEIHIN VAIKUTTAMISEN
+
+perinteisestä mediasta
+
+TÄYSIN UUDELLA
+
+verkkoon. Digitaalinen
+
+TAVALLA.
+
+media perustuu koh-
+
+dentamiseen, joka tarvitsee dataa. Käyttäjien tietojen jatkuva kerääminen mahdollistaa kansalaisten valvonnan ja myös heihin vaikuttamisen täysin uudella tavalla. Muutos koskee meitä myös sikäli, että yleisöjen ja käyttäjien rooli on muuttunut: emme ole enää pelkkiä median vastaanottajia vaan aktiivinen osa median ekosysteemiä. Voimme tuottaa ja julkaista sisältöjä halutessam-me vapaasti.
+
+Teknologiayhtiöiden aiheuttama muutos vaikuttaa yksilöiden ohel a julkisen palvelun median toimijoihin ja asettaa kysymyksen siitä, millaiset toimintaedellytykset niillä on muuttuneessa mediaekologiassa. Tässä on tarpeen sanoa, että kirjassa esitetyt näkemykset ovat omiani, eivätkä suoranaisesti liity työhöni.
+
+Vastaan niistä itse.
+
+
+
+
+
+
+
+Media on muuttunut, mutta keskustelua siitä ja sen vaikutuksista on kovin vähän. Toivon, että tämä kirja innostaa siihen.
+
+
+
+
+
+
+
+I
+
+TULEVAISUUS ALKOI JO
+
+Tammikuussa 2021 koimme jotain mitä emme osanneet kuvitella. Trumpin kannattajat tunkeutuvat Yhdysvaltain kongressitaloon, ja uutta presidenttiä valitsemaan kokoontuneet edustajat joutuvat keskeyttämään kokouksen. Pari päivää tämän jälkeen Twitter ilmoitti Trumpin tilin sulkemisesta. Tviitit olivat olleet hänen presidenttikautensa megafoni. Perinteinen media ja sosiaalinen media kietoutuivat toisiinsa vahvasti, ja nyt oli vuorossa sosiaalisen median yritys päättää sananvapaudesta. Poliittinen valta ja teknojättien valta ottavat mittaa toisistaan. Yksi aikakausi on käännekohdassaan, kun alamme nähdä, kuinka suureksi teknojättien valta on kasvanut. Yhtäkkiä olemme heränneet ja alkaneet ihmetellä, mitä oikein on tapahtumassa.
+
+Pandemian aikana, kun ihmiset jäivät koteihinsa ja välttivät kontakteja, teknojättien palveluista ja alustoista on tullut koko ajan tärkeämpiä. Niiden käyttö on lisääntynyt ja niiden omistajat keräävät käsittämättömän suuria voittoja. Teknojätit ovat jo vuosia haastaneet perinteisen joukkotiedotuksen – lehdistön, radion ja television – toimintatapoja. Perinteinen media ei ole 15
+
+pysynyt niiden vauhdissa. Teknologiayhtiöt ovat päättäneet median tulevaisuudesta, ja perinteiset mediayhtiöt ovat joutuneet sopeutumaan muuttuvaan toimintatapaan vähin äänin. Toisin kuin perinteinen media,
+
+jota on säädelty koko
+
+”TEKNOJÄTIT ajan, teknologiayhtiöt
+
+KAAPPASIVAT
+
+ovat saaneet keksiä pe-
+
+MAINONNAN
+
+lisääntönsä itse. Niitä ei
+
+ole säädelty juuri ollen-
+
+KIRJAUTUESSAAN
+
+kaan.
+
+PÖRSSIIN JA TEKIVÄT
+
+Alustat ovat kuin
+
+MEISTÄ MEDIAN
+
+pyydyksiä, joilla voi
+
+KÄYTTÄJISTÄ
+
+kerätä käyttäjien dataa.
+
+Datan omistukseen liit-
+
+TUOTTEENSA.
+
+tyy suuri määrä valtaa.
+
+Kesällä 2020 Yhdysvaltojen kongressi järjesti tilaisuuksia, joissa Amazonin pääomistaja Jeff Bezos, Facebookin toimitusjohtaja ja perustaja Mark Zuckerberg, Applen toimitusjohtaja Tim Cook sekä Googlen emoyhtiön Alphabetin toimitusjohtaja Sundar Pichai olivat maan kongressin kuultavana. Jotkut ovat sitä mieltä, että nämä yhtiöt – joiden yhteenlaskettu markkina- arvo on lähes 5 000 miljardia euroa – ovat kasvaneet liian suuriksi ja ne pitäisi pilkkoa. Samaan aikaan kilpailu Kiinan kanssa teknolo-giajohtajuudesta kiihtyy.
+
+
+
+
+
+
+
+Olen seurannut median muutosta 1990-luvulta alkaen julkisen palvelun mediayhtiön näkövinkkelistä hyvin eri rooleissa toimittajasta julkaisutapojen kehittäjäksi. Muutos alkoi ensin hitaasti internetin tullessa osaksi mediamaisemaa, mutta on kiihtynyt 2010-luvulla niin, että se on muuttanut sekä median käyttöä, sisältöjä, julkaisemista että median liiketoimintamallia. Samaan aikaan nämä yhtiöt eivät tunnusta olevansa mediayhtiöitä. Teknojätit kaappasivat mainonnan kirjautuessaan pörssiin ja tekivät meistä median käyttäjistä tuotteensa. Me olemme sopeutuneet vähin äänin. Kun olemme luovuttaneet käyttäjätietomme, olemme antaneet vallan teknologiayhtiöille.
+
+Suomalaisille televisio on ollut tärkeä media, se on kerännyt koko kansakunnan yhteen. Siksi tarkastelen median muutosta television kautta. Toinen tärkeä teema on sosiaalisen median vaikutus julkisen palvelun rooliin. Suomalaiset arvostavat Yleisradiota ja pitävät sen tiedonvälitystä erittäin luotettavana, mutta Yleisradiokin on joutunut median toimintatavan muuttuessa jakamaan sisältöjään teknojättien alustoilla. Kysymys on löydettävyydestä, si tä missä yleisöt tavoitetaan. Jos vaihtoehtoja ei ole, on mentävä sinne, missä ihmiset ovat. Julkisen palvelun tehtävänä on myös yhdistää ja osal istaa, ja median toimintatavan muuttuessa vuorovaikutus ja keskustelu on si rtynyt sosiaaliseen mediaan.
+
+
+
+
+
+
+
+Tulevaisuus alkoi jo. Se alkoi, kun teit Facebook-profiilin tai latasit ensimmäiset kuvat Instagramiin. Tulevaisuus ei ole se maailma, joka odottaa meitä nurkan takana. Kun yritetään
+
+”nähdä” tulevaisuuteen, helposti unohdetaan, että menneisyys ja nykyhetki kantavat sitä koko ajan mukanaan. Tulevaisuuden ainekset ovat löydettävissä tässä ja nyt. Jotkut rakentavat tulevaisuuttamme koko ajan, ja paras tapa ennustaa tulevaisuutta on olla mukana rakentamassa sitä ja vaikuttamassa sen syntyyn.
+
+Jotta ymmärtäisin, miten valtava median muutos on ollut, minun on palattava taaksepäin vuoteen 1986, jol oin kansa-kuntamme eli yhden aikakauden päätöstä. Muistan hyvin elokuun viimeiseen päivän, kun vuorokausi oli kääntymässä sunnuntain puolelle. Edellisenä päivänä olin lopettanut kesä-
+
+työt Ilta-Sanomissa, ja nyt avasin radion opiskelukaupungissani Tampereella. Surumusiikki tulvahti keittiöön. Arvasin heti, että presidentti Urho Kekkonen oli kuollut. Vielä jokunen päivä sitten odotimme muutaman toimittajakollegan kanssa Tamminiemen porttien ulkopuolella uutisia presidentin tilasta. Olin mukana yövahdissa muutamana yönä elokuussa.
+
+Kaikki tiesivät, että presidentti oli heikossa kunnossa. Val-talehdet järjestivät Tamminiemen porttien ulkopuolelle omat vartionsa, ja jokainen lehti halusi uutisen ensimmäisenä. Mutta kun tieto presidentin kuolemasta tuli, luultavasti yksikään 18
+
+toimittaja ei ollut portilla. Oli viikonloppu ja toimittajat olivat jättäneet vartionsa.
+
+Uutisella presidentti Kekkosen kuolemasta oli iso arvo. Se tarkoitti kokonaisen aikakauden päättymistä:
+
+”TULEVAISUUS ALKOI
+
+Kekkosella oli keskei-
+
+JO. SE ALKOI, KUN TEIT
+
+nen rooli kansakunnan
+
+FACEBOOK-PROFIILIN TAI
+
+yhdistäjänä. Surumu-
+
+siikki soi ja minut val-
+
+LATASIT ENSIMMÄISET
+
+tasi outo tunne. Kek-
+
+KUVAT INSTAGRAMIIN.
+
+konen oli ollut vallassa
+
+koko elämäni.
+
+Kun matkustan ajassa taaksepäin, tuntuu hämmentävältä, miten yhtenäinen Suomi silloin oli ja miten tärkeä rooli medialla oli sen ylläpitämisessä. Kansakunta tuntui välillä hengittävän samaan tahtiin. Kotiin tilattiin oman paikkakunnan sanomalehti, joka luettiin jo aamulla – painetulla sanalla oli vahva merkitys. Myös aikakauslehtiä tilattiin kotiin, ja radio avattiin heti kun herättiin tai viimeistään autossa matkalla töihin. Sieltä kuunneltiin pääasiassa Ylen ohjelmaa.
+
+Muutoksen merkit olivat kuitenkin jo näkyvissä. Radio City, Suomen toinen paikallisradio, syntyi vuonna 1985. Sen taus-tavoimana oli Elävän musiikin yhdistys Elmu ry, joka keräsi rahaa paikallisradiotoiminnan käynnistämiseen. Samaan aikaan 19
+
+perustettiin muita paikallisia radiokanavia eri puolille Suomea.
+
+Yleisradio oli hallinnut eetteriä, ja nyt oli tullut aika haastaa se.
+
+Puhuttiin valtamedioista, joita alueiden asiat harvoin kiinnostivat – maakuntalehdet kirjoittivat siitä, mitä tapahtui pää-
+
+kaupungin ulkopuolella. Ja jos halusin tietää, mitä New York Times, The Guardian, Die Zeit tai Le Monde kirjoittivat, minun oli mentävä etsimään viikonloppunumeroita Helsingin rautatie aseman lehtikioskilta tai kirjastosta. En muista, että ulkomaalaisia lehtiä olisi tilattu edes toimituksiin.
+
+Nyt 2020-luvulla ympärillämme on aivan toisenlainen me-diatykitys. Somekanavat tarjoavat koko ajan uutisia ja suosituksia, eri mediayhtiöiden ilmoitukset puskevat tiuhaan näytöille, kansainvälisten laatulehtien digiversiot ovat helposti tilattavissa omiin laitteisiin, monet kuratointipalvelut tarjoavat viikon suo-situimpia kansainvälisiä artikkeleja viikonlopun alla, uutiskirjeitä tulee sähköpostiin useita päivittäin. Myös ystäväni ja kaverini suosittelevat dokumentteja, artikkeleja ja sarjoja.
+
+Seis maailma, haluan ulos! Kaikkea tuntuu olevan aivan liikaa, ja taistelu ajastani on myös minulle ahdistavaa.
+
+Keskustelu sähköisen median vapauttamisesta – josta on puhuttu myös kaupallisen median haluna ja kykynä haastaa niin sanottu eduskunnan radio – tuntuu kaukaiselta aikana, jolloin globaalit kansainväliset palvelut haastavat mediankäyttöämme 20
+
+joka päivä. Netflix on ollut kaikissa muissa Pohjoismaissa paitsi Suomessa katsotumpi suoratoistopalvelu kuin niiden yleisradioyhtiöiden palvelut.
+
+Nuoret käyttävät tietolähteinään paljon YouTubea ja somekanavia. Uutisten tarjonta on kasvanut räjähdysmäisesti, ja samaa uutista tarjoavat yhä nopeammin kaikki mediayhtiöt. Skuupit ovat käyneet niin harvinaisiksi, että kilpailu käydään nopeudessa.
+
+Informaation määrä on kasvanut eksponentiaalisesti. Samaan aikaan asioiden merkitys ja yhteys toisiinsa näyttää vähenevän.
+
+Älypuhelimet muuttivat suhdettamme informaatioon ja ajan tasalla pysymiseen yhtä paljon kuin kännykät aikanaan suhdettamme kommunikaatioon. Tekstiviestien jälkeen puhelinvastaa-jista tuli lähinnä huvittavia laitteita. Nykyisin iso osa suomalaisista tarkastaa puhelimeltaan uutisia lukuisia kertoja päivässä.
+
+Datan keräämisessä globaalit teknologiayritykset ovat olleet ylivertaisia. Ne tietävät paremmin kuin perheeni tai ystäväni, missä olen ja mitä minulle kannattaa tarjota. Olen jatkuvan valvonnan kohteena. Algoritmit ovat koko ajan työssä, eikä niiden vartiota pureta milloinkaan.
+
+Tämä kaikki on tapahtunut vaivihkaa ja vähän kuin varkain.
+
+Todel isuudessa olen päivittänyt kiltisti laitteitani ja hyväksynyt eri palveluntarjoajien pitkät käyttöehdot, joita en koskaan ole jaksanut lukea kokonaan. Olen hyväksynyt moneen kertaan tietojeni keruun ja käytön tavoilla, joista en ole ollut lainkaan 21
+
+tietoinen. Tästä minua eivät ole valtiolliset eivätkä kaupalliset tahot erityisesti varoittaneet. Tietoja ovat luovuttaneet kaikki: perheenjäseneni, sukulaiseni, työkaverini ja monet instituutiot.
+
+Tämä on ollut välttämätöntä, jotta olen voinut pitää yhteyttä ystäviini ja saanut hyviä suosituksia ja minulle tärkeät uutiset ja viestit käyttööni.
+
+Vasta viime vuosina tiedot Facebookin käyttäjien tietojen ja salasanojen vuotamisesta ovat herättäneet ison kysymyksen valvonnasta, manipuloinnista ja luottamuspulasta. Vaikka Facebookin perustaja Mark Zuckerberg on pyytänyt useaan kertaan julkisesti anteeksi, yhtiö ei ole korjannut merkittävällä tavalla käyttäjäsuojaansa.
+
+En usko, että teknologinen kehitys on kovin itseohjautuvaa. En myöskään usko, että tulevaisuus vain tapahtuu meille. Viime aikoina on ollut vallalla niin kutsuttu teknologinen determinismi, jota toimittajat ovat aktiivisesti vahvistaneet mediassa. Sen mukaan teknologian kehitys on omalakista ja määrittää muutosta.
+
+Aivan liian vähän on keskusteltu siitä, millaista tulevaisuutta haluamme ja millä ehdoilla. Kun isot teknologiayhtiöt pääsevät liian hallitsevaan asemaan, löydämme itsemme tilanteesta, jossa valta on luovutettu kokonaan niille, samalla kun olemme itse keskittyneet peukuttamaan kissavideoita.
+
+
+
+
+
+
+
+Me voimme vaikuttaa tulevaisuuteemme. Me voimme aktiivisesti ottaa selvää erilaisista vaihtoehdoista ja osallistua keskusteluun tulevaisuuden median etiikasta. Me median käyttäjät vaikutamme median tarjontaan ja toimintaan koko ajan omilla valinnoillamme ja median käytöllämme. Kuinka tietoisesti sen teemme, on hyvin ratkaisevaa. Paitsi toimittajien myös jokaisen median käyttäjän on aika palata vartioon. Nyt on hyvä hetki ottaa selvää ja alkaa vaikuttaa tulevaisuuteen ennen kuin on liian myöhäistä.
+
+
+
+
+
+
+
+II
+
+TELEVISION
+
+HUIPPUVUODET
+
+Televisio metsästää suuria yleisöjä
+
+Cannes huhtikuussa 2007. Maailman tv-väki on kokoontunut Miptv:hen, Palais des Festivalsin ympärillä on väkeä. Croisette kylpee auringossa ja jahteihin kannetaan samppanjaa. Suurin osa tapahtuman kävijöistä parveilee kuitenkin festivaalipalatsin käytävillä ja saleissa.
+
+Tapahtuman pääpuhujat pyrkivät kukin omalla tavallaan vastaamaan monien mielessä pyörivään kysymykseen: ”What is the next big thing?” Mikä on seuraava iso hitti, mikä on se seuraava television menestysformaatti, joka myydään kaikkialle ja joka kerää miljoonayleisöt? Kysymys on kirjoitettu mainoslehtisiin, ja se näkyy tapahtuman trailereissa. Kukaan ei voi välttyä siltä, ja sitähän tänne on tultu ratkaisemaan. Tuohon kysymykseen perustuu massatelevision lumo ja magia. Cannesissa televisio on liiketoimintaa. Siellä jahdataan miljoonia ja miljoonayleisöjä.
+
+Miptv on jättikokoinen messutapahtuma, joka ilmentää hyvin massatelevision kulta-aikaa. Siellä tiivistyy kaikki se, mikä teki 24
+
+televisiosta suuren: isojen menestysformaattien tähdet punai-sella matolla erittäin ruman festivaalipalatsin edustalla, uusien formaattien loputon nälkä, suurten tv-kanavien ja formaatteja kehittävien tuotantoyhtiöiden isot pomot ja johtajat paneeleissa kertomassa, mitä seuraavaksi aikovat. Tämän kaiken reunamilla, alakerroksissa, myydään isoja määriä dokumentteja, luonto-ohjelmia ja elokuvia. Illallisilla tavataan liiketuttuja, ja vain siellä kuulee, mitä oikeasti on seuraavaksi tapahtumassa: kuka ostaa mitäkin, mihin uskotaan ja mihin ei.
+
+Suomessa televisiolla on ollut keskeinen paikka ihmisten elämässä. Se on tarjonnut valtavan määrän yhteisiä kokemuksia, jaettuja muistoja, iloa, tietoa, jännitystä ja avannut ikkunan maailmaan. Joskus kauan sitten se määritteli ihmisten ajankäytön ja viikkorytminkin. Parhaimmillaan televisio vei matkalle maailman kulttuureihin, toi laatuelokuvat kotisohvalle, toimi peilinä sille, mitä koimme olevamme, kertoi epäkohdista, viihdytti ja täydensi kuvaa maailman moninaisuudesta.
+
+Olen itse kasvanut television kanssa. Olen katsonut televisiota, kirjoittanut televisiosta, esitellyt ja arvioinut ohjelmia ja käsikir-joittanut, ohjannut ja tilannut niitä. Minua on aina kiehtonut television kansainvälisyys, ja suomalainen televisiotarjonta on kuulunut maailman parhaimmistoon. Se voi johtua julkisen palvelun ja kaupallisen television rinnakkaiselosta, siitä, että ne ovat sopivasti eri aikoina täydentäneet toisiaan. Vähintään 25
+
+yhtä tärkeää on, että television ammattilaiset ovat seuranneet aikaansa ja pystyneet vastaamaan suomalaisten muuttuneisiin median tarpeisiin.
+
+Kun katsotaan taak-
+
+sepäin, nähdään aika,
+
+”TELEVISION jolloin televisio muuttui
+
+YMPÄRILLÄ RAHA
+
+nopeasti, kansainväliset
+
+JA LUOVUUS ETSIVÄT formaatit rantautuivat Suomeen ja tavalliset
+
+TOISIAAN.
+
+ihmiset alkoivat kiin-
+
+nostaa televisiota. Yksi
+
+merkittävimmistä asioista oli ohjelmakarttojen kehittyminen.
+
+Niihin sidottiin television arvontuotto eli se, paljonko yleisöä kukin ohjelma kerää. Sen pohjalta myytiin mainontaa kaupalliseen televisioon ja määriteltiin julkisen palvelun oikeutus, legitimiteetti.
+
+Televisio oli Suomessa aluksi erilaisten kokeilujen, yksittäisten ohjelmien, kotikutoisten draamasarjojen – kuten Naapurilähiö, Rintamäkeläiset, Metsolat – kansainvälisten televisioelo-kuvien ja sarjojen, reportaasien, tietokilpailujen ja koko kansan viihteen areena. Ja tietenkin oli uutiset ja ajankohtaisohjelmat, jotka rytmittivät ohjelmiston rakentelua. 1990-luvulla televisiotarjonta alkoi kasvaa, kanavia tuli lisää ja kilpailu yleisöistä kiihtyi. Sen myötä ohjelmakartta-ajattelu alkoi ohjata television 26
+
+tarjontaa ja ohjelmiston suunnittelua. Sen avulla katsoja saattoi tietää, mil oin mitäkin ohjelmaa on tarjol a. Samal a voiti n alkaa houkutella katsojia omalle kanavalle ja kerätä yleisömassoja.
+
+Ohjelmakartal a ja yleisömäärillä oli suuri merkitys sil e, millaisia ohjelmia haluttiin. Periaatteessa kussakin ohjelmapaikassa eli ammattikielellä slotissa haluttiin lähettää koko ajan tasa-laatuista, ennen kaikkea slotin lupauksen lunastavaa ohjelmaa.
+
+Useimmille sisällöille oli olemassa ennuste siitä, minkä määrän yleisöä ne keräävät. Parhaaseen lähetysaikaan, prime timeen –
+
+joka oli noin iltaseitsemän ja -kymmenen välillä – haluttiin suuria yleisöjä kerääviä ohjelmia. Parhaan yleisötakuun toivat formaatit, ohjelmakonseptit, joiden toimivuus oli jo kokeiltu jossakin maassa tai markkinassa. Jos formaatti – kuten Tanssii tähtien kanssa – oli jo saanut erittäin hyvät katsojamäärät muu-tamassa esitysmaassa, ennuste sen onnistumisesta oli vieläkin suurempi.
+
+Televisio oli massamedian aikakauden päämedia. Se oli noussut toisen maailmansodan jälkeen mediaksi, jolla oli paras kyky kerätä isoja yleisöjä. Yleisöpotentiaali teki siitä hyvin kiinnostavaa liiketoimintaa. Samaan aikaan, kun television merkitys kasvoi, Cannesista kehittyi suurin kansainvälinen areena, jossa formaattikauppa saatiin kukoistamaan. Cannesilla oli jo elokuvateollisuuden luoma maine ja mahtavat puitteet.
+
+Koska elokuvateollisuus joutui sulautumaan television liike-27
+
+toimintaan, oli televisioalan messutapahtuma sulava jatke elokuvan tähtipölylle.
+
+Television ympärillä raha ja luovuus etsivät toisiaan. Kekseliäät formaatit synnyttivät isoja tunteita ja puheenaiheita, ja ne houkuttelivat suuria yleisöjä, jotka myytiin mainostajille.
+
+Yleisöjen mittaamiseksi ja mainosten myymiseksi rakennettiin kokonaisia mittausjärjestelmiä, kuten Nielsenin ja Finnpanelin mittausstandardit. Yleisöjä pyrittiin kasvattamaan niin, että ohjelmien välit voitiin myydä mainostajille vieläkin isommalla hinnalla seuraavalla kerralla. Ohjelma oli keino kerätä yleisöjä, ja yleisöistä tuli tuote, joka myytiin mainostajille. Mittaamisesta ja yleisöjen myymisestä tuli merkittävää liiketoimintaa ennen kaikkea tv:n mallimaassa Yhdysvalloissa, mutta Eurooppa seurasi kuuliaisesti perässä. Jotta television ohjelmakartat saatiin laadittua toimiviksi, tarvittiin tietoa yleisöistä – ja sitä saatiin mittausfirmoilta.
+
+Kun televisio oli vielä nuori media, se piti ensin keksiä. Tehtiin kokeiluja, kehitettiin erilaisia ohjelmamuotoja ja lajityyppejä, teknologia kehittyi, kamerat liikkuivat ja kevenivät ja tekeminen ammatillistui. Kun televisiosta tuli tuttu, se lakkasi hämmästyttämästä ja muuttui valtavirraksi, joka rakasti yleisömassoja.
+
+Massatelevisio tarkoitti televisiotoiminnan standardoimista eli vakiinnuttamista. Se tarkoitti kanavabrändien rakentamista, ohjelmakarttojen muokkaamista niitä tukevaksi, formaattiohjel-28
+
+mien sijoittamista parhaaseen katseluaikaan ja pienten yleisöjen ohjelmien siirtämistä päivään ja alku- tai myöhäisiltaan. Television oli aika vakiintua, muuttua ennakoitavaksi ja vahvistaa tottumusta.
+
+Euroopassa julkisen
+
+”TELEVISION OLI
+
+palvelun tv-yhtiöillä
+
+AIKA VAKIINTUA,
+
+on ollut merkittävä
+
+MUUTTUA
+
+rooli, toisin kuin Yh-
+
+dysvalloissa, missä jul-
+
+ENNAKOITAVAKSI
+
+kisen palvelun mediaa
+
+JA VAHVISTAA
+
+ei juuri ole. Eurooppa-
+
+TOTTUMUSTA.
+
+laisil a julkisen palve-
+
+lun mediayhtiöillä on muitakin tavoitteita ohjelmatoiminnan suhteen kuin suuret yleisöt. Kansalaisille pitää tarjota uutisia, ajankohtais ohjelmia, opetusohjelmia, reportaaseja ja kulttuuria.
+
+Suomessa myös kaupallinen televisio toimi pitkään Yleisradion kanavilla. Amerikkalaisen television toimintamalli ja esimerkki vaikuttivat kuitenkin paljon ohjelmakarttoihin, ohjelmapituuk-siin, yleisöjen mittaamiseen ja käsityksiimme siitä, mikä on menestys. Yliyön raportit – kunkin kanavan ohjelmapaikkojen yleisömäärät, jotka ovat tarjolla heti seuraavana aamuna – ta-voittavuusluvut ja niiden top-listat olivat keskeisiä mittareita, jotka ohjasivat koko toimialaa. Niiden mukaan jaettiin rahat ja resurssit. Ne kertoivat, mikä toimii ja mikä ei.
+
+
+
+
+
+
+
+Julkisen palvelun yhtiöt ovat osa television kansainvälistä ekosysteemiä. Myös yleisradioyhtiöiden legitimiteetti ja tarpeel-lisuus mitataan katsojaluvuilla ja käyttäjämäärillä. Sen ohella on toki muitakin kriteerejä, kuten kiinnostavuusmittarit, yhtiön luotettavuusmittari, vähemmistöpalveluiden tuottaminen ja opetusohjelmien ja kulttuurin tukeminen.
+
+Julkisen palvelun media ei kuitenkaan ole voinut puolustaa asemaansa ja perustella merkitystään muuten kuin olemalla mukana television yhteisessä valuutassa. Koko televisiotoimialan oli yhdessä sovittava pelisäännöt, ja kaupalliselle televisiolle yleisö-
+
+jen mittaamisesta tuli tärkein valuutta, jolla toiminta rahoitettiin.
+
+Tämä valuutta vaikuttaa kaikkeen. Kansainvälisten formaattien kiinnostavuus ja hinnoittelu perustuu siihen, miten isoja yleisöjä ne ovat kotimaassaan onnistuneet keräämään. Menestysformaatteja aletti n lokalisoida eri maihin jo 1990-luvul a, ja sitä mukaa televisio kansainvälistyi ja yhdenmukaistui. Tähdet ovat tanssineet monissa Euroopan maissa 2000-luvulta alkaen niin Espanjassa, Britanniassa kuin Suomessa.
+
+Television mittausteknologia muuttaa yleisöt kuluttajiksi.
+
+Mittaamisen pohjalla on ajatus kerätä yleisöt ja myydä heidät mainostajille. Kirjassaan Spreadable Media amerikkalainen kulttuurin ja median tutkija Henry Jenkins kysyy, ovatko eurooppalaiset julkisen palvelun yhtiöt todella kiinnostuneita ymmärtämään, millaista sosiaalista vaikutusta ja merkitystä 30
+
+sisällöillä on käyttäjille, vai onko niidenkin huomio katsojamäärissä. Ovatko ne valmiita kehittämään erilaisia sosiaalisen vuorovaikutuksen muotoja eri sisältöjen ympärille ja rakentamaan näin vuorovaikutusta? Ja yhtä olennaista on se, onko meillä tapoja mitata, ymmärtää ja tutkia tällaista sosiaalista vuorovaikutusta ja oppia siitä.
+
+Televisio on ollut kansainvälinen koko elinkaarensa ajan.
+
+Myös suomalaisen television varhaiset ohjelmat kuten Laatikkoleikki, Jatkoaika ja Uutisvuoto ovat syntyneet kansainvälisten menestysohjelmien innoittamina. Suomalaiset käsikirjoittajat ja tekijät ovat käyneet hakemassa ideoita maailmalla ja muovan-neet ne sitten suomalaisen tv-katsojan makuun sopiviksi. Näin toimittiin jo ennen vakiintunutta kansainvälistä formaattikaup-paa. Mutta vasta kun formaattikaupasta tuli massatelevision ydin, se yhdenmukaisti television kansainvälisesti ja keräsi suuret yleisöt tv-ruudun ääreen.
+
+Suurten yleisöjen metsästys kiihtyi, kun tv-tarjontaa tuli koko ajan lisää. Suomessa tämä tapahtui hitaasti, mutta mones-sa muussa Euroopan maassa kaapelit, satelliitit ja maanpäälliset kanavat tarjosivat jo 1990-luvulla valtavan määrän ohjelmia.
+
+Kun aiemmin ihmisillä oli valittavana vain muutama kanava –
+
+Suomessa vielä 1980-luvulla kaksi – niin yhtäkkiä tarjolla oli satoja eri kanavia. Yleisö pirstaloitui, hajaantui eri kanaville tarjonnan kasvaessa, ja kanavasurffailu lisääntyi, mutta isoil-31
+
+la tv-kanavilla oli pakottava tarve saada suuria yleisömääriä omien ohjelmiensa ääreen. Tähän tarvittiin kansainvälisiä menestysformaatteja.
+
+Kun yleisömääristä tuli televisiotoimintaa keskeisesti ohjaava tekijä, heikensikö se television laatua? Katosiko luovuus televisiosta? Kyllä ja ei.
+
+Formaattien kehittämiseen ja suunnitteluun satsattiin todella paljon, mutta samaan aikaan menestysformaattien ohel a ja lisäksi oli tarjolla erilaisia tapoja tehdä sisältöä. Kun tarjontaa oli paljon ja kilpailu kovaa, niillä ei vain ollut samanlaista mahdollisuutta päästä tuotantoon, koska television tekeminen on kallista ja yhtiöt janosivat menestyksiä. Hyvää, laadukasta sisältöä toki tehtiin – tuotannossa oli valtavasti dokumentteja, elokuvia ja hienoja historia- ja luontosarjoja – niiden arvo massatelevisiol e ei vain ol ut enää sama kuin menestysformaa-teilla. Standardoinnin myötä pienempien yleisöjen ohjelmat työntyivät marginaaliin, prime timen ulkopuolelle. Osasta tuli pelkkää kaavion täytettä. Elokuvat kokivat tällaisen kohta-lon jo 1980-luvun lopulla. Kaupallisilta kanavilta oli vaikea enää löytää laatuelokuvia, kun ne oli siirretty myöhäisiltaan ja samalla ohjelmapaikalla esitettiin hyvin erilaisia, eri yleisöille tarkoitettuja elokuvia. Niinpä useimmat elokuvien ys-tävät siirtyivät VHS-nauhoitukseen tai elokuvavuokraamojen asiak kaiksi. Myös Yleisradiossa elokuvien esittämisestä luovut-32
+
+tiin vähitellen pääkanavilla ja niiden esittäminen keskitettiin Teema-kanavalle, jonka sisältölupaus alkoi rakentua vahvasti elokuvien ympärille.
+
+Big Brother aloitti uuden aikakauden Televisio oli vaki nnuttanut asemansa, mutta senkin oli vähitellen aika muuttua, ainakin vähän. Yksi television kultakauden isompia puheenaiheita 1990-luvun lopussa oli Big Brother. Alun perin hollantilaisen Endemol-tuotantoyhtiön formaatti uudisti television kerrontaa. Big Brotherissa on monia ulottuvuuksia, joista tuli television menestystekijöitä: kiinnostus tavallisiin ihmisiin, kameran jatkuva läsnäolo, mikä tarjoaa katsojalle mahdollisuuden tirkistelyyn, suoranomaisuus ja äänestyksen hyödyntäminen osana formaattia.
+
+Vastaavanlaisia kokeiluja oli toki ollut ennenkin. Suomessa Yleisradion toimittaja Jorma Molarius teki vuonna 1983 Aikapommi­ nimisen ohjelman, jossa muutamat tunnetut henkilöt, kuten Riitta Väisänen, Kauko Röyhkä ja Antti Eskola, suljet-tiin kolmeksi päiväksi studioon ja seurattiin, mitä siellä alkoi tapahtua. Aikapommi oli aikaansa edellä, mutta enemmänkin sosiaalinen koe, johon televisio otti osaa . Big Brother taas on formaatti, jonka eteneminen, osaset ja niiden merkitys on tarkkaan mietitty, testattu ja määritelty.
+
+
+
+
+
+
+
+Big Brotherissa joukko nuoria suljetaan taloon ja yleisö pääsee tirkistelemään tapahtumia: syntyykö joidenkin välille jännite, ketkä retkahtavat toisiinsa, ketkä alkavat inhota toisiaan ja keistä tulee ystäviä? Big Brother on myös sosiaalinen tapahtuma, jossa yleisö otetaan mukaan paitsi katsomaan ohjelmaa myös äänestämään siitä, kuka vuorollaan joutuu jättämään talon. Siinä yhdistyvät television ja ohjelman alkuaikoina vasta tuloillaan olevan sosiaalisen median vahvuudet. Tähtien ja julkkisten sijaan katsojat saavat vakoilla ihan tavallisten nuorten tempauksia parhaaseen katseluaikaan. Big Brother valloitti Eurooppaa maa kerrallaan, ja Suomeen se rantautui vuonna 2005. Siitä tuli nopeasti hitti ja puheenaihe, joka ruokki myös iltapäivälehtien lööppejä ahkerasti.
+
+Endemol-tuotantoyhtiön perustaja, hollantilainen John de Mol työryhmineen loi Big Brotherin vuosina 1997–1999, ja hänestä tuli sen ansiosta tv-miljardööri. Kun de Mol tiimeineen kehitti menestyskonseptin, sosiaalista mediaa ei ollut vielä olemassa, mutta Big Brother oli kuin luotu sitä varten. Brittiläinen Channel 4 nappasi formaatin, alkoi esittää sitä vuonna 2000
+
+ja teki siitä lopulta paitsi koko yhtiötä leimaavan hittituotteen myös sosiaalista mediaa kekseliäästi hyödyntävän tv-ohjelman.
+
+Se kehitti formaattia entistä monimediaisemmaksi ja tapahtu-mallisemmaksi käyttäen hyväksi verkon ja sosiaalisen median parhaita puolia, joilla katsojat houkuteltiin mukaan ja kouku-34
+
+tettiin kommentoimaan talon tapahtumia ja tekemisiä. Kommentointi ja mukana eläminen sitouttivat katsojia yhä enemmän osaksi talon elämää. Channel 4 rakensi myös taloon suoran striimin, joka oli auki ympäri vuorokauden. Jatkuva läsnäolo
+
+– sosiaalisen median myötä syntynyt ajatus – tuli osaksi mediakokemusta. Fanit pääsivät kurkistamaan talon tapahtumiin milloin halusivat. Channel 4:lla Big Brotheria tehtiin 11 kautta, kunnes vuonna 2010 yhtiö päätti lopettaa sen ison mediakohun saattelemana. Big Brother koettiin Britanniassa niin merkittä-
+
+väksi, että julkisuudessa keskusteltiin pitkään, miten sen paikka ja merkitys aiotaan korvata. Mikä olisi niin iso ja kiinnostava uusi ohjelmaformaatti, joka pystyisi herättämään yhtä paljon keskustelua ja osallistumista ja saisi yhtä suuria katsojalukuja?
+
+Big Brother oli merkittävä formaatti paitsi Channel 4:l e myös sen tekijöille. Se opetti uusia taitoja koko tuotantoryhmälle, kuten reaaliaikaista verkkotekemistä ja monimediaista kerrontaa.
+
+Yhtiö päättikin satsata nimenomaan monimediakonsepteihin.
+
+Channel 4:sta tuli Big Brotherin myötä monimediainen televisioyhtiö.
+
+Big Brotheria seurasi useita suuria menestysformaatteja, kuten The Voice, Idols, Tanssii Tähtien kanssa ja X­Factor. Mikään näis-tä ei päätynyt Suomessa Ylen kanaville. Suuret kansainväliset viihdeformaatit ovat Suomessa olleet ennen kaikkea kaupallisen television liiketoimintaa. Vain yhdessä Yleisradion suosikkioh-35
+
+jelmassa, Channel 4:n Gogglebox­ ohjelmaan perustuvassa Sohvaperunoissa, on taustalla kansainvälinen formaatti. Muut Ylen viihdeformaatit ovat viime aikoina olleet kotimaista alkuperää, kuten Suomi Love, joka on myyty myös ulkomaille. Yleisradion myötävaikutuksel a tuotantoyhtiöt ovat kehittäneet muitakin kansainväliseen myyntiin ja levitykseen päätyneitä formaatteja, esimerkiksi reality-sarjat Eränkävijät, Au Pairit ja Sekasin.
+
+Ohjelmakartta on television tarjotin, suosittelutyökalu. Television kansallista luonnetta ja ohjelmakartan merkitystä korostaa tietysti myös se, että sanomalehdet julkaisevat ne sivuillaan. Kun nykyisin katsoo tv-kanavien ohjelmakarttoja ja top-listoja, huomaa nopeasti, miten samoina prime timen rakenteet ja suurten yleisöjen ohjelmat toistuvat. Toisto ja tuttuus on ohjelmakartan peruslupaus. Se tekee television katselun helpoksi, katsojan ei tarvitse selata arkistoa tai ohjelmamassaa ja etsiä itselleen sopivaa katsottavaa.
+
+Massatelevision kulta-aika rakentui myös kanavabrändien varaan, joita ohjelmakartat tukivat. Kanavasta tuli keskeinen toimija 1990-luvulla, ja tilaajilla, jotka rakensivat kanavien ohjelmistot kanavabrändiä vastaaviksi, oli omat budjetit sisältöjen hankkimiseen. Suuret kanavat – TV1, TV2 ja MTV3 – toimivat kuin tavaratalot. Ne halusivat tarjota kaikkea kaikille.
+
+Pitkään televisio olikin useimmissa kodeissa auki kaikki illat, 36
+
+ja suomalaisen yleisön ohjelmamaku oli hyvin ennakoitavissa.
+
+Katsojaluvut olivat isoja. Kun kanavien määrä lisääntyi rajusti, tarjontatapa ei enää toiminutkaan.
+
+Formaateista tuli en-
+
+tistä tärkeämpiä, kun ”SAMALLA TELEVISIO EI tuotantorakenne Suo-ENÄÄ OLLUT SAMA ILTA-
+
+messakin vähitellen
+
+muuttui. Mediatalojen
+
+NUOTIO, JOKA KOKOSI
+
+ulkopuolelle perustet-
+
+KANSALAISET YHTEISTEN
+
+tiin riippumattomia
+
+ASIOIDEN ÄÄREEN.
+
+tuotantoyhtiöitä. Nii-
+
+den tehtäväksi tuli nopeasti takoa menestystuotteita. Ensimmäisiä itsenäisiä tuotantoyhtiöitä oli vuonna 1990 perustettu Saku Tuomisen ja Juha Tynkkysen Broadcasters. Sitä seurasivat Tarinatalo, Production House ja muutamat muut.
+
+Brodcasters loi asemansa lokalisoimalla kansainvälisiä formaatteja Suomen markkinoille. Yksi yhtiön pitkäaikaisimmista menestystuotteista oli Uutisvuoto, joka perustui brittiläiseen Have I Got News for you -formaattiin. Uutisvuodon legendaariset ankkurit Jari Tervo ja edesmennyt Tommy Taberman ovat jää-
+
+neet suomalaisten mieliin. Ohjelmaa esitettiin TV1:llä vuosina 1998–2016.
+
+Uutisvuoto tuli TV1:n ohjelmistoon poliittisen satiirin paikalle lauantai-iltaan. Silloin suomalaiset olivat jo tottuneet 37
+
+odottamaan viikoittaista naljailua politiikoille ja valtaapitäville.
+
+Iltalypsyä oli ehditty esittää jo vuodesta 1993. Silläkin oli kansainvälinen esikuva, niin ikään brittiläinen Not the Nine OĆlock News, mutta se ei perustunut vielä formaattiin vaan kehiteltiin Ylen sisällä.
+
+Broadcastersin tarina kuvaa hyvin massatelevision huippu-ajan nousua ja lopulta hiipumista. Tuominen ja Tynkkynen olivat paitsi tuotantoyhtiön omistajia myös sen luovia vetäjiä ja tuottajia. He myivät yhtiön ruotsalaiselle Zodiak Televisio-nille vuonna 2005 Broadcastersin ollessa menetyksensä huipul-la – Tanssii tähtien kanssa käynnistyi MTV3:lla vuonna 2006
+
+– ja molemmat jättivät yhtiön vuonna 2009. Tuotantoyhtiön historia kuvaa hyvin televisiotoiminnan kansainvälistymistä ja sulautumista osaksi isoa kansainvälistä liiketoimintaa. Monista muistakin suomalaisin voimin syntyneistä tuotantoyhtiöistä, kuten Tarinatalosta ja Production Housesta, tuli lopulta osa kansainvälistä liiketoimintaa.
+
+Samaan aikaan alettiin puhua television merkityksen hii-pumisesta, jotkut alkoivat puhua jopa television kuolemasta.
+
+Syyksi on nähty internetin tulo ja digitalisaatio. Todellisuudessa television merkityksen hiipuminen alkoi jo ennen kuin suoratoistopalvelut ja YouTube haukkasivat osan yleisöjen ja käyttäjien ajasta. Uusien kanavien tulo, tarjonnan valtava kasvu, suurten katsojalukujen metsästys, isot kansainväliset 38
+
+viihdeformaatit ja ohjelmakartta-ajattelun vaikutus työnsivät dokumentit, elokuvat ja kulttuuriohjelmat marginaaliin. Television tapahtumallisuus korostui. Samalla televisio ei enää ollut sama iltanuotio, joka kokosi kansalaiset yhteisten asioiden ääreen. Osalle se näyttäytyi pelkkänä hupikoneena, joka oli menettänyt entisen roolinsa päivän puheenaiheiden ja mer-kityksellisyyden rakentajana.
+
+Sohvaperunat on television lohturuokaa Televisiolla on ollut merkittävä rooli suomalaisen yhteiskunnan liimana ja aikatauluttajana aina 2010-luvulle saakka. Sen luo-mat odotukset ja lupaukset siitä, että nyt ollaan kansakunnan asioiden äärellä ja välillä viihdytään yhdessä, olivat selkeinä suomalaisten mielissä jo 1970–1980-luvulla. Jokainen suomalainen tiesi, milloin tulee iltauutiset ja milloin keräännytään katsomaan Lauantaitansseja. Vi hdeohjelmat ja ni den vitsit olivat kaikille yhteisiä: niitä toisteltiin työpaikkojen kahvihuo-neissa ja koulujen pihoilla. Muistikuvaputki-ohjelman taus-tatutkimusta tehdessäni eräs haastateltava kertoi, että jopa Rovaniemen valtuuston kokoontumispäivää muutettiin Peyton Placen esityspäivän takia. Myöhemmin ohjelmakartasta näki, milloin mikäkin ohjelma on katsottavissa, mutta televisio ei enää sanellut täysin, milloin sen katsoi – 1980-luvun lopulla 39
+
+VHS-kasetit vapauttivat katsomaan sarjoja ja elokuvia silloin kun itse halusi. Median käyttötarve ei kuitenkaan kadonnut minnekään.
+
+Televisio alkoi vä-
+
+hitellen 2000-luvulla
+
+”UUSI SUOMALAISEN menettää suosiotaan.
+
+TELEVISION PERJANTAI- Siihen vaikuttivat uu-ILLAN HUUMA ON
+
+det sekä maksulliset
+
+että ilmaiset kanavat,
+
+KATSOA TAVALLISIA
+
+internet ja tarjonnan
+
+SUOMALAISIA
+
+räjähdysmäinen kasvu.
+
+KATSOMASSA
+
+Tele visiossa oli viihde-
+
+ohjelmien ja urheilun
+
+TELEVISIOTA.
+
+lisäksi enää harvoja
+
+ohjelmia, jotka keräsivät miljoonayleisön, kunnes tavallisten suomalaisten television katselusta tuli menestys.
+
+Erittäin monen suomalaisen kiinnostus televisioon – etenkin livetelevisioon – palasi Sohvaperunoiden myötä vuonna 2015. Se on yksi television suosituimmista ohjelmista ja kerää erilaisia katsojia, eri ikäryhmistä ja elämäntavoista, sekä miehiä että naisia. Uusi suomalaisen television perjantai-illan huuma on katsoa tavallisia suomalaisia katsomassa televisiota.
+
+Se kertoo jotain siitä, mitä ihmiset tässä ajassa kaipaavat: yhteisöllisyyttä, hyväntuulisuutta, tavallisuutta ja mahdollisuutta 40
+
+nähdä kaltaisiaan kaiken julkkispöhinän sijaan. Sohvaperunat on palauttanut uskon siihen, että emme sittenkään ole niin pahoja kuin sosiaalinen media, vihapuhe ja toisille huutelu välillä antavat ymmärtää. Sohvaperunat on kuin television lohturuokaa, pullan tuoksu rappukäytävässä, rakkaan ystävän tekstiviesti. Se kertoo, että kaikesta vaikeasta ja kauheasta huolimatta meissä ihmisissä on vielä toivoa.
+
+Sohvaperunoiden kotimainen toteutus on aivan erinomainen ja tuo perjantaisin olohuoneisi n suomalaisen yhteiskunnan monenlaisen kirjon. Televisiosta puhuessaan sarjan henkilöt kertovat samalla maailmastaan, itsestään ja arvoistaan. Televisio on edelleen se taikapeili tai ikkuna, josta voimme kurkistaa kuvaamme itsestämme ja maailmasta.
+
+”Osallistujia ei usuteta ri telemään keskenään”, toimittaja Noora Vaarala kirjoittaa kirjassa Television lapset. ”Jännittävän viihteen polttoaine, konflikti, puuttuu lähes täysin. Sohvikset koukuttaa meidät katsomaan taviksia, jotka eivät ilkeile toisilleen. Se on oikeastaan aika vallankumouksellista. He ovat inhimillisiä. Heitä on vaikea ylenkatsoa.”
+
+Ohjelman hienous on siinä, että se auttaa meitä ymmär-tämään erilaisia ihmisiä, ei siinä, että se houkuttelee meitä pitämään joistakin ja inhoamaan toisia. Ohjelma suhtautuu ihmisiin eri tavalla kuin ajankohtaisohjelmien tapa nähdä yhteiskunnan toimijat ikään kuin toisilleen vihamielisenä joukkona, 41
+
+jossa erilaiset näkökulmat asetetaan vastakkain kilpailemaan paremmuudesta. Se ei tuota parasta kuvaa ajastamme ja auta ym-märtämään, miten erilaiset ajattelutavat ovat syntyneet ja mistä ne kumpuavat. Tällainen esitystapa on saattanut toimia hyvin yhtenäiskulttuurin aikana, jolloin asioiden ja ilmiöiden taustat olivat hyvin kaikkien tiedossa. Nykyään ihmisten todellisuudet ja elämät ovat erilaisia, emmekä enää elä yhtenäiskulttuurissa, jossa ajattelumallit ovat yhteiset ja jaetut.
+
+
+
+Tositelevisio, salainen pahe
+
+2020-luvun kolmekymppisille televisio tarkoittaa video-ohjelmia ja joillekin jopa pelejä – moni heistä ei edes omista televi-siovastaanotinta. Mutta hekin muistavat hyvin yhtenäistelevi-sion ajan lapsuudestaan ja sen, miten varsinkin kansainväliset ohjelmaformaatit loivat ihanteita ja ideaaleja. Noora Vaarala kirjoittaa Television lapsissa hienosti siitä, miten keskiluokkai-nen amerikkalaisten draamasarjojen maailma sai hänet pienenä tyttönä haaveilemaan asianajajan, sisustussuunnittelijan ja ho-tellinpitäjän ammateista, sillä näitä draamasarjoissa kuvattiin.
+
+Siinä missä osa amerikkalaisista sarjoista, kuten Gilmoren tytöt, Frendit, Sinkkuelämää ja Big Little Lies, kuvaa keskiluokkaista elämäntapaa, tositelevisio tarjoaa samastumispintaa työväen-luokkaiselle elämäntyylille. Niissä tavikset – myyjät, lähihoitajat, 42
+
+rakennusmiehet, baarimikot ja asentajat – kilpailevat paikastaan auringossa. Muiden muassa Temptation Islandin, Maajussille morsiamen, Unelmahäiden ja tositelevision tienraivaajan Big Brotherin roolitus on perustunut tavallisten ihmisten kiinnos-tavuudelle.
+
+Tositelevisiota saatetaan vieläkin kauhistella, vaikka nuo-remmissa ikäluokissa useimmat katsovat sitä ahmien – jotkut kuvaavat sitä jopa salaisena paheena. Se koukuttaa ja aiheuttaa övereitä, ja juuri siksi se on niin ihanaa. 13 katseluasentoa
+
+-kirjoitus kokoelmassa podcastaaja-aktivisti Veikka Lahtinen analysoi, mihin tarpeeseen ja miksi hän katsoo tosi-tv:tä . ”Tosi-tv:n katsominen on minulle riittämättömyyden kokemuksen hoitamista”, Lahtinen kirjoittaa. ”En katso ohjelmia oppiakseni mitään tai tullakseni paremmaksi ihmiseksi. Minulla ei yleensä ole akateemista näkökulmaa televisioon. Ohjelmien tehtävä on sen sijaan helpottaa oloani, kun koen että en pysty siihen, mitä minulta vaaditaan. Kyse on vuosien varrella ollut siitä, että en selviä vuokristani, en osaa työtäni, en pärjää ihmissuhteissani, en näytä tarpeeksi hyvältä tai en ole tarpeeksi lukenut. Tosi-tv on lääkettä kaikkiin alistetuksi ja nöyryytetyksi tulemisen ko-kemuksiin. ”
+
+Kun tositelevisio on nuorten aikuisten salainen pahe, tur-vavyöhyke ja lääke arjen ahdistusta vastaan, draamasarjoista on tullut kulttuuriobjekteja. Draamasarjoja suositellaan, niitä 43
+
+analysoidaan ja niiden merkitystä verrataan merkittäviin ro-maanitaiteen saavutuksiin.
+
+Molemmat lajityypit liittyvät keskeisesti median käyttötarpeeseen. Tosi-tv voi palauttaa uskon itseen, säädellä mielialaa, korjata huonouden tunnetta ja lohduttaa. Draamasarjat taas voivat nostaa katsojansa kaikkitietäväksi fiktiivisen maailman kriitikoksi tai auttaa kestämään yhä pelottavammaksi käyvää todellisuutta ympärillämme.
+
+
+</body>
+</html>
