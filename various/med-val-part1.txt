@@ -50,43 +50,7 @@ Tämän haasteen kanssa kamppailevat nyt myös monet kansainväliset toimijat. I
 
 Kerron mediasysteemin muutoksesta sisältä ulospäin, ja tärkeimmät havaintoni koskevat globaalien teknologiayhtiöiden valtaa ja vaikutusta median ekosysteemiin. Onkin kiinnostavaa, että niihin suhtaudutaan teknologiana, kun ne ovat mullistaneet 12
 
-sen, miten me mediaa
-
-käytämme ja miten si- ”KÄYTTÄJIEN TIETOJEN
-
-sältöjä tehdään, jael-
-
-JATKUVA KERÄÄMINEN
-
-laan ja markkinoidaan.
-
-MAHDOLLISTAA
-
-Median liiketoiminta-
-
-KANSALAISTEN
-
-malli on muuttunut, ja
-
-VALVONNAN JA MYÖS
-
-mainosmarkkinat ovat
-
-isolta osin siirtyneet
-
-HEIHIN VAIKUTTAMISEN
-
-perinteisestä mediasta
-
-TÄYSIN UUDELLA
-
-verkkoon. Digitaalinen
-
-TAVALLA.
-
-media perustuu koh-
-
-dentamiseen, joka tarvitsee dataa. Käyttäjien tietojen jatkuva kerääminen mahdollistaa kansalaisten valvonnan ja myös heihin vaikuttamisen täysin uudella tavalla. Muutos koskee meitä myös sikäli, että yleisöjen ja käyttäjien rooli on muuttunut: emme ole enää pelkkiä median vastaanottajia vaan aktiivinen osa median ekosysteemiä. Voimme tuottaa ja julkaista sisältöjä halutessam-me vapaasti.
+sen, miten me mediaa käytämme ja miten sisältöjä tehdään, jael- laan ja markkinoidaan. Median liiketoiminta- malli on muuttunut, ja mainosmarkkinat ovat isolta osin siirtyneet perinteisestä mediasta verkkoon. Digitaalinen media perustuu kohdentamiseen, joka tarvitsee dataa. Käyttäjien tietojen jatkuva kerääminen mahdollistaa kansalaisten valvonnan ja myös heihin vaikuttamisen täysin uudella tavalla. Muutos koskee meitä myös sikäli, että yleisöjen ja käyttäjien rooli on muuttunut: emme ole enää pelkkiä median vastaanottajia vaan aktiivinen osa median ekosysteemiä. Voimme tuottaa ja julkaista sisältöjä halutessam-me vapaasti.
 
 Teknologiayhtiöiden aiheuttama muutos vaikuttaa yksilöiden ohel a julkisen palvelun median toimijoihin ja asettaa kysymyksen siitä, millaiset toimintaedellytykset niillä on muuttuneessa mediaekologiassa. Tässä on tarpeen sanoa, että kirjassa esitetyt näkemykset ovat omiani, eivätkä suoranaisesti liity työhöni.
 
@@ -114,43 +78,7 @@ Tammikuussa 2021 koimme jotain mitä emme osanneet kuvitella. Trumpin kannattaja
 
 Pandemian aikana, kun ihmiset jäivät koteihinsa ja välttivät kontakteja, teknojättien palveluista ja alustoista on tullut koko ajan tärkeämpiä. Niiden käyttö on lisääntynyt ja niiden omistajat keräävät käsittämättömän suuria voittoja. Teknojätit ovat jo vuosia haastaneet perinteisen joukkotiedotuksen – lehdistön, radion ja television – toimintatapoja. Perinteinen media ei ole 15
 
-pysynyt niiden vauhdissa. Teknologiayhtiöt ovat päättäneet median tulevaisuudesta, ja perinteiset mediayhtiöt ovat joutuneet sopeutumaan muuttuvaan toimintatapaan vähin äänin. Toisin kuin perinteinen media,
-
-jota on säädelty koko
-
-”TEKNOJÄTIT ajan, teknologiayhtiöt
-
-KAAPPASIVAT
-
-ovat saaneet keksiä pe-
-
-MAINONNAN
-
-lisääntönsä itse. Niitä ei
-
-ole säädelty juuri ollen-
-
-KIRJAUTUESSAAN
-
-kaan.
-
-PÖRSSIIN JA TEKIVÄT
-
-Alustat ovat kuin
-
-MEISTÄ MEDIAN
-
-pyydyksiä, joilla voi
-
-KÄYTTÄJISTÄ
-
-kerätä käyttäjien dataa.
-
-Datan omistukseen liit-
-
-TUOTTEENSA.
-
-tyy suuri määrä valtaa.
+pysynyt niiden vauhdissa. Teknologiayhtiöt ovat päättäneet median tulevaisuudesta, ja perinteiset mediayhtiöt ovat joutuneet sopeutumaan muuttuvaan toimintatapaan vähin äänin. Toisin kuin perinteinen media, jota on säädelty koko ovat saaneet keksiä pelisääntönsä itse. Niitä ei ole säädelty juuri ollenkaan. Alustat ovat kuin pyydyksiä, joilla voi kerätä käyttäjien dataa. Datan omistukseen liittyy suuri määrä valtaa.
 
 Kesällä 2020 Yhdysvaltojen kongressi järjesti tilaisuuksia, joissa Amazonin pääomistaja Jeff Bezos, Facebookin toimitusjohtaja ja perustaja Mark Zuckerberg, Applen toimitusjohtaja Tim Cook sekä Googlen emoyhtiön Alphabetin toimitusjohtaja Sundar Pichai olivat maan kongressin kuultavana. Jotkut ovat sitä mieltä, että nämä yhtiöt – joiden yhteenlaskettu markkina- arvo on lähes 5 000 miljardia euroa – ovat kasvaneet liian suuriksi ja ne pitäisi pilkkoa. Samaan aikaan kilpailu Kiinan kanssa teknolo-giajohtajuudesta kiihtyy.
 
@@ -183,30 +111,7 @@ Kaikki tiesivät, että presidentti oli heikossa kunnossa. Val-talehdet järjest
 toimittaja ei ollut portilla. Oli viikonloppu ja toimittajat olivat jättäneet vartionsa.
 
 Uutisella presidentti Kekkosen kuolemasta oli iso arvo. Se tarkoitti kokonaisen aikakauden päättymistä:
-
-”TULEVAISUUS ALKOI
-
-Kekkosella oli keskei-
-
-JO. SE ALKOI, KUN TEIT
-
-nen rooli kansakunnan
-
-FACEBOOK-PROFIILIN TAI
-
-yhdistäjänä. Surumu-
-
-siikki soi ja minut val-
-
-LATASIT ENSIMMÄISET
-
-tasi outo tunne. Kek-
-
-KUVAT INSTAGRAMIIN.
-
-konen oli ollut vallassa
-
-koko elämäni.
+Kekkosella oli keskeinen rooli kansakunnan yhdistäjänä. Surumusiikki soi ja minut valtasi outo tunne. Kekkonen oli ollut vallassa koko elämäni.
 
 Kun matkustan ajassa taaksepäin, tuntuu hämmentävältä, miten yhtenäinen Suomi silloin oli ja miten tärkeä rooli medialla oli sen ylläpitämisessä. Kansakunta tuntui välillä hengittävän samaan tahtiin. Kotiin tilattiin oman paikkakunnan sanomalehti, joka luettiin jo aamulla – painetulla sanalla oli vahva merkitys. Myös aikakauslehtiä tilattiin kotiin, ja radio avattiin heti kun herättiin tai viimeistään autossa matkalla töihin. Sieltä kuunneltiin pääasiassa Ylen ohjelmaa.
 
@@ -249,12 +154,6 @@ Vasta viime vuosina tiedot Facebookin käyttäjien tietojen ja salasanojen vuota
 En usko, että teknologinen kehitys on kovin itseohjautuvaa. En myöskään usko, että tulevaisuus vain tapahtuu meille. Viime aikoina on ollut vallalla niin kutsuttu teknologinen determinismi, jota toimittajat ovat aktiivisesti vahvistaneet mediassa. Sen mukaan teknologian kehitys on omalakista ja määrittää muutosta.
 
 Aivan liian vähän on keskusteltu siitä, millaista tulevaisuutta haluamme ja millä ehdoilla. Kun isot teknologiayhtiöt pääsevät liian hallitsevaan asemaan, löydämme itsemme tilanteesta, jossa valta on luovutettu kokonaan niille, samalla kun olemme itse keskittyneet peukuttamaan kissavideoita.
-
-
-
-
-
-
 
 Me voimme vaikuttaa tulevaisuuteemme. Me voimme aktiivisesti ottaa selvää erilaisista vaihtoehdoista ja osallistua keskusteluun tulevaisuuden median etiikasta. Me median käyttäjät vaikutamme median tarjontaan ja toimintaan koko ajan omilla valinnoillamme ja median käytöllämme. Kuinka tietoisesti sen teemme, on hyvin ratkaisevaa. Paitsi toimittajien myös jokaisen median käyttäjän on aika palata vartioon. Nyt on hyvä hetki ottaa selvää ja alkaa vaikuttaa tulevaisuuteen ennen kuin on liian myöhäistä.
 
