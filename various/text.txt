@@ -1,0 +1,59 @@
+1.
+Personointi ja ennakoiva analytiikka sisällöntuotannossa ja medialiiketoiminnassa
+Vuoden 2018 tutkimusteemana RAHOITETTIIN neljää hanketta:
+
+VTT:lle 70 000 euron tutkimustuki hankkeelle ”Tutkimusteema: Tekoälyä mediasisällön personointiin ja kohderyhmien tunnistamiseen”
+Myönnettiin Fourkindille 68 600 euroa tutkimustukea hankkeelle ”Tutkimusteema: Toimitustyön ohjaaminen ennustavan analytiikan avulla: Koneoppimiseen perustuva ennustejärjestelmä, sen mahdollistamat liiketoimintamallit ja organisaation muutosjohtaminen”
+Myönnettiin Adfore technologies Oy:lle 50 000 euron tutkimustuki hankkeelle ”Tutkimusteema: Personointi ja ennakoiva analytiikka osana kontekstitietoista kohdentamista, case Kontekstimoottori”
+Myönnettiin VTT:lle 63 000 euron tutkimustuki hankkeelle ”Tekoälyllä tehokkuutta otsikointiin”
+Taustaa
+Median toimialan kilpaillessa teknologiajättejä vastaan yhtenä kilpailutekijänä nähdään tietovarantojen (data lakes) kartuttaminen ja niiden tehokas hyödyntäminen personoinnissa. Esimerkiksi Facebook on luonut kilpailuasemansa massiivisten datavarantojen ja niiden mainonnassa hyödyntämisen varaan. Reutersin trenditutkimuksen mukaan, mediajohtajista 62% pitää datakyvykkyden parantamista yhtenä tärkeimmistä strategisista painopisteistä vuonna 2018.
+
+Tähän mennessä data-analytiikan tyypillisin käyttömuoto on ollut menneiden tapahtumien analysointia. Analytiikan seuraava taso on ennakoiva analytiikka, joka pyrkii kehittämään malleja ja ennusteita siitä, mitä tulevaisuudessa voisi tapahtua. Ennakoivasta analytiikasta, personoinnista ja tekoälyn hyödyntämisestä hyvä esimerkki on Netflix. Yhtiö on pystynyt hyödyntämään ennakoivaa analytiikkaa omien tuotantojen suunnittelussa ja sitä kautta myös sarjojensa personoidussa suosittelussa uusille kohdeyleisöille. Ennakoivasta analytiikasta seuraava taso on ohjaileva analytiikka.
+
+Ennakointia ja personointia voi tehdä monella tasolla: yksilö-, palvelutasolla ja keskittymällä tuotekokonaisuuteen. Ennakoiva data-analytiikka voi auttaa mediayhtiöitä myös ymmärtämään kokonaisvaltaisemmin kuluttajan ja brändin välistä keskinäistä vuorovaikutusta. Tämänkaltainen ymmärrys onkin mediataloille merkittävä työkalu niiden pyrkiessä tekemään anonyymeistä verkkokäyttäjistä uskollisia asiakkaita. Esimerkiksi tilaajamaksuihin perustuvan sanomalehden tapauksessa muutostilaajan normaalissa käyttäytymismallissa, kuten vaikkapa vierailujen lakkaaminen lehden Facebook-sivuilla, voi ennakoida päätöstä lakkauttaa lehden tilaus. Reutersin tutkimuksen mukaan 72% julkaisijoista aikoo testailla tekoälyn käyttöä sisällöntuotannon tehostamisessa ja suosittelun kehittämisessä vuonna 2018 (Newman, 2018).
+
+Myös suomalaiset mediat ovat tehneet kehitystyötä analytiikan ja ennakoinnin parissa. Esimerkiksi A-lehdet hallinnoi kymmeniä verkkopalveluja ja tulevaisuudessa yhtiön tavoitteena on yhdistää näistä saatavaa ulkoista tietoa yhtiön omiin asiakastietoihin. Ennakoivaan analytiikkaan yhdistettynä dataa voidaan käyttää muun muassa uusien liiketoimintamallien kehittämiseen.
+
+Säätiö pitää tärkeänä, että media-alalla tehdään ennakoivasti kokeiluja, mihin tarkoituksiin ja miten näitä teknologioita voisi soveltaa mediasisällöissä ja medialiiketoiminnassa, jotta ollaan valmiimpia kilpailemaan esimerkiksi teknologiajättien kanssa.
+
+
+2.
+
+Personointi ja ennakoiva analytiikka sisällöntuotannossa ja medialiiketoiminnassa
+Vuoden 2018 tutkimusteemana RAHOITETTIIN neljää hanketta:
+
+VTT:lle 70 000 euron tutkimustuki hankkeelle ”Tutkimusteema: Tekoälyä mediasisällön personointiin ja kohderyhmien tunnistamiseen”
+Myönnettiin Fourkindille 68 600 euroa tutkimustukea hankkeelle ”Tutkimusteema: Toimitustyön ohjaaminen ennustavan analytiikan avulla: Koneoppimiseen perustuva ennustejärjestelmä, sen mahdollistamat liiketoimintamallit ja organisaation muutosjohtaminen”
+Myönnettiin Adfore technologies Oy:lle 50 000 euron tutkimustuki hankkeelle ”Tutkimusteema: Personointi ja ennakoiva analytiikka osana kontekstitietoista kohdentamista, case Kontekstimoottori”
+Myönnettiin VTT:lle 63 000 euron tutkimustuki hankkeelle ”Tekoälyllä tehokkuutta otsikointiin”
+Taustaa
+Median toimialan kilpaillessa teknologiajättejä vastaan yhtenä kilpailutekijänä nähdään tietovarantojen (data lakes) kartuttaminen ja niiden tehokas hyödyntäminen personoinnissa. Esimerkiksi Facebook on luonut kilpailuasemansa massiivisten datavarantojen ja niiden mainonnassa hyödyntämisen varaan. Reutersin trenditutkimuksen mukaan, mediajohtajista 62% pitää datakyvykkyden parantamista yhtenä tärkeimmistä strategisista painopisteistä vuonna 2018.
+
+Tähän mennessä data-analytiikan tyypillisin käyttömuoto on ollut menneiden tapahtumien analysointia. Analytiikan seuraava taso on ennakoiva analytiikka, joka pyrkii kehittämään malleja ja ennusteita siitä, mitä tulevaisuudessa voisi tapahtua. Ennakoivasta analytiikasta, personoinnista ja tekoälyn hyödyntämisestä hyvä esimerkki on Netflix. Yhtiö on pystynyt hyödyntämään ennakoivaa analytiikkaa omien tuotantojen suunnittelussa ja sitä kautta myös sarjojensa personoidussa suosittelussa uusille kohdeyleisöille. Ennakoivasta analytiikasta seuraava taso on ohjaileva analytiikka.
+
+Ennakointia ja personointia voi tehdä monella tasolla: yksilö-, palvelutasolla ja keskittymällä tuotekokonaisuuteen. Ennakoiva data-analytiikka voi auttaa mediayhtiöitä myös ymmärtämään kokonaisvaltaisemmin kuluttajan ja brändin välistä keskinäistä vuorovaikutusta. Tämänkaltainen ymmärrys onkin mediataloille merkittävä työkalu niiden pyrkiessä tekemään anonyymeistä verkkokäyttäjistä uskollisia asiakkaita. Esimerkiksi tilaajamaksuihin perustuvan sanomalehden tapauksessa muutostilaajan normaalissa käyttäytymismallissa, kuten vaikkapa vierailujen lakkaaminen lehden Facebook-sivuilla, voi ennakoida päätöstä lakkauttaa lehden tilaus. Reutersin tutkimuksen mukaan 72% julkaisijoista aikoo testailla tekoälyn käyttöä sisällöntuotannon tehostamisessa ja suosittelun kehittämisessä vuonna 2018 (Newman, 2018).
+
+Myös suomalaiset mediat ovat tehneet kehitystyötä analytiikan ja ennakoinnin parissa. Esimerkiksi A-lehdet hallinnoi kymmeniä verkkopalveluja ja tulevaisuudessa yhtiön tavoitteena on yhdistää näistä saatavaa ulkoista tietoa yhtiön omiin asiakastietoihin. Ennakoivaan analytiikkaan yhdistettynä dataa voidaan käyttää muun muassa uusien liiketoimintamallien kehittämiseen.
+
+Säätiö pitää tärkeänä, että media-alalla tehdään ennakoivasti kokeiluja, mihin tarkoituksiin ja miten näitä teknologioita voisi soveltaa mediasisällöissä ja medialiiketoiminnassa, jotta ollaan valmiimpia kilpailemaan esimerkiksi teknologiajättien kanssa.
+
+3.
+
+Atte Jääskeläiselle 21 500,20 euroa tutkimustukea
+Media-alan tutkimussäätiö myönsi 2.2.2021 Atte Jääskeläiselle 21 500,20 euroa tutkimustukea hankkeelle “Why do readers bother to improve the news for others? Theorising antirivalness and inclusiveness of news stories based on dimensions of value perceived by members of the audience”.
+
+Uutisten tuotannossa toimivien yritysten perinteisen liiketoimintamallin ongelmien juurisyy on journalistisen tuotteen luonteen muutos. Journalistinen tuote on informaatiotuote, jonka luonne on muuttunut materiaalisista yksityishyödykkeistä (private good) aineettomiksi yhteis- tai julkishyödykkeiksi (public good). Käyttäjiltä on vaikeaa tai mahdotonta periä maksua julkishyödykkeiden käytöstä ilman käytön esteitä, kuten maksumuureja.
+
+Perinteisesti hyödykkeet kuluvat käytössä. Jotkin digitaaliset hyödykkeet voivat kuitenkin hyötyä käytöstä (“antirival”). Esimerkiksi open source -koodi on sitä parempi, mitä useampi ohjelmoija sitä hyödyntää. Akateemisesti, yhteiskunnallisesti ja journalististen liiketoimintamallien kannalta tarvitaan kattavampi ymmärrys käytöstä hyötyvistä journalistisista informaatiohyödykkeistä.
+
+Tässä hankkeessa tutkitaan uutisen kuluttamisesta johtuvaa, yleisön kokemaa arvon muutosta journalistisissa informaatiotuotteissa. Tutkimus palvelee sekä hyödykkeiden julkisluonteeseen liittyvää tutkimusta että journalististen informaatiohyödykkeiden arvon monipuolisempaa ymmärtämistä. Käytämme teoreettista viitekehystä selvittääksemme kuinka uutisten yhteisöllinen kuluttaminen palvelee uutisten käytännöllisiä, sosiaalisia, tunteisiin liittyviä, tiedollisia ja päätöksentekoon liittyviä arvoja.
+
+Tutkimuksen tuloksena syntyy:
+
+Näkemys uutisista yhteismaana. Tämän näkemyksen avulla on mahdollista selkiyttää, millainen digitaalinen journalismi on yhteiskunnan kannalta arvokasta. Miten esimerkiksi voisi toimia yhteisöllisen uutisten kulutuksen julkisen palvelun yhtiö?
+Ymmärrys siitä, millaisia motivaatioita uutisten kuluttajilla on osallistua lisäämään uutisten erilaisia arvoja. Miksi esimerkiksi lukija haluaa oikaista uutisen faktavirheen, jos hänellä itsellään on jo käsitys uutisen oikeellisuudesta eikä asia koske häntä muulla tavoin?
+Tietoa digitaalisten informaatiohyödykkeiden uudesta luonteesta hyötyvistä median liiketoimintamalleista.
+
+4.
+
