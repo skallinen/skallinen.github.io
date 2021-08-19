@@ -38,8 +38,6 @@
     :straight t 
     :mode (("\\.edn$" . clojure-mode))
     :init (add-hook 'clojure-mode-hook 'clojure-pretty-lambda-mode)
-    :config 
-    (require 'flycheck-clj-kondo)
     )
 
   (defun cider-interactive-notify-and-eval (code)
