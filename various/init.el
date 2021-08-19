@@ -1,4 +1,3 @@
-(load-theme 'tango-dark nil)
 
 
 ;; (setq custom-file "~/.custom.el")
@@ -21,3 +20,4 @@
 
 ;; (use-package cider
 ;;  :straight t)
+(load-theme 'tango-dark nil)
