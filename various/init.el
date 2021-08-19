@@ -17,6 +17,7 @@
 
   ;; You have to install use-package in order to use use-package with straight
   (straight-use-package 'use-package)
+
   (defun cider-interactive-notify-and-eval (code)
     (interactive)
     (message code)
@@ -26,6 +27,15 @@
      nil
      nil))
 
+  ;; clojure
+  (use-package clojure-mode
+    :straight t 
+    :mode (("\\.edn$" . clojure-mode))
+    :init (add-hook 'clojure-mode-hook 'clojure-pretty-lambda-mode)
+    )
+  ;; cider
+  (use-package cider
+    :straight t)
   
   ;; Some pretty lambdas for ya
   (use-package clojure-pretty-lambda
@@ -33,12 +43,7 @@
                :type git :host github
                :repo "yonkornilov/clojure-pretty-lambda.el"))
 
-  ;; Clojuremode
-  (use-package clojure-mode
-    :straight t 
-    :mode (("\\.edn$" . clojure-mode))
-    :init (add-hook 'clojure-mode-hook 'clojure-pretty-lambda-mode)
-    )
+
 
   (defun cider-interactive-notify-and-eval (code)
     (interactive)
@@ -114,8 +119,7 @@
 
 
 
-  (use-package cider
-    :straight t)
+
 
   (load-theme 'tango-dark nil))
 
