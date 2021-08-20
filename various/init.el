@@ -1,5 +1,12 @@
 (progn
+  (setq inhibit-startup-message t)
 
+  (scroll-bar-mode -1)        ; Disable visible scrollbar
+  (tool-bar-mode -1)          ; Disable the toolbar
+  (tooltip-mode -1)           ; Disable tooltips
+  (set-fringe-mode 10)        ; Give some breathing room
+
+  (menu-bar-mode -1)            ; Disable the menu bar
   (setq custom-file "~/.custom.el")
 
   ;; Install straight.el
@@ -118,8 +125,19 @@
               (define-key clojure-mode-map (kbd "C-c n c") 'notespace/eval-and-realize-notes-from-change)))
 
 
+  (use-package company
+    :straight t 
+    :diminish (company-mode)
+    :config
+    (global-company-mode)
+    (setq company-minimum-prefix-length 1))
 
-
+  (use-package rainbow-delimiters
+    :straight t 
+    :defer t
+    :init
+    (progn
+      (add-hook 'clojure-mode-hook #'rainbow-delimiters-mode)))  
 
   (load-theme 'tango-dark nil))
 
