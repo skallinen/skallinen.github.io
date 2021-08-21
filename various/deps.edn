@@ -929,14 +929,7 @@
    :main-opts  ["-m" "io.dominic.vizns.core" "single" "-o" "deps-graph.png" "-f" "png"]}
   
   ;; setting up the dependencies for a quick ad-hoc data science exploration
-  :ad-hoc/data-science
- {:extra-deps {scicloj/tablecloth {:mvn/version "6.006"}
-               scicloj/notespace {:mvn/version "3-beta9"}
-               org.scicloj/viz.clj         {:mvn/version "0.1.0-SNAPSHOT"}
-               aerial.hanami/aerial.hanami {:mvn/version "0.12.7"}}
-
-  :main-opts  ["-m" "nrepl.cmdline"
-               "--middleware" "[refactor-nrepl.middleware/wrap-refactor,cider.nrepl/cider-middleware]"]}
+ 
 
   ;; Visualizing dependencies
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1031,7 +1024,13 @@
                 org.slf4j/slf4j-nop     {:mvn/version "1.7.31"}}
    ;; DynamicClassLoader required when starting other processes via aliases, e.g. socket REPL or Cognitect's REBL
    :main-opts  ["-e" "(->>(Thread/currentThread)(.getContextClassLoader)(clojure.lang.DynamicClassLoader.)(.setContextClassLoader,(Thread/currentThread)))"]}
-
+:ad-hoc/data-science
+ {:extra-deps {scicloj/tablecloth {:mvn/version "6.006"}
+               scicloj/notespace {:mvn/version "3-beta9"}
+               org.scicloj/viz.clj         {:mvn/version "0.1.0-SNAPSHOT"}
+               aerial.hanami/aerial.hanami {:mvn/version "0.12.7"}}
+  :main-opts  ["-e" "(->>(Thread/currentThread)(.getContextClassLoader)(clojure.lang.DynamicClassLoader.)(.setContextClassLoader,(Thread/currentThread)))"]}
+  
   ;;  End of EXPERIMENTAL
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
