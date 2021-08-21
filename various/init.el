@@ -51,7 +51,9 @@
                :repo "yonkornilov/clojure-pretty-lambda.el"))
 
 
-
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; notespace helper functions
+  ;;
   (defun cider-interactive-notify-and-eval (code)
     (interactive)
     (message code)
@@ -111,7 +113,11 @@
     (interactive)
     (cider-interactive-notify-and-eval
      "(notespace.api/render-static-html)"))
+  ;;
+  ;; ->end notespace helpers
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+  
   ;; suggested emacs key binding (thanks @mchampine)
   (add-hook 'clojure-mode-hook
             (lambda ()
@@ -124,7 +130,7 @@
               (define-key clojure-mode-map (kbd "C-c n s") 'notespace/render-static-html)
               (define-key clojure-mode-map (kbd "C-c n c") 'notespace/eval-and-realize-notes-from-change)))
 
-
+  ;; completion 
   (use-package company
     :straight t 
     :diminish (company-mode)
@@ -132,6 +138,7 @@
     (global-company-mode)
     (setq company-minimum-prefix-length 1))
 
+  ;; cloured parens
   (use-package rainbow-delimiters
     :straight t 
     :defer t
@@ -139,5 +146,11 @@
     (progn
       (add-hook 'clojure-mode-hook #'rainbow-delimiters-mode)))  
 
+  ;; structural editing (not on by default)
+  (use-package paredit
+    :straight t
+    :diminish paredit-mode)
+
+  ;; theme 
   (load-theme 'tango-dark nil))
 
