@@ -1,0 +1,4 @@
+* Todo
+- [ ] Fix anchors for each post
+- [ ] write img alt texts  
+  
