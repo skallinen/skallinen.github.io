@@ -15,7 +15,8 @@
   (package-initialize)
   (package-refresh-contents)
 
-  (defvar my-packages '(
+  (defvar my-packages '(rainbow-delimiters
+			paredit
                         clojure-mode
                         cider))
 
