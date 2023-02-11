@@ -7,11 +7,14 @@
   (menu-bar-mode -1)            ; Disable the menu bar
 
   
-  (setq custom-file "~/.custom.el")
+  (setq custom-file "~/.config/emacs/custom.el")
 
   (require 'package)
+
   (add-to-list 'package-archives
                '("melpa" . "http://melpa.org/packages/") t)
+  
+  (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/"))
   (package-initialize)
   (package-refresh-contents)
 
