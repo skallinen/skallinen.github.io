@@ -1,3 +1,6 @@
+“Parempi asiakaskokemus kasvattaa liikevaihtoa”
+“Some media companies are still on a journey to become more digital, but that increasingly feels like yesterday’s debate. The next few years will be defined more by how we can transform our digital content into something that feels more relevant and more useful to different groups. In this process new technologies can be our ally in tailoring content more precisely to different audience needs. But at the same time, journalism will need to emphasise its human qualities and its track record of delivering trusted content if it is to stand out from the flood of automated and synthetic media that threatens to overwhelm internet audiences.“
+Reuters Institute: Journalism, media, and technology trends and predictions 2023
 Oppaan käyttäjälle
 
 Tämä opas on tehty auttamaan mediayrityksiä hyödyntämään dataa paremman asiakaskokemuksen rakentamiseksi. 
@@ -14,7 +17,7 @@ Hyvin saturoituneessa mediamarkkinassa, jossa kansainväliset teknologiaekosyste
 Tämä opas on yksi tie siihen.
 
 Asiakaskokemuksen optimoinnin opas on eri osista koostuva kokonaisuus, jota käyttäjä voi hyödyntää oman tarpeensa mukaan. Sen rungon muodostaa verkkosivusto Optimointiopas.fi,  joka kuvaa miksi asiakakokemus on mediayritykselle myös liiketoiminnan kannalta tärkeä. Se auttaa näkemään miten asiakaskokemus rakentuu asiakkaita kuuntelemalla ja dataa hyödyntämällä, miten yrityksen kannattaa organisoitua paremman asiakaskokemuksen aikaansaamiseksi. Opas kuvaa eri tavoin miten dataa voi ja kannattaa hyödyntää sekä liiketoiminnan kehittämiseksi että asiakkaiden eduksi.
-Verkkosivustolla on kuvattu myös design sprintistä, joka auttaa mediayhtiötä hyödyntämään tekoälyn mahdollisuuksia ja erilaisia muita tapauskuvauksia sekä laaja kirjallisuuskatsaus.
+Verkkosivustolla on kuvaus myös design sprintistä, joka auttaa mediayhtiötä hyödyntämään tekoälyn mahdollisuuksia ja erilaisia muita tapauskuvauksia sekä laaja kirjallisuuskatsaus.
 
 Opas perustuu alan kirjallisuuteen, haastatteluihin sekä tekijöidensä asiantuntemukseen ja pitkään kokemukseen media-alalla (linkki tekijöihin). Olemme haastatelleet sekä kotimaisia että kansainvälisiä asiantuntijoita, joilla on näköalapaikka alan muutokseen. (Linkki haastateltavalistaan). 
 
@@ -24,6 +27,14 @@ Opas-tiimi
 
 
 Toimintaympäristön muutos ja globaalit trendit digimurroksen ajureina
+Kappaleessa käsitellään seuraavia asiakaskokemuksen optimointiin liittyviä asioita:
+Mediakäytön digitalisaation ja sen aiheuttaman murroksen vaikutus asiakaskokemukseen
+Teknologiajättien ja muiden toimijoiden tarjoaman sisältömassan kilpailu asiakkaan ajasta ja huomiosta
+Asiakkaiden käyttökokemuksen personointi ja koukuttavuuden luominen
+Asiakkaiden tarpeiden ymmärtäminen ja reaaliaikainen seuranta
+Data-analytiikka ja sen hyödyntäminen palveluiden optimoinnissa
+Kolmannen osapuolen evästeiden poistuminen ja sen vaikutukset mainonnan kohdentamiseen ja asiakasdatan saatavuuteen.
+
 
 Mediakäytön digitalisaatio ja sen aiheuttama murros etenee, ja kaikkien median muotojen digitaalinen kulutus tekstistä liikkuvaan kuvaan on arkipäiväistynyt. Kansainväliset teknologiajätit sekä tuottavat että aggregoivat sisältömassoja, jotka kilpailevat kuluttajien ajasta.
 Ammattimaisesti tuotetun mediasisällön rinnalle on noussut sekä kuluttajien itsensä että perinteisen median ulkopuolelta ponnistavien tekijöiden tuottama sisältö - kasvavassa määrin molempien osalta myös tekoälyavusteisesti.
@@ -45,6 +56,16 @@ Kirjallisuus:
 Media-alan toimijat ovat enemmän yhteydessä asiakkaisiinsa ja kilpailijoihinsa kuin koskaan ennen. Ilman välikäsiä tapahtuvan suoramyynnin vaikutuksen myötä sisältöä voi tuottaa, jakaa, kuratoida ja uudelleenjulkaista kirjaimellisesti kuka tahansa, joka omistaa internetyhteyden mahdollistavan laitteen. Big data -teknologioiden kyky omaksua, varastoida ja prosessoida useita erilaisia datalähteitä reaaliajassa on arvokas kilpailuetu yrityksille, jotka ovat valmiita investoimaan siihen. Mediasektori on monella tapaa aikainen big data -teknologioiden aikainen käyttöönottaja, mutta paljon suurempaa kehitystä teknologioiden täyden potentiaalin toteutumiseksi tulee tapahtua. Ratkaisujen parempi integrointi datan arvoketjuun on olennaista, jotta päättäjät saataisiin investoimaan innovaatioihin erityisesti taloudellisen epävarmuuden aikoina. Lisäksi tällä hetkellä ratkaisumarkkinoita hallitsevat yhdysvaltalaiset ja yhä enemmän aasialaiset yritykset, joten Euroopan on taloudellisesti välttämätöntä kehittää ja käyttää big data -teknologiaa laajemmin (Lippell 245-246)
 
 Asiakaskokemus 
+Tässä kappaleessa käsitellään seuraavia asioita:
+Mediayhtiön sisällöt kohtaavat asiakkaan eri alustoilla ja eri konteksteissa.
+Asiakkaan tarpeet ja odotukset vaihtelevat eri tilanteissa ja tiedontarpeissa.
+Hyvä käyttökokemus parantaa asiakaskokemusta ja lisää asiakasarvoa.
+Asiakasarvon syntymisen edellytyksenä on palvelun tai sisällön vastaaminen asiakkaan tarpeisiin.
+Asiakaskokemus vaatii yrityksen organisoitumisen asiakaslähtöisesti.
+Asiakasymmärrys johtaa parempaan palveluun, joka kasvattaa liikevaihtoa ja asiakasuskollisuutta.
+Personoitu käyttökokemus, suosittelut ja helppo sisältöjen löytäminen lisäävät asiakasarvoa.
+Kilpailu ihmisten ajasta ja huomiosta kasvaa, ja hyvä asiakaskokemus erottuu tarjonnasta.
+Mitä asiakaskokemus tarkoittaa.
 
 Media-alan asiakaskokemus on muuttunut radikaalisti digitalisoitumisen seurauksena. Asiakas kohtaa mediayhtiön sisällöt eri alustoilla ja eri konteksteissa. Asiakkaan mediapäivä koostuu erilaisista tilanteista ja tiedontarpeista. Useimmat ovat siirtyneet seuraamaan uutisia pääosin mobiilista. Aamulla korostuvat tiedolliset tarpeet, mutta illalla asiakas saattaa kaivata viihdyttävää mediasisältöä. Verkosta juttuja ja artikkeleita luetaan digijulkaisun tilaajina, mutta myös eri kuratointipalveluiden ja kiinnostavien suosittelujen tai jakojen kautta. Samaan aikaan printtiversiolla on omat kannattajansa. Jotkut digitilaajatkin haluavat etenkin viikonloppuunsa printtiversion.
 
@@ -91,6 +112,9 @@ Asiakasarvo on käsitys siitä, minkä arvoinen tuote tai palvelu on asiakkaalle
 Ihmiset, organisaatio ja kompetenssit
 
 Kuinka liiketoimintamallit vaikuttavat asiakaslupaukseen?
+Huomioi liiketoimintamallin vaikutus asiakaslupaukseen: Yrityksen liiketoimintamalli vaikuttaa suoraan siihen, millaisia asiakkaita se palvelee ja millaisen asiakaskokemuksen se tarjoaa. Siksi on tärkeää huomioida tämä vaikutus asiakaslupausta suunnitellessa.
+Ymmärrä asiakkaiden tarpeet ja toiveet: Liiketoimintamallin on pohjauduttava asiakkaiden tarpeisiin ja toiveisiin, jotta yritys voi tarjota heille parhaan mahdollisen kokemuksen. Siksi on tärkeää ymmärtää asiakkaiden tarpeet ja toiveet ja vastata niihin liiketoimintamallin avulla.
+Tunnista erilaiset liiketoimintamallit: On tärkeää ymmärtää, että erilaisilla liiketoimintamalleilla on erilaiset vaikutukset asiakaslupaukseen. Esimerkiksi tilauspohjaisella liiketoimintamallilla on erilainen vaikutus asiakaslupaukseen kuin mainostuloihin perustuvalla liiketoimintamallilla.
 Mediayrityksen liiketoimintamalli digitaalisessa ympäristössä vaikuttaa siihen millaisia asiakkaita se palvelee. Liiketoimintamallilla ja yrityksen organisoitumisella on suora yhteys siihen kuinka asiakaskokemusta voidaan rakentaa. 
 Liiketoimintamalli ohjaa merkittävästi sitä ketkä valikoituvat sisältöjen käyttäjiksi ja millaiseksi asiakkaan käyttökokemus rakentuu. Se ohjaa osittain myös sitä kenelle sisältöjä tehdään, millaisia ne ovat, missä niitä julkaistaan, miten niitä markkinoidaan ja missä asiakas kohdataan.
 Haastattelussa Tom Whitwell kuvaa kolmen mediayhtiön erilaisia liiketoimintamalleja ja niiden vaikutusta sisältölupaukseen. Eri mallit ohjaavat sitä millaista journalismia tavoitellaan sekä millaisia jutut ovat tyyliltään.
@@ -101,6 +125,13 @@ Kolmantena esimerkkinä Whitwell mainitsee iltapäivälehti The Daily Mailin, jo
 Tom Whitwell: They are all successful, but they are fundamentally different, and that will impact the way they do their journalism and the way they find stories to tell as well. … When I look at it, the transition to digital is not a technical thing. It's understanding the needs of customers and meeting them, and understanding that those customers might be quite different.
 Samalla tapaa liiketoimintamalli vaikuttaa kaikkien mediayritysten sisältölupaukseen, tapaan tehdä journalismia, toimituksellisiin prioriteetteihin ja julkaisumalleihin.
 Miten asiakaskokemusta johdetaan?
+Käytännön vinkkejä asiakaskokemuksen johtamisen parantamiseen mediayrityksissä voivat olla seuraavat:
+Ymmärrä asiakkaasi paremmin: Tilaukseen perustuva liiketoimintamalli edellyttää, että yritys tuntee asiakkaansa ja pystyy tarjoamaan heille räätälöityjä palveluita. Asiakkaan tarpeiden ymmärtäminen on avain menestykseen.
+Organisoi yritys asiakkaan ympärille: Yrityksen kaikkien toimintojen tulee olla järjestetty niin, että ne suuntautuvat asiakkaan parempaan palveluun. Tämä voi tarkoittaa esimerkiksi erilaisten tiimien muodostamista, jotta asiakkaan tarpeet voivat tulla paremmin huomioiduksi.
+Aseta asiakaskokemuksen tavoitteet liiketoimintatavoitteiden sisään: Mediayrityksen johto määrittää liiketoimintatavoitteet suhteessa toimialan kehitykseen ja muutokseen, sekä määrittelee missä on yrityksen asiakastavoitteiden näkökulmasta suurimmat haasteet. Asiakaskokemuksen tavoitteet pitää tuoda liiketoimintatavoitteiden sisään.
+Johda tavoitteellisesti johtoryhmän tasolta läpi koko organisaation: Yrityksen johto luo pohjan asiakaskokemuksen rakentamiselle ja määrittää tavoitteet koko organisaation tasolla. Tavoitteiden tulee olla selkeät, mitattavat ja jaettavissa eri yksiköille.
+Mittaa asiakaskokemus oikeilla mittareilla: Tavoitteiden lisäksi tarvitaan oikeanlaisia mittareita, jotta voidaan mitata asiakaskokemuksen onnistumista ja mahdollisia parannuksia.
+
 Kansainväliset teknologiayritykset vaikuttavat voimakkaasti mediatoimialan digitaalisiin mahdollisuuksiin. Erityisesti kolmannen osapuolen evästeiden poistuminen on yksi mediayritysten toimintaan merkittävästi vaikuttava tekijä. Ensimmäisen osapuolen datan merkitys kasvaa ja mediayritykset pyrkivät tunnistamaan paremmin asiakkaansa, jotta voivat sitouttaa heidät tilaajiksi. Mediayritykset ovat siirtymässä tilauspohjaisiin liiketoimintamalleihin. Jotkut näkevät mahdollisuuden myös sekä tilauspohjaisen että mainosperusteisen liiketoiminnan yhdistämisessä.
 
 Kevin Anderson on seurannut kansainvälisen mediakentän muutoksia jo pitkään ja toteaa, että kymmenen vuoden sisällä muutos on tapahtunut mainosperusteisesta tilausperusteiseen.
@@ -142,6 +173,9 @@ Asiakasdata on taloudellista pääomaa siinä missä esimerkiksi tehdas tai pate
 Toisin kuin joillain muilla sektoreilla, suurin osa käyttökelpoisesta datasta mediasektorilla on jo valmiiksi digitaalisessa muodossa (ja analogiset tuotteet, kuten sanomalehdet, on luotu digitaalisella teknologialla jo joitakin vuosia). Tämä ei kuitenkaan tarkoita sitä, että yritykset saavuttaisivat tällä hetkellä parhaan mahdollisen taloudellisen edun tai kustannustehokkuuden olemassaolevasta datastaan tai uusista datalähteistään. Alati kasvavat todisteet kielivät siitä, että sekä tutkimus- että politiikkatasoilla on paljon tehtävää sisällön ja datan analysointiin, parantamiseen ja toimittamiseen osallistuvien erilaisten yritysten kasvavan ekosysteemin tukemisessa (Lippell 246)
 Kilpaillakseen kuluttajien huomiosta ja uskollisuudesta valtavilla markkinoilla, mediaorganisaatiot pyrkivät kehittämään suoria, pitäviä suhteita kuluttajiin tarjoamalla oikean yhdistelmän houkuttelevaa sisältöä, vaivatonta monikanavaista kokemusta ja arvolupausta, jota kohdemarkkinat pitävät hyväksyttävänä. Tätä tehdään riippumatta siitä, nojaako se tilaukseen, hyvin kohdistettuihin mainoksiin, joita kuluttajat todella haluavat nähdä, tai näiden yhdistelmään. Näiden ponnistelujen ytimessä on parantaa kykyä käyttää asiakasdataa asiakaskokemuksen optimoimiseksi, tehdä sisältöpäätöksiä, kehittää uusia tuotteita ja palveluita kuten tilaussuunnitelmia, mainostarjouksia, digitaalista kaupankäyntiä ja yleisön sitouttamisvälineitä, sekä palvella kuluttajia ja mainostajia (Harvard Business Review’n white paper s. 2) 
 Miten organisoituminen tukee asiakaskokemusta?
+Organisoidu asiakkaan ja hänen tarpeidensa ympärille. Hyvä asiakaskokemus edellyttää, että yrityksen kaikki yksiköt työskentelevät yhteiseen maaliin, joka on parempi asiakaskokemus. Tämä voidaan saavuttaa organisoimalla ympärille asiakkaan ja hänen tarpeidensa ympärille, jolloin kaikki toiminnot liittyvät suoraan asiakaskokemukseen.
+Hyödynnä dataa. Hyvän asiakaskokemuksen rakentaminen edellyttää datan merkityksen ymmärtämistä läpi koko organisaation. Jokaisen toiminnon tulisi käyttää tätä dataa ja ymmärtää, miten se voi auttaa parantamaan asiakaskokemusta.
+Poista organisaation kitka. Organisaation eri osien tulisi työskennellä yhdessä, jotta vältetään päällekkäisiä toimia ja kulueriä. Myös manuaalisten prosessien minimointi voi auttaa vähentämään kitkaa organisaatiossa ja vapauttaa kyvykkäiden työntekijöiden aikaa tärkeämpiin tehtäviin.
 
 Monessa mediayhtiössä dataan liittyvät toimenpiteet on ensin ohjattu erilliselle digiyksikölle. Hyvän asiakaskokemuksen rakentaminen edellyttää kuitenkin datan merkityksen ymmärrystä läpi koko organisaation. Tästä hyvä esimerkki on Kirsi Hakaniemen kuvaus.
 
@@ -177,6 +211,8 @@ Hyvin tärkeää on luoda organisaation sisällä yhteistä kieltä ja ymmärrys
 
 Atte Jääskeläinen: Siinä yhdistyy aika korkea teknologinen osaaminen ennakkoluulottomaan kykyyn lukea sitä, mitä data kertoo, ja luoda siitä hypoteesi, että se oikeastikin saattaisi kertoa meille jotain merkityksellistä, ja sitten lähtee prototyyppien ja testaamisen avulla kokeilemaan, että voisiko se olla näin. Jos journalistisesta mediasta puhutaan, niin toimituksen resursseista ihan merkittävä osa on teknologiaväkeä. Ja meillä on muutama menestyksekäs digiuutismedia Euroopassa, ei tosin kovin montaa, mutta muutama, ja niillä on 40 % henkilökunnasta teknisiä kehittäjiä.
 Yhtenäinen asiakaskokemus yli palveluiden ja brändien
+Tunnista asiakkaasi datan avulla ja toiminnallista yhteinen ymmärrys asiakaskokemuksesta läpi koko organisaation, jotta asiakas saa mahdollisimman hyvän palvelun ja käyttökokemus on saumaton eri brändien välillä.
+Ei tulisi etsiä asiakkaita tuotteille, vaan tuotteita asiakkaille. Organisaation tulisi keskittyä investoimaan keskeisimpien asiakkaidensa parempaan ymmärtämiseen ja tarjoamansa kehittämiseen asiakaslähtöisesti, jotta voi erottua automatisoidusta ja synteettisestä mediasta ja tarjota luotettavaa sisältöä.
 
 Usein mediayhtiön tavoitteet liittyvät sen brändeihin ja niiden tunnetuksi tekemiseen.
 Jos yrityksellä on hyvin erilaisia brändejä ja niissä aivan erilaiset asiakkuudet, on hankalaa rakentaa koko yrityksen läpäisevää ehyttä asiakaskokemusta.
@@ -195,6 +231,11 @@ Se missä asiakaslähtöinen organisaatio investoi keskeisempien asiakkaidensa p
 “Some media companies are still on a journey to become more digital, but that increasingly feels like yesterday’s debate. The next few years will be defined more by how we can transform our digital content into something that feels more relevant and more useful to different groups. In this process new technologies can be our ally in tailoring content more precisely to different audience needs. But at the same time, journalism will need to emphasise its human qualities and its track record of delivering trusted content if it is to stand out from the flood of automated and synthetic media that threatens to overwhelm internet audiences.“ 
 Journalism, media, and technology trends and predictions 2023/Reuters https://reutersinstitute.politics.ox.ac.uk/journalism-media-and-technology-trends-and-predictions-2023
 Miten asiakasta pitää kuunnella?
+Asiakaskokemuksen merkitys mediayrityksille: Mediayritykset pyrkivät hyödyntämään tavoitteita, kyvykkyyksiä, dataa ja asiakkaan tuntemusta, jotta ne voivat rakentaa asiakaskokemuksen, joka houkuttelee asiakkaat tilaamaan palvelun ja sitouttaa heidät lojaaleiksi käyttäjiksi.
+Asiakaskokemuksen merkitys arvon välittäjänä: Arvo välittyy usein asiakaskokemuksena, tunteena helppoudesta ja miellyttävyydestä, ja voi tarkoittaa rentoutumista, uutta tietoa, oivalluksia tai jotain vieläkin merkityksellisempää.
+Asiakkaan kuuntelemisen merkitys: Asiakkaan kuuleminen ja tarpeisiin vastaaminen on tärkeää yritykselle, jotta se voi olla vuorovaikutuksessa asiakkaiden kanssa ja kehittää ratkaisuja ja palveluja, jotka auttavat asiakkaita helpottamaan omaa elämäänsä.
+Luottamuksen merkitys: Luottamus on tärkeää asiakassuhteen syventämiseksi ja asiakkaiden sitouttamiseksi yritykseen. Asiakkaiden luottamus voidaan voittaa, kun yritys kuuntelee asiakasta, vastaa heidän tarpeisiinsa ja auttaa heitä saamaan arvoa palveluistaan.
+Inhimillisyyden tuominen digitaalisiin palveluihin: Inhimillisyyden tuominen digitaalisiin palveluihin voi auttaa syventämään asiakassuhdetta ja voittamaan asiakkaiden luottamuksen.
 
 Mediayritys hyödyntää tavoitteita, kyvykkyyksiä, dataa ja koko ajan paranevaa asiakkaiden tuntemusta, jotta se pystyy rakentamaan sellaisen asiakaskokemuksen, joka houkuttelee asiakkaat ensin tilaamaan palvelun ja sitten sitouttaa heidät palvelun ja sisällön lojaaleiksi käyttäjiksi.
 Asiakaskokemuksen testipenkki on kuitenkin aina se, kokeeko asiakas saavansa arvoa käyttäessään mediayhtiön sisältöjä ja palveluja. Arvo välittyy usein kokemuksena, tunteena helppoudesta ja miellyttävyydestä. Se voi tarkoittaa rentoutumista, uutta tietoa, oivalluksia tai jotain vieläkin merkityksellisempää.
@@ -273,6 +314,11 @@ https://www.linkedin.com/pulse/user-needs-content-publishing-slide-started-all-f
 Yleisradion Tarjontaspeksit perustuvat käyttömotiiveihin
 https://drive.google.com/file/d/1dJXyEgSChb1dKq6Phs9RBRIMr4rnMNIP/view
 Miksi hyvin suunniteltu asiakaspolku on tärkeä?
+Hyvin suunniteltu asiakaspolku on tärkeä useista syistä. Tässä on muutamia syitä:
+Asiakaskokemuksen parantaminen: Hyvin suunniteltu asiakaspolku voi auttaa parantamaan asiakkaiden kokemusta yrityksestäsi. Kun asiakkaat voivat navigoida helposti verkkosivustollasi ja ostaa tuotteita tai palveluita ilman ongelmia, heidän kokemuksensa yrityksestäsi paranee.
+Myynnin kasvattaminen: Hyvin suunniteltu asiakaspolku voi myös auttaa kasvattamaan myyntiäsi. Kun asiakkaat voivat löytää helposti etsimänsä ja ostaa sen nopeasti, he todennäköisemmin tekevät ostoksen.
+Brändimielikuvan vahvistaminen: Hyvin suunniteltu asiakaspolku voi myös auttaa vahvistamaan brändimielikuvaa. Kun asiakkaat kokevat saavansa hyvää palvelua ja helpon ostokokemuksen yrityksesi verkkosivustolla, he todennäköisemmin suosittelevat yritystäsi muille ja palauttavat uudelleen.
+Kustannussäästöt: Hyvin suunniteltu asiakaspolku voi myös auttaa säästämään kustannuksia. Kun asiakkaat voivat helposti löytää etsimänsä ja tehdä ostoksensa, yrityksesi asiakaspalvelun tarve vähenee ja näin ollen kustannukset laskevat.
 
 Asiakaspolulla tarkoitetaan sitä, miten asiakas kulkee mediayhtiön palveluissa eri kosketuspisteiden kautta käyttämään yhtiön palveluita ja sisältöjä. Asiakaspolun tavoitteena on usein saada asiakas rekisteröitymään tai sitouttaa asiakas tilaajaksi.
 Usein mediayritykset kuvaavat tätä funnelilla, jonka tavoitteena on transaktio.
@@ -306,6 +352,13 @@ Kokemusdatan keruu tapahtuu kosketuspisteissä: suoria kontaktitapahtumia joko t
 Prosessit ja datakulttuuri
 
 Miten asiakas sitoutetaan?
+Huomioi nämä kun sitoutat asiakasta:
+Rekisteröityminen on potentiaalinen askel maksavaksi asiakkaaksi, joten helposti saatavilla oleva rekisteröityminen on tärkeää.
+Tarjotaan erilaisia tapoja käyttää maksullisia sisältöjä ja varmistetaan asiakaskokemuksen laatu.
+Palvelumuotoilu, design thinking ja erilaiset työkalut voivat auttaa hyvän asiakaskokemuksen rakentamisessa ja asiakkaan tarpeiden ymmärtämisessä.
+Yrityksen tulee määritellä, keitä sen asiakkaat ovat ja mitä asiakasryhmiä se haluaa ennen kaikkea palvella.
+Tasapainoilu nopeiden uutisten tekemisen ja suunniteltujen lukujuttujen välillä on tärkeää, jotta sisältö on laadukasta ja kiinnostavaa eri julkaisukanavilla.
+Yleisöjen odotukset sisältöjä kohtaan ovat muuttuneet, joten sisältöjen mukauttaminen eri julkaisukanaville on tärkeää.
 
 Jokainen asiakkaan käynti mediapalvelussa tai vaikkapa yksittäisen artikkelin lukeminen on mahdollisuus saada maksava asiakas.
 Satunnainen kävijä on aina potentiaalinen rekisteröityvä asiakas. Kun asiakas rekisteröityy, hän on jo hyvin potentiaalinen maksava asiakas. 
@@ -366,6 +419,14 @@ https://reutersinstitute.politics.ox.ac.uk/journalism-media-and-technology-trend
 Merkitykselliset asiakaskokemukset (meaningful experiences) auttavat meitä puolestaan oppimaan jotain itsestämme, laventamaan elämän katsomustamme. Merkitykselliset asiakaskokemukset ovat merkityksellisiä juuri siitä syystä, että ne puhuttelevat meidän arvomaailmaamme, ovat hyvin henkilökohtaisia ja jopa muokkaavat identiteettiämme. Tällaiset asiakaskokemukset edellyttävät usein asiakkaiden itsensä aktiivista mukana olemista ja osallistumista.
 Transformatiiviset asiakaskokemukset (transformational experiences) menevät vielä askeleen pidemmälle. Ne muuttavat meitä ihmisinä vaikuttamalla näkökulmiimme, asenteisiimme ja käyttäytymiseemme. (Hannu Saarijärvi - Pekka Puustinen: Strategiana asiakaskokemus. Miksi, mitä, miten? Docendo 2020.)
 Miten data palvelee asiakaskokemuksen rakentamista?
+Mediayrityksen datakäytännöt auttavat parantamaan asiakaskokemusta ja reagoimaan muutoksiin asiakkuudessa.
+Mediayhtiö on nykyisin myös data-alusta.
+Datan kekseliäs hyödyntäminen luo mediayhtiölle mahdollisuuksia löytää sisällöille uusia asiakkuuksia ja kohdentaa sisältöjä kiinnostuneille asiakkaille.
+Zetland on hyvä esimerkki mediayrityksestä, joka on onnistunut yhdistämään laadukkaan käyttäjäkokemuksen, tehokkaan teknologian ja laadukkaat sisällöt.
+Mediayrityksen datan ymmärrys on tärkeä hyvän sisältölupauksen rakentamisessa.
+Dataa käyttämällä mediayritykset voivat löytää uusia ja yllättäviä tapoja luoda relevanttia sisältöä asiakkailleen.
+Mittmedia Ruotsissa on hyvä esimerkki mediayrityksestä, joka on käyttänyt dataa kulttuurisisältöjen tuottamiseen ja löytänyt kiinnostuneen yleisön.
+
 
 Asiakkaan sitouttamisen - miten lukijasta tulee aktiivinen brändin, palvelun ja sisältöjen käyttäjä - edellyttää että mediayrityksen datakäytännöt auttavat koko yritystä parantamaan asiakaskokemusta ja reagoimaan muutoksiin asiakkuudessa. 
 Useilla mediayhtiöillä on myös muuta liiketoimintaa, joka tarkoittaa käytännössä mahdollisuutta laajentaa asiakaspohjaa datan avulla.
@@ -375,7 +436,7 @@ Mediayhtiö on nykyisin myös data-alusta. Datan kekseliäs hyödyntäminen luo 
 
 Atte Jääskeläinen kuvaa miten tanskalainen digiuutismedia on onnistunut yhdistämään laadukasta sisältöä ja saumatonta teknologiaa niin että syntyy erinomainen asiakaskokemus.
 
-Atte Jääskeläinen: Tässä hyvänä esimerkkinä erityisesti Zetland, tanskalainen digiuutismedia, joka rakentuu kombinaatiolla laadukas käyttäjäkokemus, joka luodaan teknologialla, saumaton siirtyminen tekstin ja audion välillä milloin tahansa, missä tahansa käyttötilanteessa, ja sitten todella laadukkaasti tehdyt sisällöt, jotka kiinnitetään tekijän persoonaan siten, että toimittaja aina itse lukee ne juttunsa myös audiona, ja sitten on tietynlainen arvopohja ja profiili sisällöllä, saavutti break-evenin ehkä kolme vuotta sitten, se on kannattava n. 25 000 maksavalla tilaajalla.
+Atte Jääskeläinen: Tässä hyvänä esimerkkinä erityisesti Zetland, tanskalainen digiuutimedia, joka rakentuu kombinaatiolla laadukas käyttäjäkokemus, joka luodaan teknologialla, saumaton siirtyminen tekstin ja audion välillä milloin tahansa, missä tahansa käyttötilanteessa, ja sitten todella laadukkaasti tehdyt sisällöt, jotka kiinnitetään tekijän persoonaan siten, että toimittaja aina itse lukee ne juttunsa myös audiona, ja sitten on tietynlainen arvopohja ja profiili sisällöllä, saavutti break-evenin ehkä kolme vuotta sitten, se on kannattava n. 25 000 maksavalla tilaajalla.
 
 Parhaan tuntuman ja ymmärryksen hyvän sisältölupauksen rakentamiseen mediayritys saa, kun se yhdistää erilaisia kompetensseja ja luo yhteistä kieltä ja datan ymmärrystä läpi organisaation.
 Sisällöntekijöiden, toimittajien ja palvelukehittäjien kulttuuri ja kieli eroavat lähtökohtaisesti, mutta kun organisaatiossa heidän osaamisensa yhdistetään projektien ympärille ja kaikkien kyvykkyydet huomioidaan arjen kulttuurissa, mediayritys voi tehdä uusia, jopa yllättäviä havaintoja luodakseen relevanttia sisältöä asiakkailleen tai osalle heistä. Atte Jääskeläinen kertoo miten Ruotsissa Mittmedia löysi kulttuurisisällöistä kiinnostuneen ja kiitollisen yleisön dataa tutkimalla.
@@ -396,6 +457,15 @@ Kirsi Hakaniemi: Koko ajanhan heillä on ne dashboardit siellä, ne on Pianon p�
 
 
 Miten datakulttuuria kannattaa kehittää?
+Tässä muutamia vinkkejä datakulttuurin kehittämiseen:
+Aloita analysoimalla nykytilanne ja keskustele tilannekuvasta kaikilla organisaation tasoilla.
+Johda toimenpiteitä asiakaskokemukseen liittyvien tavoitteiden pohjalta kaikkien organisaation tasojen ja toimintojen kanssa.
+Sisäistä organisaation eri osien tavoitteet ja ymmärrä lähtötilanne, jotta toimenpiteiden suuntaaminen kohti tavoitteita on helpompaa.
+Tarkastele toimenpiteiden vaikutuksia yhdessä asiantuntijoiden kanssa ja keskustele siitä, mitkä toimenpiteet edistävät parempaa asiakaskokemusta.
+Huolehdi siitä, että datakulttuurin kehittäminen ja asiakaskokemuksen tavoitteiden tarkastelu ovat koko ajan johdon asialistalla.
+Tarjoa toimitukselle dataa eri työkalujen ja erilaisten visualisointien avulla, jotka selkeyttävät ja helpottavat sen ymmärtämistä.
+Käytä dataklinikoita apuna erilaisten tapausten käsittelyssä ja keskustele datan pohjalta toimenpiteistä.
+
 
 Asiakaslähtöinen ajattelumalli, jossa asiakas laitetaan mediayhtiön organisaation keskiöön, vaatii toteutuakseen dataan ja analytiikkaan liittyvää systematiikkaa ja prosesseja, jotka ovat mahdollisia vasta kun yritys on saavuttanut riittävän maturiteetin, kypsyyden datakulttuurissa. Se edellyttää, että data ja sen merkitys on läsnä kaikkien liiketoimintayksiköiden ja päätöksiä tekevien arjessa. Datakulttuurin kehittäminen kannattaa aloittaa analysoimalla nykytilanne, ja keskustella tilannekuvasta kaikilla organisaation tasoilla. 
 Sen jälkeen nykytilanteesta pitää johtaa toimenpiteitä asiakaskokemukseen liittyvien tavoitteiden pohjalta kaikkien organisaation tasojen ja toimintojen kanssa. Kun yksiköt ovat sisäistäneet tavoitteet ja ymmärtäneet lähtötilanteen, niiden on helpompi suunnata toimintaa kohti tavoitteita. Toimenpiteiden vaikutuksia pitää jatkuvasti tarkastella yhdessä asiantuntijoiden kanssa ja keskustella mitkä toimenpiteet edistävät parempaa asiakaskokemusta. Hyvä datakulttuuri ja organisaation eri osien tekemät, yhdessä sovitut toimenpiteet vievät yritystä nopeimmin kohti paremman asiakaskokemuksen tavoitteita.
@@ -419,6 +489,16 @@ Sanna Laurell kuvaa miten dataa tarkastellaan ja millaisia mittareita Almalla on
 
 Sanna Laurell: Mietin, mitä kaikkea meidän toimitus seuraa... se mitä seurataan silmä tarkkana on reach ja sen kehittyminen. Sitten me myöskin seurataan Alma-tasolla liikenteenohjausta, eli miten me pystytään ohjaamaan meidän palveluiden välistä liikennettä. Se on synergiaetu jonka kanssa tehdään paljon töitä. Sitten seurataan tietysti meidän reachia suhteessa kilpailijoihin ja muutamia muita mittareita, lukijauskollisuutta ja lukijamääriä ja tämän tyyppisiä. No sitten tietysti aktiivisuusmittarit yleisellä tasolla, eli se miten usein kävijät palaavat meidän medioihin ja käyttävätkö he niitä esimerkiksi päivittäin, ja sitten tosiaan artikkelien lukuajat. Ne nyt on varmaan yleisimpiä mittareita mitä käytetään kaikissa medioissa meillä. Ja onhan meillä sitten tosiaan erilaisia asiakkaan elinkaaren mittareita, mallinnuksia ja muuta, mutta ne menee enemmän myynnin puolelle, että ne ei ole sisällöntuotannon mittareita niinkään.
 Datan toiminnallistaminen: Miten mediayhtiön asiakaskokemusta kannattaa mitata?
+Tässä on lista vinkkejä siitä, miten mediayhtiön asiakaskokemusta kannattaa mitata:
+Tarkastele asiakaskokemuksen ja liiketoimintatavoitteiden suhdetta samanaikaisesti, jotta ymmärrät paremmin niiden yhteyttä toisiinsa.
+Tunnista positiiviset ja negatiiviset korrelaatiot asiakkaista kerätyn datan ja liiketoimintamittareiden välillä.
+Aseta tavoitteet sen perusteella, mikä tuottaa asiakkaalle tutkitusti parhaan kokemuksen.
+Analysoi asiakkaista kerätty data ja löydä toimenpiteitä, jotka parantavat asiakaspitoa ja vähentävät asiakkaiden poistumista.
+Rakenna toiminnallinen data asiakaskokemuksen ja liiketoimintamittareiden perusteella.
+Tee datapohjainen analyysi asiakkaiden käyttäytymisestä ja tarpeista.
+Kehitä asiakaspalvelua asiakaskokemuksen parantamiseksi.
+Kerää laadullista dataa asiakkaiden subjektiivisesta kokemuksesta aikasarjana, jotta voit seurata kehitystä ajan myötä.
+
 
 Liiketoimintatavoitteita ja asiakkaan palvelukokemusta tarkastellaan liian harvoin samanaikaisesti. Esimerkiksi liiketoiminnan tavoitteet on luonnollisesti sidottu käytännössä euroihin ja koviin taloudellisiin mittareihin, ja asiakkuuden arvoa tarkastellaan esimerkiksi asiakaspidon ja kuukausilaskutuksen kautta. Asiakkaan tyytyväisyyttä hänen ostamiinsa palveluihin ja sisältöihin tutkitaan usein pistemäisesti, jopa irrallaan siitä tiedosta mitä asiakkaan taloudellisesta arvosta yritykselle tiedetään. Asiakaskokemuksen kehittämisen ja sitä tukevan datakulttuurin näkökulmasta olisi ensiarvoisen tärkeää rakentaa yritykseen prosessi, jonka avulla asiakaskokemuksen mittarit ja liiketoimintamittarit tuodaan yhteen ja tuotteistetaan helposti käytettäväksi tiedoksi.
 
@@ -436,8 +516,14 @@ Sanna Laurell kertoo muutamien esimerkkien millaisia tavoitteita ja mittareita A
 
 Sanna Laurell:  Sisältömyynnillä on omat euromääräiset ja liiketoiminnalliset tavoitteet, ja sitten jotta toimitus ikään kuin pelaa siihen samaan pussiin, sinne on vyörytetty joitain tavoitteita, ja sitten tietysti kriittisessä roolissa on meidän päätoimittajien ja digimyynnin johdon vuoropuhelu, että pelataan samaan maaliin. Ja sen vuoksi ja toki muutenkin toimittajat on kiinnostuneita siitä miten heidän juttunsa performoi. Tietysti sitä seurataan myös digitilausten näkökulmasta, minkä juttujen kautta tilaajia tulee. Toimituksella on isot screenit, missä käppyrät näkyy koko ajan, että mistä tilaajia on tullut.
 Miten ja millaista dataa tulisi kerätä?
+Asiakkaan subjektiivisesta kokemuksesta tulisi kerätä tietoa, esimerkiksi miten hän kokee käyttämänsä palvelun laadun tai arvon.
+Asiakaskokemuksen mittareita tulisi määritellä koko yhtiön tasolla yli liiketoimintojen ja siilorajojen, jotta keskeisiä mittareita voidaan tarkastella kokonaisuutena kustannustehokkaasti.
+Suositteluhalukkuus (NPS), käynnin onnistuminen (task completion rate), asioinnin vaivattomuus (CES) tai asiakastyytyväisyys (CSAT) ovat hyviä esimerkkejä asiakaskokemuksen mittareista.
+Laadullista ja määrällistä dataa tulisi yhdistää paremman asiakasymmärryksen rakentamiseksi. Laadullinen data auttaa ymmärtämään asiakkaan motiiveja, kun taas määrällinen data kuvaa, miten asiakas on käytännössä toiminut.
+Keskustelut potentiaalisten asiakkaiden kanssa tuottavat laadullista dataa, joka auttaa tulkitsemaan määrällistä dataa ja asettamaan sen kontekstiin.
 
-Yleisin haaste asiakaskokemuksen analyysissa on nimenomaan se, että asiakkaista on olemassa suurelta osin vain kvantitatiivista käyttäytymisdataa ja mahdollisesti tavallisempia taustamuuttujia kuten asuinpaikka, tulotaso, sukupuoli, ikä. Asiakkaan subjektiivisesta kokemuksesta - miten hän kokee käyttämänsä palvelun laadun tai arvon - on tietoa aivan liian vähän, saati että tämä tieto olisi yhdistettävissä helposti hänen käyttäytymisdataansa tai muuhun tietoon asiakkuudesta.
+
+Yleisin haaste asiakaskokemuksen analyysissa on nimenomaan se, että asiakkaista on olemassa suurelta osin vain kvantitatiivista käyttäytymisdataa ja  mahdollisesti tavallisempia taustamuuttujia kuten asuinpaikka, tulotaso, sukupuoli, ikä. Asiakkaan subjektiivisesta kokemuksesta - miten hän kokee käyttämänsä palvelun laadun tai arvon - on tietoa aivan liian vähän, saati että tämä tieto olisi yhdistettävissä helposti hänen käyttäytymisdataansa tai muuhun tietoon asiakkuudesta.
 
 Mikäli asiakkaiden palvelu- tai asiakaskokemuksesta kerätään dataa, se on usein pistemäistä; joko sitä kerätään vain silloin tällöin, tai eri tavoin eri liiketoimintayksiköissä ja palveluissa. Toki eri liiketoimintojen tarpeet ja asiakaslupaukset saattavat erota toisistaan niin paljon, että on järkevää pystyä luomaan ja tutkimaan myös palvelukohtaisia mittareita.  Ydinmittarit asiakaskokemuksen suhteen tulisi pystyä kuitenkin määrittelemään koko yhtiön tasolla yli liiketoimintojen ja siilorajojen. Tällöin asiakaskokemuksen keskeisiä mittareita on mahdollista tarkastella kokonaisuutena kustannustehokkaasti ja sellaisin menetelmin, jotka kaikki ymmärtävät samalla tavalla. Hyviä esimerkkejä tällaisista mittareista ovat suositteluhalukkuus (NPS, Net Promoter Score), käynnin onnistuminen (task completion rate), asioinnin vaivattomuus (CES, Customer Effort Score) tai asiakastyytyväisyys (CSAT, Customer Satisfaction Score).
 
@@ -488,6 +574,14 @@ On kolme pääaluetta, joissa big datalla on potentiaalia horjuttaa status quoa 
 3. Infrastruktuuri ja prosessit.  Vaikka startup-yritykset ja pk-yritykset voivat toimia tehokkaasti avoimen lähdekoodin ja pilvi-infrastruktuurin avulla, suuremmille, vanhemmille toimijoille vanhan IT-infrastruktuurin päivittäminen on haaste. Vanhoja tuotteita ja standardeja on edelleen tuettava siirryttäessä big datan ajattelu- ja työskentelytapoihin. Prosessien ja organisaatiokulttuurin on myös pysyttävä big datan tarjoamien odotusten tahdissa. Epäonnistuminen henkilöstön kulttuurin ja osaamisen muuttamisessa voi vaikuttaa yrityksiin, jotka ovat kannattavia nykyään, mutta jotka eivät voi mukautua datalähtöisiin liiketoimintamalleihin (Lippell 247) 
 There is a vocal privacy-protection movement—perhaps more active in Europe than in North America—that has been energized by the increasing role that individual information plays in ordinary commerce, and the perceived threat to individual privacy that this poses. However, both practical experience as well as a number of academic studies have shown that the vast majority of consumers are not at all reluctant to share their individual information whenever there is a clear value proposition for doing so. Therefore, if a company can demonstrate to the customer that individual information will be used to deliver tangible benefits (and provided the customer trusts the enterprise to hold the information reasonably confidential beyond that), then the customer is usually more than willing to allow the use of the information. Trusting relationships or not, protecting customer privacy and ensuring the safety and security of customer-specific information are critical issues in the implementation of customer strategies (Pepper & Rogers s. 100-101)
 Miten hyödyntää dataa vastuullisesti?
+Datan kerääminen ilman selkeää päämäärää on turhaa ja nykyisen tietosuojalainsäädännön näkökulmasta kyseenalaista.
+Datan keräämisen tulee perustua organisaation mittaustarpeisiin ja päämääriin.
+Samalla on myös tärkeää analysoida dataa myös eksploratiivisesti ilman etukäteen määriteltyä mittaria tai tavoitetta.
+Organisaation tulee olla avoin ja läpinäkyvä datan käytön suhteen, jotta kuluttajat ymmärtävät, miten heidän dataansa käytetään.
+Datan käyttöön algoritmien ja tekoälysovellusten kouluttamiseen liittyy riskejä, joten on tarpeen valvoa ja reguloida tätä toimintaa.
+EU on valmistelemassa lakiesitystä tekoälysovellusten reguloinnista, joka koskee erityisesti korkeariskisiä sovelluksia, mutta pyrkii myös luomaan hyvät käytännöt koko alalle.
+Yrityksen tulee mahdollistaa asiakkaalle hänen omien tietojensa käyttö hänen aikansa ja rahojensa säästämiseksi sekä lisäarvon tuomiseksi.
+Asiakkaan tulee tuntea hallitsevansa omia tietojaan, jotta luottamus säilyy ja yritys ansaitsee hänen elämänmittaisen uskollisuutensa.
 
 Datan kerääminen ilman selkeää päämäärää on paitsi turhaa, myös nykyisen tietosuojalainsäädännön näkökulmasta kyseenalaista. Pääosa kerättävistä tietotyypeistä tulisi pystyä yhdistämään johonkin organisaation mittaustarpeeseen. On kuitenkin tärkeää pystyä analysoimaan dataa myös eksploratiivisesti vailla etukäteen määriteltyä mittaria tai tavoitetta.
 Sanna Laurell:…jos miettii ihan puhtaasti digitaalisten medioiden käytettävyyttä ja sitä mikä käyttökokemus on, niin pitäisi enemmän kysyä siitä asiakkailta. Me kysytään liian vähän ja tehdään liikaa omiin oletuksiin perustuvia päätelmiä. Meillä on hirveän paljon dataa, jota me käytetään, mutta sen lisäksi pitäisi saada siihen rinnalle kvalitatiivisempaa insightia, ja sitä me ainakin tehdään ihan liian vähän.
@@ -504,6 +598,16 @@ Kirjallisuus:
 
 Kun informaatio alkaa siirtyä asiakkaan ja yrityksen välillä, on ehdottoman tärkeää, että asiakas tuntee hallitsevansa omia tietojaan. Yrityksen tulee mahdollistaa asiakkaalle hänen omien tietojensa käyttö hänen aikansa ja rahojensa säästämiseksi sekä lisäarvon tuomiseksi. Kaikki tämä täyttää asiakkaan odotukset luottamuksesta ja siihen, että yritys ansaitsee hänen elämänmittaisen uskollisuutensa. (Pepper & Rogers 83)
 Miten data auttaa optimoimaan asiakaskokemusta?
+Miten data auttaa optimoimaan asiakaskokemusta mediayhtiöissä?
+Aseta asiakaskokemuksen tavoitteet ja kerää dataa.
+Mittaa, raportoi ja analysoi asiakaskokemusta.
+Yhdistä laadullinen ja määrällinen data asiakaskokemuksen optimointiin.
+Käytä käyttödataa lukijoiden kiinnostusten ja ajankäytön tulkitsemiseen.
+Monipuolinen datalähteiden yhdistäminen auttaa kehittämään parempaa palvelua.
+Kysy asiakkailta ja vuorovaikuta heidän kanssaan, jotta ymmärrät heidän tarpeensa.
+Yhdistä datafikaation ongelmalliset ilmentymät laajempaan mediakokemuksen ymmärrykseen käyttämällä erilaisia sekamenetelmiä.
+
+
 
 Asiakaskokemuksen optimointi on mahdollista vasta sitten kun mediayhtiöllä on olemassa tavoitteet asiakaskokemuksen suhteen. Toinen ehto optimoinnille on se, että asiakaskokemusta mitataan, raportoidaan ja analysoidaan. Kun tavoitteet on asetettu ja dataa kertyy, voidaan käynnistää jatkuva prosessi, jonka aikana pystytään ideoimaan, priorisoimaan ja toteuttamaan tapoja optimoida asiakaskokemusta.
 
@@ -528,6 +632,11 @@ Kirjallisuus:
 Sen sijaan, että median käyttöä ymmärrettäisiin ensisijaisesti kvantitatiivisten mittareiden, kuten klikkausten, sivulla käytetyn ajan, jakamisen tai kommenttien avulla, kriittinen huomio datafikaation ongelmallisiin ilmentymiin tulisi yhdistää laajempaan ja syvempään käsitykseen mediasta kokemuksena käyttämällä erilaisia ​​sekamenetelmiä. Tässä yhteydessä vastuullisen mediainnovoinnin on perustuttava tietoon, jossa huomioidaan käyttäjien erilaisten mediakokemusten ja median käytön demokraattinen rooli (Trattner & et al.) 
 ”Once persuaded of the importance of [customer] experience, every function has a role to play. Marketing has to capture the tastes and standards of every one of its targeted market segments, circulate that knowledge within the company, and then tailor all consumer communications accordingly. Service operations must ensure that processes, skills, and practices are attuned to every touch point. (Present-patterns surveys are good for tracking high-volume touch points such as call centers.) Product development should do more than specify needed features. It should also design experiences after observing how customers use products and services, learning why they use offerings as they do, and figuring out how existing products might be frustrating them. Ideally, product developers will identify customer behavior that runs counter to a company’s expectations and uncover needs that haven’t been identified” (Meyer & Schwager s. 10-11)
 Miksi parempi asiakaskokemus myös kasvattaa liikevaihtoa?
+Paranna asiakaskokemusta lisätäksesi asiakkaiden sitoutumista yritykseen ja kasvattaaksesi asiakkaan elinkaaren arvoa (customer lifetime value), mikä puolestaan johtaa kasvaneeseen liikevaihtoon.
+Parantunut asiakaskokemus lisää asiakastyytyväisyyttä, mikä voi johtaa suositusten ja uudelleenostojen lisääntymiseen.
+Seuraa ja optimoi mittareita ja dataa ymmärtääksesi paremmin asiakkaiden käyttäytymistä ja tarpeita, mikä johtaa parempaan palveluun ja tuotteiden kehittämiseen ja lopulta kasvaneeseen liikevaihtoon.
+Mittaa asiakkaan elinkaaren arvoa (customer lifetime value) keskittymällä pitkäaikaiseen suunnitteluun ja strategioihin, mikä auttaa yritystä tekemään parempia päätöksiä ja kasvattamaan liikevaihtoa.
+Seuraa ja optimoi funnelia (osto- ja asiakaspolkua) ymmärtääksesi paremmin asiakkaiden ostoprosessia ja tarpeita, mikä johtaa parempaan palveluun ja lisääntyneisiin ostoihin.
 
 Tom Whitwell nostaa esiin myös sen miten iso määrä dataa voi myös mutkistaa tärkeiden muutosten ja ratkaisujen tekemistä. Dataa voidaan tulkita monella tavalla ja siitä voidaan löytää perusteluja eri suuntiin, jos sitä ei ole kerätty ja analysoitu tavoitteellisesti.
 
@@ -545,6 +654,13 @@ Jason DaPonte: I've done a decent amount of work with Adidas over the years. The
 
 Sanna Laurell: Ja sitten taas jos mennään markkinapaikkoihin ja transaktiopohjaisiin palveluihin, niin kyllähän me siellä katsotaan, että miten me pystytään kuljettamaan asiakas funnelin läpi, mitataan pääasiassa transaktiota: miten saadaan käyttäjä ensin kirjautumaan ja sieltä sitten tekemään joku ostos tai muu toimenpide, mikä ikinä se tavoite siellä sitten onkaan. Ja totta kai itse asiassa sama pätee myös digitilausmedioissa: yhtä laillahan me siellä sitä halutaan sitä käyttäjää kuljettaa. Ensin kirjautumaan, että hän pääsee lukemaan jotain sisältöä, ja sen jälkeen lähdetään kuljettamaan häntä meidän erilaisissa automaatioputkissa, jotta saataisiin hänet sitten mahdollisesti tilaamaan vaikka se kyseinen digilehti.
 Miten pysyä relevanttina asiakkaille?
+Käytä dataa kehityksen ajurina: Hyödynnä dataa kehittääksesi prosesseja, palvelua ja sisältöä.
+Testaa, kehitä ja kokeile: Investoi testaamiseen, kehitykseen ja kokeiluun, jotta voit pysyä kilpailukykyisenä.
+Kerää jatkuvasti palautetta: Käytä erilaisia työkaluja ja testausmenetelmiä kerätäksesi asiakkailta jatkuvasti palautetta ja näkemyksiä.
+Seuraa muutosta tavoitteiden puitteissa: Seuraa muutosta omien tavoitteidesi ja palvelulupauksesi puitteissa, ja tarkastele parhaita käytäntöjä yhtiön tavoitteiden ja tilanteen pohjalta.
+Käytä dataa oppimisen ajurina: Koko organisaation tulee oppia datan avulla ja keskustella suunnasta ja toimintatavoista.
+Rakenna yhteisiä prosesseja ja foorumeita: Rakenna yhteisiä prosesseja ja foorumeita, joissa onnistumisista opitaan ja niitä jaetaan yhdessä.
+Ymmärrä epäonnistumisten merkitys: Ymmärrä epäonnistumisten merkitys ja käytä niitä oppimistilaisuuksina.
 
 Kun yhtiö on saavuttanut riittävän kypsyyden datan toiminnallistamisessa eli se pystyy aidosti hyödyntämään sitä kehittäessään prosessejaan, palveluaan ja sisältöjään, data auttaa koko organisaatiota oppimaan muuttuvassa mediaympäristössä. Tämä on sekä liiketoiminnan että asiakkaiden palvelun näkökulmasta olennaista: datasta tulee parhaimmillaan kuin yhtiön toimintoja liikkeessä pitävä verenkierto.
 Media-ala on jatkuvassa liikkeessä ja muutoksessa. Siihen vaikuttavat digitaalisten palveluiden kehitys, regulaatio, asiakkaiden ja lukijoiden muuttuvat median käyttötavat, uudet juttutyypit ja koko ajan kiihtyvä kilpailu ihmisten ajasta. Reuters Instituutin Journalism, media, and technology trends and predictions 2023 nostaa yhdeksi aikamme megatrendeistä uusien formaattien ja sisältömuotojen jatkuvan kehittämisen. Kun jakelukanavat muuttuvat ja uudistuvat, myös kerrontakeinot kehittyvät ja se muuttaa asiakkaiden käyttötapoja ja -tottumuksia. Mediayhtiö ei pysy hengissä, jos se ei satsaa testaamiseen, uuden kehittämiseen ja kokeiluun.  Niiden kehittämisessä yhtiöllä on hyvä olla erilaisia työkaluja ja testausmenetelmiä - mahdollisesti myös käyttäjä paneeleita - joiden avulla asiakkailta kerätään jatkuvasti palautetta ja näkemyksiä kuinka erilaiset muodot koetaan eri kohderyhmissä.
@@ -580,6 +696,12 @@ Viimeisen kymmenen vuoden aikana kaikki keskeiset digitaalisen asiakaskokemuksen
 Datan keräykseen ja tallentamiseen liittyvät tekniikat ovat siirtyneet lähes täysin pilvipohjaisiksi. Tunnistautuminen on muuttunut muun muassa mobiililaitteiden ja biometriikan yleistyessä jatkuvasti vaivattomammaksi sekä kirjautumisratkaisuja implementoiville yrityksille, että niitä käyttäville kuluttajille. Keinoälyratkaisut ovat mullistaneet sekä kyvyn analysoida kerättyä dataa että rakentaa sen päälle esimerkiksi suosittelualgoritmeja.
 Data-alustat - keskittäminen kannattaa
 
+Keskittämisen hyödyistä datan hallinnassa:
+Keskittäminen helpottaa datan hallintaa ja parantaa osaamista, prosesseja ja alustoja.
+Keskittäminen mahdollistaa kokonaisvaltaisen asiakasymmärryksen.
+Yhden alustan kautta järjestetty pääsy kattavaan datakokonaisuuteen tehostaa datan automaatiota.
+Keskittäminen vähentää riskejä regulaation kannalta.
+
 Kaiken kokoisissa organisaatioissa dataan liittyvä tekeminen tulisi osin keskittää samaan paikkaan sekä kompetenssien, prosessien että alustojen näkökulmasta. Ironisesti voisi todeta, että tekniset siilot asiakasdataa sisältävien järjestelmien välillä on paras tapa estää kokonaisvaltaisen asiakasymmärryksen kasvattaminen organisaatiossa. Myös kaikenlainen dataan liittyvä automaatio toimii yleensä paremmin mikäli yhden alustan ja rajapinnan kautta on järjestetty pääsy mahdollisimman kattavaan datakokonaisuuteen.
 
 Rovion data-asiantuntija kuvaa heidän datavarastonsa perusperiaatetta seuraavasti:
@@ -598,6 +720,11 @@ Sanna Laurell: Meillä on Alman yhteinen, oma data lake, missä on kaikki meidä
 Sanna Laurell: Kirjautuneesta käytöstä kertyvän datan osalta, tällä hetkellä se kirjautuneilta käyttäjiltä kysytty data ui osaksi meidän muuta dataa, ja sieltä mallinnetaan vaikka nyt just kaikki meidän segmentit, ja niitähän käyttää sitten yhtä lailla myös meidän mainonta, tai mainosmyynti, ja sille se on ihan elinehto.
 Millaisia mahdollisuuksia asiakkaan tunnistaminen tarjoaa?
 
+Tunnistautumisen avulla yhtiö voi kohdentaa asiakkaalle sisältöjä paremmin.
+Kirjautuminen helpottaa asiakkaan pääsyä maksullisiin palveluihin ja sisältöihin.
+Kirjautumistieto avaa mahdollisuuden erilaisiin kokeilujaksoihin ja tarjouksiin.
+Kirjautuneita käyttäjiä voidaan kutsua osallistumaan erilaisiin asiakaspaneeleihin ja testeihin.
+Asiakkaan antama data mahdollistaa paremman palvelun.
 Yksi tärkeimmistä tavoista ymmärtää sekä nykyisiä maksavia asiakkaita että potentiaalisia tilaajia on analysoida sitä miten kirjautuneet asiakkaat käyttävät palveluita. Kaikki palvelun käytöstä kirjautuneena kertyvä data pitää pystyä saamaan talteen ja voida yhdistää kaikkeen muuhun asiakasdataan.
 Asiakkaan kirjautuminen mahdollistaa datan hyödyntämisen kannalta useita asioita yhtiölle. Sen avulla yhtiö muistaa asiakkaan käyttöpreferenssit ja pystyy kohdentamaan hänelle sisältöjä paremmin. Julkaisutasolla se auttaa yhdistämään asiakastiedon eri kanavien välillä ja sitä kautta asiakkuuden arvon tunnistamisen ja sen mahdollisen kasvattamisen datan avulla. 
 Asiakkaalle se tarjoaa vaivattoman pääsyn maksullisiin palveluihin ja sisältöihin. Kirjautumistieto avaa myös portin erilaisiin kokeilujaksoihin ja tarjouksiin. 
@@ -626,6 +753,9 @@ Ensimmäisen osapuolen tiedonkeruusta on tulossa entistä tärkeämpää julkais
 Suomessa on kyselyn korkein prosentti (49 %) niitä käyttäjiä, jotka sanovat luottavansa siihen, että uutissivustot toimivat heidän datansa suhteen oikein (sosiaalisen median suhteen prosentti on 30 %) (76) 
 
 Mihin suuntaan tunnistautumisen teknologiat ovat kehittymässä?
+FIDO Alliance kehittää biometrisiä tunnisteita ja käyttäjän laitteiden välisiä vahvoja tunnistautumisratkaisuja, jotka korvaavat perinteiset salasanat.
+Passkey-teknologia mahdollistaa salasanattoman kirjautumisen eri teknojättien ekosysteemeissä.
+Valtion digihenkilöllisyys ja vahva tunnistautuminen tarjoavat mahdollisuuksia hyödyntää vahvaa tunnistamista erilaisissa palveluissa ja käyttökohteissa.
 Juuri nyt tunnistautumisen kentällä tapahtuu paljon sekä kansainvälisesti että Suomessa. Internet -käyttö on kaikissa muodoissaan muuttumassa yhä selkeämmin tunnistautuneeksi, ja kynnys tunnusten luomiseen vähenee - osittain siksi, että kirjautumista vaativia palveluita on yhä enemmän, ja toisaalta kirjautumisen teknologiat kehittyvät jatkuvasti helpommiksi käyttää. Lisäksi palveluiden asiakkaat näkevät kirjautuneen käytön hyödyt yhä selvemmin esimerkiksi siinä, että laitteet muistavat  omat käyttöpreferenssit tai -historian sekä parempina suosituksina palveluissa.
 
 Alla listattuna niitä hankkeita, joilla saattaa olla lähitulevaisuudessa merkittäviä vaikutuksia useiden toimialojen ja yhtiöiden kirjautumiskäytänteisiin ja teknologioihin.
@@ -674,5 +804,3 @@ Kirjallisuus:
 A crucial task that can be supported by AI technology is that of news writing. Reasonably straightforward techniques (e.g. the use of text templates filled in with data from rich databases) are already used routinely to produce highly automated stories about topics, such as sports, finance, and elections. Opportunities also exist for automated generation of highly personalized content, such as articles that adapt to appeal to a user’s location or demographic background. A challenge is to avoid bias in the resulting AI-automated or AI-augmented workflows, which can result both from the selection of informants and other data sources, from the analysis techniques and training materials used, and from the language models that generate the final news text (Trattner et al.)
 
 Sisällön tuotto
-
-
