@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Wind Speed Puzzle</title>
 
+  <!-- Step 1: Scittle + React + Scittle Reagent (version-pinned) -->
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.reagent.js"></script>
+
   <style>
     /* =========================
        DESIGN TOKENS (Swiss / Helvetica)
@@ -157,7 +163,6 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       /* generous bottom room so footer never hides last row */
-      /* CHANGED: include safe-area inset in reserved padding */
       padding: 20px 20px calc(var(--footer-h) + 24px + env(safe-area-inset-bottom)) 20px;
     }
     body, table { font-variant-numeric: tabular-nums; }
@@ -175,7 +180,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-4);
       padding: 24px;
-      /* CHANGED: extra bottom padding includes safe-area */
+      /* extra bottom padding inside container as well */
       padding-bottom: calc(var(--footer-h) + 24px + env(safe-area-inset-bottom));
     }
 
@@ -307,22 +312,18 @@
       position:fixed;left:0;right:0;bottom:0;min-height: var(--footer-base-h);
       height: auto;
       display:flex;align-items:center;justify-content:space-between;gap:16px;
-      /* CHANGED: add safe-area to bottom padding */
       padding: 10px 20px calc(10px + env(safe-area-inset-bottom)) 20px;
       background: var(--surface);color: var(--text);
       border-top:1px solid var(--border);z-index:1000;
     }
-
-    /* Footer tile content now allowed to wrap by default (Option A) */
+    /* Footer tile truncation / wrapping */
     #footerTile{
       max-width: min(70vw, 520px);
-      white-space: normal;      /* CHANGED: was nowrap */
-      overflow: visible;        /* CHANGED: was hidden */
-      text-overflow: clip;      /* CHANGED: was ellipsis */
-      word-break: break-word;   /* long tokens won’t overflow */
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      word-break: break-word;
     }
-
-    /* Keep single-line + ellipsis on wide screens if space allows */
     @media (min-width: 821px){
       #footerTile{
         white-space: nowrap;
@@ -337,7 +338,7 @@
         flex-wrap: wrap;
         align-items: flex-start;
         gap: 8px 12px;
-        padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px; /* keep safe-area */
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
       }
       .editor-footer .footer-section{
         flex: 1 1 100%;
@@ -350,11 +351,7 @@
       #footerTile{ max-width: 60vw; }
     }
 
-    /* CHANGED: allow flex children to shrink/wrap properly */
-    .editor-footer .footer-section{
-      display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;
-    }
-
+    .editor-footer .footer-section{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
     .footer-separator{color:var(--border)}
     .metric{font-variant-numeric: tabular-nums;}
 
@@ -390,6 +387,25 @@
       <h1>Wind Speed</h1>
       <p class="lead">Fill the Beaufort scale table by placing the correct tiles into each selected column.</p>
     </header>
+
+    <!-- Step 1 mount point for Scittle/Reagent -->
+    <div id="app"></div>
+
+    <!-- Tiny Scittle sanity check: renders a small notice into #app -->
+    <script type="application/x-scittle">
+      (ns app.hello
+        (:require [reagent.core :as r]
+                  [reagent.dom :as rdom]))
+      (defn hello []
+        [:div {:style {:margin "8px 0"
+                       :padding "8px 10px"
+                       :border "1px dashed var(--border)"
+                       :background "#FAFAFC"
+                       :border-radius "4px"
+                       :font-weight 600}}
+         "Scittle + Reagent mounted"])
+      (rdom/render [hello] (.getElementById js/document "app"))
+    </script>
 
     <section class="instructions">
       <div class="label">Instructions</div>
@@ -431,7 +447,6 @@
     </div>
 
     <!-- Generous scroll buffer so the footer never overlaps the last row -->
-    <!-- CHANGED: include safe-area in scroll buffer height -->
     <div class="scroll-buffer" aria-hidden="true" style="height: calc(var(--footer-h) + env(safe-area-inset-bottom))"></div>
 
     <!-- Footer -->
