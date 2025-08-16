@@ -231,7 +231,7 @@
     }
     tbody td{
       border-bottom:1px solid var(--hairline);
-      padding:0; /* let the tile fill the whole cell cleanly */
+      padding:0;
       min-height:44px;vertical-align:middle;text-align:center;
     }
     tr:nth-child(even) td{background:#FCFCFD}
@@ -240,7 +240,7 @@
       display:inline-block;
       border:1px solid var(--border);
       border-radius: var(--radius-2);
-      padding:4px 8px;font-weight:600;margin:12px 0; /* match cell padding */
+      padding:4px 8px;font-weight:600;margin:12px 0;
       background:#FAFAFC;color:var(--ink);
     }
 
@@ -250,12 +250,12 @@
       min-height:44px;display:flex;align-items:center;justify-content:center;
       border:1px dashed var(--border);border-radius: var(--radius-2);
       background: #FBFBFD; cursor:pointer; transition: background .15s ease, border-color .15s ease, transform .12s ease;
-      margin:6px; /* optical breathing space when empty */
+      margin:6px;
     }
     .drop-zone:hover{background:#F6F7FA}
     .drop-zone.filled{
       border-style:solid;
-      margin:0; /* when filled, the tile itself will flush to edges */
+      margin:0;
     }
 
     /* Highlight tints for target column */
@@ -296,7 +296,7 @@
       display:flex;align-items:center;justify-content:center;
       border-radius:var(--radius-2);
       color:#fff; font-weight:600; opacity:.85;
-      pointer-events:none; /* do not steal clicks */
+      pointer-events:none;
     }
     .cheat-ghost[data-field="ms"]{background:var(--col-ms-stroke)}
     .cheat-ghost[data-field="knots"]{background:var(--col-knots-stroke)}
@@ -316,7 +316,7 @@
       background: var(--surface);color: var(--text);
       border-top:1px solid var(--border);z-index:1000;
     }
-    /* Footer tile truncation / wrapping */
+    /* Footer tile wrapping by default, ellipsis on wide */
     #footerTile{
       max-width: min(70vw, 520px);
       white-space: normal;
@@ -360,7 +360,7 @@
       border:1px solid var(--border);
       background: var(--surface);
       color: var(--text);
-      border-radius: var(--radius-2);
+      border-radius:var(--radius-2);
       padding:8px 12px;
       font-weight:500;
       cursor:pointer;
@@ -385,11 +385,47 @@
   <!-- Reagent mount point -->
   <div id="app"></div>
 
-  <!-- Static shells rendered with Reagent -->
+  <!-- STEP 2 shells + STEP 3 state (Scittle/Reagent) -->
   <script type="application/x-scittle">
-    (ns app.step2
+    (ns app.core
       (:require [reagent.core :as r]
                 [reagent.dom  :as rdom]))
+
+    (defonce app-db
+      (r/atom {:selected-fields #{:ms}
+               :theme           :dutch
+               :attempts        {:total 0 :correct 0}
+               :tiles           {:placed 0 :total 0 :current-idx 0}
+               :timer           {:elapsed-ms 0 :paused? false}
+               :current-tile    nil}))
+
+    (defn ^:private read-theme []
+      (keyword (.getAttribute (.-documentElement js/document) "data-theme")))
+
+    (defn ^:private js-array->vec [a]
+     (vec (js->clj a)))
+
+    ;; Exposed to JS: keep app-db in sync with the still-JS-driven logic
+    (defn sync-from-js! []
+     (when-let [gs (.-gameState js/window)]           ;; <-- guard
+      (let [fields (map keyword (js-array->vec (js/getSelectedFieldList)))]
+       (swap! app-db assoc
+        :selected-fields (set fields)
+        :theme           (keyword (.getAttribute (.-documentElement js/document) "data-theme"))
+        :attempts        {:total   (.-totalAttempts gs)
+                          :correct (.-correctAttempts gs)}
+        :tiles           {:placed      (.-placedTiles gs)
+                          :total       (.-totalTiles gs)
+                          :current-idx (.-currentTileIndex gs)}
+        :timer           {:elapsed-ms (.-elapsedTime gs)
+                          :paused?    (.-isPaused gs)}
+        :current-tile    (when-let [t (.-currentTile gs)]
+                          {:value (.-value t)
+                           :field (keyword (.-correctField t))}))))
+     nil)
+
+    ;; expose for JS to call: window.syncAppDbFromJs()
+    (set! (.-syncAppDbFromJs js/window) sync-from-js!)
 
     (defn Header []
       [:header {:style {:margin-bottom "6px"}}
@@ -449,6 +485,7 @@
         [:span.label "Score"] [:span.metric {:id "footerScore"} "0/0 (0%)"]
         [:span.footer-separator "|"]
         [:span.label "Tries"] [:span.metric {:id "footerAttempts"} "0"]]
+        ;; Buttons still call existing JS handlers
        [:div.footer-section
         [:button.btn-primary {:id "footerPauseBtn" :onClick #(js/togglePause)} "Pause"]
         [:button.btn-danger  {:onClick #(js/resetGame)} "Reset"]
@@ -469,7 +506,7 @@
     (mount!)
   </script>
 
-  <!-- Existing JS (unchanged) -->
+  <!-- Existing JS (unchanged behavior; now emits state into app-db) -->
   <script>
     /* ---------- Data ---------- */
     const beaufortData = [
@@ -535,6 +572,7 @@
       placedTiles:0, totalTiles:0, totalAttempts:0, correctAttempts:0,
       tiles:[], currentTileIndex:0, currentTile:null, dropZones:new Map()
     };
+    window.gameState = gameState; 
 
     /* ---------- UI Builders ---------- */
     function buildSelectors(){
@@ -579,6 +617,7 @@
         ft.style.borderColor = getFieldStroke(gameState.currentTile.correctField);
         ft.style.background = getFieldTint(gameState.currentTile.correctField);
       }
+      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
     }
 
     function reinitializeForNewColumns(){
@@ -689,6 +728,8 @@
       document.getElementById('footerPauseBtn').textContent = 'Pause';
 
       initCheatButton();
+
+      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
     }
 
     function showNextTile(){
@@ -707,6 +748,8 @@
 
       setColumnHighlights(gameState.currentTile.correctField);
       if(typeof requestAnimationFrame !== 'undefined'){ requestAnimationFrame(updateFooterHeight); } else { updateFooterHeight(); }
+
+      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
     }
 
     function setupDropZone(dz){
@@ -788,6 +831,8 @@
       const displaySeconds = String(seconds % 60).padStart(2,'0');
       document.getElementById('footerTimer').textContent =
         `${String(minutes).padStart(2,'0')}:${displaySeconds}`;
+
+      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
     }
 
     function updateScore(){
@@ -796,6 +841,8 @@
       const pct = total > 0 ? Math.round((correct/total)*100) : 0;
       document.getElementById('footerScore').textContent = `${correct}/${total} (${pct}%)`;
       document.getElementById('footerAttempts').textContent = `${total}`;
+
+      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
     }
 
     function checkCompletion(){
@@ -814,6 +861,7 @@
         btn.textContent = 'Pause';
         gameState.startTime = Date.now() - gameState.elapsedTime;
       }
+      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
     }
 
     function resetGame(){
@@ -941,7 +989,7 @@
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
 
-    // >>> Ensure Scittle/Reagent shells exist before initializing JS <<<
+    // Ensure Scittle/Reagent shells exist before initializing JS
     document.addEventListener('DOMContentLoaded', () => {
       const tryInit = () => {
         if (
@@ -951,7 +999,6 @@
         ) {
           initializeGame();
         } else {
-          // Wait one frame and check again (Scittle runs on DOMContentLoaded)
           requestAnimationFrame(tryInit);
         }
       };
