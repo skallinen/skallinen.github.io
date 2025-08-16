@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Wind Speed Puzzle</title>
 
-  <!-- Step 1: Scittle + React + Scittle Reagent (version-pinned) -->
+  <!-- Scittle + React + Scittle Reagent -->
   <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -127,27 +127,27 @@
     /* 5) MONO SLATE — restrained cool grays (inspired by Carbon/HIG) */
     [data-theme="mono"]{
       --accent-50:#F8FAFC; --accent-600:#0B0B0C;
-      --col-ms-tint:#F8FAFC;           --col-ms-stroke:#111827; /* slate-900 */
-      --col-knots-tint:#F9FAFB;        --col-knots-stroke:#1F2937; /* gray-800 */
-      --col-kmh-tint:#F6F7F9;          --col-kmh-stroke:#334155; /* slate-700 */
-      --col-english-tint:#F3F4F6;      --col-english-stroke:#4B5563; /* gray-600 */
-      --col-finnish-tint:#FAFAFB;      --col-finnish-stroke:#3F3F46; /* zinc-700 */
-      --col-finnishModern-tint:#F5F5F6;--col-finnishModern-stroke:#525252; /* neutral-600 */
-      --col-swedish-tint:#FAFAFA;      --col-swedish-stroke:#262626; /* neutral-800 */
-      --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A; /* slate-950 */
+      --col-ms-tint:#F8FAFC;           --col-ms-stroke:#111827;
+      --col-knots-tint:#F9FAFB;        --col-knots-stroke:#1F2937;
+      --col-kmh-tint:#F6F7F9;          --col-kmh-stroke:#334155;
+      --col-english-tint:#F3F4F6;      --col-english-stroke:#4B5563;
+      --col-finnish-tint:#FAFAFB;      --col-finnish-stroke:#3F3F46;
+      --col-finnishModern-tint:#F5F5F6;--col-finnishModern-stroke:#525252;
+      --col-swedish-tint:#FAFAFA;      --col-swedish-stroke:#262626;
+      --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A;
     }
 
     /* 6) MONO WARM — warm grays/greiges (minimal, editorial) */
     [data-theme="monowarm"]{
       --accent-50:#FAF7F4; --accent-600:#1C1917;
-      --col-ms-tint:#FAF7F4;           --col-ms-stroke:#1C1917; /* stone-900 */
-      --col-knots-tint:#F7F3F0;        --col-knots-stroke:#3F3A36; /* stone-700 */
-      --col-kmh-tint:#F5F1ED;          --col-kmh-stroke:#57534E; /* stone-600 */
-      --col-english-tint:#F8F4EF;      --col-english-stroke:#4A403A; /* deep taupe */
-      --col-finnish-tint:#FBF6F0;      --col-finnish-stroke:#5B514B; /* warm gray 600 */
-      --col-finnishModern-tint:#F7F3EF;--col-finnishModern-stroke:#2B2521; /* near-black brown */
-      --col-swedish-tint:#F9F5F1;      --col-swedish-stroke:#6B6058; /* warm gray 500+ */
-      --col-sea-tint:#F6F2EE;          --col-sea-stroke:#332D27; /* espresso */
+      --col-ms-tint:#FAF7F4;           --col-ms-stroke:#1C1917;
+      --col-knots-tint:#F7F3F0;        --col-knots-stroke:#3F3A36;
+      --col-kmh-tint:#F5F1ED;          --col-kmh-stroke:#57534E;
+      --col-english-tint:#F8F4EF;      --col-english-stroke:#4A403A;
+      --col-finnish-tint:#FBF6F0;      --col-finnish-stroke:#5B514B;
+      --col-finnishModern-tint:#F7F3EF;--col-finnishModern-stroke:#2B2521;
+      --col-swedish-tint:#F9F5F1;      --col-swedish-stroke:#6B6058;
+      --col-sea-tint:#F6F2EE;          --col-sea-stroke:#332D27;
     }
 
     /* =========================
@@ -382,148 +382,133 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <header style="margin-bottom:6px">
-      <h1>Wind Speed</h1>
-      <p class="lead">Fill the Beaufort scale table by placing the correct tiles into each selected column.</p>
-    </header>
+  <!-- Reagent mount point -->
+  <div id="app"></div>
 
-    <!-- Step 1 mount point for Scittle/Reagent -->
-    <div id="app"></div>
+  <!-- Static shells rendered with Reagent -->
+  <script type="application/x-scittle">
+    (ns app.step2
+      (:require [reagent.core :as r]
+                [reagent.dom  :as rdom]))
 
-    <!-- Tiny Scittle sanity check: renders a small notice into #app -->
-    <script type="application/x-scittle">
-      (ns app.hello
-        (:require [reagent.core :as r]
-                  [reagent.dom :as rdom]))
-      (defn hello []
-        [:div {:style {:margin "8px 0"
-                       :padding "8px 10px"
-                       :border "1px dashed var(--border)"
-                       :background "#FAFAFC"
-                       :border-radius "4px"
-                       :font-weight 600}}
-         "Scittle + Reagent mounted"])
-      (rdom/render [hello] (.getElementById js/document "app"))
-    </script>
+    (defn Header []
+      [:header {:style {:margin-bottom "6px"}}
+       [:h1 "Wind Speed"]
+       [:p.lead "Fill the Beaufort scale table by placing the correct tiles into each selected column."]])
 
-    <section class="instructions">
-      <div class="label">Instructions</div>
-      <ol>
-        <li>Select which columns to include (Beaufort is always shown). Defaults: Beaufort + m/s.</li>
-        <li>One tile appears in the footer. Its color matches the target column.</li>
-        <li>Click any matching empty cell in that column to place it. If identical values appear in multiple rows, any matching row is accepted.</li>
-        <li><strong>Cheat (hold):</strong> press and hold to peek all correct answers; release to hide.</li>
-        <li>Score is <strong>correct tries ÷ total tries</strong>. Timer runs only while active.</li>
-      </ol>
-    </section>
+    (defn Instructions []
+      [:section.instructions
+       [:div.label "Instructions"]
+       [:ol
+        [:li "Select which columns to include (Beaufort is always shown). Defaults: Beaufort + m/s."]
+        [:li "One tile appears in the footer. Its color matches the target column."]
+        [:li "Click any matching empty cell in that column to place it. If identical values appear in multiple rows, any matching row is accepted."]
+        [:li [:strong "Cheat (hold):"] " press and hold to peek all correct answers; release to hide."]
+        [:li "Score is " [:strong "correct tries ÷ total tries"] ". Timer runs only while active."]]])
 
-    <!-- Selectors + Theme dropdown -->
-    <div class="selectors" id="selectors">
-      <div class="selectors-left">
-        <span class="group-title">Columns:</span>
-        <!-- Column chips injected by JS -->
-      </div>
+    (defn SelectorsShell []
+      [:div.selectors {:id "selectors"}
+       [:div.selectors-left
+        [:span.group-title "Columns:"]
+        ;; JS will inject chips here
+        ]
+       [:div.selectors-right {:id "themeGroup"}
+        [:span.group-title "Theme:"]
+        [:select.theme-select {:id "themeSelect" :aria-label "Theme" :defaultValue "dutch"}
+         [:option {:value "dutch"} "Dutch Avant (default)"]
+         [:option {:value "neo"} "Neo Neutral"]
+         [:option {:value "radix"} "Radix Modern"]
+         [:option {:value "dazed"} "Dazed Neon"]
+         [:option {:value "mono"} "Mono Slate"]
+         [:option {:value "monowarm"} "Mono Warm"]]]])
 
-      <div class="selectors-right" id="themeGroup">
-        <span class="group-title">Theme:</span>
-        <select id="themeSelect" class="theme-select" aria-label="Theme">
-          <option value="dutch" selected>Dutch Avant (default)</option>
-          <option value="neo">Neo Neutral</option>
-          <option value="radix">Radix Modern</option>
-          <option value="dazed">Dazed Neon</option>
-          <option value="mono">Mono Slate</option>
-          <option value="monowarm">Mono Warm</option>
-        </select>
-      </div>
-    </div>
+    (defn TableShell []
+      [:div.table-container
+       [:table {:id "puzzleTable"}
+        [:thead {:id "tableHead"}]
+        [:tbody {:id "tableBody"}]]])
 
-    <!-- Game table -->
-    <div class="table-container">
-      <table id="puzzleTable">
-        <thead id="tableHead"></thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
+    (defn ScrollBuffer []
+      [:div.scroll-buffer {:aria-hidden "true"
+                           :style {:height "calc(var(--footer-h) + env(safe-area-inset-bottom))"}}])
 
-    <!-- Generous scroll buffer so the footer never overlaps the last row -->
-    <div class="scroll-buffer" aria-hidden="true" style="height: calc(var(--footer-h) + env(safe-area-inset-bottom))"></div>
+    (defn FooterShell []
+      [:div.editor-footer {:id "editorFooter" :style {:display "none"}}
+       [:div.footer-section
+        [:span.label {:style {:margin-right "6px"}} "Tile"]
+        [:span.metric {:id "footerTile"
+                       :style {:padding "6px 10px"
+                               :border "1px solid var(--border)"
+                               :border-radius "var(--radius-2)"
+                               :background "#FAFAFC"}} "Ready"]
+        [:span.footer-separator "|"]
+        [:span.metric {:id "footerProgress"} "0/0"]]
+       [:div.footer-section
+        [:span.label "Time"] [:span.metric {:id "footerTimer"} "00:00"]
+        [:span.footer-separator "|"]
+        [:span.label "Score"] [:span.metric {:id "footerScore"} "0/0 (0%)"]
+        [:span.footer-separator "|"]
+        [:span.label "Tries"] [:span.metric {:id "footerAttempts"} "0"]]
+       [:div.footer-section
+        [:button.btn-primary {:id "footerPauseBtn" :onClick #(js/togglePause)} "Pause"]
+        [:button.btn-danger  {:onClick #(js/resetGame)} "Reset"]
+        [:button.btn-primary {:id "cheatBtn" :title "Press and hold to reveal answers"} "Cheat (hold)"]]])
 
-    <!-- Footer -->
-    <div class="editor-footer" id="editorFooter" style="display:none;">
-      <div class="footer-section">
-        <span class="label" style="margin-right:6px">Tile</span>
-        <span id="footerTile" class="metric" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-2);background:#FAFAFC">Ready</span>
-        <span class="footer-separator">|</span>
-        <span class="metric" id="footerProgress">0/0</span>
-      </div>
-      <div class="footer-section">
-        <span class="label">Time</span><span class="metric" id="footerTimer">00:00</span>
-        <span class="footer-separator">|</span>
-        <span class="label">Score</span><span class="metric" id="footerScore">0/0 (0%)</span>
-        <span class="footer-separator">|</span>
-        <span class="label">Tries</span><span class="metric" id="footerAttempts">0</span>
-      </div>
-      <div class="footer-section">
-        <button class="btn-primary" onclick="togglePause()" id="footerPauseBtn">Pause</button>
-        <button class="btn-danger" onclick="resetGame()">Reset</button>
-        <button class="btn-primary" id="cheatBtn" title="Press and hold to reveal answers">Cheat (hold)</button>
-      </div>
-    </div>
-  </div>
+    (defn Root []
+      [:div.container
+       [Header]
+       [Instructions]
+       [SelectorsShell]
+       [TableShell]
+       [ScrollBuffer]
+       [FooterShell]])
 
+    (defn ^:export mount! []
+      (rdom/render [Root] (.getElementById js/document "app")))
+
+    (mount!)
+  </script>
+
+  <!-- Existing JS (unchanged) -->
   <script>
     /* ---------- Data ---------- */
-    // Finnish (finnish) = vanha nimitys; finnish_modern = nykyinen nimitys (repeated across all B values where it applies)
     const beaufortData = [
       { b:0,  knots:"<1",   ms:"0-0.2",   kmh:"<1",    english:"Calm",
         finnish:"Tyyni",              finnish_modern:"Tyyni",              swedish:"Stiltje",
         sea:"Peilityyni meri." },
-
       { b:1,  knots:"1-3",  ms:"0.3-1.5", kmh:"1-5",   english:"Light Air",
         finnish:"Hiljainen tuuli",    finnish_modern:"Heikko tuuli",       swedish:"Nästan stiltje",
         sea:"Meren pinnassa pieniä kareita, ei vaahtoa." },
-
       { b:2,  knots:"4-6",  ms:"1.6-3.3", kmh:"6-11",  english:"Light Breeze",
         finnish:"Heikko tuuli",       finnish_modern:"Heikko tuuli",       swedish:"Lätt bris",
         sea:"Selkeitä mutta lyhyitä ja matalia aaltoja. Aallonharjat eivät murru." },
-
       { b:3,  knots:"7-10", ms:"3.4-5.4", kmh:"12-19", english:"Gentle Breeze",
         finnish:"Heikonlainen tuuli", finnish_modern:"Kohtalainen tuuli",  swedish:"God bris",
         sea:"Suurempia aaltoja; harvakseltaan vaahtoa." },
-
       { b:4,  knots:"11-16",ms:"5.5-7.9", kmh:"20-28", english:"Moderate Breeze",
         finnish:"Kohtalainen tuuli",  finnish_modern:"Kohtalainen tuuli",  swedish:"Frisk bris",
         sea:"Pitkähköjä aaltoja; valkoista vaahtoa." },
-
       { b:5,  knots:"17-21",ms:"8.0-10.7",kmh:"29-38", english:"Fresh Breeze",
         finnish:"Navakka tuuli",      finnish_modern:"Navakka tuuli",      swedish:"Styv bris",
         sea:"Kohtalaisia, pitempiä aaltoja; vaahtopäitä." },
-
       { b:6,  knots:"22-27",ms:"10.8-13.8",kmh:"39-49",english:"Strong Breeze",
         finnish:"Kova tuuli",         finnish_modern:"Navakka tuuli",      swedish:"Hård bris",
         sea:"Kookkaita aaltoja; pärskettä." },
-
       { b:7,  knots:"28-33",ms:"13.9-17.1",kmh:"50-61",english:"Near Gale",
         finnish:"Luja tuuli",         finnish_modern:"Kova tuuli",         swedish:"Styv kuling",
         sea:"Vaahtopäät juoviksi, roiskeita." },
-
       { b:8,  knots:"34-40",ms:"17.2-20.7",kmh:"62-74",english:"Gale",
         finnish:"Myrskyinen tuuli",   finnish_modern:"Kova tuuli",         swedish:"Hård kuling",
         sea:"Korkeita ja pitkiä aaltoja, vaahtojuovia." },
-
       { b:9,  knots:"41-47",ms:"20.8-24.4",kmh:"75-88",english:"Severe Gale",
         finnish:"Myrsky",             finnish_modern:"Myrsky",             swedish:"Halv storm",
         sea:"Korkeita aaltoja; näkyvyys heikentyy." },
-
       { b:10, knots:"48-55",ms:"24.5-28.4",kmh:"89-102",english:"Storm",
         finnish:"Kova myrsky",        finnish_modern:"Myrsky",             swedish:"Storm",
         sea:"Erittäin korkeat aallot; näkyvyys heikko." },
-
       { b:11, knots:"56-63",ms:"28.5-32.6",kmh:"103-117",english:"Violent Storm",
         finnish:"Ankara myrsky",      finnish_modern:"Myrsky",             swedish:"Svår storm",
         sea:"Poikkeuksellisen korkeita aaltoja." },
-
       { b:12, knots:"64+",  ms:">32.7",   kmh:">118",  english:"Hurricane",
         finnish:"Hirmumyrsky",        finnish_modern:"Hirmumyrsky",        swedish:"Orkan",
         sea:"Ilma täynnä pärskettä; näkyvyys erittäin heikko." }
@@ -589,7 +574,6 @@
     function setTheme(themeKey){
       document.documentElement.setAttribute('data-theme', themeKey);
       localStorage.setItem('theme', themeKey);
-      // refresh footer tile colors to current theme for the active tile
       if(gameState.currentTile){
         const ft = document.getElementById('footerTile');
         ft.style.borderColor = getFieldStroke(gameState.currentTile.correctField);
@@ -738,7 +722,6 @@
       const expected = dz.dataset.answer;
       gameState.totalAttempts++;
 
-      // Accept any matching VALUE within the same COLUMN (duplicates allowed)
       const isCorrect =
         (gameState.currentTile.value === expected) &&
         (dz.dataset.field === gameState.currentTile.correctField);
@@ -751,7 +734,6 @@
         dz.innerHTML = `<div class="placed-tile" data-field="${field}">${gameState.currentTile.value}</div>`;
         setTimeout(()=>dz.classList.remove('pulse'), 260);
 
-        // allow removal
         dz.querySelector('.placed-tile').addEventListener('click', (e)=>{
           e.stopPropagation();
           if(gameState.isPaused) return;
@@ -865,7 +847,6 @@
 
     function showCheats(){
       document.querySelectorAll('.drop-zone').forEach(zone=>{
-        // Do not duplicate overlays
         if(zone.querySelector('.cheat-ghost')) return;
         const field = zone.dataset.field;
         const val = zone.dataset.answer;
@@ -954,13 +935,28 @@
       return rs.getPropertyValue(map[field] || '#FAFAFC');
     }
 
-    // Kickoff
+    // Theme before first paint
     (function(){
-      // initialize theme from storage (default to dutch) before first paint
       const savedTheme = localStorage.getItem('theme') || 'dutch';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
-    initializeGame();
+
+    // >>> Ensure Scittle/Reagent shells exist before initializing JS <<<
+    document.addEventListener('DOMContentLoaded', () => {
+      const tryInit = () => {
+        if (
+          document.querySelector('#selectors .selectors-left') &&
+          document.getElementById('tableHead') &&
+          document.getElementById('editorFooter')
+        ) {
+          initializeGame();
+        } else {
+          // Wait one frame and check again (Scittle runs on DOMContentLoaded)
+          requestAnimationFrame(tryInit);
+        }
+      };
+      tryInit();
+    });
   </script>
 </body>
 </html>
