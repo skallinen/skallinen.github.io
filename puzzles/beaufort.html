@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dutch">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wind Speed Puzzle</title>
+
+  <style>
+    /* =========================
+       DESIGN TOKENS (Swiss / Helvetica)
+       ========================= */
+    :root{
+      /* Layout */
+      --footer-h: 64px;
+      --radius-2: 2px;
+      --radius-4: 4px;
+
+      /* Typography */
+      --font-sans: "Helvetica Now Text", "Neue Haas Grotesk Text",
+                   "Helvetica Neue", Helvetica,
+                   Inter, Roboto, Arial, sans-serif;
+      --lh-tight: 1.25;
+      --lh-base: 1.5;
+      --ls-label: 0.06em;
+
+      /* Neutrals */
+      --ink:#0B0B0C;
+      --text:#16181C;
+      --subtext:#4B4F57;
+      --border:#E6E7EA;
+      --hairline:#EFF0F2;
+      --canvas:#F7F8FA;
+      --surface:#FFFFFF;
+
+      /* Semantic */
+      --success:#1A7F37;   --success-50:#EAF6EE;
+      --warn:#B4690E;      --warn-50:#FFF3E0;
+      --danger:#D92D20;    --danger-50:#FDECEC;
+
+      /* Defaults (overridden by themes) */
+      --accent-50:#EEF2FF;
+      --accent-600:#2F49FF;
+
+      /* Column cues (tints + strokes) – set per theme */
+      --col-ms-tint:#EEF2FF;           --col-ms-stroke:#2F49FF;
+      --col-knots-tint:#E8F5F2;        --col-knots-stroke:#0A7F5A;
+      --col-kmh-tint:#FFF3E8;          --col-kmh-stroke:#B65A1E;
+      --col-english-tint:#F2F4F7;      --col-english-stroke:#4B4F57;
+      --col-finnish-tint:#EAF6EE;      --col-finnish-stroke:#1A7F37;
+      --col-finnishModern-tint:#E6F4EF;--col-finnishModern-stroke:#0A7F5A;
+      --col-swedish-tint:#F5ECF9;      --col-swedish-stroke:#6E2E8E;
+      --col-sea-tint:#FFF8E7;          --col-sea-stroke:#B4690E;
+    }
+
+    /* =========================
+       THEMES (palette variants)
+       ========================= */
+
+    /* 1) NEO NEUTRAL — crisp neutrals + electric accent */
+    [data-theme="neo"]{
+      --accent-50:#EEF2FF;
+      --accent-600:#2F49FF;
+
+      --col-ms-tint:#EEF2FF;           --col-ms-stroke:#2F49FF;
+      --col-knots-tint:#E9F6F2;        --col-knots-stroke:#0A7F5A;
+      --col-kmh-tint:#FFF3E8;          --col-kmh-stroke:#B65A1E;
+      --col-english-tint:#F2F4F7;      --col-english-stroke:#4B4F57;
+      --col-finnish-tint:#EAF6EE;      --col-finnish-stroke:#1A7F37;
+      --col-finnishModern-tint:#E6F4EF;--col-finnishModern-stroke:#0A7F5A;
+      --col-swedish-tint:#F4ECFB;      --col-swedish-stroke:#6E2E8E;
+      --col-sea-tint:#FFF8E7;          --col-sea-stroke:#B4690E;
+    }
+
+    /* 2) RADIX MODERN — UI-savvy violets/jades/ambers/slates */
+    [data-theme="radix"]{
+      --accent-50:#F1EEFF;
+      --accent-600:#6E56CF;
+
+      --col-ms-tint:#F1EEFF;           --col-ms-stroke:#6E56CF;
+      --col-knots-tint:#E9F8F1;        --col-knots-stroke:#2F9E44;
+      --col-kmh-tint:#FFF7E6;          --col-kmh-stroke:#F59E0B;
+      --col-english-tint:#F1F3F5;      --col-english-stroke:#475569;
+      --col-finnish-tint:#ECFDF3;      --col-finnish-stroke:#16A34A;
+      --col-finnishModern-tint:#E6FBF7;--col-finnishModern-stroke:#12A594;
+      --col-swedish-tint:#F6EDFA;      --col-swedish-stroke:#AB4ABA;
+      --col-sea-tint:#FFF4E5;          --col-sea-stroke:#F59E0B;
+    }
+
+    /* 3) DAZED NEON — editorial black/white with shock neons */
+    [data-theme="dazed"]{
+      --accent-50:#FFE8F3;
+      --accent-600:#FF1F8E;
+
+      --col-ms-tint:#E9EDFF;            --col-ms-stroke:#1B50FF;
+      --col-knots-tint:#E6FFF5;         --col-knots-stroke:#00C853;
+      --col-kmh-tint:#FFF0E6;           --col-kmh-stroke:#FF6A00;
+      --col-english-tint:#E6FAFF;       --col-english-stroke:#00D2FF;
+      --col-finnish-tint:#FFE6F3;       --col-finnish-stroke:#FF1F8E;
+      --col-finnishModern-tint:#F0E6FF; --col-finnishModern-stroke:#6E00FF;
+      --col-swedish-tint:#FFF8DB;       --col-swedish-stroke:#B88600;
+      --col-sea-tint:#FFE9EE;           --col-sea-stroke:#FF1744;
+    }
+
+    /* 4) DUTCH AVANT — bold festival/identity vibes (DEFAULT) */
+    [data-theme="dutch"]{
+      --accent-50:#E6EEFF;
+      --accent-600:#0047FF;
+
+      --col-ms-tint:#E6EEFF;            --col-ms-stroke:#0047FF;
+      --col-knots-tint:#E6F7EF;         --col-knots-stroke:#00A85A;
+      --col-kmh-tint:#FFF1E9;           --col-kmh-stroke:#FF5E1A;
+      --col-english-tint:#F2E9FF;       --col-english-stroke:#7C2AE8;
+      --col-finnish-tint:#FFE8EC;       --col-finnish-stroke:#E4002B;
+      --col-finnishModern-tint:#FFE6F1; --col-finnishModern-stroke:#FF5DA2;
+      --col-swedish-tint:#E6F7FF;       --col-swedish-stroke:#00B3FF;
+      --col-sea-tint:#FFF6E0;           --col-sea-stroke:#FFB81C;
+    }
+
+    /* 5) MONO SLATE — restrained cool grays (inspired by Carbon/HIG) */
+    [data-theme="mono"]{
+      --accent-50:#F8FAFC; --accent-600:#0B0B0C;
+      --col-ms-tint:#F8FAFC;           --col-ms-stroke:#111827; /* slate-900 */
+      --col-knots-tint:#F9FAFB;        --col-knots-stroke:#1F2937; /* gray-800 */
+      --col-kmh-tint:#F6F7F9;          --col-kmh-stroke:#334155; /* slate-700 */
+      --col-english-tint:#F3F4F6;      --col-english-stroke:#4B5563; /* gray-600 */
+      --col-finnish-tint:#FAFAFB;      --col-finnish-stroke:#3F3F46; /* zinc-700 */
+      --col-finnishModern-tint:#F5F5F6;--col-finnishModern-stroke:#525252; /* neutral-600 */
+      --col-swedish-tint:#FAFAFA;      --col-swedish-stroke:#262626; /* neutral-800 */
+      --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A; /* slate-950 */
+    }
+
+    /* 6) MONO WARM — warm grays/greiges (minimal, editorial) */
+    [data-theme="monowarm"]{
+      --accent-50:#FAF7F4; --accent-600:#1C1917;
+      --col-ms-tint:#FAF7F4;           --col-ms-stroke:#1C1917; /* stone-900 */
+      --col-knots-tint:#F7F3F0;        --col-knots-stroke:#3F3A36; /* stone-700 */
+      --col-kmh-tint:#F5F1ED;          --col-kmh-stroke:#57534E; /* stone-600 */
+      --col-english-tint:#F8F4EF;      --col-english-stroke:#4A403A; /* deep taupe */
+      --col-finnish-tint:#FBF6F0;      --col-finnish-stroke:#5B514B; /* warm gray 600 */
+      --col-finnishModern-tint:#F7F3EF;--col-finnishModern-stroke:#2B2521; /* near-black brown */
+      --col-swedish-tint:#F9F5F1;      --col-swedish-stroke:#6B6058; /* warm gray 500+ */
+      --col-sea-tint:#F6F2EE;          --col-sea-stroke:#332D27; /* espresso */
+    }
+
+    /* =========================
+       Base / Page
+       ========================= */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: var(--font-sans);
+      color: var(--text);
+      background: var(--canvas);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      /* generous bottom room so footer never hides last row */
+      padding: 20px 20px calc(var(--footer-h) + 160px) 20px;
+    }
+    body, table { font-variant-numeric: tabular-nums; }
+
+    /* Type scale */
+    h1{font-size:32px;line-height:40px;font-weight:600;margin:0 0 12px}
+    .lead{color:var(--subtext)}
+    .label{font-size:12px;line-height:16px;letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--subtext);}
+
+    /* Container */
+    .container{
+      max-width: 1400px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-4);
+      padding: 24px;
+      /* extra bottom padding inside container as well */
+      padding-bottom: calc(var(--footer-h) + 180px);
+    }
+
+    /* Instructions */
+    .instructions{
+      border:1px solid var(--border);
+      background:#FAFBFD;
+      border-radius: var(--radius-4);
+      padding:16px 16px;
+      margin-bottom:16px;
+    }
+    .instructions ol{margin:8px 0 0 18px}
+    .instructions li{margin:6px 0}
+
+    /* Selectors / Theme group */
+    .selectors{
+      display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+      padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius-4);background:var(--surface);
+    }
+    .selectors-left, .selectors-right{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+    .selectors .group-title{font-weight:600;margin-right:6px}
+
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      border:1px solid var(--border);border-radius:var(--radius-2);
+      padding:6px 10px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:500;
+      transition:background .15s ease, border-color .15s ease;
+    }
+    .chip:hover{background:#FAFAFC}
+    .dot{width:8px;height:8px;border-radius:50%}
+    .chip input{accent-color: var(--accent-600)}
+
+    .theme-select{
+      border:1px solid var(--border);border-radius:var(--radius-2);
+      background:var(--surface);padding:6px 10px;font-weight:500;cursor:pointer;
+    }
+
+    /* Table */
+    .table-container{overflow-x:auto;border-radius:var(--radius-4); margin-bottom:24px;}
+    table{width:100%;border-collapse:collapse;background:var(--surface)}
+    thead th{
+      position:sticky;top:0;z-index:2;
+      background:var(--surface);
+      border-bottom:1px solid var(--border);
+      padding:10px 8px;
+      font-size:12px;letter-spacing:var(--ls-label);text-transform:uppercase;font-weight:600;color:var(--subtext);
+      text-align:center;white-space:nowrap;
+    }
+    tbody td{
+      border-bottom:1px solid var(--hairline);
+      padding:0; /* let the tile fill the whole cell cleanly */
+      min-height:44px;vertical-align:middle;text-align:center;
+    }
+    tr:nth-child(even) td{background:#FCFCFD}
+
+    .beaufort-badge{
+      display:inline-block;
+      border:1px solid var(--border);
+      border-radius: var(--radius-2);
+      padding:4px 8px;font-weight:600;margin:12px 0; /* match cell padding */
+      background:#FAFAFC;color:var(--ink);
+    }
+
+    /* Drop zones */
+    .drop-zone{
+      position:relative;
+      min-height:44px;display:flex;align-items:center;justify-content:center;
+      border:1px dashed var(--border);border-radius: var(--radius-2);
+      background: #FBFBFD; cursor:pointer; transition: background .15s ease, border-color .15s ease, transform .12s ease;
+      margin:6px; /* optical breathing space when empty */
+    }
+    .drop-zone:hover{background:#F6F7FA}
+    .drop-zone.filled{
+      border-style:solid;
+      margin:0; /* when filled, the tile itself will flush to edges */
+    }
+
+    /* Highlight tints for target column */
+    .drop-zone.highlight[data-field="ms"]{background:var(--col-ms-tint);border-color:var(--col-ms-stroke)}
+    .drop-zone.highlight[data-field="knots"]{background:var(--col-knots-tint);border-color:var(--col-knots-stroke)}
+    .drop-zone.highlight[data-field="kmh"]{background:var(--col-kmh-tint);border-color:var(--col-kmh-stroke)}
+    .drop-zone.highlight[data-field="english"]{background:var(--col-english-tint);border-color:var(--col-english-stroke)}
+    .drop-zone.highlight[data-field="finnish"]{background:var(--col-finnish-tint);border-color:var(--col-finnish-stroke)}
+    .drop-zone.highlight[data-field="finnish_modern"]{background:var(--col-finnishModern-tint);border-color:var(--col-finnishModern-stroke)}
+    .drop-zone.highlight[data-field="swedish"]{background:var(--col-swedish-tint);border-color:var(--col-swedish-stroke)}
+    .drop-zone.highlight[data-field="sea"]{background:var(--col-sea-tint);border-color:var(--col-sea-stroke)}
+
+    .static-cell{
+      min-height:44px;display:flex;align-items:center;justify-content:center;
+      color:#9AA0A6;background:#FBFBFD;border:1px dashed transparent;border-radius:var(--radius-2);font-style:italic;margin:6px;
+    }
+
+    /* ====== FULL-CELL TILE ====== */
+    .placed-tile{
+      width:100%; height:100%;
+      display:flex;align-items:center;justify-content:center;
+      padding:12px 8px;
+      border-radius: var(--radius-2);
+      color:#fff;font-weight:600;border:0;
+    }
+    .placed-tile[data-field="ms"]{background:var(--col-ms-stroke)}
+    .placed-tile[data-field="knots"]{background:var(--col-knots-stroke)}
+    .placed-tile[data-field="kmh"]{background:var(--col-kmh-stroke)}
+    .placed-tile[data-field="english"]{background:var(--col-english-stroke)}
+    .placed-tile[data-field="finnish"]{background:var(--col-finnish-stroke)}
+    .placed-tile[data-field="finnish_modern"]{background:var(--col-finnishModern-stroke)}
+    .placed-tile[data-field="swedish"]{background:var(--col-swedish-stroke)}
+    .placed-tile[data-field="sea"]{background:var(--col-sea-stroke)}
+
+    /* ====== CHEAT OVERLAY (peek while pressed) ====== */
+    .cheat-ghost{
+      position:absolute; inset:0;
+      display:flex;align-items:center;justify-content:center;
+      border-radius:var(--radius-2);
+      color:#fff; font-weight:600; opacity:.85;
+      pointer-events:none; /* do not steal clicks */
+    }
+    .cheat-ghost[data-field="ms"]{background:var(--col-ms-stroke)}
+    .cheat-ghost[data-field="knots"]{background:var(--col-knots-stroke)}
+    .cheat-ghost[data-field="kmh"]{background:var(--col-kmh-stroke)}
+    .cheat-ghost[data-field="english"]{background:var(--col-english-stroke)}
+    .cheat-ghost[data-field="finnish"]{background:var(--col-finnish-stroke)}
+    .cheat-ghost[data-field="finnish_modern"]{background:var(--col-finnishModern-stroke)}
+    .cheat-ghost[data-field="swedish"]{background:var(--col-swedish-stroke)}
+    .cheat-ghost[data-field="sea"]{background:var(--col-sea-stroke)}
+
+    /* Footer (fixed) */
+    .editor-footer{
+      position:fixed;left:0;right:0;bottom:0;height:var(--footer-h);
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+      padding:10px 20px;background:var(--surface);color:var(--text);
+      border-top:1px solid var(--border);z-index:1000;
+    }
+    .editor-footer .footer-section{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .footer-separator{color:var(--border)}
+    .metric{font-variant-numeric: tabular-nums;}
+
+    /* Buttons */
+    button{
+      border:1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--radius-2);
+      padding:8px 12px;
+      font-weight:500;
+      cursor:pointer;
+      transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    }
+    button:hover{background:#FAFAFC}
+    button:active{transform:translateY(1px)}
+    .btn-primary{border-color: var(--accent-600);}
+    .btn-danger{border-color: var(--danger); color: var(--danger);}
+
+    /* Small animations */
+    .pulse{animation:pulse .28s ease-in-out}
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+
+    @media (max-width:768px){
+      .container{padding:16px}
+      thead th, tbody td{padding:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header style="margin-bottom:6px">
+      <h1>Wind Speed</h1>
+      <p class="lead">Fill the Beaufort scale table by placing the correct tiles into each selected column.</p>
+    </header>
+
+    <section class="instructions">
+      <div class="label">Instructions</div>
+      <ol>
+        <li>Select which columns to include (Beaufort is always shown). Defaults: Beaufort + m/s.</li>
+        <li>One tile appears in the footer. Its color matches the target column.</li>
+        <li>Click any matching empty cell in that column to place it. If identical values appear in multiple rows, any matching row is accepted.</li>
+        <li><strong>Cheat (hold):</strong> press and hold to peek all correct answers; release to hide.</li>
+        <li>Score is <strong>correct tries ÷ total tries</strong>. Timer runs only while active.</li>
+      </ol>
+    </section>
+
+    <!-- Selectors + Theme dropdown -->
+    <div class="selectors" id="selectors">
+      <div class="selectors-left">
+        <span class="group-title">Columns:</span>
+        <!-- Column chips injected by JS -->
+      </div>
+
+      <div class="selectors-right" id="themeGroup">
+        <span class="group-title">Theme:</span>
+        <select id="themeSelect" class="theme-select" aria-label="Theme">
+          <option value="dutch" selected>Dutch Avant (default)</option>
+          <option value="neo">Neo Neutral</option>
+          <option value="radix">Radix Modern</option>
+          <option value="dazed">Dazed Neon</option>
+          <option value="mono">Mono Slate</option>
+          <option value="monowarm">Mono Warm</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Game table -->
+    <div class="table-container">
+      <table id="puzzleTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Generous scroll buffer so the footer never overlaps the last row -->
+    <div class="scroll-buffer" aria-hidden="true" style="height: calc(var(--footer-h) + 160px)"></div>
+
+    <!-- Footer -->
+    <div class="editor-footer" id="editorFooter" style="display:none;">
+      <div class="footer-section">
+        <span class="label" style="margin-right:6px">Tile</span>
+        <span id="footerTile" class="metric" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-2);background:#FAFAFC">Ready</span>
+        <span class="footer-separator">|</span>
+        <span class="metric" id="footerProgress">0/0</span>
+      </div>
+      <div class="footer-section">
+        <span class="label">Time</span><span class="metric" id="footerTimer">00:00</span>
+        <span class="footer-separator">|</span>
+        <span class="label">Score</span><span class="metric" id="footerScore">0/0 (0%)</span>
+        <span class="footer-separator">|</span>
+        <span class="label">Tries</span><span class="metric" id="footerAttempts">0</span>
+      </div>
+      <div class="footer-section">
+        <button class="btn-primary" onclick="togglePause()" id="footerPauseBtn">Pause</button>
+        <button class="btn-danger" onclick="resetGame()">Reset</button>
+        <button class="btn-primary" id="cheatBtn" title="Press and hold to reveal answers">Cheat (hold)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- Data ---------- */
+    // Finnish (finnish) = vanha nimitys; finnish_modern = nykyinen nimitys (repeated across all B values where it applies)
+    const beaufortData = [
+      { b:0,  knots:"<1",   ms:"0-0.2",   kmh:"<1",    english:"Calm",
+        finnish:"Tyyni",              finnish_modern:"Tyyni",              swedish:"Stiltje",
+        sea:"Peilityyni meri." },
+
+      { b:1,  knots:"1-3",  ms:"0.3-1.5", kmh:"1-5",   english:"Light Air",
+        finnish:"Hiljainen tuuli",    finnish_modern:"Heikko tuuli",       swedish:"Nästan stiltje",
+        sea:"Meren pinnassa pieniä kareita, ei vaahtoa." },
+
+      { b:2,  knots:"4-6",  ms:"1.6-3.3", kmh:"6-11",  english:"Light Breeze",
+        finnish:"Heikko tuuli",       finnish_modern:"Heikko tuuli",       swedish:"Lätt bris",
+        sea:"Selkeitä mutta lyhyitä ja matalia aaltoja. Aallonharjat eivät murru." },
+
+      { b:3,  knots:"7-10", ms:"3.4-5.4", kmh:"12-19", english:"Gentle Breeze",
+        finnish:"Heikonlainen tuuli", finnish_modern:"Kohtalainen tuuli",  swedish:"God bris",
+        sea:"Suurempia aaltoja; harvakseltaan vaahtoa." },
+
+      { b:4,  knots:"11-16",ms:"5.5-7.9", kmh:"20-28", english:"Moderate Breeze",
+        finnish:"Kohtalainen tuuli",  finnish_modern:"Kohtalainen tuuli",  swedish:"Frisk bris",
+        sea:"Pitkähköjä aaltoja; valkoista vaahtoa." },
+
+      { b:5,  knots:"17-21",ms:"8.0-10.7",kmh:"29-38", english:"Fresh Breeze",
+        finnish:"Navakka tuuli",      finnish_modern:"Navakka tuuli",      swedish:"Styv bris",
+        sea:"Kohtalaisia, pitempiä aaltoja; vaahtopäitä." },
+
+      { b:6,  knots:"22-27",ms:"10.8-13.8",kmh:"39-49",english:"Strong Breeze",
+        finnish:"Kova tuuli",         finnish_modern:"Navakka tuuli",      swedish:"Hård bris",
+        sea:"Kookkaita aaltoja; pärskettä." },
+
+      { b:7,  knots:"28-33",ms:"13.9-17.1",kmh:"50-61",english:"Near Gale",
+        finnish:"Luja tuuli",         finnish_modern:"Kova tuuli",         swedish:"Styv kuling",
+        sea:"Vaahtopäät juoviksi, roiskeita." },
+
+      { b:8,  knots:"34-40",ms:"17.2-20.7",kmh:"62-74",english:"Gale",
+        finnish:"Myrskyinen tuuli",   finnish_modern:"Kova tuuli",         swedish:"Hård kuling",
+        sea:"Korkeita ja pitkiä aaltoja, vaahtojuovia." },
+
+      { b:9,  knots:"41-47",ms:"20.8-24.4",kmh:"75-88",english:"Severe Gale",
+        finnish:"Myrsky",             finnish_modern:"Myrsky",             swedish:"Halv storm",
+        sea:"Korkeita aaltoja; näkyvyys heikentyy." },
+
+      { b:10, knots:"48-55",ms:"24.5-28.4",kmh:"89-102",english:"Storm",
+        finnish:"Kova myrsky",        finnish_modern:"Myrsky",             swedish:"Storm",
+        sea:"Erittäin korkeat aallot; näkyvyys heikko." },
+
+      { b:11, knots:"56-63",ms:"28.5-32.6",kmh:"103-117",english:"Violent Storm",
+        finnish:"Ankara myrsky",      finnish_modern:"Myrsky",             swedish:"Svår storm",
+        sea:"Poikkeuksellisen korkeita aaltoja." },
+
+      { b:12, knots:"64+",  ms:">32.7",   kmh:">118",  english:"Hurricane",
+        finnish:"Hirmumyrsky",        finnish_modern:"Hirmumyrsky",        swedish:"Orkan",
+        sea:"Ilma täynnä pärskettä; näkyvyys erittäin heikko." }
+    ];
+
+    /* ---------- Columns meta ---------- */
+    const ALL_FIELDS = [
+      {key:'ms',             label:'m/s',              dot:'var(--col-ms-stroke)'},
+      {key:'knots',          label:'Knots',            dot:'var(--col-knots-stroke)'},
+      {key:'kmh',            label:'km/h',             dot:'var(--col-kmh-stroke)'},
+      {key:'english',        label:'English',          dot:'var(--col-english-stroke)'},
+      {key:'finnish',        label:'Suomi (vanha)',    dot:'var(--col-finnish-stroke)'},
+      {key:'finnish_modern', label:'Suomi (nykyinen)', dot:'var(--col-finnishModern-stroke)'},
+      {key:'swedish',        label:'Svenska',          dot:'var(--col-swedish-stroke)'},
+      {key:'sea',            label:'Vaikutus merellä', dot:'var(--col-sea-stroke)'}
+    ];
+
+    /* Default: Beaufort + m/s */
+    let selectedFields = new Set(['ms']);
+
+    /* ---------- Game State ---------- */
+    let gameState = {
+      startTime:null, elapsedTime:0, timerInterval:null, isPaused:false,
+      placedTiles:0, totalTiles:0, totalAttempts:0, correctAttempts:0,
+      tiles:[], currentTileIndex:0, currentTile:null, dropZones:new Map()
+    };
+
+    /* ---------- UI Builders ---------- */
+    function buildSelectors(){
+      const hostLeft = document.querySelector('#selectors .selectors-left');
+      hostLeft.innerHTML = '<span class="group-title">Columns:</span>';
+
+      ALL_FIELDS.forEach(f=>{
+        const id = `toggle-${f.key}`;
+        const chip = document.createElement('label');
+        chip.className = 'chip';
+        chip.setAttribute('for', id);
+        chip.innerHTML = `
+          <span class="dot" style="background:${f.dot}"></span>
+          <input type="checkbox" id="${id}" ${selectedFields.has(f.key)?'checked':''}/>
+          <span>${f.label}</span>
+        `;
+        chip.querySelector('input').addEventListener('change', (e)=>{
+          if(e.target.checked){
+            selectedFields.add(f.key);
+          }else{
+            if(selectedFields.size===1){ e.target.checked = true; return; }
+            selectedFields.delete(f.key);
+          }
+          reinitializeForNewColumns();
+        });
+        hostLeft.appendChild(chip);
+      });
+
+      // Theme select
+      const select = document.getElementById('themeSelect');
+      const savedTheme = localStorage.getItem('theme') || 'dutch';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      select.value = savedTheme;
+      select.addEventListener('change', (e)=> setTheme(e.target.value));
+    }
+
+    function setTheme(themeKey){
+      document.documentElement.setAttribute('data-theme', themeKey);
+      localStorage.setItem('theme', themeKey);
+      // refresh footer tile colors to current theme for the active tile
+      if(gameState.currentTile){
+        const ft = document.getElementById('footerTile');
+        ft.style.borderColor = getFieldStroke(gameState.currentTile.correctField);
+        ft.style.background = getFieldTint(gameState.currentTile.correctField);
+      }
+    }
+
+    function reinitializeForNewColumns(){
+      clearInterval(gameState.timerInterval);
+      initializeGame();
+    }
+
+    /* ---------- Table / Tiles ---------- */
+    function generateTable(){
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      gameState.dropZones.clear();
+
+      const trh = document.createElement('tr');
+      const thB = document.createElement('th');
+      thB.textContent = 'Beaufort';
+      trh.appendChild(thB);
+
+      getSelectedFieldList().forEach(field=>{
+        const meta = ALL_FIELDS.find(x=>x.key===field);
+        const th = document.createElement('th');
+        th.dataset.field = field;
+        th.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">
+          <span class="dot" style="background:${meta.dot}"></span><span>${meta.label}</span>
+        </span>`;
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      beaufortData.forEach((row,rowIndex)=>{
+        const tr = document.createElement('tr');
+
+        const tdB = document.createElement('td');
+        tdB.innerHTML = `<span class="beaufort-badge">${row.b}</span>`;
+        tr.appendChild(tdB);
+
+        getSelectedFieldList().forEach(field=>{
+          const td = document.createElement('td');
+          const value = row[field];
+
+          if(value && String(value).trim() !== ''){
+            const dz = document.createElement('div');
+            dz.className = 'drop-zone';
+            dz.dataset.row = rowIndex;
+            dz.dataset.field = field;
+            dz.dataset.answer = value;
+            setupDropZone(dz);
+            td.appendChild(dz);
+            gameState.dropZones.set(`${rowIndex}-${field}`, dz);
+          }else{
+            const dash = document.createElement('div');
+            dash.className = 'static-cell';
+            dash.textContent = '—';
+            td.appendChild(dash);
+          }
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function generateTiles(){
+      const allTiles = [];
+      const fields = getSelectedFieldList();
+      beaufortData.forEach((row,rowIndex)=>{
+        fields.forEach(field=>{
+          const val = row[field];
+          if(val && String(val).trim() !== ''){
+            allTiles.push({ value: val, correctRow: rowIndex, correctField: field });
+          }
+        });
+      });
+      for(let i=allTiles.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [allTiles[i],allTiles[j]] = [allTiles[j],allTiles[i]];
+      }
+      gameState.tiles = allTiles;
+      gameState.totalTiles = allTiles.length;
+      gameState.currentTileIndex = 0;
+    }
+
+    /* ---------- Gameplay ---------- */
+    function initializeGame(){
+      gameState.startTime = Date.now();
+      gameState.elapsedTime = 0;
+      gameState.isPaused = false;
+      gameState.placedTiles = 0;
+      gameState.totalAttempts = 0;
+      gameState.correctAttempts = 0;
+      gameState.tiles = [];
+      gameState.currentTileIndex = 0;
+      gameState.currentTile = null;
+      gameState.dropZones.clear();
+
+      buildSelectors();
+      generateTable();
+      clearHighlights();
+      generateTiles();
+      showNextTile();
+      startTimer();
+      updateScore();
+
+      document.getElementById('editorFooter').style.display = 'flex';
+      document.getElementById('footerPauseBtn').textContent = 'Pause';
+
+      initCheatButton();
+    }
+
+    function showNextTile(){
+      if(gameState.currentTileIndex >= gameState.tiles.length){ checkCompletion(); return; }
+
+      gameState.currentTile = gameState.tiles[gameState.currentTileIndex];
+
+      const ft = document.getElementById('footerTile');
+      const fp = document.getElementById('footerProgress');
+
+      ft.textContent = gameState.currentTile.value;
+      ft.style.borderColor = getFieldStroke(gameState.currentTile.correctField);
+      ft.style.background = getFieldTint(gameState.currentTile.correctField);
+
+      fp.textContent = `${gameState.currentTileIndex + 1}/${gameState.totalTiles}`;
+
+      setColumnHighlights(gameState.currentTile.correctField);
+    }
+
+    function setupDropZone(dz){
+      dz.addEventListener('click', ()=>{
+        if(gameState.isPaused || !gameState.currentTile) return;
+        tryPlaceTile(dz);
+      });
+    }
+
+    function tryPlaceTile(dz){
+      if(dz.classList.contains('filled')) return;
+
+      const expected = dz.dataset.answer;
+      gameState.totalAttempts++;
+
+      // Accept any matching VALUE within the same COLUMN (duplicates allowed)
+      const isCorrect =
+        (gameState.currentTile.value === expected) &&
+        (dz.dataset.field === gameState.currentTile.correctField);
+
+      if(isCorrect){
+        gameState.correctAttempts++;
+        const field = dz.dataset.field;
+
+        dz.classList.add('filled','pulse');
+        dz.innerHTML = `<div class="placed-tile" data-field="${field}">${gameState.currentTile.value}</div>`;
+        setTimeout(()=>dz.classList.remove('pulse'), 260);
+
+        // allow removal
+        dz.querySelector('.placed-tile').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          if(gameState.isPaused) return;
+          removeTile(dz);
+        });
+
+        gameState.placedTiles++;
+        gameState.currentTileIndex++;
+        updateScore();
+        setTimeout(showNextTile, 260);
+      } else {
+        flashWrong(dz);
+        updateScore();
+        setColumnHighlights(gameState.currentTile.correctField);
+      }
+    }
+
+    function removeTile(dz){
+      const field = dz.dataset.field;
+      const tileData = {
+        value: dz.dataset.answer,
+        correctRow: parseInt(dz.dataset.row,10),
+        correctField: field
+      };
+
+      dz.innerHTML = '';
+      dz.classList.remove('filled');
+      gameState.placedTiles--;
+      gameState.correctAttempts--;
+
+      const insertPos = gameState.currentTileIndex +
+        Math.floor(Math.random()*Math.max(1,(gameState.tiles.length - gameState.currentTileIndex)));
+      gameState.tiles.splice(insertPos,0,tileData);
+
+      updateScore();
+      setColumnHighlights(gameState.currentTile?.correctField || null);
+    }
+
+    function startTimer(){
+      if(gameState.timerInterval) clearInterval(gameState.timerInterval);
+      gameState.timerInterval = setInterval(()=>{
+        if(!gameState.isPaused){
+          gameState.elapsedTime = Date.now() - gameState.startTime;
+          updateTimer();
+        }
+      },1000);
+    }
+
+    function updateTimer(){
+      const seconds = Math.floor(gameState.elapsedTime/1000);
+      const minutes = Math.floor(seconds/60);
+      const displaySeconds = String(seconds % 60).padStart(2,'0');
+      document.getElementById('footerTimer').textContent =
+        `${String(minutes).padStart(2,'0')}:${displaySeconds}`;
+    }
+
+    function updateScore(){
+      const total = gameState.totalAttempts;
+      const correct = gameState.correctAttempts;
+      const pct = total > 0 ? Math.round((correct/total)*100) : 0;
+      document.getElementById('footerScore').textContent = `${correct}/${total} (${pct}%)`;
+      document.getElementById('footerAttempts').textContent = `${total}`;
+    }
+
+    function checkCompletion(){
+      if(gameState.placedTiles === gameState.totalTiles){
+        clearInterval(gameState.timerInterval);
+        alert(`Completed!\nTime ${document.getElementById('footerTimer').textContent}\nAccuracy ${document.getElementById('footerScore').textContent}`);
+      }
+    }
+
+    function togglePause(){
+      gameState.isPaused = !gameState.isPaused;
+      const btn = document.getElementById('footerPauseBtn');
+      if(gameState.isPaused){
+        btn.textContent = 'Resume';
+      }else{
+        btn.textContent = 'Pause';
+        gameState.startTime = Date.now() - gameState.elapsedTime;
+      }
+    }
+
+    function resetGame(){
+      if(confirm('Start a new game with the current columns?')){
+        clearInterval(gameState.timerInterval);
+        initializeGame();
+      }
+    }
+
+    /* ---------- Cheat (press & hold) ---------- */
+    function initCheatButton(){
+      const btn = document.getElementById('cheatBtn');
+      if(!btn) return;
+      btn.addEventListener('pointerdown', (e)=>{
+        e.preventDefault();
+        showCheats();
+        const end = ()=>{
+          hideCheats();
+          window.removeEventListener('pointerup', end);
+          window.removeEventListener('pointercancel', end);
+          window.removeEventListener('blur', end);
+          btn.removeEventListener('lostpointercapture', end);
+        };
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+        window.addEventListener('blur', end);
+        btn.addEventListener('lostpointercapture', end);
+      }, {passive:false});
+    }
+
+    function showCheats(){
+      document.querySelectorAll('.drop-zone').forEach(zone=>{
+        // Do not duplicate overlays
+        if(zone.querySelector('.cheat-ghost')) return;
+        const field = zone.dataset.field;
+        const val = zone.dataset.answer;
+        if(!val) return;
+        const ghost = document.createElement('div');
+        ghost.className = 'cheat-ghost';
+        ghost.dataset.field = field;
+        ghost.textContent = val;
+        zone.appendChild(ghost);
+      });
+    }
+
+    function hideCheats(){
+      document.querySelectorAll('.cheat-ghost').forEach(g=>g.remove());
+    }
+
+    /* ---------- Helpers ---------- */
+    function clearHighlights(){
+      document.querySelectorAll('.drop-zone.highlight').forEach(z=>z.classList.remove('highlight'));
+    }
+    function setColumnHighlights(field){
+      document.querySelectorAll('.drop-zone').forEach(zone=>{
+        if(!zone.classList.contains('filled') && field && zone.dataset.field === field){
+          zone.classList.add('highlight');
+        }else{
+          zone.classList.remove('highlight');
+        }
+      });
+    }
+    function flashWrong(el){
+      const originalBg = el.style.backgroundColor;
+      const originalBorder = el.style.borderColor;
+      el.style.backgroundColor = 'var(--danger-50)';
+      el.style.borderColor = 'var(--danger)';
+      setTimeout(()=>{
+        el.style.backgroundColor = originalBg || '';
+        el.style.borderColor = originalBorder || '';
+      }, 220);
+    }
+    function getSelectedFieldList(){
+      return ALL_FIELDS.map(f=>f.key).filter(k=>selectedFields.has(k));
+    }
+    function getFieldStroke(field){
+      const rs = getComputedStyle(document.documentElement);
+      const map = {
+        ms:'--col-ms-stroke', knots:'--col-knots-stroke', kmh:'--col-kmh-stroke',
+        english:'--col-english-stroke', finnish:'--col-finnish-stroke',
+        finnish_modern:'--col-finnishModern-stroke', swedish:'--col-swedish-stroke',
+        sea:'--col-sea-stroke'
+      };
+      return rs.getPropertyValue(map[field] || '--border');
+    }
+    function getFieldTint(field){
+      const rs = getComputedStyle(document.documentElement);
+      const map = {
+        ms:'--col-ms-tint', knots:'--col-knots-tint', kmh:'--col-kmh-tint',
+        english:'--col-english-tint', finnish:'--col-finnish-tint',
+        finnish_modern:'--col-finnishModern-tint', swedish:'--col-swedish-tint',
+        sea:'--col-sea-tint'
+      };
+      return rs.getPropertyValue(map[field] || '#FAFAFC');
+    }
+
+    // Kickoff
+    (function(){
+      // initialize theme from storage (default to dutch) before first paint
+      const savedTheme = localStorage.getItem('theme') || 'dutch';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+    initializeGame();
+  </script>
+</body>
+</html>
