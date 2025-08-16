@@ -64,11 +64,8 @@
        THEMES (palette variants)
        ========================= */
 
-    /* 1) NEO NEUTRAL — crisp neutrals + electric accent */
     [data-theme="neo"]{
-      --accent-50:#EEF2FF;
-      --accent-600:#2F49FF;
-
+      --accent-50:#EEF2FF; --accent-600:#2F49FF;
       --col-ms-tint:#EEF2FF;           --col-ms-stroke:#2F49FF;
       --col-knots-tint:#E9F6F2;        --col-knots-stroke:#0A7F5A;
       --col-kmh-tint:#FFF3E8;          --col-kmh-stroke:#B65A1E;
@@ -79,11 +76,8 @@
       --col-sea-tint:#FFF8E7;          --col-sea-stroke:#B4690E;
     }
 
-    /* 2) RADIX MODERN — UI-savvy violets/jades/ambers/slates */
     [data-theme="radix"]{
-      --accent-50:#F1EEFF;
-      --accent-600:#6E56CF;
-
+      --accent-50:#F1EEFF; --accent-600:#6E56CF;
       --col-ms-tint:#F1EEFF;           --col-ms-stroke:#6E56CF;
       --col-knots-tint:#E9F8F1;        --col-knots-stroke:#2F9E44;
       --col-kmh-tint:#FFF7E6;          --col-kmh-stroke:#F59E0B;
@@ -94,11 +88,8 @@
       --col-sea-tint:#FFF4E5;          --col-sea-stroke:#F59E0B;
     }
 
-    /* 3) DAZED NEON — editorial black/white with shock neons */
     [data-theme="dazed"]{
-      --accent-50:#FFE8F3;
-      --accent-600:#FF1F8E;
-
+      --accent-50:#FFE8F3; --accent-600:#FF1F8E;
       --col-ms-tint:#E9EDFF;            --col-ms-stroke:#1B50FF;
       --col-knots-tint:#E6FFF5;         --col-knots-stroke:#00C853;
       --col-kmh-tint:#FFF0E6;           --col-kmh-stroke:#FF6A00;
@@ -109,11 +100,8 @@
       --col-sea-tint:#FFE9EE;           --col-sea-stroke:#FF1744;
     }
 
-    /* 4) DUTCH AVANT — bold festival/identity vibes (DEFAULT) */
     [data-theme="dutch"]{
-      --accent-50:#E6EEFF;
-      --accent-600:#0047FF;
-
+      --accent-50:#E6EEFF; --accent-600:#0047FF;
       --col-ms-tint:#E6EEFF;            --col-ms-stroke:#0047FF;
       --col-knots-tint:#E6F7EF;         --col-knots-stroke:#00A85A;
       --col-kmh-tint:#FFF1E9;           --col-kmh-stroke:#FF5E1A;
@@ -124,7 +112,6 @@
       --col-sea-tint:#FFF6E0;           --col-sea-stroke:#FFB81C;
     }
 
-    /* 5) MONO SLATE — restrained cool grays (inspired by Carbon/HIG) */
     [data-theme="mono"]{
       --accent-50:#F8FAFC; --accent-600:#0B0B0C;
       --col-ms-tint:#F8FAFC;           --col-ms-stroke:#111827;
@@ -137,7 +124,6 @@
       --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A;
     }
 
-    /* 6) MONO WARM — warm grays/greiges (minimal, editorial) */
     [data-theme="monowarm"]{
       --accent-50:#FAF7F4; --accent-600:#1C1917;
       --col-ms-tint:#FAF7F4;           --col-ms-stroke:#1C1917;
@@ -162,7 +148,6 @@
       background: var(--canvas);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      /* generous bottom room so footer never hides last row */
       padding: 20px 20px calc(var(--footer-h) + 24px + env(safe-area-inset-bottom)) 20px;
     }
     body, table { font-variant-numeric: tabular-nums; }
@@ -180,7 +165,6 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-4);
       padding: 24px;
-      /* extra bottom padding inside container as well */
       padding-bottom: calc(var(--footer-h) + 24px + env(safe-area-inset-bottom));
     }
 
@@ -280,6 +264,7 @@
       padding:12px 8px;
       border-radius: var(--radius-2);
       color:#fff;font-weight:600;border:0;
+      user-select: none;
     }
     .placed-tile[data-field="ms"]{background:var(--col-ms-stroke)}
     .placed-tile[data-field="knots"]{background:var(--col-knots-stroke)}
@@ -316,7 +301,6 @@
       background: var(--surface);color: var(--text);
       border-top:1px solid var(--border);z-index:1000;
     }
-    /* Footer tile wrapping by default, ellipsis on wide */
     #footerTile{
       max-width: min(70vw, 520px);
       white-space: normal;
@@ -360,7 +344,7 @@
       border:1px solid var(--border);
       background: var(--surface);
       color: var(--text);
-      border-radius:var(--radius-2);
+      border-radius: var(--radius-2);
       padding:8px 12px;
       font-weight:500;
       cursor:pointer;
@@ -382,57 +366,255 @@
   </style>
 </head>
 <body>
-  <!-- Reagent mount point -->
   <div id="app"></div>
 
-  <!-- STEP 2 shells + STEP 3 state (Scittle/Reagent) -->
   <script type="application/x-scittle">
     (ns app.core
       (:require [reagent.core :as r]
-                [reagent.dom  :as rdom]))
+                [reagent.dom  :as rdom]
+                [clojure.string :as str]))
 
+    ;; -----------------------
+    ;; Data (EDN)
+    ;; -----------------------
+    (def beaufort-data
+      [{:b 0  :knots "<1"   :ms "0-0.2"    :kmh "<1"    :english "Calm"
+        :finnish "Tyyni" :finnish_modern "Tyyni" :swedish "Stiltje"
+        :sea "Peilityyni meri."}
+       {:b 1  :knots "1-3"  :ms "0.3-1.5"  :kmh "1-5"   :english "Light Air"
+        :finnish "Hiljainen tuuli" :finnish_modern "Heikko tuuli" :swedish "Nästan stiltje"
+        :sea "Meren pinnassa pieniä kareita, ei vaahtoa."}
+       {:b 2  :knots "4-6"  :ms "1.6-3.3"  :kmh "6-11"  :english "Light Breeze"
+        :finnish "Heikko tuuli" :finnish_modern "Heikko tuuli" :swedish "Lätt bris"
+        :sea "Selkeitä mutta lyhyitä ja matalia aaltoja. Aallonharjat eivät murru."}
+       {:b 3  :knots "7-10" :ms "3.4-5.4"  :kmh "12-19" :english "Gentle Breeze"
+        :finnish "Heikonlainen tuuli" :finnish_modern "Kohtalainen tuuli" :swedish "God bris"
+        :sea "Suurempia aaltoja; harvakseltaan vaahtoa."}
+       {:b 4  :knots "11-16":ms "5.5-7.9"  :kmh "20-28" :english "Moderate Breeze"
+        :finnish "Kohtalainen tuuli" :finnish_modern "Kohtalainen tuuli" :swedish "Frisk bris"
+        :sea "Pitkähköjä aaltoja; valkoista vaahtoa."}
+       {:b 5  :knots "17-21":ms "8.0-10.7" :kmh "29-38" :english "Fresh Breeze"
+        :finnish "Navakka tuuli" :finnish_modern "Navakka tuuli" :swedish "Styv bris"
+        :sea "Kohtalaisia, pitempiä aaltoja; vaahtopäitä."}
+       {:b 6  :knots "22-27":ms "10.8-13.8":kmh "39-49" :english "Strong Breeze"
+        :finnish "Kova tuuli" :finnish_modern "Navakka tuuli" :swedish "Hård bris"
+        :sea "Kookkaita aaltoja; pärskettä."}
+       {:b 7  :knots "28-33":ms "13.9-17.1":kmh "50-61" :english "Near Gale"
+        :finnish "Luja tuuli" :finnish_modern "Kova tuuli" :swedish "Styv kuling"
+        :sea "Vaahtopäät juoviksi, roiskeita."}
+       {:b 8  :knots "34-40":ms "17.2-20.7":kmh "62-74" :english "Gale"
+        :finnish "Myrskyinen tuuli" :finnish_modern "Kova tuuli" :swedish "Hård kuling"
+        :sea "Korkeita ja pitkiä aaltoja, vaahtojuovia."}
+       {:b 9  :knots "41-47":ms "20.8-24.4":kmh "75-88" :english "Severe Gale"
+        :finnish "Myrsky" :finnish_modern "Myrsky" :swedish "Halv storm"
+        :sea "Korkeita aaltoja; näkyvyys heikentyy."}
+       {:b 10 :knots "48-55":ms "24.5-28.4":kmh "89-102":english "Storm"
+        :finnish "Kova myrsky" :finnish_modern "Myrsky" :swedish "Storm"
+        :sea "Erittäin korkeat aallot; näkyvyys heikko."}
+       {:b 11 :knots "56-63":ms "28.5-32.6":kmh "103-117":english "Violent Storm"
+        :finnish "Ankara myrsky" :finnish_modern "Myrsky" :swedish "Svår storm"
+        :sea "Poikkeuksellisen korkeita aaltoja."}
+       {:b 12 :knots "64+"  :ms ">32.7"    :kmh ">118" :english "Hurricane"
+        :finnish "Hirmumyrsky" :finnish_modern "Hirmumyrsky" :swedish "Orkan"
+        :sea "Ilma täynnä pärskettä; näkyvyys erittäin heikko."}])
+
+    (def all-fields
+      [{:key :ms             :label "m/s"              :dot "var(--col-ms-stroke)"}
+       {:key :knots          :label "Knots"            :dot "var(--col-knots-stroke)"}
+       {:key :kmh            :label "km/h"             :dot "var(--col-kmh-stroke)"}
+       {:key :english        :label "English"          :dot "var(--col-english-stroke)"}
+       {:key :finnish        :label "Suomi (vanha)"    :dot "var(--col-finnish-stroke)"}
+       {:key :finnish_modern :label "Suomi (nykyinen)" :dot "var(--col-finnishModern-stroke)"}
+       {:key :swedish        :label "Svenska"          :dot "var(--col-swedish-stroke)"}
+       {:key :sea            :label "Vaikutus merellä" :dot "var(--col-sea-stroke)"}])
+
+    ;; -----------------------
+    ;; App state
+    ;; -----------------------
     (defonce app-db
       (r/atom {:selected-fields #{:ms}
-               :theme           :dutch
-               :attempts        {:total 0 :correct 0}
-               :tiles           {:placed 0 :total 0 :current-idx 0}
-               :timer           {:elapsed-ms 0 :paused? false}
-               :current-tile    nil}))
+               :theme (keyword (or (.getItem js/localStorage "theme") "dutch"))
+               :board {}                   ;; map of {[row field] -> value}
+               :tiles []                   ;; vector of {:value v :field f :row r}
+               :current-idx 0
+               :attempts {:total 0 :correct 0}
+               :timer {:elapsed-ms 0 :paused? false :start-ms (.now js/Date)}
+               :cheat? false}))
 
-    (defn ^:private read-theme []
-      (keyword (.getAttribute (.-documentElement js/document) "data-theme")))
+    ;; Apply theme immediately
+    (.setAttribute (.-documentElement js/document) "data-theme" (name (:theme @app-db)))
 
-    (defn ^:private js-array->vec [a]
-     (vec (js->clj a)))
+    ;; -----------------------
+    ;; Helpers (pure)
+    ;; -----------------------
+    (defn fmt-mm-ss [ms]
+      (let [s (long (/ ms 1000))
+            m (long (/ s 60))
+            ss (mod s 60)]
+        (str (when (< m 10) "0") m ":" (when (< ss 10) "0") ss)))
 
-    ;; Exposed to JS: keep app-db in sync with the still-JS-driven logic
-    (defn sync-from-js! []
-     (when-let [gs (.-gameState js/window)]           ;; <-- guard
-      (let [fields (map keyword (js-array->vec (js/getSelectedFieldList)))]
-       (swap! app-db assoc
-        :selected-fields (set fields)
-        :theme           (keyword (.getAttribute (.-documentElement js/document) "data-theme"))
-        :attempts        {:total   (.-totalAttempts gs)
-                          :correct (.-correctAttempts gs)}
-        :tiles           {:placed      (.-placedTiles gs)
-                          :total       (.-totalTiles gs)
-                          :current-idx (.-currentTileIndex gs)}
-        :timer           {:elapsed-ms (.-elapsedTime gs)
-                          :paused?    (.-isPaused gs)}
-        :current-tile    (when-let [t (.-currentTile gs)]
-                          {:value (.-value t)
-                           :field (keyword (.-correctField t))}))))
-     nil)
+    (defn fields-ordered [selected]
+      (->> all-fields (map :key) (filter selected)))
 
-    ;; expose for JS to call: window.syncAppDbFromJs()
-    (set! (.-syncAppDbFromJs js/window) sync-from-js!)
+    (defn tiles-for [selected]
+      (->> beaufort-data
+           (map-indexed
+            (fn [row m]
+              (for [f (fields-ordered selected)
+                    :let [v (get m f)]
+                    :when (and v (not (str/blank? (str v))))]
+                {:value (str v) :field f :row row})))
+           (apply concat)
+           vec))
 
-    (defn Header []
+    (defn shuffle-tiles [v]
+      (let [a (to-array v)]
+        (loop [i (dec (alength a))]
+          (when (> i 0)
+            (let [j (rand-int (inc i))
+                  vi (aget a i)
+                  vj (aget a j)]
+              (aset a i vj)
+              (aset a j vi)
+              (recur (dec i)))))
+        (vec a)))
+
+    (defn current-tile [db]
+      (get (:tiles db) (:current-idx db)))
+
+    (defn score-data [db]
+      (let [{:keys [total correct]} (:attempts db)
+            pct (if (pos? total) (Math/round (* 100 (/ correct total))) 0)]
+        {:total total :correct correct :pct pct}))
+
+    ;; -----------------------
+    ;; Game mutations
+    ;; -----------------------
+    (defn init-game! [selected]
+      (swap! app-db
+             (fn [db]
+               (let [t (-> selected tiles-for shuffle-tiles)]
+                 (-> db
+                     (assoc :selected-fields selected
+                            :tiles t
+                            :current-idx 0
+                            :board {}
+                            :attempts {:total 0 :correct 0}
+                            :timer {:elapsed-ms 0
+                                    :paused? false
+                                    :start-ms (.now js/Date)}))))))
+
+    ;; Safer explicit assoc (avoid tricky update/cond-> arities in SCI)
+    (defn place-tile! [row field answer]
+      (swap! app-db
+             (fn [db]
+               (let [t (current-tile db)
+                     match? (and t (= (:field t) field) (= (:value t) answer))
+                     cell   [:cell row field]
+                     filled? (contains? (:board db) cell)]
+                 (if (and match? (not filled?))
+                   (let [board' (assoc (:board db) cell (:value t))]
+                     (-> db
+                         (update-in [:attempts :total] inc)
+                         (update-in [:attempts :correct] inc)
+                         (assoc :board board')
+                         (update :current-idx inc)))
+                   ;; wrong cell or already filled: only total attempts++
+                   (update-in db [:attempts :total] inc))))))
+
+    (defn remove-tile! [row field]
+      (swap! app-db
+             (fn [db]
+               (let [cell [:cell row field]
+                     val  (get-in db [:board cell])
+                     tile {:value val :field field}
+                     idx  (:current-idx db)
+                     tiles (:tiles db)
+                     insert-pos (+ idx (rand-int (max 1 (- (count tiles) idx))))
+                     tiles* (-> []
+                                (into (subvec tiles 0 insert-pos))
+                                (conj tile)
+                                (into (subvec tiles insert-pos)))
+                     board' (dissoc (:board db) cell)]
+                 (-> db
+                     (assoc :tiles tiles* :board board')
+                     (update-in [:attempts :correct] (fn [n] (max 0 (dec n)))))))))
+
+    (defn toggle-pause! []
+      (swap! app-db
+             (fn [db]
+               (let [paused? (not (get-in db [:timer :paused?]))]
+                 (if paused?
+                   (assoc-in db [:timer :paused?] true)
+                   (-> db
+                       (assoc-in [:timer :paused?] false)
+                       (assoc-in [:timer :start-ms]
+                                 (- (.now js/Date) (get-in db [:timer :elapsed-ms])))))))))
+
+    (defn reset-game! []
+      (init-game! (:selected-fields @app-db)))
+
+    (defn set-theme! [k]
+      (.setAttribute (.-documentElement js/document) "data-theme" (name k))
+      (.setItem js/localStorage "theme" (name k))
+      (swap! app-db assoc :theme k))
+
+    ;; Cheat press & hold (self-removing listeners)
+    (defn start-cheat! []
+      (swap! app-db assoc :cheat? true)
+      (letfn [(end []
+                (swap! app-db assoc :cheat? false)
+                (.removeEventListener js/window "pointerup" end)
+                (.removeEventListener js/window "pointercancel" end)
+                (.removeEventListener js/window "blur" end))]
+        (.addEventListener js/window "pointerup" end)
+        (.addEventListener js/window "pointercancel" end)
+        (.addEventListener js/window "blur" end)))
+
+    ;; -----------------------
+    ;; Effects: timer + footer ResizeObserver
+    ;; -----------------------
+    (defonce timer-handle (atom nil))
+
+    (defn start-timer! []
+      (when @timer-handle (js/clearInterval @timer-handle))
+      (reset! timer-handle
+              (js/setInterval
+               (fn []
+                 (swap! app-db
+                        (fn [db]
+                          (if (get-in db [:timer :paused?])
+                            db
+                            (assoc-in db [:timer :elapsed-ms]
+                                      (- (.now js/Date) (get-in db [:timer :start-ms])))))))
+               1000)))
+
+    (defn update-footer-height! []
+      (when-let [el (.getElementById js/document "editorFooter")]
+        (let [h (.-offsetHeight el)]
+          (.setProperty (.-style (.-documentElement js/document))
+                        "--footer-h" (str (or h 64) "px")))))
+
+    (defonce footer-ro (atom nil))
+
+    (defn mount-footer-ro! []
+      (when @footer-ro (.disconnect @footer-ro))
+      (when-let [RO (aget js/window "ResizeObserver")]
+        (when-let [el (.getElementById js/document "editorFooter")]
+          (let [ro (RO. (fn [_] (update-footer-height!)))]
+            (.observe ro el)
+            (reset! footer-ro ro)
+            (update-footer-height!)))))
+
+    ;; -----------------------
+    ;; Components
+    ;; -----------------------
+    (defn header []
       [:header {:style {:margin-bottom "6px"}}
        [:h1 "Wind Speed"]
        [:p.lead "Fill the Beaufort scale table by placing the correct tiles into each selected column."]])
 
-    (defn Instructions []
+    (defn instructions []
       [:section.instructions
        [:div.label "Instructions"]
        [:ol
@@ -442,568 +624,165 @@
         [:li [:strong "Cheat (hold):"] " press and hold to peek all correct answers; release to hide."]
         [:li "Score is " [:strong "correct tries ÷ total tries"] ". Timer runs only while active."]]])
 
-    (defn SelectorsShell []
-      [:div.selectors {:id "selectors"}
-       [:div.selectors-left
-        [:span.group-title "Columns:"]
-        ;; JS will inject chips here
-        ]
-       [:div.selectors-right {:id "themeGroup"}
-        [:span.group-title "Theme:"]
-        [:select.theme-select {:id "themeSelect" :aria-label "Theme" :defaultValue "dutch"}
-         [:option {:value "dutch"} "Dutch Avant (default)"]
-         [:option {:value "neo"} "Neo Neutral"]
-         [:option {:value "radix"} "Radix Modern"]
-         [:option {:value "dazed"} "Dazed Neon"]
-         [:option {:value "mono"} "Mono Slate"]
-         [:option {:value "monowarm"} "Mono Warm"]]]])
+    (defn selectors []
+      (let [{:keys [selected-fields theme]} @app-db]
+        [:div.selectors {:id "selectors"}
+         [:div.selectors-left
+          [:span.group-title "Columns:"]
+          (for [{:keys [key label dot]} all-fields]
+            ^{:key (str "chip-" (name key))}
+            [:label.chip {:for (str "toggle-" (name key))}
+             [:span.dot {:style {:background dot}}]
+             [:input {:id (str "toggle-" (name key))
+                      :type "checkbox"
+                      :checked (contains? selected-fields key)
+                      :on-change (fn [e]
+                                   (let [checked (.. e -target -checked)
+                                         new (if checked
+                                               (conj selected-fields key)
+                                               (disj selected-fields key))
+                                         new (if (empty? new) selected-fields new)]
+                                     (init-game! new)))}]
+             [:span label]])]
+         [:div.selectors-right {:id "themeGroup"}
+          [:span.group-title "Theme:"]
+          [:select.theme-select {:id "themeSelect"
+                                 :aria-label "Theme"
+                                 :value (name theme)
+                                 :on-change (fn [e]
+                                              (set-theme! (keyword (.. e -target -value))))}
+           (for [k [:dutch :neo :radix :dazed :mono :monowarm]]
+             ^{:key (str "opt-" (name k))}
+             [:option {:value (name k)}
+              (case k
+                :dutch "Dutch Avant (default)"
+                :neo "Neo Neutral"
+                :radix "Radix Modern"
+                :dazed "Dazed Neon"
+                :mono "Mono Slate"
+                :monowarm "Mono Warm")])]]]))
 
-    (defn TableShell []
-      [:div.table-container
-       [:table {:id "puzzleTable"}
-        [:thead {:id "tableHead"}]
-        [:tbody {:id "tableBody"}]]])
+    (defn table-head []
+      (let [fields (fields-ordered (:selected-fields @app-db))]
+        [:thead {:id "tableHead"}
+         [:tr
+          [:th "Beaufort"]
+          (for [f fields
+                :let [meta (first (filter #(= (:key %) f) all-fields))]]
+            ^{:key (str "th-" (name f))}
+            [:th {:data-field (name f)}
+             [:span {:style {:display "inline-flex"
+                             :align-items "center"
+                             :gap "8px"
+                             :justify-content "center"}}
+              [:span.dot {:style {:background (:dot meta)}}]
+              [:span (:label meta)]]])]]))
 
-    (defn ScrollBuffer []
+    (defn drop-zone [row f value]
+      (let [{:keys [board cheat?]} @app-db
+            cell [:cell row f]
+            filled? (contains? board cell)
+            highlight? (when-let [t (current-tile @app-db)]
+                         (and (= (:field t) f) (not filled?)))]
+        [:td
+         (if (and value (not (str/blank? (str value))))
+           (let [classes (cond-> ["drop-zone"]
+                           filled? (conj "filled")
+                           highlight? (conj "highlight"))]
+             [:div {:class (str/join " " classes)
+                    :data-row row
+                    :data-field (name f)
+                    :on-click (fn [_]
+                                (when-not filled?
+                                  (place-tile! row f (str value))))
+                    :style {:border-radius "var(--radius-2)"}}
+              (when filled?
+                [:div.placed-tile
+                 {:data-field (name f)
+                  :on-click (fn [e]
+                              (.stopPropagation e)
+                              (remove-tile! row f))}
+                 (get board cell)])
+              (when (and cheat? (not filled?))
+                [:div.cheat-ghost {:data-field (name f)} (str value)])])
+           [:div.static-cell "—"])]))
+
+    (defn puzzle-table []
+      (let [fields (fields-ordered (:selected-fields @app-db))]
+        [:div.table-container
+         [:table {:id "puzzleTable"}
+          [table-head]
+          [:tbody {:id "tableBody"}
+           (for [[row m] (map-indexed vector beaufort-data)]
+             ^{:key (str "row-" row)}
+             [:tr
+              [:td [:span.beaufort-badge (:b m)]]
+              (for [f fields]
+                ^{:key (str "cell-" row "-" (name f))}
+                [drop-zone row f (get m f)])])]]]))
+
+    (defn scroll-buffer []
       [:div.scroll-buffer {:aria-hidden "true"
                            :style {:height "calc(var(--footer-h) + env(safe-area-inset-bottom))"}}])
 
-    (defn FooterShell []
-      [:div.editor-footer {:id "editorFooter" :style {:display "none"}}
-       [:div.footer-section
-        [:span.label {:style {:margin-right "6px"}} "Tile"]
-        [:span.metric {:id "footerTile"
-                       :style {:padding "6px 10px"
-                               :border "1px solid var(--border)"
-                               :border-radius "var(--radius-2)"
-                               :background "#FAFAFC"}} "Ready"]
-        [:span.footer-separator "|"]
-        [:span.metric {:id "footerProgress"} "0/0"]]
-       [:div.footer-section
-        [:span.label "Time"] [:span.metric {:id "footerTimer"} "00:00"]
-        [:span.footer-separator "|"]
-        [:span.label "Score"] [:span.metric {:id "footerScore"} "0/0 (0%)"]
-        [:span.footer-separator "|"]
-        [:span.label "Tries"] [:span.metric {:id "footerAttempts"} "0"]]
-        ;; Buttons still call existing JS handlers
-       [:div.footer-section
-        [:button.btn-primary {:id "footerPauseBtn" :onClick #(js/togglePause)} "Pause"]
-        [:button.btn-danger  {:onClick #(js/resetGame)} "Reset"]
-        [:button.btn-primary {:id "cheatBtn" :title "Press and hold to reveal answers"} "Cheat (hold)"]]])
+    (defn footer []
+      (r/create-class
+       {:display-name "footer"
+        :component-did-mount (fn []
+                               (start-timer!)
+                               (mount-footer-ro!))
+        :reagent-render
+        (fn []
+          (let [db @app-db
+                t (current-tile db)
+                prog (if (seq (:tiles db))
+                       (str (inc (:current-idx db)) "/" (count (:tiles db)))
+                       "0/0")
+                {:keys [total correct pct]} (score-data db)]
+            [:div.editor-footer {:id "editorFooter"}
+             [:div.footer-section
+              [:span.label {:style {:margin-right "6px"}} "Tile"]
+              [:span.metric {:id "footerTile"
+                             :style {:padding "6px 10px"
+                                     :border "1px solid var(--border)"
+                                     :border-radius "var(--radius-2)"
+                                     :background "#FAFAFC"}}
+               (or (:value t) "Ready")]
+              [:span.footer-separator "|"]
+              [:span.metric {:id "footerProgress"} prog]]
+             [:div.footer-section
+              [:span.label "Time"] [:span.metric {:id "footerTimer"} (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
+              [:span.footer-separator "|"]
+              [:span.label "Score"] [:span.metric {:id "footerScore"} (str correct "/" total " (" pct "%)")]
+              [:span.footer-separator "|"]
+              [:span.label "Tries"] [:span.metric {:id "footerAttempts"} total]]
+             [:div.footer-section
+              [:button.btn-primary {:id "footerPauseBtn"
+                                    :on-click #(toggle-pause!)}
+               (if (get-in db [:timer :paused?]) "Resume" "Pause")]
+              [:button.btn-danger  {:on-click #(reset-game!)} "Reset"]
+              [:button.btn-primary {:id "cheatBtn"
+                                    :title "Press and hold to reveal answers"
+                                    :on-pointer-down #(start-cheat!)} "Cheat (hold)"]]]))}))
 
-    (defn Root []
+    (defn root []
       [:div.container
-       [Header]
-       [Instructions]
-       [SelectorsShell]
-       [TableShell]
-       [ScrollBuffer]
-       [FooterShell]])
+       [header]
+       [instructions]
+       [selectors]
+       [puzzle-table]
+       [scroll-buffer]
+       [footer]])
 
-    (defn ^:export mount! []
-      (rdom/render [Root] (.getElementById js/document "app")))
+    ;; -----------------------
+    ;; Mount + initial game
+    ;; -----------------------
+    (defn mount! []
+      (rdom/render [root] (.getElementById js/document "app"))
+      (init-game! (:selected-fields @app-db))
+      (js/requestAnimationFrame (fn [] (update-footer-height!))))
 
     (mount!)
-  </script>
-
-  <!-- Existing JS (unchanged behavior; now emits state into app-db) -->
-  <script>
-    /* ---------- Data ---------- */
-    const beaufortData = [
-      { b:0,  knots:"<1",   ms:"0-0.2",   kmh:"<1",    english:"Calm",
-        finnish:"Tyyni",              finnish_modern:"Tyyni",              swedish:"Stiltje",
-        sea:"Peilityyni meri." },
-      { b:1,  knots:"1-3",  ms:"0.3-1.5", kmh:"1-5",   english:"Light Air",
-        finnish:"Hiljainen tuuli",    finnish_modern:"Heikko tuuli",       swedish:"Nästan stiltje",
-        sea:"Meren pinnassa pieniä kareita, ei vaahtoa." },
-      { b:2,  knots:"4-6",  ms:"1.6-3.3", kmh:"6-11",  english:"Light Breeze",
-        finnish:"Heikko tuuli",       finnish_modern:"Heikko tuuli",       swedish:"Lätt bris",
-        sea:"Selkeitä mutta lyhyitä ja matalia aaltoja. Aallonharjat eivät murru." },
-      { b:3,  knots:"7-10", ms:"3.4-5.4", kmh:"12-19", english:"Gentle Breeze",
-        finnish:"Heikonlainen tuuli", finnish_modern:"Kohtalainen tuuli",  swedish:"God bris",
-        sea:"Suurempia aaltoja; harvakseltaan vaahtoa." },
-      { b:4,  knots:"11-16",ms:"5.5-7.9", kmh:"20-28", english:"Moderate Breeze",
-        finnish:"Kohtalainen tuuli",  finnish_modern:"Kohtalainen tuuli",  swedish:"Frisk bris",
-        sea:"Pitkähköjä aaltoja; valkoista vaahtoa." },
-      { b:5,  knots:"17-21",ms:"8.0-10.7",kmh:"29-38", english:"Fresh Breeze",
-        finnish:"Navakka tuuli",      finnish_modern:"Navakka tuuli",      swedish:"Styv bris",
-        sea:"Kohtalaisia, pitempiä aaltoja; vaahtopäitä." },
-      { b:6,  knots:"22-27",ms:"10.8-13.8",kmh:"39-49",english:"Strong Breeze",
-        finnish:"Kova tuuli",         finnish_modern:"Navakka tuuli",      swedish:"Hård bris",
-        sea:"Kookkaita aaltoja; pärskettä." },
-      { b:7,  knots:"28-33",ms:"13.9-17.1",kmh:"50-61",english:"Near Gale",
-        finnish:"Luja tuuli",         finnish_modern:"Kova tuuli",         swedish:"Styv kuling",
-        sea:"Vaahtopäät juoviksi, roiskeita." },
-      { b:8,  knots:"34-40",ms:"17.2-20.7",kmh:"62-74",english:"Gale",
-        finnish:"Myrskyinen tuuli",   finnish_modern:"Kova tuuli",         swedish:"Hård kuling",
-        sea:"Korkeita ja pitkiä aaltoja, vaahtojuovia." },
-      { b:9,  knots:"41-47",ms:"20.8-24.4",kmh:"75-88",english:"Severe Gale",
-        finnish:"Myrsky",             finnish_modern:"Myrsky",             swedish:"Halv storm",
-        sea:"Korkeita aaltoja; näkyvyys heikentyy." },
-      { b:10, knots:"48-55",ms:"24.5-28.4",kmh:"89-102",english:"Storm",
-        finnish:"Kova myrsky",        finnish_modern:"Myrsky",             swedish:"Storm",
-        sea:"Erittäin korkeat aallot; näkyvyys heikko." },
-      { b:11, knots:"56-63",ms:"28.5-32.6",kmh:"103-117",english:"Violent Storm",
-        finnish:"Ankara myrsky",      finnish_modern:"Myrsky",             swedish:"Svår storm",
-        sea:"Poikkeuksellisen korkeita aaltoja." },
-      { b:12, knots:"64+",  ms:">32.7",   kmh:">118",  english:"Hurricane",
-        finnish:"Hirmumyrsky",        finnish_modern:"Hirmumyrsky",        swedish:"Orkan",
-        sea:"Ilma täynnä pärskettä; näkyvyys erittäin heikko." }
-    ];
-
-    /* ---------- Columns meta ---------- */
-    const ALL_FIELDS = [
-      {key:'ms',             label:'m/s',              dot:'var(--col-ms-stroke)'},
-      {key:'knots',          label:'Knots',            dot:'var(--col-knots-stroke)'},
-      {key:'kmh',            label:'km/h',             dot:'var(--col-kmh-stroke)'},
-      {key:'english',        label:'English',          dot:'var(--col-english-stroke)'},
-      {key:'finnish',        label:'Suomi (vanha)',    dot:'var(--col-finnish-stroke)'},
-      {key:'finnish_modern', label:'Suomi (nykyinen)', dot:'var(--col-finnishModern-stroke)'},
-      {key:'swedish',        label:'Svenska',          dot:'var(--col-swedish-stroke)'},
-      {key:'sea',            label:'Vaikutus merellä', dot:'var(--col-sea-stroke)'}
-    ];
-
-    /* Default: Beaufort + m/s */
-    let selectedFields = new Set(['ms']);
-
-    /* ---------- Game State ---------- */
-    let gameState = {
-      startTime:null, elapsedTime:0, timerInterval:null, isPaused:false,
-      placedTiles:0, totalTiles:0, totalAttempts:0, correctAttempts:0,
-      tiles:[], currentTileIndex:0, currentTile:null, dropZones:new Map()
-    };
-    window.gameState = gameState; 
-
-    /* ---------- UI Builders ---------- */
-    function buildSelectors(){
-      const hostLeft = document.querySelector('#selectors .selectors-left');
-      hostLeft.innerHTML = '<span class="group-title">Columns:</span>';
-
-      ALL_FIELDS.forEach(f=>{
-        const id = `toggle-${f.key}`;
-        const chip = document.createElement('label');
-        chip.className = 'chip';
-        chip.setAttribute('for', id);
-        chip.innerHTML = `
-          <span class="dot" style="background:${f.dot}"></span>
-          <input type="checkbox" id="${id}" ${selectedFields.has(f.key)?'checked':''}/>
-          <span>${f.label}</span>
-        `;
-        chip.querySelector('input').addEventListener('change', (e)=>{
-          if(e.target.checked){
-            selectedFields.add(f.key);
-          }else{
-            if(selectedFields.size===1){ e.target.checked = true; return; }
-            selectedFields.delete(f.key);
-          }
-          reinitializeForNewColumns();
-        });
-        hostLeft.appendChild(chip);
-      });
-
-      // Theme select
-      const select = document.getElementById('themeSelect');
-      const savedTheme = localStorage.getItem('theme') || 'dutch';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      select.value = savedTheme;
-      select.addEventListener('change', (e)=> setTheme(e.target.value));
-    }
-
-    function setTheme(themeKey){
-      document.documentElement.setAttribute('data-theme', themeKey);
-      localStorage.setItem('theme', themeKey);
-      if(gameState.currentTile){
-        const ft = document.getElementById('footerTile');
-        ft.style.borderColor = getFieldStroke(gameState.currentTile.correctField);
-        ft.style.background = getFieldTint(gameState.currentTile.correctField);
-      }
-      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
-    }
-
-    function reinitializeForNewColumns(){
-      clearInterval(gameState.timerInterval);
-      initializeGame();
-    }
-
-    /* ---------- Table / Tiles ---------- */
-    function generateTable(){
-      const thead = document.getElementById('tableHead');
-      const tbody = document.getElementById('tableBody');
-      thead.innerHTML = '';
-      tbody.innerHTML = '';
-      gameState.dropZones.clear();
-
-      const trh = document.createElement('tr');
-      const thB = document.createElement('th');
-      thB.textContent = 'Beaufort';
-      trh.appendChild(thB);
-
-      getSelectedFieldList().forEach(field=>{
-        const meta = ALL_FIELDS.find(x=>x.key===field);
-        const th = document.createElement('th');
-        th.dataset.field = field;
-        th.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;justify-content:center">
-          <span class="dot" style="background:${meta.dot}"></span><span>${meta.label}</span>
-        </span>`;
-        trh.appendChild(th);
-      });
-      thead.appendChild(trh);
-
-      beaufortData.forEach((row,rowIndex)=>{
-        const tr = document.createElement('tr');
-
-        const tdB = document.createElement('td');
-        tdB.innerHTML = `<span class="beaufort-badge">${row.b}</span>`;
-        tr.appendChild(tdB);
-
-        getSelectedFieldList().forEach(field=>{
-          const td = document.createElement('td');
-          const value = row[field];
-
-          if(value && String(value).trim() !== ''){
-            const dz = document.createElement('div');
-            dz.className = 'drop-zone';
-            dz.dataset.row = rowIndex;
-            dz.dataset.field = field;
-            dz.dataset.answer = value;
-            setupDropZone(dz);
-            td.appendChild(dz);
-            gameState.dropZones.set(`${rowIndex}-${field}`, dz);
-          }else{
-            const dash = document.createElement('div');
-            dash.className = 'static-cell';
-            dash.textContent = '—';
-            td.appendChild(dash);
-          }
-          tr.appendChild(td);
-        });
-
-        tbody.appendChild(tr);
-      });
-    }
-
-    function generateTiles(){
-      const allTiles = [];
-      const fields = getSelectedFieldList();
-      beaufortData.forEach((row,rowIndex)=>{
-        fields.forEach(field=>{
-          const val = row[field];
-          if(val && String(val).trim() !== ''){
-            allTiles.push({ value: val, correctRow: rowIndex, correctField: field });
-          }
-        });
-      });
-      for(let i=allTiles.length-1;i>0;i--){
-        const j = Math.floor(Math.random()*(i+1));
-        [allTiles[i],allTiles[j]] = [allTiles[j],allTiles[i]];
-      }
-      gameState.tiles = allTiles;
-      gameState.totalTiles = allTiles.length;
-      gameState.currentTileIndex = 0;
-    }
-
-    /* ---------- Gameplay ---------- */
-    function initializeGame(){
-      gameState.startTime = Date.now();
-      gameState.elapsedTime = 0;
-      gameState.isPaused = false;
-      gameState.placedTiles = 0;
-      gameState.totalAttempts = 0;
-      gameState.correctAttempts = 0;
-      gameState.tiles = [];
-      gameState.currentTileIndex = 0;
-      gameState.currentTile = null;
-      gameState.dropZones.clear();
-
-      buildSelectors();
-      generateTable();
-      clearHighlights();
-      generateTiles();
-      showNextTile();
-      startTimer();
-      updateScore();
-
-      document.getElementById('editorFooter').style.display = 'flex';
-      setupFooterAutoHeight();
-      document.getElementById('footerPauseBtn').textContent = 'Pause';
-
-      initCheatButton();
-
-      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
-    }
-
-    function showNextTile(){
-      if(gameState.currentTileIndex >= gameState.tiles.length){ checkCompletion(); return; }
-
-      gameState.currentTile = gameState.tiles[gameState.currentTileIndex];
-
-      const ft = document.getElementById('footerTile');
-      const fp = document.getElementById('footerProgress');
-
-      ft.textContent = gameState.currentTile.value;
-      ft.style.borderColor = getFieldStroke(gameState.currentTile.correctField);
-      ft.style.background = getFieldTint(gameState.currentTile.correctField);
-
-      fp.textContent = `${gameState.currentTileIndex + 1}/${gameState.totalTiles}`;
-
-      setColumnHighlights(gameState.currentTile.correctField);
-      if(typeof requestAnimationFrame !== 'undefined'){ requestAnimationFrame(updateFooterHeight); } else { updateFooterHeight(); }
-
-      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
-    }
-
-    function setupDropZone(dz){
-      dz.addEventListener('click', ()=>{
-        if(gameState.isPaused || !gameState.currentTile) return;
-        tryPlaceTile(dz);
-      });
-    }
-
-    function tryPlaceTile(dz){
-      if(dz.classList.contains('filled')) return;
-
-      const expected = dz.dataset.answer;
-      gameState.totalAttempts++;
-
-      const isCorrect =
-        (gameState.currentTile.value === expected) &&
-        (dz.dataset.field === gameState.currentTile.correctField);
-
-      if(isCorrect){
-        gameState.correctAttempts++;
-        const field = dz.dataset.field;
-
-        dz.classList.add('filled','pulse');
-        dz.innerHTML = `<div class="placed-tile" data-field="${field}">${gameState.currentTile.value}</div>`;
-        setTimeout(()=>dz.classList.remove('pulse'), 260);
-
-        dz.querySelector('.placed-tile').addEventListener('click', (e)=>{
-          e.stopPropagation();
-          if(gameState.isPaused) return;
-          removeTile(dz);
-        });
-
-        gameState.placedTiles++;
-        gameState.currentTileIndex++;
-        updateScore();
-        setTimeout(showNextTile, 260);
-      } else {
-        flashWrong(dz);
-        updateScore();
-        setColumnHighlights(gameState.currentTile.correctField);
-      }
-    }
-
-    function removeTile(dz){
-      const field = dz.dataset.field;
-      const tileData = {
-        value: dz.dataset.answer,
-        correctRow: parseInt(dz.dataset.row,10),
-        correctField: field
-      };
-
-      dz.innerHTML = '';
-      dz.classList.remove('filled');
-      gameState.placedTiles--;
-      gameState.correctAttempts--;
-
-      const insertPos = gameState.currentTileIndex +
-        Math.floor(Math.random()*Math.max(1,(gameState.tiles.length - gameState.currentTileIndex)));
-      gameState.tiles.splice(insertPos,0,tileData);
-
-      updateScore();
-      setColumnHighlights(gameState.currentTile?.correctField || null);
-    }
-
-    function startTimer(){
-      if(gameState.timerInterval) clearInterval(gameState.timerInterval);
-      gameState.timerInterval = setInterval(()=>{
-        if(!gameState.isPaused){
-          gameState.elapsedTime = Date.now() - gameState.startTime;
-          updateTimer();
-        }
-      },1000);
-    }
-
-    function updateTimer(){
-      const seconds = Math.floor(gameState.elapsedTime/1000);
-      const minutes = Math.floor(seconds/60);
-      const displaySeconds = String(seconds % 60).padStart(2,'0');
-      document.getElementById('footerTimer').textContent =
-        `${String(minutes).padStart(2,'0')}:${displaySeconds}`;
-
-      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
-    }
-
-    function updateScore(){
-      const total = gameState.totalAttempts;
-      const correct = gameState.correctAttempts;
-      const pct = total > 0 ? Math.round((correct/total)*100) : 0;
-      document.getElementById('footerScore').textContent = `${correct}/${total} (${pct}%)`;
-      document.getElementById('footerAttempts').textContent = `${total}`;
-
-      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
-    }
-
-    function checkCompletion(){
-      if(gameState.placedTiles === gameState.totalTiles){
-        clearInterval(gameState.timerInterval);
-        alert(`Completed!\nTime ${document.getElementById('footerTimer').textContent}\nAccuracy ${document.getElementById('footerScore').textContent}`);
-      }
-    }
-
-    function togglePause(){
-      gameState.isPaused = !gameState.isPaused;
-      const btn = document.getElementById('footerPauseBtn');
-      if(gameState.isPaused){
-        btn.textContent = 'Resume';
-      }else{
-        btn.textContent = 'Pause';
-        gameState.startTime = Date.now() - gameState.elapsedTime;
-      }
-      if (window.syncAppDbFromJs) window.syncAppDbFromJs();
-    }
-
-    function resetGame(){
-      if(confirm('Start a new game with the current columns?')){
-        clearInterval(gameState.timerInterval);
-        initializeGame();
-      }
-    }
-
-    /* ---------- Cheat (press & hold) ---------- */
-    function initCheatButton(){
-      const btn = document.getElementById('cheatBtn');
-      btn.textContent = 'Cheat';
-      if(!btn) return;
-      btn.addEventListener('pointerdown', (e)=>{
-        e.preventDefault();
-        showCheats();
-        const end = ()=>{
-          hideCheats();
-          window.removeEventListener('pointerup', end);
-          window.removeEventListener('pointercancel', end);
-          window.removeEventListener('blur', end);
-          btn.removeEventListener('lostpointercapture', end);
-        };
-        window.addEventListener('pointerup', end);
-        window.addEventListener('pointercancel', end);
-        window.addEventListener('blur', end);
-        btn.addEventListener('lostpointercapture', end);
-      }, {passive:false});
-    }
-
-    function showCheats(){
-      document.querySelectorAll('.drop-zone').forEach(zone=>{
-        if(zone.querySelector('.cheat-ghost')) return;
-        const field = zone.dataset.field;
-        const val = zone.dataset.answer;
-        if(!val) return;
-        const ghost = document.createElement('div');
-        ghost.className = 'cheat-ghost';
-        ghost.dataset.field = field;
-        ghost.textContent = val;
-        zone.appendChild(ghost);
-      });
-    }
-
-    function hideCheats(){
-      document.querySelectorAll('.cheat-ghost').forEach(g=>g.remove());
-    }
-
-    /* ---------- Helpers ---------- */
-    let footerRO = null;
-    function updateFooterHeight(){
-      const footer = document.getElementById('editorFooter');
-      if(!footer) return;
-      const h = footer.offsetHeight || 64;
-      document.documentElement.style.setProperty('--footer-h', h + 'px');
-    }
-    function setupFooterAutoHeight(){
-      const footer = document.getElementById('editorFooter');
-      if(!footer) return;
-      if('ResizeObserver' in window){
-        if(footerRO) footerRO.disconnect();
-        footerRO = new ResizeObserver(updateFooterHeight);
-        footerRO.observe(footer);
-      }else{
-        window.addEventListener('resize', updateFooterHeight);
-        window.addEventListener('orientationchange', updateFooterHeight);
-      }
-      if(typeof requestAnimationFrame !== 'undefined'){
-        requestAnimationFrame(updateFooterHeight);
-      }else{
-        updateFooterHeight();
-      }
-    }
-
-    function clearHighlights(){
-      document.querySelectorAll('.drop-zone.highlight').forEach(z=>z.classList.remove('highlight'));
-    }
-    function setColumnHighlights(field){
-      document.querySelectorAll('.drop-zone').forEach(zone=>{
-        if(!zone.classList.contains('filled') && field && zone.dataset.field === field){
-          zone.classList.add('highlight');
-        }else{
-          zone.classList.remove('highlight');
-        }
-      });
-    }
-    function flashWrong(el){
-      const originalBg = el.style.backgroundColor;
-      const originalBorder = el.style.borderColor;
-      el.style.backgroundColor = 'var(--danger-50)';
-      el.style.borderColor = 'var(--danger)';
-      setTimeout(()=>{
-        el.style.backgroundColor = originalBg || '';
-        el.style.borderColor = originalBorder || '';
-      }, 220);
-    }
-    function getSelectedFieldList(){
-      return ALL_FIELDS.map(f=>f.key).filter(k=>selectedFields.has(k));
-    }
-    function getFieldStroke(field){
-      const rs = getComputedStyle(document.documentElement);
-      const map = {
-        ms:'--col-ms-stroke', knots:'--col-knots-stroke', kmh:'--col-kmh-stroke',
-        english:'--col-english-stroke', finnish:'--col-finnish-stroke',
-        finnish_modern:'--col-finnishModern-stroke', swedish:'--col-swedish-stroke',
-        sea:'--col-sea-stroke'
-      };
-      return rs.getPropertyValue(map[field] || '--border');
-    }
-    function getFieldTint(field){
-      const rs = getComputedStyle(document.documentElement);
-      const map = {
-        ms:'--col-ms-tint', knots:'--col-knots-tint', kmh:'--col-kmh-tint',
-        english:'--col-english-tint', finnish:'--col-finnish-tint',
-        finnish_modern:'--col-finnishModern-tint', swedish:'--col-swedish-tint',
-        sea:'--col-sea-tint'
-      };
-      return rs.getPropertyValue(map[field] || '#FAFAFC');
-    }
-
-    // Theme before first paint
-    (function(){
-      const savedTheme = localStorage.getItem('theme') || 'dutch';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    })();
-
-    // Ensure Scittle/Reagent shells exist before initializing JS
-    document.addEventListener('DOMContentLoaded', () => {
-      const tryInit = () => {
-        if (
-          document.querySelector('#selectors .selectors-left') &&
-          document.getElementById('tableHead') &&
-          document.getElementById('editorFooter')
-        ) {
-          initializeGame();
-        } else {
-          requestAnimationFrame(tryInit);
-        }
-      };
-      tryInit();
-    });
   </script>
 </body>
 </html>
