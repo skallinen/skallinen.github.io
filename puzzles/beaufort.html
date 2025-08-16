@@ -12,6 +12,8 @@
     :root{
       /* Layout */
       --footer-h: 64px;
+      --footer-base-h: 64px;
+
       --radius-2: 2px;
       --radius-4: 4px;
 
@@ -155,7 +157,8 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       /* generous bottom room so footer never hides last row */
-      padding: 20px 20px calc(var(--footer-h) + 160px) 20px;
+      /* CHANGED: include safe-area inset in reserved padding */
+      padding: 20px 20px calc(var(--footer-h) + 24px + env(safe-area-inset-bottom)) 20px;
     }
     body, table { font-variant-numeric: tabular-nums; }
 
@@ -172,8 +175,8 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-4);
       padding: 24px;
-      /* extra bottom padding inside container as well */
-      padding-bottom: calc(var(--footer-h) + 180px);
+      /* CHANGED: extra bottom padding includes safe-area */
+      padding-bottom: calc(var(--footer-h) + 24px + env(safe-area-inset-bottom));
     }
 
     /* Instructions */
@@ -301,12 +304,57 @@
 
     /* Footer (fixed) */
     .editor-footer{
-      position:fixed;left:0;right:0;bottom:0;height:var(--footer-h);
+      position:fixed;left:0;right:0;bottom:0;min-height: var(--footer-base-h);
+      height: auto;
       display:flex;align-items:center;justify-content:space-between;gap:16px;
-      padding:10px 20px;background:var(--surface);color:var(--text);
+      /* CHANGED: add safe-area to bottom padding */
+      padding: 10px 20px calc(10px + env(safe-area-inset-bottom)) 20px;
+      background: var(--surface);color: var(--text);
       border-top:1px solid var(--border);z-index:1000;
     }
-    .editor-footer .footer-section{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+    /* Footer tile content now allowed to wrap by default (Option A) */
+    #footerTile{
+      max-width: min(70vw, 520px);
+      white-space: normal;      /* CHANGED: was nowrap */
+      overflow: visible;        /* CHANGED: was hidden */
+      text-overflow: clip;      /* CHANGED: was ellipsis */
+      word-break: break-word;   /* long tokens won’t overflow */
+    }
+
+    /* Keep single-line + ellipsis on wide screens if space allows */
+    @media (min-width: 821px){
+      #footerTile{
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    /* Mobile footer layout */
+    @media (max-width:640px){
+      .editor-footer{
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 8px 12px;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px; /* keep safe-area */
+      }
+      .editor-footer .footer-section{
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+
+      .footer-separator{ display:none; }
+      button{ padding:6px 10px; }
+      #footerTile{ max-width: 60vw; }
+    }
+
+    /* CHANGED: allow flex children to shrink/wrap properly */
+    .editor-footer .footer-section{
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;
+    }
+
     .footer-separator{color:var(--border)}
     .metric{font-variant-numeric: tabular-nums;}
 
@@ -383,7 +431,8 @@
     </div>
 
     <!-- Generous scroll buffer so the footer never overlaps the last row -->
-    <div class="scroll-buffer" aria-hidden="true" style="height: calc(var(--footer-h) + 160px)"></div>
+    <!-- CHANGED: include safe-area in scroll buffer height -->
+    <div class="scroll-buffer" aria-hidden="true" style="height: calc(var(--footer-h) + env(safe-area-inset-bottom))"></div>
 
     <!-- Footer -->
     <div class="editor-footer" id="editorFooter" style="display:none;">
@@ -637,6 +686,7 @@
       updateScore();
 
       document.getElementById('editorFooter').style.display = 'flex';
+      setupFooterAutoHeight();
       document.getElementById('footerPauseBtn').textContent = 'Pause';
 
       initCheatButton();
@@ -657,6 +707,7 @@
       fp.textContent = `${gameState.currentTileIndex + 1}/${gameState.totalTiles}`;
 
       setColumnHighlights(gameState.currentTile.correctField);
+      if(typeof requestAnimationFrame !== 'undefined'){ requestAnimationFrame(updateFooterHeight); } else { updateFooterHeight(); }
     }
 
     function setupDropZone(dz){
@@ -778,6 +829,7 @@
     /* ---------- Cheat (press & hold) ---------- */
     function initCheatButton(){
       const btn = document.getElementById('cheatBtn');
+      btn.textContent = 'Cheat';
       if(!btn) return;
       btn.addEventListener('pointerdown', (e)=>{
         e.preventDefault();
@@ -816,6 +868,31 @@
     }
 
     /* ---------- Helpers ---------- */
+    let footerRO = null;
+    function updateFooterHeight(){
+      const footer = document.getElementById('editorFooter');
+      if(!footer) return;
+      const h = footer.offsetHeight || 64;
+      document.documentElement.style.setProperty('--footer-h', h + 'px');
+    }
+    function setupFooterAutoHeight(){
+      const footer = document.getElementById('editorFooter');
+      if(!footer) return;
+      if('ResizeObserver' in window){
+        if(footerRO) footerRO.disconnect();
+        footerRO = new ResizeObserver(updateFooterHeight);
+        footerRO.observe(footer);
+      }else{
+        window.addEventListener('resize', updateFooterHeight);
+        window.addEventListener('orientationchange', updateFooterHeight);
+      }
+      if(typeof requestAnimationFrame !== 'undefined'){
+        requestAnimationFrame(updateFooterHeight);
+      }else{
+        updateFooterHeight();
+      }
+    }
+
     function clearHighlights(){
       document.querySelectorAll('.drop-zone.highlight').forEach(z=>z.classList.remove('highlight'));
     }
