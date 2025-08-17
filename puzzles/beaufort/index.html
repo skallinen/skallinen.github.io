@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dutch">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wind Speed Puzzle</title>
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- React runtime (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js" crossorigin defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js" crossorigin defer></script>
+
+  <!-- Scittle core + Reagent plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.reagent.js" defer></script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Probe: should log once Scittle runs -->
+  <script type="application/x-scittle">
+    (.log js/console "✓ Inline Scittle is running")
+  </script>
+
+  <!-- App (Scittle CLJS) -->
+  <script type="application/x-scittle" src="./app.core.cljs"></script>
+</body>
+</html>
