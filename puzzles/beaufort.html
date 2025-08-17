@@ -114,26 +114,26 @@
 
     [data-theme="mono"]{
       --accent-50:#F8FAFC; --accent-600:#0B0B0C;
-      --col-ms-tint:#F8FAFC;           --col-ms-stroke:#111827;
-      --col-knots-tint:#F9FAFB;        --col-knots-stroke:#1F2937;
-      --col-kmh-tint:#F6F7F9;          --col-kmh-stroke:#334155;
-      --col-english-tint:#F3F4F6;      --col-english-stroke:#4B5563;
-      --col-finnish-tint:#FAFAFB;      --col-finnish-stroke:#3F3F46;
-      --col-finnishModern-tint:#F5F5F6;--col-finnishModern-stroke:#525252;
-      --col-swedish-tint:#FAFAFA;      --col-swedish-stroke:#262626;
-      --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A;
+      --col-ms-tint:#F8FAFC;           --col-ms-stroke:#111827; /* slate-900 */
+      --col-knots-tint:#F9FAFB;        --col-knots-stroke:#1F2937; /* gray-800 */
+      --col-kmh-tint:#F6F7F9;          --col-kmh-stroke:#334155; /* slate-700 */
+      --col-english-tint:#F3F4F6;      --col-english-stroke:#4B5563; /* gray-600 */
+      --col-finnish-tint:#FAFAFB;      --col-finnish-stroke:#3F3F46; /* zinc-700 */
+      --col-finnishModern-tint:#F5F5F6;--col-finnishModern-stroke:#525252; /* neutral-600 */
+      --col-swedish-tint:#FAFAFA;      --col-swedish-stroke:#262626; /* neutral-800 */
+      --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A; /* slate-950 */
     }
 
     [data-theme="monowarm"]{
       --accent-50:#FAF7F4; --accent-600:#1C1917;
-      --col-ms-tint:#FAF7F4;           --col-ms-stroke:#1C1917;
-      --col-knots-tint:#F7F3F0;        --col-knots-stroke:#3F3A36;
-      --col-kmh-tint:#F5F1ED;          --col-kmh-stroke:#57534E;
-      --col-english-tint:#F8F4EF;      --col-english-stroke:#4A403A;
-      --col-finnish-tint:#FBF6F0;      --col-finnish-stroke:#5B514B;
-      --col-finnishModern-tint:#F7F3EF;--col-finnishModern-stroke:#2B2521;
-      --col-swedish-tint:#F9F5F1;      --col-swedish-stroke:#6B6058;
-      --col-sea-tint:#F6F2EE;          --col-sea-stroke:#332D27;
+      --col-ms-tint:#FAF7F4;           --col-ms-stroke:#1C1917; /* stone-900 */
+      --col-knots-tint:#F7F3F0;        --col-knots-stroke:#3F3A36; /* stone-700 */
+      --col-kmh-tint:#F5F1ED;          --col-kmh-stroke:#57534E; /* stone-600 */
+      --col-english-tint:#F8F4EF;      --col-english-stroke:#4A403A; /* deep taupe */
+      --col-finnish-tint:#FBF6F0;      --col-finnish-stroke:#5B514B; /* warm gray 600 */
+      --col-finnishModern-tint:#F7F3EF;--col-finnishModern-stroke:#2B2521; /* near-black brown */
+      --col-swedish-tint:#F9F5F1;      --col-swedish-stroke:#6B6058; /* warm gray 500+ */
+      --col-sea-tint:#F6F2EE;          --col-sea-stroke:#332D27; /* espresso */
     }
 
     /* =========================
@@ -189,7 +189,7 @@
 
     .chip{
       display:inline-flex;align-items:center;gap:8px;
-      border:1px solid var(--border);border-radius:var(--radius-2);
+      border:1px solid var(--border);border-radius: var(--radius-2);
       padding:6px 10px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:500;
       transition:background .15s ease, border-color .15s ease;
     }
@@ -215,7 +215,7 @@
     }
     tbody td{
       border-bottom:1px solid var(--hairline);
-      padding:0;
+      padding:0; /* let the tile fill the whole cell cleanly */
       min-height:44px;vertical-align:middle;text-align:center;
     }
     tr:nth-child(even) td{background:#FCFCFD}
@@ -224,7 +224,7 @@
       display:inline-block;
       border:1px solid var(--border);
       border-radius: var(--radius-2);
-      padding:4px 8px;font-weight:600;margin:12px 0;
+      padding:4px 8px;font-weight:600;margin:12px 0; /* match cell padding */
       background:#FAFAFC;color:var(--ink);
     }
 
@@ -234,12 +234,12 @@
       min-height:44px;display:flex;align-items:center;justify-content:center;
       border:1px dashed var(--border);border-radius: var(--radius-2);
       background: #FBFBFD; cursor:pointer; transition: background .15s ease, border-color .15s ease, transform .12s ease;
-      margin:6px;
+      margin:6px; /* optical breathing space when empty */
     }
     .drop-zone:hover{background:#F6F7FA}
     .drop-zone.filled{
       border-style:solid;
-      margin:0;
+      margin:0; /* when filled, the tile itself will flush to edges */
     }
 
     /* Highlight tints for target column */
@@ -281,7 +281,7 @@
       display:flex;align-items:center;justify-content:center;
       border-radius:var(--radius-2);
       color:#fff; font-weight:600; opacity:.85;
-      pointer-events:none;
+      pointer-events:none; /* do not steal clicks */
     }
     .cheat-ghost[data-field="ms"]{background:var(--col-ms-stroke)}
     .cheat-ghost[data-field="knots"]{background:var(--col-knots-stroke)}
@@ -297,23 +297,14 @@
       position:fixed;left:0;right:0;bottom:0;min-height: var(--footer-base-h);
       height: auto;
       display:flex;align-items:center;justify-content:space-between;gap:16px;
-      padding: 10px 20px calc(10px + env(safe-area-inset-bottom)) 20px;
-      background: var(--surface);color: var(--text);
+      padding:10px 20px;background:var(--surface);color: var(--text);
       border-top:1px solid var(--border);z-index:1000;
     }
     #footerTile{
       max-width: min(70vw, 520px);
       white-space: normal;
-      overflow: visible;
-      text-overflow: clip;
-      word-break: break-word;
-    }
-    @media (min-width: 821px){
-      #footerTile{
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* Mobile footer layout */
@@ -322,20 +313,20 @@
         flex-wrap: wrap;
         align-items: flex-start;
         gap: 8px 12px;
-        padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
+        padding: 10px 12px;
       }
       .editor-footer .footer-section{
-        flex: 1 1 100%;
-        flex-wrap: wrap;
-        justify-content: space-between;
-      }
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
 
       .footer-separator{ display:none; }
       button{ padding:6px 10px; }
       #footerTile{ max-width: 60vw; }
     }
 
-    .editor-footer .footer-section{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+    .editor-footer .footer-section{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .footer-separator{color:var(--border)}
     .metric{font-variant-numeric: tabular-nums;}
 
@@ -359,9 +350,20 @@
     .pulse{animation:pulse .28s ease-in-out}
     @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
 
-    @media (max-width:768px){
-      .container{padding:16px}
-      thead th, tbody td{padding:0}
+    /* Simple completion modal */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.35);
+      display:flex; align-items:center; justify-content:center;
+      z-index: 1001;
+    }
+    .modal-card{
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--radius-4);
+      padding:16px 18px;
+      max-width: 420px;
+      width: calc(100% - 32px);
+      box-shadow: 0 6px 24px rgba(0,0,0,.08);
     }
   </style>
 </head>
@@ -439,7 +441,9 @@
                :current-idx 0
                :attempts {:total 0 :correct 0}
                :timer {:elapsed-ms 0 :paused? false :start-ms (.now js/Date)}
-               :cheat? false}))
+               :cheat? false
+               :flashes #{}
+               :completed? false}))
 
     ;; Apply theme immediately
     (.setAttribute (.-documentElement js/document) "data-theme" (name (:theme @app-db)))
@@ -487,6 +491,36 @@
             pct (if (pos? total) (Math/round (* 100 (/ correct total))) 0)]
         {:total total :correct correct :pct pct}))
 
+    ;; CSS var helpers for footer chip tint
+    (def field->stroke
+      {:ms "--col-ms-stroke" :knots "--col-knots-stroke" :kmh "--col-kmh-stroke"
+       :english "--col-english-stroke" :finnish "--col-finnish-stroke"
+       :finnish_modern "--col-finnishModern-stroke" :swedish "--col-swedish-stroke"
+       :sea "--col-sea-stroke"})
+    (def field->tint
+      {:ms "--col-ms-tint" :knots "--col-knots-tint" :kmh "--col-kmh-tint"
+       :english "--col-english-tint" :finnish "--col-finnish-tint"
+       :finnish_modern "--col-finnishModern-tint" :swedish "--col-swedish-tint"
+       :sea "--col-sea-tint"})
+
+    (defn css-var [name]
+      (let [rs (.getComputedStyle js/window (.-documentElement js/document))]
+        (.getPropertyValue rs name)))
+
+    (defn footer-chip-style [field]
+      (if field
+        (let [stroke (css-var (field->stroke field))
+              tint   (css-var (field->tint field))]
+          {:padding "6px 10px"
+           :border "1px solid var(--border)"
+           :border-color stroke
+           :border-radius "var(--radius-2)"
+           :background tint})
+        {:padding "6px 10px"
+         :border "1px solid var(--border)"
+         :border-radius "var(--radius-2)"
+         :background "#FAFAFC"}))
+
     ;; -----------------------
     ;; Game mutations
     ;; -----------------------
@@ -502,9 +536,19 @@
                             :attempts {:total 0 :correct 0}
                             :timer {:elapsed-ms 0
                                     :paused? false
-                                    :start-ms (.now js/Date)}))))))
+                                    :start-ms (.now js/Date)}
+                            :flashes #{}
+                            :completed? false))))))
 
-    ;; Safer explicit assoc (avoid tricky update/cond-> arities in SCI)
+    ;; wrong-click flash helper
+    (defn flash-cell! [row field]
+      (let [cell [:cell row field]]
+        (swap! app-db update :flashes (fnil conj #{}) cell)
+        (js/setTimeout
+          (fn [] (swap! app-db update :flashes disj cell))
+          220)))
+
+    ;; place when correct (no total++ here; handled by try-place!)
     (defn place-tile! [row field answer]
       (swap! app-db
              (fn [db]
@@ -513,14 +557,30 @@
                      cell   [:cell row field]
                      filled? (contains? (:board db) cell)]
                  (if (and match? (not filled?))
-                   (let [board' (assoc (:board db) cell (:value t))]
-                     (-> db
-                         (update-in [:attempts :total] inc)
-                         (update-in [:attempts :correct] inc)
-                         (assoc :board board')
-                         (update :current-idx inc)))
-                   ;; wrong cell or already filled: only total attempts++
-                   (update-in db [:attempts :total] inc))))))
+                   (let [board' (assoc (:board db) cell (:value t))
+                         db'    (-> db
+                                    (update-in [:attempts :correct] inc)
+                                    (assoc :board board')
+                                    (update :current-idx inc))
+                         done?  (>= (:current-idx db') (count (:tiles db')))]
+                     (cond-> db'
+                       done? (assoc :completed? true)
+                       done? (assoc-in [:timer :paused?] true)))
+                   db)))))
+
+    (defn try-place! [row field answer]
+      (let [db  @app-db
+            t   (current-tile db)
+            ok? (and t (= (:field t) field) (= (:value t) answer))
+            cell [:cell row field]
+            filled? (contains? (:board db) cell)]
+        (if (and ok? (not filled?))
+          (do
+            (swap! app-db update-in [:attempts :total] inc)
+            (place-tile! row field answer))
+          (do
+            (swap! app-db update-in [:attempts :total] inc)
+            (flash-cell! row field)))))
 
     (defn remove-tile! [row field]
       (swap! app-db
@@ -538,7 +598,8 @@
                      board' (dissoc (:board db) cell)]
                  (-> db
                      (assoc :tiles tiles* :board board')
-                     (update-in [:attempts :correct] (fn [n] (max 0 (dec n)))))))))
+                     (update-in [:attempts :correct] (fn [n] (max 0 (dec n))))
+                     (assoc :completed? false))))))
 
     (defn toggle-pause! []
       (swap! app-db
@@ -679,11 +740,15 @@
               [:span (:label meta)]]])]]))
 
     (defn drop-zone [row f value]
-      (let [{:keys [board cheat?]} @app-db
+      (let [{:keys [board cheat? flashes]} @app-db
             cell [:cell row f]
             filled? (contains? board cell)
+            flashed? (contains? flashes cell)
             highlight? (when-let [t (current-tile @app-db)]
-                         (and (= (:field t) f) (not filled?)))]
+                         (and (= (:field t) f) (not filled?)))
+            override-style (when flashed?
+                             {:background "var(--danger-50)"
+                              :border-color "var(--danger)"})]
         [:td
          (if (and value (not (str/blank? (str value))))
            (let [classes (cond-> ["drop-zone"]
@@ -694,8 +759,8 @@
                     :data-field (name f)
                     :on-click (fn [_]
                                 (when-not filled?
-                                  (place-tile! row f (str value))))
-                    :style {:border-radius "var(--radius-2)"}}
+                                  (try-place! row f (str value))))
+                    :style (merge {:border-radius "var(--radius-2)"} override-style)}
               (when filled?
                 [:div.placed-tile
                  {:data-field (name f)
@@ -725,6 +790,19 @@
       [:div.scroll-buffer {:aria-hidden "true"
                            :style {:height "calc(var(--footer-h) + env(safe-area-inset-bottom))"}}])
 
+    (defn completion-modal []
+      (let [{:keys [completed? timer attempts]} @app-db
+            {:keys [total correct pct]} (score-data @app-db)]
+        (when completed?
+          [:div.modal-backdrop
+           [:div.modal-card
+            [:h3 {:style {:margin "0 0 8px" :font-weight 600}} "Completed! 🎉"]
+            [:div {:style {:color "var(--subtext)" :margin-bottom "10px"}}
+             [:div "Time: " [:strong (fmt-mm-ss (:elapsed-ms timer))]]
+             [:div "Accuracy: " [:strong (str correct "/" total " (" pct "%)")]]]
+            [:div {:style {:display "flex" :gap "8px" :justify-content "flex-end"}}
+             [:button.btn-primary {:on-click #(reset-game!)} "Play again"]]]])))
+
     (defn footer []
       (r/create-class
        {:display-name "footer"
@@ -743,10 +821,7 @@
              [:div.footer-section
               [:span.label {:style {:margin-right "6px"}} "Tile"]
               [:span.metric {:id "footerTile"
-                             :style {:padding "6px 10px"
-                                     :border "1px solid var(--border)"
-                                     :border-radius "var(--radius-2)"
-                                     :background "#FAFAFC"}}
+                             :style (footer-chip-style (:field t))}
                (or (:value t) "Ready")]
               [:span.footer-separator "|"]
               [:span.metric {:id "footerProgress"} prog]]
@@ -772,7 +847,8 @@
        [selectors]
        [puzzle-table]
        [scroll-buffer]
-       [footer]])
+       [footer]
+       [completion-modal]])
 
     ;; -----------------------
     ;; Mount + initial game
