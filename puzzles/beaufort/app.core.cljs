@@ -43,7 +43,7 @@
    {:b 11 :knots "56-63":ms "28.5-32.6":kmh "103-117":english "Violent Storm"
     :finnish "Ankara myrsky" :finnish_modern "Myrsky" :swedish "Svår storm"
     :sea "Poikkeuksellisen korkeita aaltoja."}
-  {:b 12 :knots "64+"  :ms ">32.7"    :kmh ">118" :english "Hurricane"
+   {:b 12 :knots "64+"  :ms ">32.7"    :kmh ">118" :english "Hurricane"
     :finnish "Hirmumyrsky" :finnish_modern "Hirmumyrsky" :swedish "Orkan"
     :sea "Ilma täynnä pärskettä; näkyvyys erittäin heikko."}])
 
@@ -63,12 +63,13 @@
 (defonce app-db
   (r/atom {:selected-fields #{:ms}
            :theme (keyword (or (.getItem js/localStorage "theme") "dutch"))
-           :board {}                   ;; map of {[row field] -> value}
+           :board {}                   ;; {[row field] -> value}
            :tiles []                   ;; vector of {:value v :field f :row r}
            :current-idx 0
            :attempts {:total 0 :correct 0}
            :timer {:elapsed-ms 0 :paused? false :start-ms (.now js/Date)}
            :cheat? false
+           :cheat-count 0             ;; NEW: track cheat activations
            :flashes #{}
            :completed? false}))
 
@@ -118,36 +119,6 @@
         pct (if (pos? total) (Math/round (* 100 (/ correct total))) 0)]
     {:total total :correct correct :pct pct}))
 
-;; CSS var helpers for footer chip tint
-(def field->stroke
-  {:ms "--col-ms-stroke" :knots "--col-knots-stroke" :kmh "--col-kmh-stroke"
-   :english "--col-english-stroke" :finnish "--col-finnish-stroke"
-   :finnish_modern "--col-finnishModern-stroke" :swedish "--col-swedish-stroke"
-   :sea "--col-sea-stroke"})
-(def field->tint
-  {:ms "--col-ms-tint" :knots "--col-knots-tint" :kmh "--col-kmh-tint"
-   :english "--col-english-tint" :finnish "--col-finnish-tint"
-   :finnish_modern "--col-finnishModern-tint" :swedish "--col-swedish-tint"
-   :sea "--col-sea-tint"})
-
-(defn css-var [name]
-  (let [rs (.getComputedStyle js/window (.-documentElement js/document))]
-    (.getPropertyValue rs name)))
-
-(defn footer-chip-style [field]
-  (if field
-    (let [stroke (css-var (field->stroke field))
-          tint   (css-var (field->tint field))]
-      {:padding "6px 10px"
-       :border "1px solid var(--border)"
-       :border-color stroke
-       :border-radius "var(--radius-2)"
-       :background tint})
-    {:padding "6px 10px"
-     :border "1px solid var(--border)"
-     :border-radius "var(--radius-2)"
-     :background "#FAFAFC"}))
-
 ;; -----------------------
 ;; Game mutations
 ;; -----------------------
@@ -165,15 +136,16 @@
                                 :paused? false
                                 :start-ms (.now js/Date)}
                         :flashes #{}
-                        :completed? false))))))
+                        :completed? false
+                        :cheat-count 0))))))      ;; reset cheat counter
 
 ;; wrong-click flash helper
 (defn flash-cell! [row field]
   (let [cell [:cell row field]]
     (swap! app-db update :flashes (fnil conj #{}) cell)
     (js/setTimeout
-      (fn [] (swap! app-db update :flashes disj cell))
-      220)))
+     (fn [] (swap! app-db update :flashes disj cell))
+     220)))
 
 ;; place when correct (no total++ here; handled by try-place!)
 (defn place-tile! [row field answer]
@@ -249,7 +221,11 @@
 
 ;; Cheat press & hold (self-removing listeners)
 (defn start-cheat! []
-  (swap! app-db assoc :cheat? true)
+  ;; increment cheat count once per hold
+  (swap! app-db (fn [db]
+                  (-> db
+                      (assoc :cheat? true)
+                      (update :cheat-count (fnil inc 0)))))
   (letfn [(end []
             (swap! app-db assoc :cheat? false)
             (.removeEventListener js/window "pointerup" end)
@@ -306,11 +282,11 @@
   [:section.instructions
    [:div.label "Instructions"]
    [:ol
-    [:li "Select which columns to include (Beaufort is always shown). Defaults: Beaufort + m/s."]
-    [:li "One tile appears in the footer. Its color matches the target column."]
-    [:li "Click any matching empty cell in that column to place it. If identical values appear in multiple rows, any matching row is accepted."]
-    [:li [:strong "Cheat (hold):"] " press and hold to peek all correct answers; release to hide."]
-    [:li "Score is " [:strong "correct tries ÷ total tries"] ". Timer runs only while active."]]])
+    [:li "Pick the columns you’d like to practice."]
+    [:li "Click a cell in the target column to place the current tile."]
+    [:li "Remove a placed tile by clicking it again."]
+    [:li "Press and hold Cheat to peek answers."]
+    [:li "Score is correct tries ÷ total tries. Timer runs only while active."]]])
 
 (defn selectors []
   (let [{:keys [selected-fields theme]} @app-db]
@@ -418,7 +394,7 @@
                        :style {:height "calc(var(--footer-h) + env(safe-area-inset-bottom))"}}])
 
 (defn completion-modal []
-  (let [{:keys [completed? timer attempts]} @app-db
+  (let [{:keys [completed? timer cheat-count]} @app-db
         {:keys [total correct pct]} (score-data @app-db)]
     (when completed?
       [:div.modal-backdrop
@@ -426,7 +402,8 @@
         [:h3 {:style {:margin "0 0 8px" :font-weight 600}} "Completed! 🎉"]
         [:div {:style {:color "var(--subtext)" :margin-bottom "10px"}}
          [:div "Time: " [:strong (fmt-mm-ss (:elapsed-ms timer))]]
-         [:div "Accuracy: " [:strong (str correct "/" total " (" pct "%)")]]]
+         [:div "Accuracy: " [:strong (str correct "/" total " (" pct "%)")]]
+         [:div "Cheats: " [:strong cheat-count]]]
         [:div {:style {:display "flex" :gap "8px" :justify-content "flex-end"}}
          [:button.btn-primary {:on-click #(reset-game!)} "Play again"]]]])))
 
@@ -443,12 +420,16 @@
             prog (if (seq (:tiles db))
                    (str (inc (:current-idx db)) "/" (count (:tiles db)))
                    "0/0")
-            {:keys [total correct pct]} (score-data db)]
+            {:keys [total correct pct]} (score-data db)
+            cheats (:cheat-count db)]
         [:div.editor-footer {:id "editorFooter"}
          [:div.footer-section
           [:span.label {:style {:margin-right "6px"}} "Tile"]
           [:span.metric {:id "footerTile"
-                         :style (footer-chip-style (:field t))}
+                         :style {:padding "6px 10px"
+                                 :border "1px solid var(--border)"
+                                 :border-radius "var(--radius-2)"
+                                 :background "#FAFAFC"}}
            (or (:value t) "Ready")]
           [:span.footer-separator "|"]
           [:span.metric {:id "footerProgress"} prog]]
@@ -457,15 +438,17 @@
           [:span.footer-separator "|"]
           [:span.label "Score"] [:span.metric {:id "footerScore"} (str correct "/" total " (" pct "%)")]
           [:span.footer-separator "|"]
-          [:span.label "Tries"] [:span.metric {:id "footerAttempts"} total]]
+          [:span.label "Cheats"] [:span.metric (:cheat-count db)]]
          [:div.footer-section
           [:button.btn-primary {:id "footerPauseBtn"
                                 :on-click #(toggle-pause!)}
            (if (get-in db [:timer :paused?]) "Resume" "Pause")]
           [:button.btn-danger  {:on-click #(reset-game!)} "Reset"]
+          ;; keep your existing cheat button behavior; we just hook counting via start-cheat!
           [:button.btn-primary {:id "cheatBtn"
                                 :title "Press and hold to reveal answers"
-                                :on-pointer-down #(start-cheat!)} "Cheat (hold)"]]]))}))
+                                :on-pointer-down #(start-cheat!)}
+           "Cheat (hold)"]]]))}))
 
 (defn root []
   [:div.container
@@ -483,8 +466,7 @@
 (defn mount! []
   (rdom/render [root] (.getElementById js/document "app"))
   (init-game! (:selected-fields @app-db))
-  (js/requestAnimationFrame (fn [] (update-footer-height!))))
+  (js/requestAnimationFrame (fn [] (update-footer-height!)))
+  (start-timer!))
 
 (mount!)
-
-
