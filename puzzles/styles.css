@@ -1,0 +1,229 @@
+/* ==========================================================================
+   Tokens
+   ========================================================================== */
+:root{
+  --radius-2:8px; --radius-4:12px;
+
+  --bg:#fff; --surface:#fff; --text:#0F172A; --subtext:#475569;
+  --border:#E5E7EB; --hairline:#EEF2F7;
+
+  --accent-50:#F8FAFC; --accent-600:#2563EB;
+
+  --danger:#DC2626; --danger-50:#FEE2E2;
+
+  --footer-base-h:64px; --footer-h:var(--footer-base-h);
+
+  /* defaults (overridden by themes) */
+  --col-ms-tint:#F0F9FF;           --col-ms-stroke:#0EA5E9;
+  --col-knots-tint:#F8FAFC;        --col-knots-stroke:#1F2937;
+  --col-kmh-tint:#F6F7F9;          --col-kmh-stroke:#334155;
+  --col-english-tint:#F3F4F6;      --col-english-stroke:#4B5563;
+  --col-finnish-tint:#FAFAFB;      --col-finnish-stroke:#3F3F46;
+  --col-finnishModern-tint:#F5F5F6;--col-finnishModern-stroke:#525252;
+  --col-swedish-tint:#FAFAFA;      --col-swedish-stroke:#262626;
+  --col-sea-tint:#F7F7F8;          --col-sea-stroke:#0F172A;
+}
+
+/* === Dutch Avant (restore exact palette used by Beaufort) ================== */
+[data-theme="dutch"]{
+  --bg:#FFFFFF; --surface:#FFFFFF; --text:#0F172A; --subtext:#475569;
+  --border:#E5E7EB; --hairline:#EEF2F7;
+
+  --accent-50:#E6EEFF; --accent-600:#0047FF;
+
+  --col-ms-tint:#E6EEFF;            --col-ms-stroke:#0047FF;
+  --col-knots-tint:#E6F7EF;         --col-knots-stroke:#00A85A;
+  --col-kmh-tint:#FFF1E9;           --col-kmh-stroke:#FF5E1A;
+  --col-english-tint:#FFF0F5;       --col-english-stroke:#FF1E90;
+  --col-finnish-tint:#FFF9E6;       --col-finnish-stroke:#FFB81C;
+  --col-finnishModern-tint:#E8F7FF; --col-finnishModern-stroke:#0EA5E9;
+  --col-swedish-tint:#F5E6FF;       --col-swedish-stroke:#7C3AED;
+  --col-sea-tint:#FFF6E0;           --col-sea-stroke:#FFB81C;
+}
+
+/* You can keep other themes you already had; omitted here for brevity. */
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+.container{max-width:1000px;margin:0 auto;padding:20px}
+h1{font-size:22px;margin:0 0 6px}
+.lead{color:var(--subtext);margin:0 0 12px}
+
+/* ==========================================================================
+   Selectors & chips
+   ========================================================================== */
+.selectors{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-4);padding:10px 12px;margin:10px 0 14px;
+}
+.selectors-left,.selectors-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.group-title,.label{color:var(--subtext);font-weight:600}
+.group-title{margin-right:6px}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid var(--border);border-radius:var(--radius-2);
+  padding:6px 10px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:500;
+  transition:background .15s ease,border-color .15s ease;
+}
+.chip input{appearance:none;width:14px;height:14px;border:1px solid var(--border);border-radius:4px;margin:0}
+.chip input:checked{background:var(--accent-600);border-color:var(--accent-600)}
+.dot{width:8px;height:8px;border-radius:999px;display:inline-block}
+.theme-select{padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-2);background:var(--surface);color:var(--text)}
+
+/* ==========================================================================
+   Table & puzzle
+   ========================================================================== */
+.table-container{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-4)}
+table{width:100%;border-collapse:separate;border-spacing:0}
+thead th{text-align:center;font-weight:700;padding:12px 8px;border-bottom:1px solid var(--border);background:var(--accent-50)}
+tbody td{border-bottom:1px solid var(--hairline);padding:0;min-height:44px;vertical-align:middle;text-align:center}
+tr:nth-child(even) td{background:#FCFCFD}
+
+.static-cell{
+  display:inline-block;border:1px solid var(--border);border-radius:var(--radius-2);
+  padding:4px 8px;font-weight:600;margin:12px 0;background:#FAFAFC;color:var(--text);
+}
+
+.drop-zone{
+  position:relative;
+  min-height:44px;display:flex;align-items:center;justify-content:center;
+  border:1px dashed var(--border);border-radius:var(--radius-2);
+  background:#FBFBFD;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .12s ease;
+  margin:6px;
+}
+.drop-zone:hover{background:#F6F7FA}
+.drop-zone.filled{border-style:solid;margin:0}
+.drop-zone.highlight{background:var(--accent-50);border-color:var(--accent-600)}
+
+/* Column-specific highlight (Beaufort) */
+.drop-zone.highlight[data-field="ms"]{background:var(--col-ms-tint);border-color:var(--col-ms-stroke)}
+.drop-zone.highlight[data-field="knots"]{background:var(--col-knots-tint);border-color:var(--col-knots-stroke)}
+.drop-zone.highlight[data-field="kmh"]{background:var(--col-kmh-tint);border-color:var(--col-kmh-stroke)}
+.drop-zone.highlight[data-field="english"]{background:var(--col-english-tint);border-color:var(--col-english-stroke)}
+.drop-zone.highlight[data-field="finnish"]{background:var(--col-finnish-tint);border-color:var(--col-finnish-stroke)}
+.drop-zone.highlight[data-field="finnish_modern"]{background:var(--col-finnishModern-tint);border-color:var(--col-finnishModern-stroke)}
+.drop-zone.highlight[data-field="swedish"]{background:var(--col-swedish-tint);border-color:var(--col-swedish-stroke)}
+.drop-zone.highlight[data-field="sea"]{background:var(--col-sea-tint);border-color:var(--col-sea-stroke)}
+
+/* Column-specific highlight (Flags) */
+.drop-zone.highlight[data-field="nato"]{background:var(--col-english-tint);border-color:var(--col-english-stroke)}
+.drop-zone.highlight[data-field="morse"]{background:var(--col-kmh-tint);border-color:var(--col-kmh-stroke)}
+.drop-zone.highlight[data-field="meaning"]{background:var(--col-sea-tint);border-color:var(--col-sea-stroke)}
+/* Strong, theme-agnostic error feedback */
+.drop-zone.flash:not(.filled){
+  /* diagonal stripes for immediate contrast */
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--danger-50),
+    var(--danger-50) 6px,
+    #fff 6px,
+    #fff 12px
+  ) !important;
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 2px var(--danger);
+  animation: dz-shake .22s ease-in-out;
+}
+
+/* small shake to reinforce error */
+@keyframes dz-shake {
+  0%   { transform: translateX(0); }
+  25%  { transform: translateX(-1px); }
+  50%  { transform: translateX(1px); }
+  75%  { transform: translateX(-1px); }
+  100% { transform: translateX(0); }
+}
+
+/* Placed tile – neutral base */
+.placed-tile{
+  min-height:44px;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--radius-2);
+  font-weight:700;border:1px solid var(--border);
+  padding:6px 8px;margin:12px 0;background:#EEF2FF;color:#111827;
+}
+/* Field-colored placed tiles (Beaufort) */
+.placed-tile[data-field="ms"]{background:var(--col-ms-stroke);border-color:var(--col-ms-stroke);color:#fff}
+.placed-tile[data-field="knots"]{background:var(--col-knots-stroke);border-color:var(--col-knots-stroke);color:#fff}
+.placed-tile[data-field="kmh"]{background:var(--col-kmh-stroke);border-color:var(--col-kmh-stroke);color:#fff}
+.placed-tile[data-field="english"]{background:var(--col-english-stroke);border-color:var(--col-english-stroke);color:#fff}
+.placed-tile[data-field="finnish"]{background:var(--col-finnish-stroke);border-color:var(--col-finnish-stroke);color:#fff}
+.placed-tile[data-field="finnish_modern"]{background:var(--col-finnishModern-stroke);border-color:var(--col-finnishModern-stroke);color:#fff}
+.placed-tile[data-field="swedish"]{background:var(--col-swedish-stroke);border-color:var(--col-swedish-stroke);color:#fff}
+.placed-tile[data-field="sea"]{background:var(--col-sea-stroke);border-color:var(--col-sea-stroke);color:#fff}
+/* Field-colored placed tiles (Flags) */
+.placed-tile[data-field="nato"]{background:var(--col-english-stroke);border-color:var(--col-english-stroke);color:#fff}
+.placed-tile[data-field="morse"]{background:var(--col-kmh-stroke);border-color:var(--col-kmh-stroke);color:#fff}
+.placed-tile[data-field="meaning"]{background:var(--col-sea-stroke);border-color:var(--col-sea-stroke);color:#fff}
+
+/* Cheat preview */
+.cheat-ghost{
+  position:absolute;top:8px;left:8px;
+  padding:4px 8px;border-radius:var(--radius-2);color:#fff;font-weight:600;opacity:.9;pointer-events:none
+}
+.cheat-ghost[data-field="ms"]{background:var(--col-ms-stroke)}
+.cheat-ghost[data-field="knots"]{background:var(--col-knots-stroke)}
+.cheat-ghost[data-field="kmh"]{background:var(--col-kmh-stroke)}
+.cheat-ghost[data-field="english"]{background:var(--col-english-stroke)}
+.cheat-ghost[data-field="finnish"]{background:var(--col-finnish-stroke)}
+.cheat-ghost[data-field="finnish_modern"]{background:var(--col-finnishModern-stroke)}
+.cheat-ghost[data-field="swedish"]{background:var(--col-swedish-stroke)}
+.cheat-ghost[data-field="sea"]{background:var(--col-sea-stroke)}
+.cheat-ghost[data-field="nato"]{background:var(--col-english-stroke)}
+.cheat-ghost[data-field="morse"]{background:var(--col-kmh-stroke)}
+.cheat-ghost[data-field="meaning"]{background:var(--col-sea-stroke)}
+
+/* Beaufort badge */
+.beaufort-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:32px;height:32px;padding:0 8px;background:#111827;color:#fff;border-radius:8px;font-weight:700;margin:12px 0;
+}
+
+/* Flags imagery: keep natural aspect ratio */
+.flag-img{
+  height:40px; width:auto;
+  border:1px solid var(--border); border-radius:6px;
+  display:inline-block; background:#FAFAFC; margin:12px 0;
+}
+
+/* ==========================================================================
+   Footer & modal
+   ========================================================================== */
+.editor-footer{
+  position:fixed;left:0;right:0;bottom:0;min-height:var(--footer-base-h);
+  height:auto;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:10px 20px;background:var(--surface);color:var(--text);border-top:1px solid var(--border);z-index:1000;
+}
+.editor-footer .footer-section{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.footer-separator{color:var(--border)}
+.metric{font-variant-numeric:tabular-nums}
+button{
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  padding:8px 12px;border-radius:var(--radius-2);cursor:pointer;font-weight:600;
+  transition:background .15s ease,border-color .15s ease,transform .04s ease;
+}
+button:hover{background:var(--accent-50)}
+button:active{transform:translateY(1px)}
+.btn-primary{border-color:var(--accent-600)}
+.btn-danger{border-color:var(--danger);color:#991B1B}
+@media (max-width:820px){
+  .editor-footer{flex-wrap:wrap;align-items:flex-start;gap:8px 12px;padding:10px 12px}
+  .editor-footer .footer-section{flex:1 1 100%;justify-content:space-between}
+  .footer-separator{display:none}
+}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:1001}
+.modal-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-4);
+  padding:16px 18px;max-width:420px;width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.08)
+}
+
+/* Utils */
+.pulse{animation:pulse .28s ease-in-out}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}

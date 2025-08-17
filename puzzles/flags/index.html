@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dutch">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Signal Flags Puzzle</title>
+
+  <!-- Reuse your existing global styles -->
+  <link rel="stylesheet" href="../styles.css"/>
+
+  <!-- React UMD runtime (same as Wind Speed) -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Scittle core + Reagent plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.reagent.js"></script>
+
+  <style>
+    /* small helper so flags look crisp and consistent */
+    .flag-img{
+      width: 72px; height: 48px; object-fit: contain;
+      display: inline-block; border:1px solid var(--border);
+      border-radius: var(--radius-2); background: #fff;
+    }
+    thead th.flag-col { width: 100px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- App (Scittle CLJS) -->
+  <script type="application/x-scittle" src="./app.core.cljs"></script>
+</body>
+</html>
