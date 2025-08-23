@@ -118,6 +118,42 @@
   (let [{:keys [total correct]} (:attempts db)
         pct (if (pos? total) (Math/round (* 100 (/ correct total))) 0)]
     {:total total :correct correct :pct pct}))
+(def puzzle-name "Beaufort Scale")
+
+(def labels-by-key
+  (into {} (map (juxt :key :label) all-fields)))
+
+(defn csv-escape [s]
+  (let [s (str (or s ""))]
+    (str "\"" (str/replace s #"\"" "\"\"") "\"")))
+
+(defn download-results-csv! []
+  (let [db @app-db
+        now (js/Date.)
+        iso (.toISOString now)
+        time-ms (get-in db [:timer :elapsed-ms])
+        time-str (fmt-mm-ss time-ms)
+        {:keys [total correct pct]} (score-data db)
+        cheats (:cheat-count db)
+        sel (fields-ordered (:selected-fields db))
+        cols (->> sel (map #(get labels-by-key %)) (str/join " | "))
+        headers ["puzzle_name" "datetime_iso" "time_hhmmss" "total" "correct" "pct" "cheats" "columns" "accuracy_str"]
+        accuracy (str correct "/" total " (" pct "%)")
+        row [puzzle-name iso time-str total correct pct cheats cols accuracy]
+        csv (str (str/join "," (map csv-escape headers)) "\n"
+                 (str/join "," (map csv-escape row)) "\n")
+        blob (js/Blob. (clj->js [csv]) #js {:type "text/csv;charset=utf-8"})
+        iso-for-file (str/replace iso ":" "-")
+        fname (str (-> puzzle-name (str/replace #"[^A-Za-z0-9]+" "-") (str/lower-case))
+                   "_" iso-for-file ".csv")
+        url (.createObjectURL js/URL blob)
+        a (.createElement js/document "a")]
+    (set! (.-href a) url)
+    (set! (.-download a) fname)
+    (.appendChild (.-body js/document) a)
+    (.click a)
+    (.removeChild (.-body js/document) a)
+    (.revokeObjectURL js/URL url)))
 
 ;; -----------------------
 ;; Game mutations
@@ -405,7 +441,9 @@
          [:div "Accuracy: " [:strong (str correct "/" total " (" pct "%)")]]
          [:div "Cheats: " [:strong cheat-count]]]
         [:div {:style {:display "flex" :gap "8px" :justify-content "flex-end"}}
+         [:button.btn-secondary {:on-click #(download-results-csv!)} "Download CSV"]
          [:button.btn-primary {:on-click #(reset-game!)} "Play again"]]]])))
+
 
 (defn footer []
   (r/create-class
