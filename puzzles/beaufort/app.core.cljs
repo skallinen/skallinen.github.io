@@ -413,25 +413,8 @@
                                            (disj selected-fields key))
                                      new (if (empty? new) selected-fields new)]
                                  (init-game! new)))}]
-         [:span label]])]
-     [:div.selectors-right {:id "themeGroup"}
-      [:span.group-title "Theme:"]
-      [:select.theme-select {:id "themeSelect"
-                             :aria-label "Theme"
-                             :value (name theme)
-                             :on-change (fn [e]
-                                          (set-theme! (keyword (.. e -target -value))))}
-       (for [k [:dutch :neo :radix :dazed :mono :monowarm]]
-         ^{:key (str "opt-" (name k))}
-         [:option {:value (name k)}
-          (case k
-            :dutch "Dutch Avant (default)"
-            :neo "Neo Neutral"
-            :radix "Radix Modern"
-            :dazed "Dazed Neon"
-            :mono "Mono Slate"
-            :monowarm "Mono Warm")])]]]))
-
+         [:span label]])]]))
+'
 (defn table-head []
   (let [fields (fields-ordered (:selected-fields @app-db))]
     [:thead {:id "tableHead"}
