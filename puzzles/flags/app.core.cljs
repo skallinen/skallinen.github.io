@@ -443,40 +443,74 @@
             (for [f fields]
               ^{:key (str "cell-" display-idx "-" (name f))}
               [drop-zone display-idx f (get m f)])]))]]]))
+(defonce footer-h (r/atom 0))
+
+(defn measure-footer! []
+  (when-let [el (.getElementById js/document "editorFooter")]
+    (reset! footer-h (.-offsetHeight el))))
+
+;; --- Footer (dynamic height-aware) -------------------------------------------
+
+(defonce footer-h (r/atom 0))
+
+(defn ^:private measure-footer! []
+  (when-let [el (.getElementById js/document "editorFooter")]
+    (reset! footer-h (.-offsetHeight el))))
 
 (defn footer []
-  (let [db @app-db
-        t (current-tile db)
-        prog (if (seq (:tiles db))
-               (str (inc (:current-idx db)) "/" (count (:tiles db)))
-               "0/0")
-        {:keys [total correct pct cheats]} (score-data db)]
-    [:div.editor-footer {:id "editorFooter"}
-     [:div.footer-section
-      [:span.label {:style {:margin-right "6px"}} "Tile"]
-      [:span.metric {:style {:padding "6px 10px"
-                             :border "1px solid var(--border)"
-                             :border-radius "var(--radius-2)"
-                             :background "#FAFAFC"}}
-       (or (:value t) "Ready")]
-      [:span.footer-separator "|"]
-      [:span.metric prog]]
-     [:div.footer-section
-      [:span.label "Time"]
-      [:span.metric (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
-      [:span.footer-separator "|"]
-      [:span.label "Score"]
-      [:span.metric (str correct "/" total " (" pct "%)")]
-      [:span.footer-separator "|"]
-      [:span.label "Cheats"]
-      [:span.metric cheats]]
-     [:div.footer-section
-      [:button.btn-primary {:on-click #(toggle-pause!)}
-       (if (get-in db [:timer :paused?]) "Resume" "Pause")]
-      [:button.btn-danger {:on-click #(reset-game!)} "Reset"]
-      [:button.btn-primary {:title "Press and hold to reveal answers"
-                            :on-pointer-down #(start-cheat!)}
-       "Cheat (hold)"]]]))
+  (r/create-class
+   {:component-did-mount
+    (fn []
+      (measure-footer!)
+      ;; Re-measure on viewport changes (e.g., mobile rotation, zoom changes)
+      (.addEventListener js/window "resize" measure-footer!)
+      (.addEventListener js/window "orientationchange" measure-footer!))
+    :component-did-update
+    (fn [_] (measure-footer!))
+    :component-will-unmount
+    (fn []
+      (.removeEventListener js/window "resize" measure-footer!)
+      (.removeEventListener js/window "orientationchange" measure-footer!))
+    :reagent-render
+    (fn []
+      (let [db @app-db
+            t (current-tile db)
+            prog (if (seq (:tiles db))
+                   (str (inc (:current-idx db)) "/" (count (:tiles db)))
+                   "0/0")
+            {:keys [total correct pct cheats]} (score-data db)]
+        [:div.editor-footer {:id "editorFooter"
+                             ;; keep footer fixed; height is measured to make room above it
+                             :style {:position "fixed"
+                                     :bottom 0
+                                     :left 0
+                                     :right 0}}
+         [:div.footer-section
+          [:span.label {:style {:margin-right "6px"}} "Tile"]
+          [:span.metric {:style {:padding "6px 10px"
+                                 :border "1px solid var(--border)"
+                                 :border-radius "var(--radius-2)"
+                                 :background "#FAFAFC"}}
+           (or (:value t) "Ready")]
+          [:span.footer-separator "|"]
+          [:span.metric prog]]
+         [:div.footer-section
+          [:span.label "Time"]
+          [:span.metric (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
+          [:span.footer-separator "|"]
+          [:span.label "Score"]
+          [:span.metric (str correct "/" total " (" pct "%)")]
+          [:span.footer-separator "|"]
+          [:span.label "Cheats"]
+          [:span.metric cheats]]
+         [:div.footer-section
+          [:button.btn-primary {:on-click #(toggle-pause!)}
+           (if (get-in db [:timer :paused?]) "Resume" "Pause")]
+          [:button.btn-danger {:on-click #(reset-game!)} "Reset"]
+          [:button.btn-primary {:title "Press and hold to reveal answers"
+                                :on-pointer-down #(start-cheat!)}
+           "Cheat (hold)"]]]))}))
+
 
 (defn completion-modal []
   (let [{:keys [completed? timer]} @app-db
@@ -501,9 +535,9 @@
    [instructions]
    [selectors]
    [puzzle-table]
-   ;; simple spacer; if your global CSS uses --footer-h, you can keep that
+   ;; dynamic scroll buffer to push content above footer
    [:div.scroll-buffer {:aria-hidden "true"
-                        :style {:height "72px"}}]
+                        :style {:height (str @footer-h "px")}}]
    [footer]
    [completion-modal]])
 
