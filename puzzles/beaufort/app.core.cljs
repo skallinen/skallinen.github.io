@@ -318,22 +318,65 @@
                                   (- (.now js/Date) (get-in db [:timer :start-ms])))))))
            1000)))
 
-(defn update-footer-height! []
+(defonce footer-h (r/atom 0))
+
+(defn ^:private measure-footer! []
   (when-let [el (.getElementById js/document "editorFooter")]
-    (let [h (.-offsetHeight el)]
-      (.setProperty (.-style (.-documentElement js/document))
-                    "--footer-h" (str (or h 64) "px")))))
+    (reset! footer-h (.-offsetHeight el))))
 
-(defonce footer-ro (atom nil))
 
-(defn mount-footer-ro! []
-  (when @footer-ro (.disconnect @footer-ro))
-  (when-let [RO (aget js/window "ResizeObserver")]
-    (when-let [el (.getElementById js/document "editorFooter")]
-      (let [ro (RO. (fn [_] (update-footer-height!)))]
-        (.observe ro el)
-        (reset! footer-ro ro)
-        (update-footer-height!)))))
+(defn footer []
+  (r/create-class
+   {:display-name "footer"
+    :component-did-mount
+    (fn []
+      (start-timer!)
+      (measure-footer!)
+      ;; re-measure on viewport/layout changes (mobile friendly)
+      (.addEventListener js/window "resize" measure-footer!)
+      (.addEventListener js/window "orientationchange" measure-footer!))
+    :component-did-update (fn [_] (measure-footer!))
+    :component-will-unmount
+    (fn []
+      (.removeEventListener js/window "resize" measure-footer!)
+      (.removeEventListener js/window "orientationchange" measure-footer!))
+    :reagent-render
+    (fn []
+      (let [db @app-db
+            t (current-tile db)
+            prog (if (seq (:tiles db))
+                   (str (inc (:current-idx db)) "/" (count (:tiles db)))
+                   "0/0")
+            {:keys [total correct pct]} (score-data db)
+            cheats (:cheat-count db)]
+        [:div.editor-footer {:id "editorFooter"
+                             ;; fixed footer; height measured + pushed by scroll buffer
+                             :style {:position "fixed" :left 0 :right 0 :bottom 0}}
+         [:div.footer-section
+          [:span.label {:style {:margin-right "6px"}} "Tile"]
+          [:span.metric {:id "footerTile"
+                         :style {:padding "6px 10px"
+                                 :border "1px solid var(--border)"
+                                 :border-radius "var(--radius-2)"
+                                 :background "#FAFAFC"}}
+           (or (:value t) "Ready")]
+          [:span.footer-separator "|"]
+          [:span.metric {:id "footerProgress"} prog]]
+         [:div.footer-section
+          [:span.label "Time"] [:span.metric {:id "footerTimer"} (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
+          [:span.footer-separator "|"]
+          [:span.label "Score"] [:span.metric {:id "footerScore"} (str correct "/" total " (" pct "%)")]
+          [:span.footer-separator "|"]
+          [:span.label "Cheats"] [:span.metric cheats]]
+         [:div.footer-section
+          [:button.btn-primary {:id "footerPauseBtn" :on-click #(toggle-pause!)}
+           (if (get-in db [:timer :paused?]) "Resume" "Pause")]
+          [:button.btn-danger  {:on-click #(reset-game!)} "Reset"]
+          [:button.btn-primary {:id "cheatBtn"
+                                :title "Press and hold to reveal answers"
+                                :on-pointer-down #(start-cheat!)}
+           "Cheat (hold)"]]]))}))
+
 
 ;; -----------------------
 ;; Components
@@ -455,8 +498,9 @@
             [drop-zone row f (get m f)])])]]]))
 
 (defn scroll-buffer []
-  [:div.scroll-buffer {:aria-hidden "true"
-                       :style {:height "calc(var(--footer-h) + env(safe-area-inset-bottom))"}}])
+  [:div.scroll-buffer
+   {:aria-hidden "true"
+    :style {:height (str @footer-h "px")}}])
 
 (defn completion-modal []
   (let [{:keys [completed? timer cheat-count]} @app-db
@@ -472,50 +516,6 @@
         [:div {:style {:display "flex" :gap "8px" :justify-content "flex-end"}}
          [:button.btn-secondary {:on-click #(download-results-csv!)} "Download CSV"]
          [:button.btn-primary {:on-click #(reset-game!)} "Play again"]]]])))
-
-
-(defn footer []
-  (r/create-class
-   {:display-name "footer"
-    :component-did-mount (fn []
-                           (start-timer!)
-                           (mount-footer-ro!))
-    :reagent-render
-    (fn []
-      (let [db @app-db
-            t (current-tile db)
-            prog (if (seq (:tiles db))
-                   (str (inc (:current-idx db)) "/" (count (:tiles db)))
-                   "0/0")
-            {:keys [total correct pct]} (score-data db)
-            cheats (:cheat-count db)]
-        [:div.editor-footer {:id "editorFooter"}
-         [:div.footer-section
-          [:span.label {:style {:margin-right "6px"}} "Tile"]
-          [:span.metric {:id "footerTile"
-                         :style {:padding "6px 10px"
-                                 :border "1px solid var(--border)"
-                                 :border-radius "var(--radius-2)"
-                                 :background "#FAFAFC"}}
-           (or (:value t) "Ready")]
-          [:span.footer-separator "|"]
-          [:span.metric {:id "footerProgress"} prog]]
-         [:div.footer-section
-          [:span.label "Time"] [:span.metric {:id "footerTimer"} (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
-          [:span.footer-separator "|"]
-          [:span.label "Score"] [:span.metric {:id "footerScore"} (str correct "/" total " (" pct "%)")]
-          [:span.footer-separator "|"]
-          [:span.label "Cheats"] [:span.metric (:cheat-count db)]]
-         [:div.footer-section
-          [:button.btn-primary {:id "footerPauseBtn"
-                                :on-click #(toggle-pause!)}
-           (if (get-in db [:timer :paused?]) "Resume" "Pause")]
-          [:button.btn-danger  {:on-click #(reset-game!)} "Reset"]
-          ;; keep your existing cheat button behavior; we just hook counting via start-cheat!
-          [:button.btn-primary {:id "cheatBtn"
-                                :title "Press and hold to reveal answers"
-                                :on-pointer-down #(start-cheat!)}
-           "Cheat (hold)"]]]))}))
 
 (defn root []
   [:div.container
@@ -533,7 +533,6 @@
 (defn mount! []
   (rdom/render [root] (.getElementById js/document "app"))
   (init-game! (:selected-fields @app-db))
-  (js/requestAnimationFrame (fn [] (update-footer-height!)))
   (start-timer!))
 
 (mount!)
