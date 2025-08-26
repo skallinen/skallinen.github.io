@@ -414,7 +414,7 @@
                                      new (if (empty? new) selected-fields new)]
                                  (init-game! new)))}]
          [:span label]])]]))
-'
+
 (defn table-head []
   (let [fields (fields-ordered (:selected-fields @app-db))]
     [:thead {:id "tableHead"}
