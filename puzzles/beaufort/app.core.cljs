@@ -9,53 +9,82 @@
 (def beaufort-data
   [{:b 0  :knots "<1"   :ms "0-0.2"    :kmh "<1"    :english "Calm"
     :finnish "Tyyni" :finnish_modern "Tyyni" :swedish "Stiltje"
-    :sea "Peilityyni meri."}
+    :sea "Peilityyni meri."
+    :everyday "Slow stroll (~3 km/h)"}
+
    {:b 1  :knots "1-3"  :ms "0.3-1.5"  :kmh "1-5"   :english "Light Air"
     :finnish "Hiljainen tuuli" :finnish_modern "Heikko tuuli" :swedish "Nästan stiltje"
-    :sea "Meren pinnassa pieniä kareita, ei vaahtoa."}
+    :sea "Meren pinnassa pieniä kareita, ei vaahtoa."
+    :everyday "Normal walking (~5 km/h)"}
+
    {:b 2  :knots "4-6"  :ms "1.6-3.3"  :kmh "6-11"  :english "Light Breeze"
     :finnish "Heikko tuuli" :finnish_modern "Heikko tuuli" :swedish "Lätt bris"
-    :sea "Selkeitä mutta lyhyitä ja matalia aaltoja. Aallonharjat eivät murru."}
+    :sea "Selkeitä mutta lyhyitä ja matalia aaltoja. Aallonharjat eivät murru."
+    :everyday "Jogging (~10 km/h)"}
+
    {:b 3  :knots "7-10" :ms "3.4-5.4"  :kmh "12-19" :english "Gentle Breeze"
     :finnish "Heikonlainen tuuli" :finnish_modern "Kohtalainen tuuli" :swedish "God bris"
-    :sea "Suurempia aaltoja; harvakseltaan vaahtoa."}
+    :sea "Suurempia aaltoja; harvakseltaan vaahtoa."
+    :everyday "Easy city cycling (~15 km/h)"}
+
    {:b 4  :knots "11-16":ms "5.5-7.9"  :kmh "20-28" :english "Moderate Breeze"
     :finnish "Kohtalainen tuuli" :finnish_modern "Kohtalainen tuuli" :swedish "Frisk bris"
-    :sea "Pitkähköjä aaltoja; valkoista vaahtoa."}
+    :sea "Pitkähköjä aaltoja; valkoista vaahtoa."
+    :everyday "Fast running / sprint (non-elite) (~25 km/h)"}
+
    {:b 5  :knots "17-21":ms "8.0-10.7" :kmh "29-38" :english "Fresh Breeze"
     :finnish "Navakka tuuli" :finnish_modern "Navakka tuuli" :swedish "Styv bris"
-    :sea "Kohtalaisia, pitempiä aaltoja; vaahtopäitä."}
+    :sea "Kohtalaisia, pitempiä aaltoja; vaahtopäitä."
+    :everyday "Racing bike fast (~35 km/h)"}
+
    {:b 6  :knots "22-27":ms "10.8-13.8":kmh "39-49" :english "Strong Breeze"
     :finnish "Kova tuuli" :finnish_modern "Navakka tuuli" :swedish "Hård bris"
-    :sea "Kookkaita aaltoja; pärskettä."}
+    :sea "Kookkaita aaltoja; pärskettä."
+    :everyday "EU moped (capped at 45 km/h)"}
+
    {:b 7  :knots "28-33":ms "13.9-17.1":kmh "50-61" :english "Near Gale"
     :finnish "Luja tuuli" :finnish_modern "Kova tuuli" :swedish "Styv kuling"
-    :sea "Vaahtopäät juoviksi, roiskeita."}
+    :sea "Vaahtopäät juoviksi, roiskeita."
+    :everyday "City street / urban arterial (~50 km/h)"}
+
    {:b 8  :knots "34-40":ms "17.2-20.7":kmh "62-74" :english "Gale"
     :finnish "Myrskyinen tuuli" :finnish_modern "Kova tuuli" :swedish "Hård kuling"
-    :sea "Korkeita ja pitkiä aaltoja, vaahtojuovia."}
+    :sea "Korkeita ja pitkiä aaltoja, vaahtojuovia."
+    :everyday "Country road with bends (~70 km/h)"}
+
    {:b 9  :knots "41-47":ms "20.8-24.4":kmh "75-88" :english "Severe Gale"
     :finnish "Myrsky" :finnish_modern "Myrsky" :swedish "Halv storm"
-    :sea "Korkeita aaltoja; näkyvyys heikentyy."}
+    :sea "Korkeita aaltoja; näkyvyys heikentyy."
+    :everyday "Rural single carriageway (~85 km/h)"}
+
    {:b 10 :knots "48-55":ms "24.5-28.4":kmh "89-102":english "Storm"
     :finnish "Kova myrsky" :finnish_modern "Myrsky" :swedish "Storm"
-    :sea "Erittäin korkeat aallot; näkyvyys heikko."}
+    :sea "Erittäin korkeat aallot; näkyvyys heikko."
+    :everyday "Small motorcycle (125 cc) (~95 km/h)"}
+
    {:b 11 :knots "56-63":ms "28.5-32.6":kmh "103-117":english "Violent Storm"
     :finnish "Ankara myrsky" :finnish_modern "Myrsky" :swedish "Svår storm"
-    :sea "Poikkeuksellisen korkeita aaltoja."}
+    :sea "Poikkeuksellisen korkeita aaltoja."
+    :everyday "Dual carriageway / expressway (~105 km/h)"}
+
    {:b 12 :knots "64+"  :ms ">32.7"    :kmh ">118" :english "Hurricane"
     :finnish "Hirmumyrsky" :finnish_modern "Hirmumyrsky" :swedish "Orkan"
-    :sea "Ilma täynnä pärskettä; näkyvyys erittäin heikko."}])
+    :sea "Ilma täynnä pärskettä; näkyvyys erittäin heikko."
+    :everyday "Motorway typical cruise (~125 km/h)"}])
 
 (def all-fields
   [{:key :ms             :label "m/s"              :dot "var(--col-ms-stroke)"}
    {:key :knots          :label "Knots"            :dot "var(--col-knots-stroke)"}
    {:key :kmh            :label "km/h"             :dot "var(--col-kmh-stroke)"}
+   ;; NEW:
+   {:key :everyday       :label "Everyday"         :dot "var(--col-kmh-stroke)"}
    {:key :english        :label "English"          :dot "var(--col-english-stroke)"}
    {:key :finnish        :label "Suomi (vanha)"    :dot "var(--col-finnish-stroke)"}
    {:key :finnish_modern :label "Suomi (nykyinen)" :dot "var(--col-finnishModern-stroke)"}
    {:key :swedish        :label "Svenska"          :dot "var(--col-swedish-stroke)"}
    {:key :sea            :label "Vaikutus merellä" :dot "var(--col-sea-stroke)"}])
+
+
 
 ;; -----------------------
 ;; App state
