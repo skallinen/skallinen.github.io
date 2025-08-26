@@ -318,12 +318,12 @@
                                   (- (.now js/Date) (get-in db [:timer :start-ms])))))))
            1000)))
 
+;; --- Footer sizing (same as Flags) -------------------------------------------
 (defonce footer-h (r/atom 0))
 
 (defn ^:private measure-footer! []
   (when-let [el (.getElementById js/document "editorFooter")]
     (reset! footer-h (.-offsetHeight el))))
-
 
 (defn footer []
   (r/create-class
@@ -332,7 +332,6 @@
     (fn []
       (start-timer!)
       (measure-footer!)
-      ;; re-measure on viewport/layout changes (mobile friendly)
       (.addEventListener js/window "resize" measure-footer!)
       (.addEventListener js/window "orientationchange" measure-footer!))
     :component-did-update (fn [_] (measure-footer!))
@@ -350,33 +349,32 @@
             {:keys [total correct pct]} (score-data db)
             cheats (:cheat-count db)]
         [:div.editor-footer {:id "editorFooter"
-                             ;; fixed footer; height measured + pushed by scroll buffer
-                             :style {:position "fixed" :left 0 :right 0 :bottom 0}}
+                             :style {:position "fixed"
+                                     :bottom 0
+                                     :left 0
+                                     :right 0}}
          [:div.footer-section
           [:span.label {:style {:margin-right "6px"}} "Tile"]
-          [:span.metric {:id "footerTile"
-                         :style {:padding "6px 10px"
+          [:span.metric {:style {:padding "6px 10px"
                                  :border "1px solid var(--border)"
                                  :border-radius "var(--radius-2)"
                                  :background "#FAFAFC"}}
            (or (:value t) "Ready")]
           [:span.footer-separator "|"]
-          [:span.metric {:id "footerProgress"} prog]]
+          [:span.metric prog]]
          [:div.footer-section
-          [:span.label "Time"] [:span.metric {:id "footerTimer"} (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
+          [:span.label "Time"] [:span.metric (fmt-mm-ss (get-in db [:timer :elapsed-ms]))]
           [:span.footer-separator "|"]
-          [:span.label "Score"] [:span.metric {:id "footerScore"} (str correct "/" total " (" pct "%)")]
+          [:span.label "Score"] [:span.metric (str correct "/" total " (" pct "%)")]
           [:span.footer-separator "|"]
           [:span.label "Cheats"] [:span.metric cheats]]
          [:div.footer-section
-          [:button.btn-primary {:id "footerPauseBtn" :on-click #(toggle-pause!)}
+          [:button.btn-primary {:on-click #(toggle-pause!)}
            (if (get-in db [:timer :paused?]) "Resume" "Pause")]
           [:button.btn-danger  {:on-click #(reset-game!)} "Reset"]
-          [:button.btn-primary {:id "cheatBtn"
-                                :title "Press and hold to reveal answers"
+          [:button.btn-primary {:title "Press and hold to reveal answers"
                                 :on-pointer-down #(start-cheat!)}
            "Cheat (hold)"]]]))}))
-
 
 ;; -----------------------
 ;; Components
@@ -488,7 +486,7 @@
     [:div.table-container
      [:table {:id "puzzleTable"}
       [table-head]
-      [:tbody {:id "tableBody"}
+      [:tbody
        (for [[row m] (map-indexed vector beaufort-data)]
          ^{:key (str "row-" row)}
          [:tr
@@ -498,9 +496,10 @@
             [drop-zone row f (get m f)])])]]]))
 
 (defn scroll-buffer []
-  [:div.scroll-buffer
-   {:aria-hidden "true"
-    :style {:height (str @footer-h "px")}}])
+  [:div.scroll-buffer {:aria-hidden "true"
+                       :style {:height (str @footer-h "px")}}])
+
+
 
 (defn completion-modal []
   (let [{:keys [completed? timer cheat-count]} @app-db
