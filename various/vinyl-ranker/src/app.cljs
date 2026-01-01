@@ -1,36 +1,107 @@
 (ns app
   (:require [reagent.core :as r]
-            [reagent.dom :as rdom]))
+            [reagent.dom :as rdom]
+            [clojure.string :as str]))
 
 ;; -- Configuration --
-;; -- Configuration --
 (def SHEET_URL "https://docs.google.com/spreadsheets/d/1FT3dLkCfLyADcXuJX0qUmzDUmwp8f5Z-bTbs3JMA1Ww/export?format=csv&gid=966829031")
-(def RESULTS_CSV_URL "https://docs.google.com/spreadsheets/d/1FT3dLkCfLyADcXuJX0qUmzDUmwp8f5Z-bTbs3JMA1Ww/export?format=csv&gid=1353005108")
+(def RESULTS_CSV_URL "https://docs.google.com/spreadsheets/d/1p7pwFov8CkxI7sWDfD1U6GtVmEeAUnvtBjXm2JOuNVo/export?format=csv&gid=1353005108")
 (def BACKEND_URL "https://script.google.com/macros/s/AKfycbyufh6gKJYfgvad6Tb3muSrJ1cgNElo8K_s_lvspCy0zyGmCsP6KADEsiloPSsuPC0Z/exec")
 
 ;; -- Interop --
 (def openskill js/openskill)
 (def Papa js/Papa)
 
-;; ... (State helper)
+;; -- State --
+(defonce current-user (r/atom nil))
+(defonce albums (r/atom [])) ;; Start empty
+(defonce history (r/atom []))
+(defonce login-name (r/atom ""))
+(defonce loading (r/atom true))
+(defonce error-msg (r/atom nil))
+(defonce sync-status (r/atom nil))
 
-;; ... (Persistence helper)
+;; -- Persistence Helper --
+(defn get-storage-key [key-type username]
+  (if username
+    (str "vinyl_ranker_" key-type "_" username)
+    (str "vinyl_ranker_" key-type)))
 
-(defn login! []
-  (let [name @login-name]
-    (when (not (empty? name))
-      (reset! current-user name)
-      (load-user-data! name) 
-      (fetch-history-csv!))))
+(def default-mu 25.0)
+(def default-sigma 8.333)
 
-(defn logout! []
-  (reset! current-user nil)
-  (reset! login-name "")
-  ;; Reload from sheet to reset ratings to default, but keep the Sheet data
-  (fetch-data!) 
-  (reset! history []))
+(defn load-user-data! [username]
+  (let [ratings-key (get-storage-key "ratings" username)
+        history-key (get-storage-key "history" username)
+        stored-ratings (.getItem js/localStorage ratings-key)
+        stored-history (.getItem js/localStorage history-key)]
+    
+    ;; Load ratings
+    (if stored-ratings
+      (let [saved (js->clj (js/JSON.parse stored-ratings) :keywordize-keys true)
+            ;; Merge logic: Keep saved mu/sigma for IDs that exist in current albums
+            merged (mapv (fn [sheet-item] 
+                           (if-let [saved-item (some #(when (= (:id %) (:id sheet-item)) %) saved)]
+                             (merge sheet-item (select-keys saved-item [:mu :sigma]))
+                             sheet-item)) 
+                         @albums)]
+        (reset! albums merged))
+      nil)
 
-;; -- TrueSkill Logic (Same as before) --
+    ;; Load history
+    (if stored-history
+      (reset! history (js->clj (js/JSON.parse stored-history) :keywordize-keys true))
+      (reset! history []))))
+
+;; -- JSONP Data Fetching --
+(defn parse-jsonp-data [data]
+  (let [cols (-> data .-table .-cols js->clj)
+        rows (-> data .-table .-rows js->clj)
+        col-map (zipmap (map #(get % "label") cols) (range))
+        idx-artist (get col-map "artist")
+        idx-album (get col-map "album")
+        idx-discogs-image (get col-map "cover_image_url")
+        idx-wiki-image (get col-map "wikipedia_image_url")
+        idx-itunes-image (get col-map "itunes_image_url")
+        idx-id (get col-map "discogs_id")]
+    
+    (->> rows
+         (map (fn [row]
+                (let [cells (get row "c")
+                      get-val (fn [idx] (when idx (get (get cells idx) "v")))]
+                  {:id (or (get-val idx-id) (str (random-uuid)))
+                   :title (str (get-val idx-artist) " - " (get-val idx-album))
+                   :image_url (or (get-val idx-itunes-image) (get-val idx-wiki-image) (get-val idx-discogs-image))
+                   :mu default-mu
+                   :sigma default-sigma})))
+         (filter #(not (empty? (:title %))))
+         (vec))))
+
+(defn handle-jsonp-response [data]
+  (try
+    (let [parsed (parse-jsonp-data data)]
+      (reset! albums parsed)
+      (reset! loading false)
+      (when @current-user
+        (load-user-data! @current-user)))
+    (catch :default e
+      (reset! error-msg (str "JSONP Parse Error: " e))
+      (reset! loading false))))
+
+(set! (.-loadRatings js/window) handle-jsonp-response)
+
+(defn fetch-data! []
+  (reset! loading true)
+  (let [unique-id (.now js/Date)
+        script (.createElement js/document "script")
+        url (str "https://docs.google.com/spreadsheets/d/1FT3dLkCfLyADcXuJX0qUmzDUmwp8f5Z-bTbs3JMA1Ww/gviz/tq?tqx=responseHandler:loadRatings&gid=966829031&_t=" unique-id)]
+    (set! (.-src script) url)
+    (set! (.-onerror script) (fn [] 
+                               (reset! error-msg "Failed to load data from Google Sheets") 
+                               (reset! loading false)))
+    (.appendChild js/document.body script)))
+
+;; -- TrueSkill Logic --
 (defn rate-pair [winner loser]
   (let [rating-w {:mu (:mu winner) :sigma (:sigma winner)}
         rating-l {:mu (:mu loser) :sigma (:sigma loser)}
@@ -71,33 +142,26 @@
     (catch :default e
       (js/console.error "Error in update-ratings!:" e))))
 
-;; -- Cloud Sync (Read-Only) --
+;; -- Cloud Sync (CSV Reading) --
 
 (defn replay-history! [csv-data]
   (js/console.log "Replaying" (count csv-data) "records from cloud...")
-  ;; CSV Data comes as array of arrays: [Timestamp, WinnerID, LoserID, User, ClientUA...]
-  ;; Headers are likely row 0. We need to find User column.
-  
   (let [headers (first csv-data)
         rows (rest csv-data)
-        ;; Simple index lookup based on expected columns from Apps Script appendRow
-        ;; Appended: [Timestamp, WinnerID, LoserID, User, ClientUA]
-        ;; CSV Export might vary, but assuming standard layout:
+        ;; Assuming strict column order from appendRow: Timestamp,WinnerID,LoserID,User
         idx-winner 1 
         idx-loser 2
         idx-user 3
         my-user @current-user]
     
-    ;; Filter for current user
     (let [user-rows (filter #(= (nth % idx-user nil) my-user) rows)]
       (js/console.log "Found" (count user-rows) "matches for user" my-user)
       
       (when (seq user-rows)
-        ;; Reset state to defaults
+        ;; Reset to defaults before replay
         (swap! albums (fn [current] (mapv #(assoc % :mu default-mu :sigma default-sigma) current)))
         (reset! history [])
   
-        ;; Replay
         (doseq [row user-rows]
           (let [w-id (nth row idx-winner)
                 l-id (nth row idx-loser)
@@ -108,7 +172,7 @@
                      loser (some #(when (= (:id %) l-id) %) current-albums)]
                  (when (and winner loser)
                    (let [[new-w new-l] (rate-pair winner loser)]
-                     ;; Update atoms silently (without persistence trigger to avoid loop)
+                     ;; Update atoms silently
                      (swap! albums 
                         (fn [current]
                           (mapv (fn [a]
@@ -120,7 +184,7 @@
                      (swap! history conj {:winner w-id :loser l-id :timestamp ts}))))
                (catch :default e (js/console.error "Replay error:" e)))))
         
-        ;; Save finalized state to LocalStorage
+        ;; Save finalized state
         (when @current-user
            (let [ratings-key (get-storage-key "ratings" @current-user)
                  history-key (get-storage-key "history" @current-user)]
@@ -130,7 +194,7 @@
 (defn fetch-history-csv! []
   (reset! loading true)
   (reset! error-msg nil)
-  (js/console.log "Fetching cloud history...")
+  (js/console.log "Fetching cloud history from" RESULTS_CSV_URL)
   (.parse Papa RESULTS_CSV_URL
           (clj->js {:download true
                     :complete (fn [results]
@@ -142,78 +206,22 @@
                              (reset! error-msg (str "Cloud Sync Failed: " (.-message err) ". (Try disabling ad-blocker or check console)"))
                              (reset! loading false))})))
 
-;; -- Cloud Sync Logic --
+;; -- Login / Logout (Defined AFTER fetch functions) --
 
-(defn replay-cloud-history! [cloud-recs]
-  (js/console.log "Replaying" (count cloud-recs) "records from cloud...")
-  (reset! history cloud-recs)
-  
-  ;; Reset all albums to default first
-  (swap! albums 
-         (fn [current]
-           (mapv #(assoc % :mu default-mu :sigma default-sigma) current)))
-           
-  ;; Iterate and update (Naive approach: sequential updates)
-  ;; For performance with large datasets, we might want to optimize, but for <1000 votes this is fine.
-  (doseq [rec cloud-recs]
-    (let [w-id (:winner rec)
-          l-id (:loser rec)]
-      ;; We duplicate logic from update-ratings! here but without the side-effects of saving to history/LS every step
-      (try
-        (let [current-albums @albums
-              winner (some #(when (= (:id %) w-id) %) current-albums)
-              loser (some #(when (= (:id %) l-id) %) current-albums)]
-          (when (and winner loser)
-            (let [[new-w new-l] (rate-pair winner loser)]
-              (swap! albums 
-                 (fn [current]
-                   (mapv (fn [a]
-                           (cond
-                             (= (:id a) w-id) (assoc a :mu (:mu new-w) :sigma (:sigma new-w))
-                             (= (:id a) l-id) (assoc a :mu (:mu new-l) :sigma (:sigma new-l))
-                             :else a))
-                         current))))))
-        (catch :default e (js/console.error "Replay error:" e)))))
-  
-  (js/console.log "Replay complete. Savings to local cache.")
-  (when @current-user
-      (let [ratings-key (get-storage-key "ratings" @current-user)
-            history-key (get-storage-key "history" @current-user)]
-        (.setItem js/localStorage history-key (js/JSON.stringify (clj->js @history)))
-        (.setItem js/localStorage ratings-key (js/JSON.stringify (clj->js @albums))))))
+(defn login! []
+  (let [name @login-name]
+    (when (not (empty? name))
+      (reset! current-user name)
+      (load-user-data! name) 
+      (fetch-history-csv!))))
 
-(defn fetch-cloud-data! [user]
-  (reset! loading true)
-  (let [url (str BACKEND_URL "?action=fetch&user=" user)]
-    (-> (js/fetch url)
-        (.then #(.json %))
-        (.then (fn [json]
-                 (let [recs (js->clj json :keywordize-keys true)]
-                   (if (empty? recs)
-                     (js/console.log "No cloud history found.")
-                     (replay-cloud-history! recs))
-                   (reset! loading false))))
-        (.catch (fn [err] 
-                  (js/console.error "Cloud fetch failed:" err)
-                  (reset! loading false))))))
+(defn logout! []
+  (reset! current-user nil)
+  (reset! login-name "")
+  (fetch-data!) 
+  (reset! history []))
 
-;; -- Matchmaking --
-(defn pick-pair []
-  (let [all @albums]
-    (if (< (count all) 2)
-      nil
-      (let [a (rand-nth all)
-            b (rand-nth (filter #(not= (:id %) (:id a)) all))]
-        [a b]))))
-
-(defonce current-pair (r/atom nil))
-
-;; Ensure pair exists when data loads
-(add-watch albums :pair-watcher
-  (fn [_ _ _ new-state]
-    (when (and (empty? @current-pair) (>= (count new-state) 2))
-      (reset! current-pair (pick-pair)))))
-
+;; -- Matchmaking & Saving --
 
 (defn send-data! [data callback]
   (let [params (js/URLSearchParams.)]
@@ -226,23 +234,43 @@
 
 (defn save-match! [winner-id loser-id]
   (let [user (or @current-user "anonymous")]
-    (send-data! {:winner winner-id 
-                 :loser loser-id 
-                 :user user 
-                 :timestamp (.now js/Date)}
-                nil)))
+    (send-data! {:winner winner-id :loser loser-id :user user :timestamp (.now js/Date)} nil)))
 
-(defn upload-record! [rec next-fn]
-  (send-data! {:winner (:winner rec)
-               :loser (:loser rec)
-               :user (or @current-user "migration") 
-               :timestamp (:timestamp rec)}
-               #(js/setTimeout next-fn 400)))
+(defn pick-pair []
+  (let [all @albums]
+    (if (< (count all) 2)
+      nil
+      (let [a (rand-nth all)
+            b (rand-nth (filter #(not= (:id %) (:id a)) all))]
+        [a b]))))
+
+(defonce current-pair (r/atom nil))
+
+(add-watch albums :pair-watcher
+  (fn [_ _ _ new-state]
+    (when (and (empty? @current-pair) (>= (count new-state) 2))
+      (reset! current-pair (pick-pair)))))
 
 (defn handle-vote [winner-id loser-id]
   (update-ratings! winner-id loser-id)
   (save-match! winner-id loser-id)
   (reset! current-pair (pick-pair)))
+
+(defn export-csv []
+  (let [headers "winner_id,loser_id,timestamp\n"
+        rows (map #(str (:winner %) "," (:loser %) "," (:timestamp %)) @history)
+        csv-content (str headers (clojure.string/join "\n" rows))
+        blob (js/Blob. #js [csv-content] #js {:type "text/csv;charset=utf-8;"})
+        url (js/URL.createObjectURL blob)
+        link (.createElement js/document "a")]
+    (.setAttribute link "href" url)
+    (.setAttribute link "download" (str "ranker_history_" @current-user ".csv"))
+    (.appendChild js/document.body link)
+    (.click link)
+    (.removeChild js/document.body link)))
+
+(defn score [album]
+  (- (:mu album) (* 3 (:sigma album))))
 
 ;; -- UI Components --
 
@@ -264,9 +292,6 @@
        [:div.comparison-container
         [movie-card a #(handle-vote (:id a) (:id b))]
         [movie-card b #(handle-vote (:id b) (:id a))]]])))
-
-(defn score [album]
-  (- (:mu album) (* 3 (:sigma album))))
 
 (defn leaderboard-view []
   (if @loading 
@@ -304,40 +329,6 @@
             :style {:padding "12px" :font-size "1.2rem" :border-radius "8px" :border "none"}}]
    [:button {:on-click login! :style {:padding "12px 24px" :font-size "1.2rem"}} "Start Ranking"]])
 
-(defn export-csv []
-  (let [headers "winner_id,loser_id,timestamp\n"
-        rows (map #(str (:winner %) "," (:loser %) "," (:timestamp %)) @history)
-        csv-content (str headers (clojure.string/join "\n" rows))
-        blob (js/Blob. #js [csv-content] #js {:type "text/csv;charset=utf-8;"})
-        url (js/URL.createObjectURL blob)
-        link (.createElement js/document "a")]
-    (.setAttribute link "href" url)
-    (.setAttribute link "download" (str "ranker_history_" @current-user ".csv"))
-    (.appendChild js/document.body link)
-    (.click link)
-    (.removeChild js/document.body link)))
-
-
-;; upload-record! moved to top
-
-
-
-(defn sync-next! [records total current]
-  (reset! sync-status (str "Syncing record " (inc current) " of " total "..."))
-  (if (empty? records)
-    (reset! sync-status "Sync Complete! All records uploaded.")
-    (upload-record! (first records) 
-                    #(sync-next! (rest records) total (inc current)))))
-
-(defn sync-to-cloud! []
-  (let [recs @history
-        cnt (count recs)]
-    (if (pos? cnt)
-      (do
-        (reset! sync-status "Starting sync...")
-        (sync-next! recs cnt 0))
-      (reset! sync-status "No history to sync (Count is 0)."))))
-
 (defn main-component []
   [:div
    [:h1 "Vinyl Ranker"]
@@ -351,17 +342,13 @@
          [:button {:on-click logout! :style {:background "#333" :font-size "0.8rem"}} "Logout"]]
         [comparison-view]
         [:div.controls
-         ;; [:button {:on-click sync-to-cloud! :style {:margin-right "10px" :background "#4CAF50"}} "Sync History to Cloud"]
          [:button {:on-click export-csv} "Export History CSV"]
-         [:br]
-         (when @sync-status [:div {:style {:margin-top "10px" :font-weight "bold" :color "blue"}} @sync-status])
          [:br]
          [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]
          [:br]
-         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.1 (Cloud Sync Active)"]]
+         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.2 (Parsed Fixed)"]]
         [leaderboard-view]])])
 
-;; -- Init --
 (defn mount-root []
   (rdom/render [main-component] (.getElementById js/document "app")))
 
