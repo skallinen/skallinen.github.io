@@ -68,9 +68,10 @@
     (->> rows
          (map (fn [row]
                 (let [cells (get row "c")
-                      get-val (fn [idx] (when idx (get (get cells idx) "v")))]
-                  {:id (or (get-val idx-id) (str (random-uuid)))
-                   :title (str (get-val idx-artist) " - " (get-val idx-album))
+                      get-val (fn [idx] (when idx (get (get cells idx) "v")))
+                      title (str (get-val idx-artist) " - " (get-val idx-album))]
+                  {:id (or (get-val idx-id) title) ;; Stable ID fallback: Use Title
+                   :title title
                    :image_url (or (get-val idx-itunes-image) (get-val idx-wiki-image) (get-val idx-discogs-image))
                    :mu default-mu
                    :sigma default-sigma})))
@@ -346,7 +347,7 @@
          [:br]
          [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]
          [:br]
-         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.2 (Parsed Fixed)"]]
+         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.3 (Stable IDs)"]]
         [leaderboard-view]])])
 
 (defn mount-root []
