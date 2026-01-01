@@ -69,8 +69,11 @@
          (map (fn [row]
                 (let [cells (get row "c")
                       get-val (fn [idx] (when idx (get (get cells idx) "v")))
+                      discogs-id (get-val idx-id)
                       title (str (get-val idx-artist) " - " (get-val idx-album))]
-                  {:id (or (get-val idx-id) title) ;; Stable ID fallback: Use Title
+                  {:id (if (and discogs-id (not (empty? (str discogs-id))))
+                         (str discogs-id)
+                         title) ;; Fallback to Title only if Discogs ID is missing
                    :title title
                    :image_url (or (get-val idx-itunes-image) (get-val idx-wiki-image) (get-val idx-discogs-image))
                    :mu default-mu
@@ -347,7 +350,7 @@
          [:br]
          [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]
          [:br]
-         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.3 (Stable IDs)"]]
+         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.4 (ID Fix: Discogs Priority)"]]
         [leaderboard-view]])])
 
 (defn mount-root []
