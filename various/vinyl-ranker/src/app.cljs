@@ -300,7 +300,8 @@
 (defn leaderboard-view []
   (if @loading 
     nil
-    (let [sorted (sort-by score > @albums)]
+    (let [sorted (sort-by score > @albums)
+          [top-50 rest-albums] (split-at 50 sorted)]
       [:div.leaderboard
        [:h2 "Current Rankings"]
        [:table
@@ -321,7 +322,22 @@
                 [:td.score-cell (.toFixed (score album) 3)]
                 [:td.score-cell (.toFixed (:mu album) 2)]
                 [:td.score-cell (.toFixed (:sigma album) 2)]])
-             sorted))]]])))
+             top-50))
+         (when (seq rest-albums)
+           [:<>
+            [:tr {:key "divider" :style {:background "#330000"}}
+             [:td {:col-span 5 :style {:text-align "center" :color "#ff9999" :padding "10px" :font-weight "bold" :border-top "2px solid #600" :border-bottom "2px solid #600"}} 
+              "--- TOP 50 CUTOFF ---"]]
+            (doall
+              (map-indexed 
+                (fn [idx album]
+                  [:tr {:key (:id album) :style {:opacity "0.6" :color "#aaa" :background "rgba(0,0,0,0.2)"}}
+                   [:td.rank-cell (+ 51 idx)]
+                   [:td (:title album)]
+                   [:td.score-cell (.toFixed (score album) 3)]
+                   [:td.score-cell (.toFixed (:mu album) 2)]
+                   [:td.score-cell (.toFixed (:sigma album) 2)]])
+                rest-albums))])]]])))
 
 (defn login-view []
   [:div.login-container {:style {:margin-top "100px" :display "flex" :flex-direction "column" :align-items "center" :gap "20px"}}
@@ -350,7 +366,7 @@
          [:br]
          [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]
          [:br]
-         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.4 (ID Fix: Discogs Priority)"]]
+         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.5 (Top 50 Cutoff)"]]
         [leaderboard-view]])])
 
 (defn mount-root []
