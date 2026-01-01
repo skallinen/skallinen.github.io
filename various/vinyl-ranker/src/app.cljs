@@ -75,8 +75,8 @@
                          (str discogs-id)
                          title) ;; Fallback to Title only if Discogs ID is missing
                    :title title
-                   ;; Improved Image Priority: Discogs (Vinyl) > Wiki > iTunes
-                   :image_url (or (get-val idx-discogs-image) (get-val idx-wiki-image) (get-val idx-itunes-image))
+                   ;; Image Priority: iTunes (High Res) > Wiki > Discogs
+                   :image_url (or (get-val idx-itunes-image) (get-val idx-wiki-image) (get-val idx-discogs-image))
                    :mu default-mu
                    :sigma default-sigma})))
          (filter #(not (empty? (:title %))))
@@ -373,7 +373,7 @@
          [:br]
          [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]
          [:br]
-         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.7 (Cover Fix: Discogs Priority)"]]
+         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.8 (High Res Priority)"]]
         [leaderboard-view]])])
 
 (defn mount-root []
