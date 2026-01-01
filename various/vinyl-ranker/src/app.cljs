@@ -128,13 +128,19 @@
              (.setItem js/localStorage ratings-key (js/JSON.stringify (clj->js @albums)))))))))
 
 (defn fetch-history-csv! []
+  (reset! loading true)
+  (reset! error-msg nil)
   (js/console.log "Fetching cloud history...")
   (.parse Papa RESULTS_CSV_URL
           (clj->js {:download true
                     :complete (fn [results]
                                 (let [data (.-data results)]
-                                  (replay-history! data)))
-                    :error (fn [err] (js/console.error "CSV Fetch Error:" err))})))
+                                  (replay-history! data)
+                                  (reset! loading false)))
+                    :error (fn [err] 
+                             (js/console.error "CSV Fetch Error:" err)
+                             (reset! error-msg (str "Cloud Sync Failed: " (.-message err) ". (Try disabling ad-blocker or check console)"))
+                             (reset! loading false))})))
 
 ;; -- Cloud Sync Logic --
 
@@ -350,7 +356,9 @@
          [:br]
          (when @sync-status [:div {:style {:margin-top "10px" :font-weight "bold" :color "blue"}} @sync-status])
          [:br]
-         [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]]
+         [:small {:style {:color "#666"}} (str "Changes saved for user: " @current-user)]
+         [:br]
+         [:small {:style {:color "#999" :font-size "0.7em"}} "v1.1 (Cloud Sync Active)"]]
         [leaderboard-view]])])
 
 ;; -- Init --
