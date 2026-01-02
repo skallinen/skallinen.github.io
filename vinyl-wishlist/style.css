@@ -1,0 +1,282 @@
+:root {
+    /* Swiss Minimalist Theme */
+    --color-bg: #F2F2F2;
+    --color-text: #060606;
+    --color-accent: #9C9C9C;
+    --color-border: #E0E0E0;
+    --color-surface: #FFFFFF;
+
+    /* Acid Mode Overrides (applied via class) */
+    --color-acid-primary: #39FF14;
+    /* Acid Green */
+    --color-acid-secondary: #BD00FF;
+    /* Acid Purple */
+
+    --font-main: 'Space Grotesk', sans-serif;
+    --grid-gap: 24px;
+    --border-radius: 2px;
+    /* Rigid, brutalist */
+
+    --transition-speed: 0.3s;
+}
+
+/* Acid Mode Toggle */
+body.acid-mode {
+    --color-bg: #050505;
+    --color-text: #F0F0F0;
+    --color-accent: var(--color-acid-primary);
+    --color-surface: #111;
+    --color-border: #333;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-main);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    cursor: crosshair;
+    /* Technical feel */
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5 {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin: 0 0 1rem 0;
+}
+
+h1 {
+    font-size: 3rem;
+    /* 4rem */
+    line-height: 1;
+}
+
+/* Layout */
+#app {
+    width: 100%;
+    max-width: 100%;
+    padding: 2rem;
+    margin: 0 auto;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem 0;
+    border-bottom: 2px solid var(--color-text);
+    margin-bottom: 3rem;
+}
+
+/* Buttons */
+button {
+    background: transparent;
+    color: var(--color-text);
+    border: 1px solid var(--color-text);
+    padding: 10px 24px;
+    font-family: var(--font-main);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0;
+    /* Brutalist */
+}
+
+button:hover {
+    background: var(--color-text);
+    color: var(--color-bg);
+    transform: translateY(-2px);
+}
+
+button.active {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+/* Cards & Grid */
+.comparison-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--grid-gap);
+    max-width: 1200px;
+    margin: 0 auto 4rem auto;
+}
+
+.movie-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.movie-card:hover {
+    transform: scale(0.98);
+    border-color: var(--color-text);
+}
+
+.movie-image {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    margin-bottom: 1rem;
+    filter: grayscale(100%);
+    transition: filter 0.4s ease;
+}
+
+.movie-card:hover .movie-image {
+    filter: grayscale(0%);
+}
+
+.movie-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-top: auto;
+    /* Push to bottom if needed */
+}
+
+.fix-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: var(--color-text) !important;
+    color: var(--color-bg) !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    font-size: 0.8rem !important;
+    z-index: 10;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.movie-card:hover .fix-btn,
+.movie-card.fixed .fix-btn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Leaderboard */
+.leaderboard {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+.leaderboard table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard th {
+    text-align: left;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    padding: 12px;
+    border-bottom: 2px solid var(--color-text);
+}
+
+.leaderboard td {
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-main);
+}
+
+.rank-cell {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--color-text);
+}
+
+.score-cell {
+    color: var(--color-accent);
+}
+
+/* Graphs */
+.plotly-container {
+    border: 1px solid var(--color-text);
+    background: var(--color-surface) !important;
+}
+
+/* Explore Tabs */
+.explore-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+}
+
+.explore-tabs button {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+}
+
+.explore-tabs button:hover,
+.explore-tabs button.active {
+    border-color: var(--color-text);
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+/* Utilities */
+.text-accent {
+    color: var(--color-accent);
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-text);
+}
+
+/* Acid Mode Specifics */
+body.acid-mode .movie-card:hover {
+    box-shadow: 0 0 20px var(--color-acid-primary);
+    border-color: var(--color-acid-primary);
+}
+
+body.acid-mode .rank-cell {
+    color: var(--color-acid-secondary);
+    text-shadow: 0 0 10px var(--color-acid-secondary);
+}
+
+.rank-action-btn:hover {
+    background: var(--color-text) !important;
+    color: var(--color-bg) !important;
+    transform: none !important;
+}
