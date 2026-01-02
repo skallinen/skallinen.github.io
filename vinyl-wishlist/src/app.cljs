@@ -23,14 +23,14 @@
 (defonce current-tab (r/atom :explore)) ;; :rank or :explore
 (defonce explore-tab (r/atom :genres)) ;; :genres, :splom, :facets, :3d, or :2d-growth
 (defonce fixed-album (r/atom nil)) ;; Fixed album ID for King of the Hill mode
-(defonce is-acid (r/atom false))
+(defonce is-dark (r/atom false))
 (defonce facet-metric (r/atom :spotify_popularity)) ;; Default for facet view
 
-(defn toggle-acid! []
-  (swap! is-acid not)
-  (if @is-acid
-    (-> js/document .-body .-classList (.add "acid-mode"))
-    (-> js/document .-body .-classList (.remove "acid-mode"))))
+(defn toggle-dark! []
+  (swap! is-dark not)
+  (if @is-dark
+    (-> js/document .-body .-classList (.add "dark-mode"))
+    (-> js/document .-body .-classList (.remove "dark-mode"))))
 
 ;; -- Persistence Helper --
 (defn get-storage-key [key-type username]
@@ -321,16 +321,43 @@
 ;; -- UI Components --
 
 (defn movie-card [movie on-click is-fixed on-toggle-fix]
-  [:div.movie-card {:on-click on-click
-                    :class (when is-fixed "fixed")}
-   [:button.fix-btn {:on-click (fn [e] 
-                               (.stopPropagation e)
-                               (on-toggle-fix))}
-    (if is-fixed "📌 Keep" "📌 Pin")]
-   [:img.movie-image {:src (or (:image_url movie) "https://via.placeholder.com/300")}]
-   [:div.movie-title (:title movie)]
-   [:div.text-accent {:style {:font-size "0.8em" :margin-top "5px"}}
-    (str "Est. Rating (\u03bc): " (.toFixed (:mu movie) 2))]])
+  (let [touch-timer (r/atom nil)
+        touch-active (r/atom false)]
+    (fn [movie on-click is-fixed on-toggle-fix]
+      [:div.movie-card {:class (when @touch-active "touch-active")
+                        :on-click (fn [_] 
+                                    (when-not @touch-active (on-click)))
+                        :on-touch-start (fn [e]
+                                          (reset! touch-active false)
+                                          (let [t (js/setTimeout 
+                                                    (fn [] (reset! touch-active true)) 
+                                                    300)]
+                                            (reset! touch-timer t)))
+                        :on-touch-end (fn [e]
+                                        (when @touch-timer
+                                          (js/clearTimeout @touch-timer)
+                                          (reset! touch-timer nil))
+                                        ;; If it was active (long press), consume event to prevent click
+                                        (when @touch-active
+                                          (.preventDefault e)
+                                          ;; Optionally clear active after brief delay or keep it until next interaction
+                                          (js/setTimeout #(reset! touch-active false) 1000)))
+                        :on-touch-move (fn [_]
+                                         (when @touch-timer
+                                           (js/clearTimeout @touch-timer)
+                                           (reset! touch-timer nil))
+                                         (reset! touch-active false))
+                        :style (merge {} 
+                                      (when is-fixed {:border "2px solid #FFD700" :box-shadow "0 0 15px rgba(255, 215, 0, 0.5)"}))}
+       [:div {:class "fix-btn"
+              :on-click (fn [e] 
+                                  (.stopPropagation e)
+                                  (on-toggle-fix))}
+        (if is-fixed "📌 Keep" "📌 Pin")]
+       [:img.movie-image {:src (or (:image_url movie) "https://via.placeholder.com/300")}]
+       [:div.movie-title (:title movie)]
+       [:div.text-accent {:style {:font-size "0.8em" :margin-top "5px"}}
+        (str "Est. Rating (\u03bc): " (.toFixed (:mu movie) 2))]])))
 
 ;; -- Stats Helper --
 (defn mean [coll]
@@ -1149,6 +1176,7 @@
             :placeholder "Enter your name"
             :value @login-name
             :on-change #(reset! login-name (-> % .-target .-value))
+            :on-key-down #(when (= "Enter" (.-key %)) (login!)) ; Enter key submits
             :style {:padding "12px" :font-size "1.2rem" :border-radius "8px" :border "none"}}]
    [:button {:on-click login! :style {:padding "12px 24px" :font-size "1.2rem"}} "Start Ranking"]])
 
@@ -1169,7 +1197,7 @@
        [:button {:on-click logout! :class "btn btn-sm"} "Logout"]])
 
     [:div
-     [:button.btn.btn-sm.btn-acid {:on-click toggle-acid!} (if @is-acid "ACID MODE ON" "ACID MODE")]]]
+     [:button.btn.btn-sm.btn-dark {:on-click toggle-dark!} (if @is-dark "DARK MODE ON" "DARK MODE")]]]
 
    [:h1 {:style {:text-align "center" :margin-bottom "20px"}} "Vinyl Wishlist"]
 

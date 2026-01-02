@@ -6,10 +6,10 @@
     --color-border: #E0E0E0;
     --color-surface: #FFFFFF;
 
-    /* Acid Mode Overrides (applied via class) */
-    --color-acid-primary: #39FF14;
+    /* Dark Mode Overrides (applied via class) */
+    --color-dark-primary: #39FF14;
     /* Acid Green */
-    --color-acid-secondary: #BD00FF;
+    --color-dark-secondary: #BD00FF;
     /* Acid Purple */
 
     --font-main: 'Space Grotesk', sans-serif;
@@ -20,11 +20,11 @@
     --transition-speed: 0.3s;
 }
 
-/* Acid Mode Toggle */
-body.acid-mode {
+/* Dark Mode Toggle */
+body.dark-mode {
     --color-bg: #050505;
     --color-text: #F0F0F0;
-    --color-accent: var(--color-acid-primary);
+    --color-accent: var(--color-dark-primary);
     --color-surface: #111;
     --color-border: #333;
 }
@@ -126,9 +126,15 @@ button.active {
     position: relative;
     display: flex;
     flex-direction: column;
+    user-select: none;
+    /* Disable text selection */
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.movie-card:hover {
+/* Combine hover and touch-active */
+.movie-card:hover,
+.movie-card.touch-active {
     transform: scale(0.98);
     border-color: var(--color-text);
 }
@@ -142,7 +148,8 @@ button.active {
     transition: filter 0.4s ease;
 }
 
-.movie-card:hover .movie-image {
+.movie-card:hover .movie-image,
+.movie-card.touch-active .movie-image {
     filter: grayscale(0%);
 }
 
@@ -264,15 +271,16 @@ button.active {
     background: var(--color-text);
 }
 
-/* Acid Mode Specifics */
-body.acid-mode .movie-card:hover {
-    box-shadow: 0 0 20px var(--color-acid-primary);
-    border-color: var(--color-acid-primary);
+/* Dark Mode Specifics */
+body.dark-mode .movie-card:hover,
+body.dark-mode .movie-card.touch-active {
+    box-shadow: 0 0 20px var(--color-dark-primary);
+    border-color: var(--color-dark-primary);
 }
 
-body.acid-mode .rank-cell {
-    color: var(--color-acid-secondary);
-    text-shadow: 0 0 10px var(--color-acid-secondary);
+body.dark-mode .rank-cell {
+    color: var(--color-dark-secondary);
+    text-shadow: 0 0 10px var(--color-dark-secondary);
 }
 
 .rank-action-btn:hover {
