@@ -106,33 +106,38 @@
         "Visit Link →"])]]])
 
 (defn post-card [post]
-  [:div.post-card {:on-click #(reset! active-post post)}
-   ;; Always show image in card view
-   (when (seq (:image_url post))
-     [:img.post-image {:src (:image_url post)}])
-   
-   [:div.post-meta
-    [:span (:date post)]
-    (when (seq (:type post))
-      [:span (str/upper-case (:type post))])]
-   
-   [:h3.post-title 
-    (:title post)]
-   
-   ;; Dynamic limit based on image presence
-   (let [has-image? (seq (:image_url post))
-         char-limit (if has-image? 150 450)
-         body-text (or (:body post) "")]
-     [:div.post-body 
-      (if (> (count body-text) char-limit)
-        (str (subs body-text 0 char-limit) "...")
-        body-text)])
-   
-   (when (seq (:tags post))
-     [:div.post-tags
-      (doall
-        (for [tag (map str/trim (str/split (:tags post) #","))]
-          [:span.tag {:key tag} tag]))])])
+  (let [tags (when (seq (:tags post))
+               (map str/trim (str/split (:tags post) #",")))
+        extra-classes (if tags
+                        (str/join " " (map #(str "tag-" (str/replace % #"\s+" "-")) tags))
+                        "")]
+    [:div.post-card {:class extra-classes :on-click #(reset! active-post post)}
+     ;; Always show image in card view
+     (when (seq (:image_url post))
+       [:img.post-image {:src (:image_url post)}])
+     
+     [:div.post-meta
+      [:span (:date post)]
+      (when (seq (:type post))
+        [:span (str/upper-case (:type post))])]
+     
+     [:h3.post-title 
+      (:title post)]
+     
+     ;; Dynamic limit based on image presence
+     (let [has-image? (seq (:image_url post))
+           char-limit (if has-image? 150 450)
+           body-text (or (:body post) "")]
+       [:div.post-body 
+        (if (> (count body-text) char-limit)
+          (str (subs body-text 0 char-limit) "...")
+          body-text)])
+     
+     (when tags
+       [:div.post-tags
+        (doall
+          (for [tag tags]
+            [:span.tag {:key tag} tag]))])]))
 
 
 

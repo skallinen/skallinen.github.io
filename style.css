@@ -533,3 +533,19 @@ body {
     margin: 0 !important;
     padding: 0 !important;
 }
+
+
+/* Fix for doodle visibility on light backgrounds */
+.tag-doodle .post-image {
+    filter: invert(1) grayscale(100%);
+}
+.post-card.tag-doodle:hover .post-image {
+    filter: invert(1) grayscale(0%);
+}
+/* Revert inversion in Dark Mode so white stays white */
+body.dark-mode .tag-doodle .post-image {
+    filter: invert(0) grayscale(100%);
+}
+body.dark-mode .post-card.tag-doodle:hover .post-image {
+    filter: invert(0) grayscale(0%);
+}
