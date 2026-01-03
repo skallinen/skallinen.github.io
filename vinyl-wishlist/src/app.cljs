@@ -1,5 +1,5 @@
 (ns app
-  (:require [reagent.core :as r]
+  (:require [nav :refer [navbar]] [reagent.core :as r]
             [reagent.dom :as rdom]
             [clojure.string :as str]))
 
@@ -23,14 +23,14 @@
 (defonce current-tab (r/atom :explore)) ;; :rank or :explore
 (defonce explore-tab (r/atom :genres)) ;; :genres, :splom, :facets, :3d, or :2d-growth
 (defonce fixed-album (r/atom nil)) ;; Fixed album ID for King of the Hill mode
-(defonce is-dark (r/atom false))
+;; Local state replaced by shared
+(def is-dark nav/is-dark)
+;; Apply immediately
+(when @is-dark (-> js/document .-body .-classList (.add "dark-mode")))
 (defonce facet-metric (r/atom :spotify_popularity)) ;; Default for facet view
+(defonce modal-state (r/atom {:open? false :content nil})) ;; Modal State
 
-(defn toggle-dark! []
-  (swap! is-dark not)
-  (if @is-dark
-    (-> js/document .-body .-classList (.add "dark-mode"))
-    (-> js/document .-body .-classList (.remove "dark-mode"))))
+
 
 ;; -- Persistence Helper --
 (defn get-storage-key [key-type username]
@@ -63,6 +63,46 @@
     (if stored-history
       (reset! history (js->clj (js/JSON.parse stored-history) :keywordize-keys true))
       (reset! history []))))
+
+;; -- Modal & Carousel Components --
+
+(defn carousel [images]
+  (let [index (r/atom 0)]
+    (fn [images]
+      (let [count (count images)]
+        [:div.carousel
+         [:button.carousel-btn.prev {:on-click #(swap! index (fn [i] (mod (dec i) count)))} "❮"]
+         [:div.carousel-slide
+          [:img {:src (nth images @index)}]]
+         [:button.carousel-btn.next {:on-click #(swap! index (fn [i] (mod (inc i) count)))} "❯"]
+         [:div.carousel-indicators
+          (doall (map-indexed (fn [i _]
+                                [:span.indicator {:key i 
+                                                  :class (when (= i @index) "active")
+                                                  :on-click #(reset! index i)}])
+                              images))]]))))
+
+(defn video-embed [url]
+  [:div.video-container
+   [:iframe {:src url :frameBorder "0" :allowFullScreen true}]])
+
+(defn modal []
+  (when (:open? @modal-state)
+    [:div.modal-overlay {:on-click #(swap! modal-state assoc :open? false)}
+     [:div.modal-content {:on-click #(.stopPropagation %)}
+      [:button.modal-close {:on-click #(swap! modal-state assoc :open? false)} "×"]
+      (let [content (:content @modal-state)]
+        (case (:type content)
+          :carousel [carousel (:images content)]
+          :video [video-embed (:video_url content)]
+          :article [:div.article-view
+                    [:h2 (:title content)]
+                    [:img {:src (:image_url content)}]
+                    [:p (:body content)]]
+          [:div "Unknown content"]))]]))
+
+;; -- Data Merging --
+
 
 ;; -- JSONP Data Fetching --
 (defn parse-jsonp-data [data]
@@ -357,7 +397,12 @@
        [:img.movie-image {:src (or (:image_url movie) "https://via.placeholder.com/300")}]
        [:div.movie-title (:title movie)]
        [:div.text-accent {:style {:font-size "0.8em" :margin-top "5px"}}
-        (str "Est. Rating (\u03bc): " (.toFixed (:mu movie) 2))]])))
+        (str "Est. Rating (\u03bc): " (.toFixed (:mu movie) 2))]
+       (when (or (= (:type movie) :carousel) (= (:type movie) :video) (= (:type movie) :article))
+         [:button.details-btn {:on-click (fn [e]
+                                           (.stopPropagation e)
+                                           (reset! modal-state {:open? true :content movie}))}
+          "View Details"])])))
 
 ;; -- Stats Helper --
 (defn mean [coll]
@@ -1180,9 +1225,16 @@
             :style {:padding "12px" :font-size "1.2rem" :border-radius "8px" :border "none"}}]
    [:button {:on-click login! :style {:padding "12px 24px" :font-size "1.2rem"}} "Start Ranking"]])
 
+
+
+
+
+
 (defn main-component []
-  [:div
-   [:div.header {:class "app-header"}
+  [:div.app-container
+   [navbar]
+
+   [:div.app-controls {:style {:padding "1rem" :display "flex" :justify-content "space-between" :align-items "center"}}
     [:div
      [:button {:on-click #(reset! current-tab :explore)
                :class "btn btn-nav"
@@ -1194,10 +1246,7 @@
     (when @current-user
       [:div
        [:span {:style {:margin-right "15px" :color "#aaa"}} (str "User: " @current-user)]
-       [:button {:on-click logout! :class "btn btn-sm"} "Logout"]])
-
-    [:div
-     [:button.btn.btn-sm.btn-dark {:on-click toggle-dark!} (if @is-dark "DARK MODE ON" "DARK MODE")]]]
+       [:button {:on-click logout! :class "btn btn-sm"} "Logout"]])]
 
    [:h1 {:style {:text-align "center" :margin-bottom "20px"}} "Vinyl Wishlist"]
 
@@ -1219,7 +1268,8 @@
        [login-view]))])
 
 (defn mount-root []
-  (rdom/render [main-component] (.getElementById js/document "app")))
+  (rdom/render [main-component] ;; Add modal here
+               (.getElementById js/document "app")))
 
 (defn init []
   (fetch-data!)
