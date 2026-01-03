@@ -1,14 +1,17 @@
 (ns main
-  (:require [reagent.core :as r]
+  (:require [nav :refer [navbar]] [reagent.core :as r]
             [reagent.dom :as rdom]
             [clojure.string :as str]))
 
-(println "Main.cljs RELOADED v4 (Image Zoom)")
+(println "Main.cljs RELOADED v13 (Final Logos)")
 
 ;; -- State --
 (defonce posts (r/atom []))
 (defonce loading (r/atom true))
-(defonce is-dark (r/atom false))
+;; Local state replaced by shared
+(def is-dark nav/is-dark)
+;; Apply immediately
+(when @is-dark (-> js/document .-body .-classList (.add "dark-mode")))
 (defonce error-msg (r/atom nil))
 (defonce active-post (r/atom nil)) ;; For Modal
 (defonce zoomed-image (r/atom nil)) ;; For Fullscreen Image
@@ -17,11 +20,7 @@
 (def Papa js/Papa)
 
 ;; -- Dark Mode --
-(defn toggle-dark! []
-  (swap! is-dark not)
-  (if @is-dark
-    (-> js/document .-body .-classList (.add "dark-mode"))
-    (-> js/document .-body .-classList (.remove "dark-mode"))))
+
 
 ;; -- Helpers --
 (defn format-body [text]
@@ -34,6 +33,37 @@
                  paragraph]))
             (str/split text #"\n")))))
 
+;; -- Carousel Component --
+(def instagram-images
+  [{:src "visuals/drawing_1.jpg" :text "April 1, 2024. Sketching."}
+   {:src "visuals/drawing_2.jpg" :text "April 5, 2024. Lines."}
+   {:src "visuals/drawing_3.jpg" :text "April 7, 2024. Texture."}
+   {:src "visuals/drawing_4.jpg" :text "April 10, 2024."}
+   {:src "visuals/drawing_5.jpg" :text "April 12, 2024."}
+   {:src "visuals/drawing_6.jpg" :text "April 14, 2024."}])
+
+(defn carousel []
+  (let [index (r/atom 0)]
+    (fn []
+      (let [images instagram-images
+            count (count images)
+            current (nth images @index)]
+        [:div.carousel-container {:style {:text-align "center"}}
+         [:div.carousel
+          [:button.carousel-btn.prev {:on-click #(swap! index (fn [i] (mod (dec i) count)))} "❮"]
+          [:div.carousel-slide
+           [:img {:src (:src current)}]]
+          [:button.carousel-btn.next {:on-click #(swap! index (fn [i] (mod (inc i) count)))} "❯"]
+          [:div.carousel-indicators
+           (doall (map-indexed (fn [i _]
+                                 [:span.indicator {:key i 
+                                                   :class (when (= i @index) "active")
+                                                   :on-click #(reset! index i)}])
+                               images))]]
+         ;; Caption
+         [:div.carousel-caption {:style {:margin-top "20px" :color "var(--color-text)" :font-style "italic"}}
+          (:text current)]]))))
+
 ;; -- Components --
 
 (defn fullscreen-image-view []
@@ -45,12 +75,18 @@
    [:div.modal-content {:on-click #(.stopPropagation %)}
     [:button.close-btn {:on-click #(reset! active-post nil)} "×"]
     
-    (if (seq (:video_url post))
+    (cond 
+      (seq (:video_url post))
       ;; If Video Exists: Show Video ONLY (no image)
       [:div.video-container
        {:dangerouslySetInnerHTML 
         {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}]
       
+      (and (seq (:tags post)) (str/includes? (:tags post) "carousel"))
+      ;; If Carousel Tag exists
+      [carousel]
+
+      :else
       ;; Else: Show Image (if exists) -> Clickable for Zoom
       (when (seq (:image_url post))
         [:img.modal-image {:src (:image_url post)
@@ -83,10 +119,14 @@
    [:h3.post-title 
     (:title post)]
    
-   [:div.post-body 
-    (if (> (count (:body post)) 150)
-      (str (subs (:body post) 0 150) "...")
-      (:body post))]
+   ;; Dynamic limit based on image presence
+   (let [has-image? (seq (:image_url post))
+         char-limit (if has-image? 150 450)
+         body-text (or (:body post) "")]
+     [:div.post-body 
+      (if (> (count body-text) char-limit)
+        (str (subs body-text 0 char-limit) "...")
+        body-text)])
    
    (when (seq (:tags post))
      [:div.post-tags
@@ -94,24 +134,7 @@
         (for [tag (map str/trim (str/split (:tags post) #","))]
           [:span.tag {:key tag} tag]))])])
 
-(defn navbar []
-  [:div.app-header
-   [:a.brand {:href "/"} 
-    [:img.logo {:src (if @is-dark 
-                       "visuals/1-bit-sheep-logo.svg" 
-                       "visuals/1-bit-sheep-logo-black.svg")
-                :alt "1-Bit Wonder"}]]
-   
-   [:div.nav-links
-    [:a.nav-link {:href "/vinyl-wishlist/"} "Vinyl Wishlist"]
-    
-    [:span.nav-link {:style {:color "#666" :cursor "default"}} "|"]
-    
-    [:a.nav-link {:href "/puzzles/beaufort/"} "Beaufort Scale"]
-    [:a.nav-link {:href "/puzzles/flags/"} "Signal Flags"]
-    
-    [:button.btn-dark {:on-click toggle-dark!}
-     (if @is-dark "Light" "Dark")]]])
+
 
 (defn feed []
   (cond
@@ -143,10 +166,15 @@
                     :header true
                     :complete (fn [results]
                                 (let [data (js->clj (.-data results) :keywordize-keys true)
-                                      sorted (->> data
-                                                  (filter #(seq (:title %)))
-                                                  (sort-by :date >))]
-                                  (reset! posts sorted)
+                                      valid-data (filter #(seq (:title %)) data)
+                                      intro (first (filter #(= "Programmer, Creator, Human" (:title %)) valid-data))
+                                      others (remove #(= "Programmer, Creator, Human" (:title %)) valid-data)
+                                      sorted (sort-by :date > others)]
+                                  
+                                  (if intro
+                                    (reset! posts (cons intro sorted))
+                                    (reset! posts sorted))
+                                    
                                   (reset! loading false)))
                     :error (fn [err]
                              (reset! error-msg "Failed to load CSV data.")

@@ -93,6 +93,7 @@ body {
     cursor: pointer;
     font-size: 0.8rem;
     text-transform: uppercase;
+    font-weight: 700;
 }
 
 .btn-dark:hover {
@@ -295,4 +296,240 @@ body.dark-mode .tag {
 
 .modal-image {
   cursor: zoom-in; /* Indicate clickable */
+}
+
+/* Carousel */
+.carousel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 600px; /* Adjust as needed */
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.carousel-slide img {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.carousel-btn {
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: 1px solid #555;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0px 15px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    z-index: 5;
+    transition: background 0.2s;
+}
+
+.carousel-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.carousel-btn.prev {
+    left: -20px;
+}
+
+.carousel-btn.next {
+    right: -20px;
+}
+
+.carousel-indicators {
+    position: absolute;
+    bottom: -30px;
+    display: flex;
+    gap: 10px;
+}
+
+.indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #555;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.indicator.active {
+    background: #FFD700;
+    box-shadow: 0 0 5px #FFD700;
+}
+
+/* Minimal Swiss Carousel Overrides */
+.carousel-btn {
+    background: transparent !important;
+    border: none !important;
+    color: var(--color-text) !important;
+    font-size: 3rem !important; /* Larger, thinner arrows ideally */
+    font-family: var(--font-main); /* Ensure consistency */
+    font-weight: 300;
+    opacity: 0.5;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    padding: 0 20px !important;
+}
+
+.carousel-btn:hover {
+    background: transparent !important;
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1); /* Subtle grow */
+}
+
+/* Position them further out or just cleanly to the side */
+.carousel-btn.prev {
+    left: -60px; /* Move outside the image */
+}
+
+.carousel-btn.next {
+    right: -60px;
+}
+
+/* Adjust carousel container to allow buttons outside */
+.carousel {
+    overflow: visible; /* Allow buttons to sit outside */
+}
+
+/* Indicators: Minimal dots */
+.carousel-indicators {
+    bottom: -40px;
+    gap: 12px;
+}
+
+.indicator {
+    width: 6px;
+    height: 6px;
+    background: var(--color-border); /* Subtle gray */
+    opacity: 1;
+}
+
+.indicator.active {
+    background: var(--color-text); /* Black/White */
+    box-shadow: none; /* Remove glow */
+    transform: scale(1.2);
+}
+
+/* Ensure modal handles the wider carousel area if needed */
+.modal-content {
+    overflow-x: hidden; /* Prevent horizontal scroll bar on modal if buttons go too far */
+}
+
+/* Dense Header Tweaks */
+.app-header {
+    padding-bottom: 5px !important;
+    margin-bottom: 20px !important;
+    align-items: flex-end; /* Align bottom of logo and nav? */
+}
+
+.logo {
+    display: block;
+    margin-bottom: -5px; /* Pull tighter to the line if needed */
+}
+
+/* Alignment Fix */
+.app-header {
+    align-items: center !important; /* Center vertically */
+    padding-bottom: 10px !important; /* Restore a bit of space */
+}
+
+.logo {
+    margin-bottom: 0 !important; /* Reset negative margin */
+    /* Ensure it doesn't overflow if centered */
+    display: block;
+}
+
+/* Alignment Fix v2: Bottom Align */
+.app-header {
+    align-items: flex-end !important; /* "all down" */
+    padding-bottom: 0px !important;   /* "less padding below" */
+    box-shadow: none; /* In case there's shadow */
+}
+
+.logo {
+    display: block;
+    margin-bottom: 0px !important; /* Ensure logo sits on the line */
+    /* If the SVG has built-in padding, it might still float. 
+       But I cropped the SVG height to 140, so it should be tighter. */
+}
+
+/* Alignment Fix v3: Nice Distance */
+.app-header {
+    align-items: center !important; /* Back to center for safety */
+    padding-bottom: 8px !important; /* Nice distance from stroke provided by border-bottom */
+    margin-bottom: 30px !important; /* Space between header and content */
+}
+
+.logo {
+    margin-bottom: 0 !important;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Ensure buttons have spacing */
+    height: 100%; /* Match header height if needed */
+}
+
+/* Logo Space Fix */
+.brand {
+    display: block;      /* No inline spacing */
+    line-height: 0;      /* Kill descenders */
+    padding: 0;
+    margin: 0;
+}
+
+.logo {
+    display: block;
+    height: auto;      /* Respect aspect ratio */
+    margin: 0;
+    padding: 0;
+}
+
+
+/* Standardized Navigation */
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px; /* Increased from 15/20px for better rhythm */
+    height: 100%;
+}
+
+.nav-link {
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s, opacity 0.2s;
+    cursor: pointer;
+    font-size: 0.85rem; /* Slight bump */
+    text-transform: uppercase;
+    letter-spacing: 0.05em; /* Swiss touch */
+}
+.nav-link:hover {
+    opacity: 0.7;
+}
+
+/* Enforce consistent vertical scrollbar to prevent horizontal jumps */
+html {
+    overflow-y: scroll;
+}
+
+/* Enforce strict padding for app container to alignment */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px !important; /* Force consistency */
+    padding-top: 24px !important;
+}
+
+/* Ensure body has no margin interference */
+body {
+    margin: 0 !important;
+    padding: 0 !important;
 }
