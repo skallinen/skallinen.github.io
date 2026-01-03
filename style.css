@@ -549,3 +549,12 @@ body.dark-mode .tag-doodle .post-image {
 body.dark-mode .post-card.tag-doodle:hover .post-image {
     filter: invert(0) grayscale(0%);
 }
+
+
+/* Fix for doodle visibility in modal */
+.tag-doodle .modal-image {
+    filter: invert(1) grayscale(100%);
+}
+body.dark-mode .tag-doodle .modal-image {
+    filter: invert(0) grayscale(100%);
+}

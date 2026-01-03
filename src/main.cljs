@@ -71,39 +71,45 @@
      [:img.fullscreen-image {:src @zoomed-image}]])
 
 (defn modal [post]
-  [:div.modal-overlay {:on-click #(reset! active-post nil)}
-   [:div.modal-content {:on-click #(.stopPropagation %)}
-    [:button.close-btn {:on-click #(reset! active-post nil)} "×"]
-    
-    (cond 
-      (seq (:video_url post))
-      ;; If Video Exists: Show Video ONLY (no image)
-      [:div.video-container
-       {:dangerouslySetInnerHTML 
-        {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}]
+  (let [tags (when (seq (:tags post))
+               (map str/trim (str/split (:tags post) #",")))
+        extra-classes (if tags
+                        (str/join " " (map #(str "tag-" (str/replace % #"\s+" "-")) tags))
+                        "")]
+    [:div.modal-overlay {:on-click #(reset! active-post nil)}
+     [:div.modal-content {:class extra-classes 
+                          :on-click #(.stopPropagation %)}
+      [:button.close-btn {:on-click #(reset! active-post nil)} "×"]
       
-      (and (seq (:tags post)) (str/includes? (:tags post) "carousel"))
-      ;; If Carousel Tag exists
-      [carousel]
+      (cond 
+        (seq (:video_url post))
+        ;; If Video Exists: Show Video ONLY (no image)
+        [:div.video-container
+         {:dangerouslySetInnerHTML 
+          {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}]
+        
+        (and (seq (:tags post)) (str/includes? (:tags post) "carousel"))
+        ;; If Carousel Tag exists
+        [carousel]
 
-      :else
-      ;; Else: Show Image (if exists) -> Clickable for Zoom
-      (when (seq (:image_url post))
-        [:img.modal-image {:src (:image_url post)
-                           :on-click #(reset! zoomed-image (:image_url post))
-                           :title "Click to zoom"}]))
-    
-    [:div.modal-text
-     [:h2 (:title post)]
-     [:div.post-meta [:span (:date post)]]
-     
-     ;; Formatted Body
-     [:div.post-body 
-      (format-body (:body post))]
-     
-     (when (seq (:link post))
-       [:a.btn-dark {:href (:link post) :target "_blank" :style {:margin-top "20px" :display "inline-block"}} 
-        "Visit Link →"])]]])
+        :else
+        ;; Else: Show Image (if exists) -> Clickable for Zoom
+        (when (seq (:image_url post))
+          [:img.modal-image {:src (:image_url post)
+                             :on-click #(reset! zoomed-image (:image_url post))
+                             :title "Click to zoom"}]))
+      
+      [:div.modal-text
+       [:h2 (:title post)]
+       [:div.post-meta [:span (:date post)]]
+       
+       ;; Formatted Body
+       [:div.post-body 
+        (format-body (:body post))]
+       
+       (when (seq (:link post))
+         [:a.btn-dark {:href (:link post) :target "_blank" :style {:margin-top "20px" :display "inline-block"}} 
+          "Visit Link →"])]]]))
 
 (defn post-card [post]
   (let [tags (when (seq (:tags post))
