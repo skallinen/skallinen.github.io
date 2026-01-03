@@ -8,6 +8,7 @@
 (defonce loading (r/atom true))
 (defonce is-dark (r/atom false))
 (defonce error-msg (r/atom nil))
+(defonce active-post (r/atom nil)) ;; For Modal
 
 ;; -- Interop --
 (def Papa js/Papa)
@@ -20,8 +21,31 @@
     (-> js/document .-body .-classList (.remove "dark-mode"))))
 
 ;; -- Components --
+
+(defn modal [post]
+  [:div.modal-overlay {:on-click #(reset! active-post nil)}
+   [:div.modal-content {:on-click #(.stopPropagation %)}
+    [:button.close-btn {:on-click #(reset! active-post nil)} "×"]
+    
+    (when (seq (:video_url post))
+      [:div.video-container
+       {:dangerouslySetInnerHTML 
+        {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}])
+
+    (when (seq (:image_url post))
+      [:img.modal-image {:src (:image_url post)}])
+    
+    [:div.modal-text
+     [:h2 (:title post)]
+     [:div.post-meta [:span (:date post)]]
+     [:div.post-body (:body post)]
+     
+     (when (seq (:link post))
+       [:a.btn-dark {:href (:link post) :target "_blank" :style {:margin-top "20px" :display "inline-block"}} 
+        "Visit Link →"])]]])
+
 (defn post-card [post]
-  [:div.post-card
+  [:div.post-card {:on-click #(reset! active-post post)}
    (when (seq (:image_url post))
      [:img.post-image {:src (:image_url post)}])
    
@@ -31,11 +55,12 @@
       [:span (str/upper-case (:type post))])]
    
    [:h3.post-title 
-    (if (seq (:link post))
-      [:a {:href (:link post) :target "_blank"} (:title post)]
-      (:title post))]
+    (:title post)]
    
-   [:div.post-body (:body post)]
+   [:div.post-body 
+    (if (> (count (:body post)) 150)
+      (str (subs (:body post) 0 150) "...")
+      (:body post))]
    
    (when (seq (:tags post))
      [:div.post-tags
@@ -45,12 +70,15 @@
 
 (defn navbar []
   [:div.app-header
-   [:a.brand {:href "/"} "1-Bit Wonder"]
+   [:a.brand {:href "/"} 
+    [:img.logo {:src (if @is-dark 
+                       "visuals/1-bit-sheep-logo.svg" 
+                       "visuals/1-bit-sheep-logo-black.svg")
+                :alt "1-Bit Wonder"}]]
    
    [:div.nav-links
     [:a.nav-link {:href "/vinyl-wishlist/"} "Vinyl Wishlist"]
     
-    ;; Sailing Menu (Simple Dropdown Logic or just Links)
     [:span.nav-link {:style {:color "#666" :cursor "default"}} "|"]
     
     [:a.nav-link {:href "/puzzles/beaufort/"} "Beaufort Scale"]
@@ -73,7 +101,9 @@
 (defn main-component []
   [:div.app-container
    [navbar]
-   [feed]])
+   [feed]
+   (when @active-post
+     [modal @active-post])])
 
 ;; -- Data Fetching --
 (defn fetch-posts! []
@@ -83,7 +113,6 @@
                     :header true
                     :complete (fn [results]
                                 (let [data (js->clj (.-data results) :keywordize-keys true)
-                                      ;; Filter empty rows and Sort by Date Descending
                                       sorted (->> data
                                                   (filter #(seq (:title %)))
                                                   (sort-by :date >))]
