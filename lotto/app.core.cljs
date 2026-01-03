@@ -8,7 +8,14 @@
                             :status :idle
                             :generated-keys nil
                             :is-dark (= "dark" (.getItem js/localStorage "theme"))
+                            :last-played (.getItem js/localStorage "lotto_last_played")
                             :hover-gif nil}))
+
+(defn get-today-str []
+  (.toDateString (js/Date.)))
+
+(defn played-today? []
+  (= (:last-played @app-state) (get-today-str)))
 
 (def gifs
   ["https://media3.giphy.com/media/GhU3C9uMON5X8OLx2G/giphy.gif?cid=ecf05e47nlyjmfa9s1ljn8hxw418dmq4jik7uoku8575fexu&rid=giphy.gif&ct=g"
@@ -53,14 +60,18 @@
    :address (str "1" (random-b58 33))})
 
 (defn check-luck! []
-  (swap! app-state assoc :status :checking)
-  (js/setTimeout
-   (fn []
-     (swap! app-state assoc 
-            :status :result 
-            :generated-keys (generate-btc-keys)
-            :hover-gif nil))
-   1500))
+  (if (played-today?)
+    (js/alert "You have already played today!")
+    (let [today (get-today-str)]
+      (.setItem js/localStorage "lotto_last_played" today)
+      (swap! app-state assoc :last-played today :status :checking)
+      (js/setTimeout
+       (fn []
+         (swap! app-state assoc 
+                :status :result 
+                :generated-keys (generate-btc-keys)
+                :hover-gif nil))
+       1500))))
 
 ;; --- API Strategy ---
 (def price-sources
@@ -125,7 +136,11 @@
       ;; Button Area
       (case status
         :idle
-        [:div {:style {:position "relative" :display "inline-block" :width "100%" :max-width "400px"}}
+        (if (played-today?)
+          [:div {:style {:text-align "center" :padding "40px" :border "1px dashed var(--color-border)" :border-radius "var(--radius-4)"}}
+           [:h3 {:style {:margin-bottom "10px"}} "Daily Attempt Used"]
+           [:p "You have already played today. Please come back tomorrow."]]
+          [:div {:style {:position "relative" :display "inline-block" :width "100%" :max-width "400px"}}
          (when hover-gif
            [:img {:src hover-gif 
                   :style {:position "absolute"
@@ -150,7 +165,7 @@
                    :cursor "pointer" :transition "all 0.1s"
                    :position "relative" :z-index 20
                    }}
-          "Are you feeling lucky?"]]
+          "Are you feeling lucky?"]])
 
         :checking
         [:div {:style {:font-size "24px" :color "var(--color-accent)" :animation "pulse 1s infinite"}}
