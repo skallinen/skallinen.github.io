@@ -267,3 +267,32 @@ body.dark-mode .tag {
         grid-template-columns: 1fr;
     }
 }
+
+/* Fullscreen Image Zoom */
+.fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.95);
+  z-index: 2000; /* Above normal modal */
+  overflow-y: auto; /* Allow scrolling */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* Start from top so tall images scroll */
+  padding: 40px;
+  cursor: zoom-out;
+}
+
+.fullscreen-image {
+  max-width: 95vw;
+  height: auto;
+  margin: auto; /* Centers vertically if smaller than viewport */
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  display: block;
+}
+
+.modal-image {
+  cursor: zoom-in; /* Indicate clickable */
+}

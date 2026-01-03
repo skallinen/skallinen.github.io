@@ -3,7 +3,7 @@
             [reagent.dom :as rdom]
             [clojure.string :as str]))
 
-(println "Main.cljs RELOADED v3 (Text Formatting)")
+(println "Main.cljs RELOADED v4 (Image Zoom)")
 
 ;; -- State --
 (defonce posts (r/atom []))
@@ -11,6 +11,7 @@
 (defonce is-dark (r/atom false))
 (defonce error-msg (r/atom nil))
 (defonce active-post (r/atom nil)) ;; For Modal
+(defonce zoomed-image (r/atom nil)) ;; For Fullscreen Image
 
 ;; -- Interop --
 (def Papa js/Papa)
@@ -35,6 +36,10 @@
 
 ;; -- Components --
 
+(defn fullscreen-image-view []
+    [:div.fullscreen-overlay {:on-click #(reset! zoomed-image nil)}
+     [:img.fullscreen-image {:src @zoomed-image}]])
+
 (defn modal [post]
   [:div.modal-overlay {:on-click #(reset! active-post nil)}
    [:div.modal-content {:on-click #(.stopPropagation %)}
@@ -46,9 +51,11 @@
        {:dangerouslySetInnerHTML 
         {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}]
       
-      ;; Else: Show Image (if exists)
+      ;; Else: Show Image (if exists) -> Clickable for Zoom
       (when (seq (:image_url post))
-        [:img.modal-image {:src (:image_url post)}]))
+        [:img.modal-image {:src (:image_url post)
+                           :on-click #(reset! zoomed-image (:image_url post))
+                           :title "Click to zoom"}]))
     
     [:div.modal-text
      [:h2 (:title post)]
@@ -121,8 +128,12 @@
   [:div.app-container
    [navbar]
    [feed]
+   ;; Post Modal
    (when @active-post
-     [modal @active-post])])
+     [modal @active-post])
+   ;; Fullscreen Image Zoom
+   (when @zoomed-image
+     [fullscreen-image-view])])
 
 ;; -- Data Fetching --
 (defn fetch-posts! []
