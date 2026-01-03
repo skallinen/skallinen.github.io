@@ -120,7 +120,7 @@
        ". It's likely that the owner of this early wallet has lost the access information, like many others."]
       
       [:p {:style {:font-size "18px" :line-height "1.6" :margin-bottom "40px"}}
-       "By clicking the button below, we'll generate a random key for the account. The chances of it being the right one are incredibly slim, at one in 2^256, but who knows, maybe today's your lucky day!"]
+       ""By clicking the button below, we'll generate a random key for the account. The chances of it being the right one are " [:a {:href "https://www.youtube.com/watch?v=S9JGmA5_unY" :target "_blank" :style {:color "var(--color-text)" :text-decoration "underline"}} "incredibly slim, at one in 2^256,"] " but who knows, maybe today's your lucky day!""]
 
       ;; Button Area
       (case status
