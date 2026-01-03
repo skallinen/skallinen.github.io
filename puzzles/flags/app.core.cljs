@@ -1,5 +1,5 @@
 (ns app.core
-  (:require [reagent.core :as r]
+  (:require [nav :refer [navbar]] [reagent.core :as r]
             [reagent.dom  :as rdom]
             [clojure.string :as str]))
 
@@ -8,6 +8,14 @@
 ;; -----------------------------------------------------------------------------
 
 ;; Explicit filename mapping so paths match your on-disk names exactly.
+
+;; -- Dark Mode (Ported) --
+;; Local state replaced by shared
+(def is-dark nav/is-dark)
+;; Apply immediately
+(when @is-dark (-> js/document .-body .-classList (.add "dark-mode")))
+
+
 (def id->file
   {:alfa "ics_alfa.svg"
    :bravo "ics_bravo.svg"
@@ -338,6 +346,9 @@
 ;; UI
 ;; -----------------------------------------------------------------------------
 
+
+
+
 (defn header []
   [:header {:style {:margin-bottom "6px"}}
    [:h1 "Signal Flags"]
@@ -433,12 +444,8 @@
                     :alt (str (or (:nato m)
                                   (str/upper-case (name (:id m))))
                               " flag")
-                    :height 36
-                    :style {:border "1px solid var(--border)"
-                            :border-radius "6px"
-                            :display "inline-block"
-                            :margin "12px 0"
-                            :background "#FAFAFC"}}]]
+                    
+                    :class "flag-img"}]]
             ;; Placeable cells
             (for [f fields]
               ^{:key (str "cell-" display-idx "-" (name f))}
@@ -490,7 +497,7 @@
           [:span.metric {:style {:padding "6px 10px"
                                  :border "1px solid var(--border)"
                                  :border-radius "var(--radius-2)"
-                                 :background "#FAFAFC"}}
+                                 }}
            (or (:value t) "Ready")]
           [:span.footer-separator "|"]
           [:span.metric prog]]
@@ -530,8 +537,10 @@
 
 
 (defn root []
-  [:div.container
-   [header]
+  [:div.app-container
+   [navbar]
+   [:div.container
+    [header]
    [instructions]
    [selectors]
    [puzzle-table]
@@ -539,7 +548,7 @@
    [:div.scroll-buffer {:aria-hidden "true"
                         :style {:height (str @footer-h "px")}}]
    [footer]
-   [completion-modal]])
+   [completion-modal]]])
 
 ;; -----------------------------------------------------------------------------
 ;; Mount

@@ -1,11 +1,19 @@
 (ns app.core
-  (:require [reagent.core :as r]
+  (:require [nav :refer [navbar]] [reagent.core :as r]
             [reagent.dom  :as rdom]
             [clojure.string :as str]))
 
 ;; -----------------------
 ;; Data (EDN)
 ;; -----------------------
+
+;; -- Dark Mode (Ported) --
+;; Local state replaced by shared
+(def is-dark nav/is-dark)
+;; Apply immediately
+(when @is-dark (-> js/document .-body .-classList (.add "dark-mode")))
+
+
 (def beaufort-data
   [{:b 0  :knots "<1"   :ms "0-0.2"    :kmh "<1"    :english "Calm"
     :finnish "Tyyni" :finnish_modern "Tyyni" :swedish "Stiltje"
@@ -358,7 +366,7 @@
           [:span.metric {:style {:padding "6px 10px"
                                  :border "1px solid var(--border)"
                                  :border-radius "var(--radius-2)"
-                                 :background "#FAFAFC"}}
+                                 }}
            (or (:value t) "Ready")]
           [:span.footer-separator "|"]
           [:span.metric prog]]
@@ -379,6 +387,9 @@
 ;; -----------------------
 ;; Components
 ;; -----------------------
+
+
+
 (defn header []
   [:header {:style {:margin-bottom "6px"}}
    [:h1 "Wind Speed"]
@@ -500,14 +511,16 @@
          [:button.btn-primary {:on-click #(reset-game!)} "Play again"]]]])))
 
 (defn root []
-  [:div.container
-   [header]
-   [instructions]
-   [selectors]
-   [puzzle-table]
-   [scroll-buffer]
-   [footer]
-   [completion-modal]])
+  [:div.app-container
+   [navbar]
+   [:div.container
+    [header]
+    [instructions]
+    [selectors]
+    [puzzle-table]
+    [scroll-buffer]
+    [footer]
+    [completion-modal]]])
 
 ;; -----------------------
 ;; Mount + initial game
