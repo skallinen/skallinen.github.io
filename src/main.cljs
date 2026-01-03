@@ -3,6 +3,8 @@
             [reagent.dom :as rdom]
             [clojure.string :as str]))
 
+(println "Main.cljs RELOADED v3 (Text Formatting)")
+
 ;; -- State --
 (defonce posts (r/atom []))
 (defonce loading (r/atom true))
@@ -20,6 +22,17 @@
     (-> js/document .-body .-classList (.add "dark-mode"))
     (-> js/document .-body .-classList (.remove "dark-mode"))))
 
+;; -- Helpers --
+(defn format-body [text]
+  (when text
+    (into [:div]
+          (map-indexed
+            (fn [idx paragraph]
+              (when (seq (str/trim paragraph))
+                [:p {:key idx :style {:margin-bottom "1em" :line-height "1.6"}} 
+                 paragraph]))
+            (str/split text #"\n")))))
+
 ;; -- Components --
 
 (defn modal [post]
@@ -27,18 +40,23 @@
    [:div.modal-content {:on-click #(.stopPropagation %)}
     [:button.close-btn {:on-click #(reset! active-post nil)} "×"]
     
-    (when (seq (:video_url post))
+    (if (seq (:video_url post))
+      ;; If Video Exists: Show Video ONLY (no image)
       [:div.video-container
        {:dangerouslySetInnerHTML 
-        {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}])
-
-    (when (seq (:image_url post))
-      [:img.modal-image {:src (:image_url post)}])
+        {:__html (str "<iframe src=\"" (:video_url post) "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>")}}]
+      
+      ;; Else: Show Image (if exists)
+      (when (seq (:image_url post))
+        [:img.modal-image {:src (:image_url post)}]))
     
     [:div.modal-text
      [:h2 (:title post)]
      [:div.post-meta [:span (:date post)]]
-     [:div.post-body (:body post)]
+     
+     ;; Formatted Body
+     [:div.post-body 
+      (format-body (:body post))]
      
      (when (seq (:link post))
        [:a.btn-dark {:href (:link post) :target "_blank" :style {:margin-top "20px" :display "inline-block"}} 
@@ -46,6 +64,7 @@
 
 (defn post-card [post]
   [:div.post-card {:on-click #(reset! active-post post)}
+   ;; Always show image in card view
    (when (seq (:image_url post))
      [:img.post-image {:src (:image_url post)}])
    
