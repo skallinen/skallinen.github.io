@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ralph Loop Spread Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: rgba(22, 22, 22, 0.92);
+      --surface-strong: #1d1d1d;
+      --surface-soft: #121212;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f4f2eb;
+      --muted: #a5a29c;
+      --success: #8effb0;
+      --warning: #f5c96c;
+      --danger: #ff7d7d;
+      --accent: #00d4aa;
+      --hn: #ff6600;
+      --reddit: #ff4500;
+      --youtube: #ff0000;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(255, 102, 0, 0.14), transparent 30%),
+        radial-gradient(circle at top right, rgba(255, 0, 0, 0.12), transparent 28%),
+        linear-gradient(180deg, #131313 0%, #090909 100%);
+      color: var(--text);
+      font-family: "DM Sans", sans-serif;
+    }
+
+    body {
+      padding: 28px;
+    }
+
+    .app {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero {
+      padding: 28px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    h1, h2, h3, .mono {
+      font-family: "Space Mono", monospace;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      max-width: 10ch;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      max-width: 72ch;
+    }
+
+    .quote {
+      color: #e7d1bf;
+      font-style: italic;
+      margin-top: 6px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 11px 16px;
+      cursor: pointer;
+      color: var(--text);
+      background: #242424;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(255, 255, 255, 0.16);
+      background: #2f2f2f;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #0a8f78);
+      color: #03110e;
+      font-weight: 700;
+    }
+
+    .btn-hn { border-color: rgba(255, 102, 0, 0.4); }
+    .btn-reddit { border-color: rgba(255, 69, 0, 0.4); }
+    .btn-youtube { border-color: rgba(255, 0, 0, 0.4); }
+
+    .status-row {
+      display: grid;
+      gap: 10px;
+    }
+
+    .status-strip {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #111;
+      border: 1px solid var(--border);
+      font-family: "Space Mono", monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .is-success { color: var(--success); }
+    .is-warning { color: var(--warning); }
+    .is-error { color: var(--danger); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 4px;
+      background: var(--accent);
+    }
+
+    .card.hn::before { background: var(--hn); }
+    .card.reddit::before { background: var(--reddit); }
+    .card.youtube::before { background: var(--youtube); }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .last-fetched {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .metric:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .metric-label {
+      color: var(--muted);
+    }
+
+    .metric-value {
+      font-family: "Space Mono", monospace;
+      font-size: 1.05rem;
+    }
+
+    .section {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 360px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #101010;
+      color: var(--muted);
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+      background: #1e1e1e;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 880px;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      font-family: "Space Mono", monospace;
+      font-size: 0.82rem;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    tbody tr {
+      transition: background 140ms ease, transform 140ms ease;
+      cursor: pointer;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    tbody tr.row-high {
+      background-image: linear-gradient(90deg, rgba(0, 212, 170, 0.08), transparent);
+    }
+
+    tbody tr.row-medium {
+      background-image: linear-gradient(90deg, rgba(255, 196, 0, 0.08), transparent);
+    }
+
+    tbody tr.row-low {
+      background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.02), transparent);
+    }
+
+    .title-cell {
+      max-width: 580px;
+      font-weight: 500;
+    }
+
+    .small-muted {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    details {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    details summary {
+      list-style: none;
+      padding: 22px;
+      cursor: pointer;
+      font-family: "Space Mono", monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .config-body {
+      padding: 0 22px 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-family: "Space Mono", monospace;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      background: #111;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      font-family: "Space Mono", monospace;
+      font-size: 0.9rem;
+    }
+
+    .toggle {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .empty-state {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .cards,
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      body {
+        padding: 16px;
+      }
+
+      .hero, .section {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel hero">
+      <div class="hero-top">
+        <div>
+          <h1>RALPH LOOP<br>SPREAD TRACKER</h1>
+          <p class="subtitle">Track when Ralph Loop / Ralph Wiggum Loop crossed from niche agentic coding lore into wider developer attention across Hacker News, Reddit, and YouTube.</p>
+          <div class="quote">"I'm in danger" — Geoffrey Huntley, 2025</div>
+        </div>
+        <div class="actions">
+          <button id="fetch-all" class="btn-primary">Fetch All</button>
+          <button id="fetch-hn" class="btn-hn">HN</button>
+          <button id="fetch-reddit" class="btn-reddit">Reddit</button>
+          <button id="import-reddit" class="btn-reddit">Load Reddit JSON</button>
+          <button id="fetch-youtube" class="btn-youtube">YouTube</button>
+          <button id="clear-cache">Clear Cache</button>
+        </div>
+      </div>
+      <div class="status-row">
+        <div id="global-status" class="status-pill">Status: idle</div>
+        <div id="source-statuses" class="status-strip"></div>
+      </div>
+    </section>
+
+    <section class="cards">
+      <article class="panel card hn">
+        <h2><span>Hacker News</span><span id="hn-last" class="last-fetched">not fetched</span></h2>
+        <div id="hn-metrics" class="metrics"></div>
+      </article>
+      <article class="panel card reddit">
+        <h2><span>Reddit</span><span id="reddit-last" class="last-fetched">not fetched</span></h2>
+        <div id="reddit-metrics" class="metrics"></div>
+      </article>
+      <article class="panel card youtube">
+        <h2><span>YouTube</span><span id="youtube-last" class="last-fetched">not fetched</span></h2>
+        <div id="youtube-metrics" class="metrics"></div>
+      </article>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div>
+          <h2 style="margin:0;">Timeline</h2>
+          <div class="small-muted">Weekly bins from 2025-07-01 through today.</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="timeline-chart"></canvas>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div class="tabs" id="tabs"></div>
+        <div class="toolbar">
+          <div id="table-summary" class="small-muted"></div>
+          <button id="export-csv">Export CSV</button>
+          <button id="export-json">Export JSON</button>
+        </div>
+      </div>
+      <div id="results-table-container"></div>
+    </section>
+
+    <details class="panel">
+      <summary>
+        <span>Config</span>
+        <span class="small-muted">API key, proxy, queries, defaults</span>
+      </summary>
+      <div class="config-body">
+        <div class="field-grid">
+          <div class="field">
+            <label for="yt-key">YouTube API Key</label>
+            <input id="yt-key" type="password" autocomplete="off" placeholder="Paste your YouTube Data API v3 key">
+          </div>
+          <div class="field">
+            <label for="proxy-url">Reddit CORS Proxy URL</label>
+            <input id="proxy-url" type="text" placeholder="https://corsproxy.io/?url=">
+          </div>
+        </div>
+
+        <div class="toggle">
+          <input id="proxy-enabled" class="checkbox" type="checkbox">
+          <label for="proxy-enabled">Enable Reddit proxy</label>
+        </div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="hn-queries">HN Queries (one per line)</label>
+            <textarea id="hn-queries"></textarea>
+          </div>
+          <div class="field">
+            <label for="reddit-queries">Reddit Queries (one per line)</label>
+            <textarea id="reddit-queries"></textarea>
+          </div>
+          <div class="field">
+            <label for="reddit-subs">Reddit Subreddits (one per line)</label>
+            <textarea id="reddit-subs"></textarea>
+          </div>
+          <div class="field">
+            <label for="yt-queries">YouTube Queries (one per line)</label>
+            <textarea id="yt-queries"></textarea>
+          </div>
+        </div>
+
+        <div class="actions" style="justify-content:flex-start;">
+          <button id="save-config" class="btn-primary">Save Config</button>
+          <button id="reset-config">Reset to Defaults</button>
+        </div>
+        <div class="footer-note">HN works directly. Reddit browser fetch is unreliable under <span class="mono">file://</span> and public proxies. Use “Load Reddit JSON” with <span class="mono">node ralph-tracker.js --reddit --output=ralph-reddit-cache.json</span>. YouTube fetch runs only when an API key is saved.</div>
+      </div>
+    </details>
+  </div>
+  <input id="reddit-file-input" type="file" accept="application/json" hidden>
+
+  <script>
+    const STORAGE_KEYS = {
+      config: "ralph_tracker_config_v1",
+      cache: "ralph_tracker_cache_v1"
+    };
+    const CACHE_TTL_MS = 30 * 60 * 1000;
+    const HN_KNOWN_IDS = [
+      "46524652", "46632445", "46651646", "46652088", "46672413",
+      "46682325", "46683992", "46750937", "47091363", "47155338"
+    ];
+    const REDDIT_EXCLUDED_IDS = new Set([
+      "1q2c0ne"
+    ]);
+    const DEFAULT_CONFIG = {
+      youtubeApiKey: "",
+      redditProxyEnabled: true,
+      redditProxyUrl: "/api/reddit-search",
+      hnQueries: [
+        "ralph wiggum loop",
+        "ralph wiggum claude",
+        "ralph loop agent",
+        "ghuntley ralph",
+        "while true claude loop"
+      ],
+      redditQueries: [
+        "ralph wiggum",
+        "ralph loop",
+        "ralph wiggum loop",
+        "ralph-wiggum",
+        "ghuntley ralph",
+        "chief wiggum"
+      ],
+      redditSubs: [
+        "ClaudeAI",
+        "ClaudeCode",
+        "LocalLLaMA",
+        "OpenaiCodex"
+      ],
+      ytQueries: [
+        "ralph wiggum loop",
+        "ralph wiggum claude code",
+        "ralph loop ai agent",
+        "geoffrey huntley ralph"
+      ]
+    };
+    const state = {
+      config: loadConfig(),
+      data: loadCache(),
+      activeTab: "hn",
+      sort: {
+        hn: { key: "date", dir: "desc" },
+        reddit: { key: "date", dir: "desc" },
+        youtube: { key: "published", dir: "desc" }
+      },
+      statuses: {
+        hn: { status: "idle", message: "idle" },
+        reddit: { status: "idle", message: "idle" },
+        youtube: { status: "idle", message: "idle" }
+      },
+      chart: null
+    };
+    const REDDIT_PROXY_FALLBACKS = [
+      "https://api.allorigins.win/raw?url=",
+      "https://corsproxy.io/?url="
+    ];
+
+    const el = {
+      globalStatus: document.getElementById("global-status"),
+      sourceStatuses: document.getElementById("source-statuses"),
+      fetchAll: document.getElementById("fetch-all"),
+      fetchHN: document.getElementById("fetch-hn"),
+      fetchReddit: document.getElementById("fetch-reddit"),
+      importReddit: document.getElementById("import-reddit"),
+      fetchYouTube: document.getElementById("fetch-youtube"),
+      clearCache: document.getElementById("clear-cache"),
+      redditFileInput: document.getElementById("reddit-file-input"),
+      hnMetrics: document.getElementById("hn-metrics"),
+      redditMetrics: document.getElementById("reddit-metrics"),
+      youtubeMetrics: document.getElementById("youtube-metrics"),
+      hnLast: document.getElementById("hn-last"),
+      redditLast: document.getElementById("reddit-last"),
+      youtubeLast: document.getElementById("youtube-last"),
+      tabs: document.getElementById("tabs"),
+      tableContainer: document.getElementById("results-table-container"),
+      tableSummary: document.getElementById("table-summary"),
+      exportCsv: document.getElementById("export-csv"),
+      exportJson: document.getElementById("export-json"),
+      saveConfig: document.getElementById("save-config"),
+      resetConfig: document.getElementById("reset-config"),
+      ytKey: document.getElementById("yt-key"),
+      proxyEnabled: document.getElementById("proxy-enabled"),
+      proxyUrl: document.getElementById("proxy-url"),
+      hnQueries: document.getElementById("hn-queries"),
+      redditQueries: document.getElementById("reddit-queries"),
+      redditSubs: document.getElementById("reddit-subs"),
+      ytQueries: document.getElementById("yt-queries")
+    };
+
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.config);
+        if (!raw) return structuredClone(DEFAULT_CONFIG);
+        return { ...structuredClone(DEFAULT_CONFIG), ...JSON.parse(raw) };
+      } catch (_error) {
+        return structuredClone(DEFAULT_CONFIG);
+      }
+    }
+
+    function saveConfig() {
+      localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(state.config));
+    }
+
+    function loadCache() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.cache);
+        if (!raw) return createEmptyData();
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.data) return createEmptyData();
+        return { ...createEmptyData(), ...parsed.data };
+      } catch (_error) {
+        return createEmptyData();
+      }
+    }
+
+    function saveCache() {
+      localStorage.setItem(STORAGE_KEYS.cache, JSON.stringify({ ts: Date.now(), data: state.data }));
+    }
+
+    function createEmptyData() {
+      return {
+        hn: { stories: [], comments: [], fetchedAt: null, errors: [] },
+        reddit: { posts: [], comments: [], fetchedAt: null, errors: [] },
+        youtube: { videos: [], fetchedAt: null, errors: [] }
+      };
+    }
+
+    function structuredClone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function listFromTextarea(value) {
+      return value.split("\n").map((item) => item.trim()).filter(Boolean);
+    }
+
+    function setFormFromConfig() {
+      el.ytKey.value = state.config.youtubeApiKey || "";
+      el.proxyEnabled.checked = Boolean(state.config.redditProxyEnabled);
+      el.proxyUrl.value = state.config.redditProxyUrl || DEFAULT_CONFIG.redditProxyUrl;
+      el.hnQueries.value = state.config.hnQueries.join("\n");
+      el.redditQueries.value = state.config.redditQueries.join("\n");
+      el.redditSubs.value = state.config.redditSubs.join("\n");
+      el.ytQueries.value = state.config.ytQueries.join("\n");
+    }
+
+    function pullFormIntoConfig() {
+      state.config = {
+        youtubeApiKey: el.ytKey.value.trim(),
+        redditProxyEnabled: el.proxyEnabled.checked,
+        redditProxyUrl: el.proxyUrl.value.trim() || DEFAULT_CONFIG.redditProxyUrl,
+        hnQueries: listFromTextarea(el.hnQueries.value),
+        redditQueries: listFromTextarea(el.redditQueries.value),
+        redditSubs: listFromTextarea(el.redditSubs.value),
+        ytQueries: listFromTextarea(el.ytQueries.value)
+      };
+      saveConfig();
+    }
+
+    function clearCache() {
+      state.data = createEmptyData();
+      localStorage.removeItem(STORAGE_KEYS.cache);
+      renderAll();
+      setGlobalStatus("Cache cleared.", "success");
+    }
+
+    function setGlobalStatus(message, tone = "neutral") {
+      el.globalStatus.textContent = "Status: " + message;
+      el.globalStatus.className = "status-pill";
+      if (tone === "success") el.globalStatus.classList.add("is-success");
+      if (tone === "warning") el.globalStatus.classList.add("is-warning");
+      if (tone === "error") el.globalStatus.classList.add("is-error");
+    }
+
+    function setSourceStatus(source, status, message) {
+      state.statuses[source] = { status, message };
+      renderStatuses();
+    }
+
+    function renderStatuses() {
+      el.sourceStatuses.innerHTML = ["hn", "reddit", "youtube"].map((source) => {
+        const entry = state.statuses[source];
+        const cls = entry.status === "done" ? "is-success" : entry.status === "error" ? "is-error" : entry.status === "loading" ? "is-warning" : "";
+        return '<div class="status-pill ' + cls + '">' + source.toUpperCase() + ": " + escapeHtml(entry.message) + "</div>";
+      }).join("");
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat().format(Number(value || 0));
+    }
+
+    function formatDate(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return "not fetched";
+      const diff = Date.now() - ts;
+      if (diff < 60 * 1000) return "just now";
+      if (diff < 60 * 60 * 1000) return Math.round(diff / (60 * 1000)) + " min ago";
+      if (diff < 24 * 60 * 60 * 1000) return Math.round(diff / (60 * 60 * 1000)) + " hr ago";
+      return Math.round(diff / (24 * 60 * 60 * 1000)) + " d ago";
+    }
+
+    function metricRow(label, value) {
+      return '<div class="metric"><div class="metric-label">' + escapeHtml(label) + '</div><div class="metric-value">' + escapeHtml(value) + "</div></div>";
+    }
+
+    function renderMetrics() {
+      const hn = summarizeHN();
+      const reddit = summarizeReddit();
+      const youtube = summarizeYouTube();
+
+      el.hnMetrics.innerHTML = [
+        metricRow("Threads", formatNumber(hn.threadCount)),
+        metricRow("Points", formatNumber(hn.totalPoints)),
+        metricRow("Comments", formatNumber(hn.totalComments)),
+        metricRow("Comment Mentions", formatNumber(hn.commentMentions))
+      ].join("");
+
+      el.redditMetrics.innerHTML = [
+        metricRow("Posts", formatNumber(reddit.postCount)),
+        metricRow("Score", formatNumber(reddit.totalScore)),
+        metricRow("Comments", formatNumber(reddit.totalComments)),
+        metricRow("Top Subs", reddit.breakdown || "—")
+      ].join("");
+
+      el.youtubeMetrics.innerHTML = [
+        metricRow("Videos", formatNumber(youtube.videoCount)),
+        metricRow("Views", formatNumber(youtube.totalViews)),
+        metricRow("Likes", formatNumber(youtube.totalLikes)),
+        metricRow("Comments", formatNumber(youtube.totalComments))
+      ].join("");
+
+      el.hnLast.textContent = timeAgo(state.data.hn.fetchedAt);
+      el.redditLast.textContent = timeAgo(state.data.reddit.fetchedAt);
+      el.youtubeLast.textContent = state.config.youtubeApiKey ? timeAgo(state.data.youtube.fetchedAt) : "API key needed";
+    }
+
+    function summarizeHN() {
+      const stories = state.data.hn.stories;
+      const comments = state.data.hn.comments;
+      return {
+        threadCount: stories.length,
+        totalPoints: stories.reduce((sum, item) => sum + Number(item.points || 0), 0),
+        totalComments: stories.reduce((sum, item) => sum + Number(item.num_comments || item.commentCount || 0), 0),
+        commentMentions: comments.length
+      };
+    }
+
+    function summarizeReddit() {
+      const posts = state.data.reddit.posts;
+      const counts = {};
+      posts.forEach((post) => {
+        counts[post.subreddit] = (counts[post.subreddit] || 0) + 1;
+      });
+      const breakdown = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([sub, count]) => sub + " (" + count + ")")
+        .join(", ");
+
+      return {
+        postCount: posts.length,
+        totalScore: posts.reduce((sum, item) => sum + Number(item.score || 0), 0),
+        totalComments: posts.reduce((sum, item) => sum + Number(item.num_comments || 0), 0),
+        breakdown
+      };
+    }
+
+    function summarizeYouTube() {
+      const videos = state.data.youtube.videos;
+      return {
+        videoCount: videos.length,
+        totalViews: videos.reduce((sum, item) => sum + Number(item.views || 0), 0),
+        totalLikes: videos.reduce((sum, item) => sum + Number(item.likes || 0), 0),
+        totalComments: videos.reduce((sum, item) => sum + Number(item.comments || 0), 0)
+      };
+    }
+
+    function weekStart(dateInput) {
+      const d = new Date(dateInput);
+      const copy = new Date(d);
+      copy.setHours(0, 0, 0, 0);
+      const day = copy.getDay();
+      const offset = (day + 6) % 7;
+      copy.setDate(copy.getDate() - offset);
+      return copy;
+    }
+
+    function weekKey(dateInput) {
+      return weekStart(dateInput).toISOString().slice(0, 10);
+    }
+
+    function eachWeek(start, end) {
+      const current = weekStart(start);
+      const final = weekStart(end);
+      const result = [];
+      while (current <= final) {
+        result.push(current.toISOString().slice(0, 10));
+        current.setDate(current.getDate() + 7);
+      }
+      return result;
+    }
+
+    function buildTimeline() {
+      const labels = eachWeek("2025-07-01T00:00:00Z", new Date());
+      const empty = Object.fromEntries(labels.map((key) => [key, 0]));
+      const hnPoints = { ...empty };
+      const redditScore = { ...empty };
+      const ytViews = { ...empty };
+      const mentions = { ...empty };
+
+      state.data.hn.stories.forEach((item) => {
+        const key = weekKey(item.created_at);
+        if (key in hnPoints) hnPoints[key] += Number(item.points || 0);
+        if (key in mentions) mentions[key] += 1;
+      });
+      state.data.hn.comments.forEach((item) => {
+        const key = weekKey(item.created_at);
+        if (key in mentions) mentions[key] += 1;
+      });
+      state.data.reddit.posts.forEach((item) => {
+        const key = weekKey(item.created_at);
+        if (key in redditScore) redditScore[key] += Number(item.score || 0);
+        if (key in mentions) mentions[key] += 1;
+      });
+      state.data.reddit.comments.forEach((item) => {
+        const key = weekKey(item.created_at);
+        if (key in mentions) mentions[key] += 1;
+      });
+      state.data.youtube.videos.forEach((item) => {
+        const key = weekKey(item.publishedAt);
+        if (key in ytViews) ytViews[key] += Number(item.views || 0);
+        if (key in mentions) mentions[key] += 1;
+      });
+
+      return {
+        labels,
+        hnPoints: labels.map((key) => hnPoints[key]),
+        redditScore: labels.map((key) => redditScore[key]),
+        ytViews: labels.map((key) => ytViews[key]),
+        mentions: labels.map((key) => mentions[key])
+      };
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById("timeline-chart");
+      const timeline = buildTimeline();
+      if (state.chart) state.chart.destroy();
+      state.chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: timeline.labels,
+          datasets: [
+            {
+              type: "bar",
+              label: "HN points",
+              data: timeline.hnPoints,
+              backgroundColor: "rgba(255, 102, 0, 0.72)",
+              borderColor: "#ff6600",
+              yAxisID: "y",
+              order: 3
+            },
+            {
+              type: "bar",
+              label: "Reddit score",
+              data: timeline.redditScore,
+              backgroundColor: "rgba(255, 69, 0, 0.52)",
+              borderColor: "#ff4500",
+              yAxisID: "y",
+              order: 3
+            },
+            {
+              type: "line",
+              label: "YouTube views",
+              data: timeline.ytViews,
+              borderColor: "#ff0000",
+              backgroundColor: "rgba(255, 0, 0, 0.16)",
+              tension: 0.28,
+              yAxisID: "y1",
+              pointRadius: 2,
+              pointHoverRadius: 4,
+              order: 1
+            },
+            {
+              type: "line",
+              label: "Total mentions",
+              data: timeline.mentions,
+              borderColor: "#00d4aa",
+              backgroundColor: "rgba(0, 212, 170, 0.2)",
+              tension: 0.25,
+              pointRadius: 2,
+              pointHoverRadius: 4,
+              yAxisID: "y",
+              order: 2
+            }
+          ]
+        },
+        options: {
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          scales: {
+            x: {
+              ticks: {
+                color: "#a5a29c",
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 14
+              },
+              grid: { color: "rgba(255,255,255,0.04)" }
+            },
+            y: {
+              position: "left",
+              ticks: { color: "#a5a29c" },
+              grid: { color: "rgba(255,255,255,0.06)" }
+            },
+            y1: {
+              position: "right",
+              ticks: { color: "#a5a29c" },
+              grid: { drawOnChartArea: false }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: "#f4f2eb", usePointStyle: true }
+            },
+            tooltip: {
+              callbacks: {
+                label(context) {
+                  return context.dataset.label + ": " + formatNumber(context.parsed.y);
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function compareValues(a, b, dir) {
+      if (typeof a === "string" && typeof b === "string") {
+        return dir === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+      }
+      return dir === "asc" ? Number(a || 0) - Number(b || 0) : Number(b || 0) - Number(a || 0);
+    }
+
+    function tableRowsForTab(tab) {
+      if (tab === "hn") {
+        return state.data.hn.stories.map((item) => ({
+          date: item.created_at,
+          title: item.title || item.story_title || "Untitled",
+          points: Number(item.points || 0),
+          comments: Number(item.num_comments || item.commentCount || 0),
+          author: item.author || "—",
+          url: item.url || ("https://news.ycombinator.com/item?id=" + item.objectID)
+        }));
+      }
+      if (tab === "reddit") {
+        return state.data.reddit.posts.map((item) => ({
+          date: item.created_at,
+          title: item.title || "Untitled",
+          subreddit: item.subreddit || "—",
+          score: Number(item.score || 0),
+          comments: Number(item.num_comments || 0),
+          author: item.author || "—",
+          url: item.permalink ? "https://www.reddit.com" + item.permalink : item.url
+        }));
+      }
+      return state.data.youtube.videos.map((item) => ({
+        published: item.publishedAt,
+        title: item.title || "Untitled",
+        channel: item.channelTitle || "—",
+        views: Number(item.views || 0),
+        likes: Number(item.likes || 0),
+        comments: Number(item.comments || 0),
+        url: item.url
+      }));
+    }
+
+    function rowTier(row, tab) {
+      const value = tab === "hn" ? row.points : tab === "reddit" ? row.score : row.views;
+      if (value >= (tab === "youtube" ? 50000 : 200)) return "row-high";
+      if (value >= (tab === "youtube" ? 5000 : 40)) return "row-medium";
+      return "row-low";
+    }
+
+    function renderTabs() {
+      const defs = [
+        { key: "hn", label: "HN Threads" },
+        { key: "reddit", label: "Reddit Posts" },
+        { key: "youtube", label: "YT Videos" }
+      ];
+      el.tabs.innerHTML = defs.map((def) => (
+        '<button class="tab ' + (def.key === state.activeTab ? "active" : "") + '" data-tab="' + def.key + '">' + def.label + "</button>"
+      )).join("");
+      el.tabs.querySelectorAll("button[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.activeTab = button.dataset.tab;
+          renderTable();
+          renderTabs();
+        });
+      });
+    }
+
+    function renderTable() {
+      const tab = state.activeTab;
+      const rows = tableRowsForTab(tab);
+      const sortState = state.sort[tab];
+      const sorted = rows.slice().sort((a, b) => compareValues(a[sortState.key], b[sortState.key], sortState.dir));
+      const columns = tab === "hn"
+        ? [
+            { key: "date", label: "Date", render: (row) => formatDate(row.date) },
+            { key: "title", label: "Title", render: (row) => row.title, cls: "title-cell" },
+            { key: "points", label: "Points", render: (row) => formatNumber(row.points) },
+            { key: "comments", label: "Comments", render: (row) => formatNumber(row.comments) },
+            { key: "author", label: "Author", render: (row) => row.author }
+          ]
+        : tab === "reddit"
+          ? [
+              { key: "date", label: "Date", render: (row) => formatDate(row.date) },
+              { key: "title", label: "Title", render: (row) => row.title, cls: "title-cell" },
+              { key: "subreddit", label: "Subreddit", render: (row) => row.subreddit },
+              { key: "score", label: "Score", render: (row) => formatNumber(row.score) },
+              { key: "comments", label: "Comments", render: (row) => formatNumber(row.comments) },
+              { key: "author", label: "Author", render: (row) => row.author }
+            ]
+          : [
+              { key: "published", label: "Published", render: (row) => formatDate(row.published) },
+              { key: "title", label: "Title", render: (row) => row.title, cls: "title-cell" },
+              { key: "channel", label: "Channel", render: (row) => row.channel },
+              { key: "views", label: "Views", render: (row) => formatNumber(row.views) },
+              { key: "likes", label: "Likes", render: (row) => formatNumber(row.likes) },
+              { key: "comments", label: "Comments", render: (row) => formatNumber(row.comments) }
+            ];
+
+      if (!sorted.length) {
+        el.tableContainer.innerHTML = '<div class="empty-state">No ' + (tab === "youtube" ? "videos" : "results") + ' loaded yet for this tab.</div>';
+        el.tableSummary.textContent = "0 results";
+        return;
+      }
+
+      el.tableSummary.textContent = formatNumber(sorted.length) + " results";
+      el.tableContainer.innerHTML = [
+        '<div class="table-wrap"><table><thead><tr>',
+        columns.map((column) => {
+          const active = sortState.key === column.key ? " " + (sortState.dir === "asc" ? "↑" : "↓") : "";
+          return '<th data-sort="' + column.key + '">' + column.label + active + "</th>";
+        }).join(""),
+        "</tr></thead><tbody>",
+        sorted.map((row) => (
+          '<tr class="' + rowTier(row, tab) + '" data-url="' + escapeAttribute(row.url || "#") + '">' +
+            columns.map((column) => '<td class="' + (column.cls || "") + '">' + escapeHtml(column.render(row)) + "</td>").join("") +
+          "</tr>"
+        )).join(""),
+        "</tbody></table></div>"
+      ].join("");
+
+      el.tableContainer.querySelectorAll("th[data-sort]").forEach((th) => {
+        th.addEventListener("click", () => {
+          const key = th.dataset.sort;
+          if (state.sort[tab].key === key) {
+            state.sort[tab].dir = state.sort[tab].dir === "asc" ? "desc" : "asc";
+          } else {
+            state.sort[tab] = { key, dir: key === "title" || key === "author" || key === "subreddit" || key === "channel" ? "asc" : "desc" };
+          }
+          renderTable();
+        });
+      });
+
+      el.tableContainer.querySelectorAll("tbody tr").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const url = tr.dataset.url;
+          if (url && url !== "#") window.open(url, "_blank", "noopener,noreferrer");
+        });
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function escapeAttribute(value) {
+      return String(value).replaceAll('"', "&quot;");
+    }
+
+    function saveAndRender(source, payload) {
+      state.data[source] = { ...state.data[source], ...payload, fetchedAt: Date.now() };
+      saveCache();
+      renderAll();
+    }
+
+    async function importRedditJsonFile(file) {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || !Array.isArray(parsed.posts) || !Array.isArray(parsed.comments)) {
+        throw new Error("Invalid Reddit JSON file.");
+      }
+      saveAndRender("reddit", {
+        posts: parsed.posts,
+        comments: parsed.comments,
+        errors: parsed.errors || []
+      });
+      setSourceStatus("reddit", "done", parsed.posts.length + " posts from local JSON");
+      setGlobalStatus("Loaded Reddit JSON.", "success");
+    }
+
+    function isRelevantText(text) {
+      const lower = String(text || "").toLowerCase();
+      return ["ralph", "wiggum", "huntley", "ghuntley"].some((token) => lower.includes(token));
+    }
+
+    function normalizedSubredditList() {
+      return new Set((state.config.redditSubs || []).map((item) => String(item || "").trim().toLowerCase()).filter(Boolean));
+    }
+
+    function isAllowedRedditSubreddit(subreddit) {
+      return normalizedSubredditList().has(String(subreddit || "").trim().toLowerCase());
+    }
+
+    function isRelevantRedditText(text) {
+      const lower = String(text || "").toLowerCase();
+      const hasDirectPhrase =
+        lower.includes("ralph wiggum") ||
+        lower.includes("ralph loop") ||
+        lower.includes("ralph wiggum loop");
+      const hasAuthorSignal =
+        lower.includes("ghuntley") ||
+        lower.includes("geoffrey huntley");
+      const hasRalph = lower.includes("ralph");
+      const hasContext = [
+        "loop",
+        "claude",
+        "claude code",
+        "agent",
+        "agentic",
+        "coding",
+        "while true",
+        "wiggum",
+        "ghuntley",
+        "huntley"
+      ].some((term) => lower.includes(term));
+
+      return hasDirectPhrase || hasAuthorSignal || (hasRalph && hasContext);
+    }
+
+    function shouldExcludeRedditItem(payload) {
+      const id = String(payload?.id || "");
+      if (REDDIT_EXCLUDED_IDS.has(id)) return true;
+      const permalink = String(payload?.permalink || "");
+      if (permalink.includes("/comments/1q2c0ne/")) return true;
+      return false;
+    }
+
+    function dedupeBy(items, keyFn) {
+      const seen = new Map();
+      items.forEach((item) => seen.set(keyFn(item), item));
+      return Array.from(seen.values());
+    }
+
+    function countChildren(children) {
+      return (children || []).reduce((sum, child) => sum + 1 + countChildren(child.children), 0);
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("HTTP " + response.status + " for " + url);
+      return response.json();
+    }
+
+    async function fetchJsonWithFallback(urls) {
+      const failures = [];
+      for (const url of urls) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("HTTP " + response.status + " for " + url);
+          const text = await response.text();
+          if (!text.trim()) throw new Error("Empty response for " + url);
+          try {
+            return JSON.parse(text);
+          } catch (_error) {
+            const wrapped = JSON.parse(text);
+            if (wrapped && typeof wrapped.contents === "string") {
+              return JSON.parse(wrapped.contents);
+            }
+            throw new Error("Invalid JSON payload for " + url);
+          }
+        } catch (error) {
+          failures.push(error.message);
+        }
+      }
+      throw new Error(failures.join(" | "));
+    }
+
+    async function fetchHN() {
+      const base = "https://hn.algolia.com/api/v1/search";
+      const storyMap = new Map();
+      const commentMap = new Map();
+      const errors = [];
+
+      for (const query of state.config.hnQueries) {
+        try {
+          const stories = await fetchJson(base + "?query=" + encodeURIComponent(query) + "&tags=story&hitsPerPage=50");
+          (stories.hits || []).forEach((hit) => {
+            if (isRelevantText(hit.title || hit.story_title || "")) storyMap.set(hit.objectID, hit);
+          });
+        } catch (error) {
+          errors.push("story query '" + query + "': " + error.message);
+        }
+
+        try {
+          const comments = await fetchJson(base + "?query=" + encodeURIComponent(query) + "&tags=comment&hitsPerPage=100");
+          (comments.hits || []).forEach((hit) => {
+            const text = [hit.comment_text, hit.story_title, hit.story_text].join(" ");
+            if (isRelevantText(text)) commentMap.set(hit.objectID, hit);
+          });
+        } catch (error) {
+          errors.push("comment query '" + query + "': " + error.message);
+        }
+      }
+
+      const idsToHydrate = dedupeBy([...storyMap.keys(), ...HN_KNOWN_IDS], (item) => item);
+      const itemResults = await Promise.allSettled(idsToHydrate.map((id) => fetchJson("https://hn.algolia.com/api/v1/items/" + id)));
+      itemResults.forEach((result) => {
+        if (result.status !== "fulfilled") return;
+        const item = result.value;
+        if (!item || !item.id || !item.title) return;
+        storyMap.set(String(item.id), {
+          ...storyMap.get(String(item.id)),
+          objectID: String(item.id),
+          title: item.title,
+          author: item.author,
+          points: Number(item.points || storyMap.get(String(item.id))?.points || 0),
+          num_comments: Number(item.children ? countChildren(item.children) : storyMap.get(String(item.id))?.num_comments || 0),
+          commentCount: Number(item.children ? countChildren(item.children) : 0),
+          created_at: item.created_at,
+          url: item.url
+        });
+      });
+
+      const stories = Array.from(storyMap.values())
+        .filter((item) => isRelevantText(item.title || ""))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const comments = Array.from(commentMap.values())
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      return { stories, comments, errors };
+    }
+
+    async function fetchReddit() {
+      if (window.location.protocol === "file:") {
+        throw new Error("Reddit live fetch is disabled under file://. Use Load Reddit JSON or serve the page from localhost.");
+      }
+      const posts = new Map();
+      const comments = new Map();
+      const errors = [];
+      const useLocalRedditApi = window.location.origin.startsWith("http://localhost:8000") || window.location.origin.startsWith("http://127.0.0.1:8000");
+      const useProxy = state.config.redditProxyEnabled && !useLocalRedditApi;
+      const proxyCandidates = [state.config.redditProxyUrl, ...REDDIT_PROXY_FALLBACKS].filter(Boolean);
+
+      async function queryReddit(url, label, subreddit, query) {
+        try {
+          const data = useLocalRedditApi
+            ? await fetchJson("/api/reddit-search?subreddit=" + encodeURIComponent(subreddit) + "&q=" + encodeURIComponent(query) + "&limit=100")
+            : useProxy
+              ? await fetchJsonWithFallback(proxyCandidates.map((proxyUrl) => proxyUrl + encodeURIComponent(url + (url.includes("?") ? "&" : "?") + "raw_json=1")))
+              : await fetchJson(url + (url.includes("?") ? "&" : "?") + "raw_json=1");
+          const items = data?.data?.children || [];
+          items.forEach((entry) => {
+            const payload = entry.data || {};
+            if (shouldExcludeRedditItem(payload)) return;
+            if (!isAllowedRedditSubreddit(payload.subreddit)) return;
+            const combined = [payload.title, payload.selftext, payload.body].filter(Boolean).join(" ");
+            if (!isRelevantRedditText(combined)) return;
+            if (entry.kind === "t1") {
+              comments.set(payload.id, {
+                id: payload.id,
+                created_at: new Date(Number(payload.created_utc || 0) * 1000).toISOString(),
+                body: payload.body || "",
+                score: Number(payload.score || 0),
+                permalink: payload.permalink || "",
+                author: payload.author || "—",
+                subreddit: payload.subreddit || "—"
+              });
+            } else {
+              posts.set(payload.id, {
+                id: payload.id,
+                created_at: new Date(Number(payload.created_utc || 0) * 1000).toISOString(),
+                title: payload.title || "",
+                subreddit: payload.subreddit || "—",
+                score: Number(payload.score || 0),
+                num_comments: Number(payload.num_comments || 0),
+                permalink: payload.permalink || "",
+                url: payload.url || "",
+                author: payload.author || "—"
+              });
+            }
+          });
+        } catch (error) {
+          const message = error instanceof TypeError && !useProxy
+            ? "Reddit requires a CORS proxy in browser. Enable in config."
+            : "No working Reddit browser path. Check proxy URL in config. " + error.message;
+          errors.push(label + ": " + message);
+        }
+      }
+
+      for (const sub of state.config.redditSubs) {
+        for (const query of state.config.redditQueries) {
+          await queryReddit(
+            "https://www.reddit.com/r/" + encodeURIComponent(sub) + "/search.json?q=" + encodeURIComponent(query) + "&restrict_sr=1&sort=new&limit=100",
+            sub + " '" + query + "'",
+            sub,
+            query
+          );
+        }
+      }
+
+      return {
+        posts: Array.from(posts.values()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+        comments: Array.from(comments.values()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+        errors
+      };
+    }
+
+    async function fetchYouTube() {
+      const apiKey = state.config.youtubeApiKey;
+      if (!apiKey) throw new Error("YouTube API key missing. Add one in Config.");
+      const videoMap = new Map();
+      const errors = [];
+      const base = "https://www.googleapis.com/youtube/v3";
+
+      for (const query of state.config.ytQueries) {
+        try {
+          const url = base + "/search?part=snippet&q=" + encodeURIComponent(query) + "&type=video&order=date&maxResults=50&key=" + encodeURIComponent(apiKey);
+          const data = await fetchJson(url);
+          if (data.error) throw new Error(data.error.message);
+          (data.items || []).forEach((item) => {
+            const videoId = item.id?.videoId;
+            const snippet = item.snippet || {};
+            const combined = [snippet.title, snippet.description, snippet.channelTitle].join(" ");
+            if (!videoId || !isRelevantText(combined)) return;
+            videoMap.set(videoId, {
+              id: videoId,
+              title: snippet.title || "",
+              publishedAt: snippet.publishedAt,
+              channelTitle: snippet.channelTitle || "",
+              description: snippet.description || "",
+              url: "https://www.youtube.com/watch?v=" + videoId,
+              views: 0,
+              likes: 0,
+              comments: 0
+            });
+          });
+        } catch (error) {
+          errors.push("query '" + query + "': " + error.message);
+        }
+      }
+
+      const ids = Array.from(videoMap.keys());
+      for (let index = 0; index < ids.length; index += 50) {
+        const batch = ids.slice(index, index + 50).join(",");
+        try {
+          const data = await fetchJson(base + "/videos?part=statistics,snippet&id=" + batch + "&key=" + encodeURIComponent(apiKey));
+          (data.items || []).forEach((item) => {
+            const existing = videoMap.get(item.id);
+            if (!existing) return;
+            existing.views = Number(item.statistics?.viewCount || 0);
+            existing.likes = Number(item.statistics?.likeCount || 0);
+            existing.comments = Number(item.statistics?.commentCount || 0);
+          });
+        } catch (error) {
+          errors.push("stats batch starting " + index + ": " + error.message);
+        }
+      }
+
+      return {
+        videos: Array.from(videoMap.values()).sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)),
+        errors
+      };
+    }
+
+    async function runSourceFetch(source) {
+      const buttonMap = { hn: el.fetchHN, reddit: el.fetchReddit, youtube: el.fetchYouTube };
+      buttonMap[source].disabled = true;
+      setSourceStatus(source, "loading", "loading...");
+      setGlobalStatus("Fetching " + source.toUpperCase() + "...", "warning");
+
+      try {
+        if (source === "hn") {
+          const payload = await fetchHN();
+          saveAndRender("hn", payload);
+          const tail = payload.errors.length ? " with " + payload.errors.length + " partial errors" : "";
+          setSourceStatus("hn", payload.errors.length ? "error" : "done", payload.stories.length + " threads" + tail);
+        }
+        if (source === "reddit") {
+          const payload = await fetchReddit();
+          saveAndRender("reddit", payload);
+          const tone = payload.errors.length ? "error" : "done";
+          const message = payload.posts.length + " posts" + (payload.errors.length ? " with proxy/API issues" : "");
+          setSourceStatus("reddit", tone, message);
+        }
+        if (source === "youtube") {
+          const payload = await fetchYouTube();
+          saveAndRender("youtube", payload);
+          const tone = payload.errors.length ? "error" : "done";
+          const message = payload.videos.length + " videos" + (payload.errors.length ? " with " + payload.errors.length + " partial errors" : "");
+          setSourceStatus("youtube", tone, message);
+        }
+
+        const allErrors = []
+          .concat(state.data.hn.errors || [])
+          .concat(state.data.reddit.errors || [])
+          .concat(state.data.youtube.errors || []);
+        setGlobalStatus(allErrors.length ? "Finished with partial errors." : "Fetch complete.", allErrors.length ? "warning" : "success");
+      } catch (error) {
+        setSourceStatus(source, "error", error.message);
+        setGlobalStatus(source.toUpperCase() + " failed: " + error.message, "error");
+      } finally {
+        buttonMap[source].disabled = false;
+      }
+    }
+
+    async function fetchAll() {
+      el.fetchAll.disabled = true;
+      const tasks = ["hn", "reddit"];
+      if (state.config.youtubeApiKey) tasks.push("youtube");
+      else setSourceStatus("youtube", "idle", "API key not set");
+      await Promise.allSettled(tasks.map((source) => runSourceFetch(source)));
+      el.fetchAll.disabled = false;
+    }
+
+    function flattenForExport() {
+      return {
+        hnStories: state.data.hn.stories,
+        hnComments: state.data.hn.comments,
+        redditPosts: state.data.reddit.posts,
+        redditComments: state.data.reddit.comments,
+        youtubeVideos: state.data.youtube.videos
+      };
+    }
+
+    function exportJson() {
+      downloadBlob("ralph-loop-tracker-data.json", JSON.stringify({
+        exportedAt: new Date().toISOString(),
+        config: { ...state.config, youtubeApiKey: state.config.youtubeApiKey ? "[stored locally]" : "" },
+        data: flattenForExport()
+      }, null, 2), "application/json");
+    }
+
+    function exportCsv() {
+      const rows = [];
+      state.data.hn.stories.forEach((item) => rows.push({
+        platform: "Hacker News",
+        date: item.created_at,
+        title: item.title || "",
+        author: item.author || "",
+        category: "story",
+        score: Number(item.points || 0),
+        comments: Number(item.num_comments || item.commentCount || 0),
+        meta: item.url || ("https://news.ycombinator.com/item?id=" + item.objectID)
+      }));
+      state.data.reddit.posts.forEach((item) => rows.push({
+        platform: "Reddit",
+        date: item.created_at,
+        title: item.title || "",
+        author: item.author || "",
+        category: item.subreddit || "",
+        score: Number(item.score || 0),
+        comments: Number(item.num_comments || 0),
+        meta: item.permalink ? "https://www.reddit.com" + item.permalink : item.url || ""
+      }));
+      state.data.youtube.videos.forEach((item) => rows.push({
+        platform: "YouTube",
+        date: item.publishedAt,
+        title: item.title || "",
+        author: item.channelTitle || "",
+        category: "video",
+        score: Number(item.views || 0),
+        comments: Number(item.comments || 0),
+        meta: item.url || ""
+      }));
+
+      const headers = ["platform", "date", "title", "author", "category", "score", "comments", "meta"];
+      const csv = [
+        headers.join(","),
+        ...rows.map((row) => headers.map((key) => csvCell(row[key])).join(","))
+      ].join("\n");
+      downloadBlob("ralph-loop-tracker-data.csv", csv, "text/csv;charset=utf-8");
+    }
+
+    function csvCell(value) {
+      const text = String(value ?? "");
+      return '"' + text.replaceAll('"', '""') + '"';
+    }
+
+    function downloadBlob(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function renderAll() {
+      renderStatuses();
+      renderMetrics();
+      renderTabs();
+      renderTable();
+      renderChart();
+    }
+
+    el.fetchAll.addEventListener("click", fetchAll);
+    el.fetchHN.addEventListener("click", () => runSourceFetch("hn"));
+    el.fetchReddit.addEventListener("click", () => runSourceFetch("reddit"));
+    el.importReddit.addEventListener("click", () => el.redditFileInput.click());
+    el.redditFileInput.addEventListener("change", async (event) => {
+      const [file] = event.target.files || [];
+      if (!file) return;
+      try {
+        await importRedditJsonFile(file);
+      } catch (error) {
+        setSourceStatus("reddit", "error", error.message);
+        setGlobalStatus("Reddit JSON import failed: " + error.message, "error");
+      } finally {
+        el.redditFileInput.value = "";
+      }
+    });
+    el.fetchYouTube.addEventListener("click", () => runSourceFetch("youtube"));
+    el.clearCache.addEventListener("click", clearCache);
+    el.exportCsv.addEventListener("click", exportCsv);
+    el.exportJson.addEventListener("click", exportJson);
+    el.saveConfig.addEventListener("click", () => {
+      pullFormIntoConfig();
+      renderAll();
+      setGlobalStatus("Config saved locally.", "success");
+    });
+    el.resetConfig.addEventListener("click", () => {
+      state.config = structuredClone(DEFAULT_CONFIG);
+      saveConfig();
+      setFormFromConfig();
+      renderAll();
+      setGlobalStatus("Config reset to defaults.", "success");
+    });
+
+    if (state.data.hn.fetchedAt && Date.now() - Number(state.data.hn.fetchedAt) > CACHE_TTL_MS) {
+      setGlobalStatus("Cached data is older than 30 minutes.", "warning");
+    } else {
+      setGlobalStatus("Ready.", "neutral");
+    }
+
+    setFormFromConfig();
+    renderAll();
+  </script>
+</body>
+</html>
