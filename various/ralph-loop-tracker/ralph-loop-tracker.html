@@ -567,10 +567,11 @@
     const REDDIT_EXCLUDED_IDS = new Set([
       "1q2c0ne"
     ]);
+    const BUNDLED_REDDIT_JSON_PATH = "./ralph-reddit-cache.json";
     const DEFAULT_CONFIG = {
       youtubeApiKey: "",
       redditProxyEnabled: true,
-      redditProxyUrl: "/api/reddit-search",
+      redditProxyUrl: "https://corsproxy.io/?url=",
       hnQueries: [
         "ralph wiggum loop",
         "ralph wiggum claude",
@@ -1170,13 +1171,28 @@
       if (!parsed || !Array.isArray(parsed.posts) || !Array.isArray(parsed.comments)) {
         throw new Error("Invalid Reddit JSON file.");
       }
+      applyRedditPayload(parsed, "posts from JSON");
+    }
+
+    function applyRedditPayload(parsed, sourceLabel) {
+      const posts = (parsed.posts || []).filter((item) => !shouldExcludeRedditItem(item));
+      const comments = (parsed.comments || []).filter((item) => !shouldExcludeRedditItem(item));
       saveAndRender("reddit", {
-        posts: parsed.posts,
-        comments: parsed.comments,
+        posts,
+        comments,
         errors: parsed.errors || []
       });
-      setSourceStatus("reddit", "done", parsed.posts.length + " posts from local JSON");
-      setGlobalStatus("Loaded Reddit JSON.", "success");
+      setSourceStatus("reddit", "done", posts.length + " " + sourceLabel);
+      setGlobalStatus("Loaded Reddit data.", "success");
+    }
+
+    async function loadBundledRedditSnapshot() {
+      const parsed = await fetchJson(BUNDLED_REDDIT_JSON_PATH + "?v=" + Date.now());
+      if (!parsed || !Array.isArray(parsed.posts) || !Array.isArray(parsed.comments)) {
+        throw new Error("Bundled Reddit snapshot is invalid.");
+      }
+      applyRedditPayload(parsed, "posts from bundled snapshot");
+      return parsed;
     }
 
     function isRelevantText(text) {
@@ -1325,11 +1341,16 @@
       if (window.location.protocol === "file:") {
         throw new Error("Reddit live fetch is disabled under file://. Use Load Reddit JSON or serve the page from localhost.");
       }
+      const isLocalServer = window.location.origin.startsWith("http://localhost:8000") || window.location.origin.startsWith("http://127.0.0.1:8000");
+      if (!isLocalServer) {
+        const snapshot = await loadBundledRedditSnapshot();
+        return { posts: snapshot.posts || [], comments: snapshot.comments || [], errors: ["Static hosting cannot live-fetch Reddit; loaded bundled snapshot instead."] };
+      }
       const posts = new Map();
       const comments = new Map();
       const errors = [];
-      const useLocalRedditApi = window.location.origin.startsWith("http://localhost:8000") || window.location.origin.startsWith("http://127.0.0.1:8000");
-      const useProxy = state.config.redditProxyEnabled && !useLocalRedditApi;
+      const useLocalRedditApi = true;
+      const useProxy = false;
       const proxyCandidates = [state.config.redditProxyUrl, ...REDDIT_PROXY_FALLBACKS].filter(Boolean);
 
       async function queryReddit(url, label, subreddit, query) {
