@@ -65,6 +65,32 @@ function isRelevantRedditText(text) {
   return hasDirectPhrase || hasAuthorSignal || (hasRalph && hasContext);
 }
 
+function hasStrongRalphTitle(title) {
+  const lower = String(title || "").toLowerCase();
+  return [
+    "ralph",
+    "wiggum",
+    "bmalph",
+    "microralph",
+    "ralphio",
+    "ralphloop",
+    "ralphy",
+    "chief wiggum",
+    "clancy wiggum",
+    "wiggy"
+  ].some((term) => lower.includes(term));
+}
+
+function countRalphSignals(text) {
+  const lower = String(text || "").toLowerCase();
+  const matches = lower.match(/\bralph\b|\bwiggum\b|\bghuntley\b|geoffrey huntley|\bbmalph\b|\bmicroralph\b|\bralphio\b|\bralphloop\b|\bwiggy\b/g);
+  return matches ? matches.length : 0;
+}
+
+function isPrimaryRalphTopic(title, selftext) {
+  return hasStrongRalphTitle(title);
+}
+
 function isAllowedRedditSubreddit(subreddit) {
   return DEFAULT_CONFIG.redditSubs.map((item) => item.toLowerCase()).includes(String(subreddit || "").toLowerCase());
 }
@@ -74,6 +100,7 @@ function shouldExcludeRedditItem(payload) {
   if (REDDIT_EXCLUDED_IDS.has(id)) return true;
   const permalink = String(payload?.permalink || "");
   if (permalink.includes("/comments/1q2c0ne/")) return true;
+  if (permalink.includes("/comments/1qgksrm/")) return true;
   return false;
 }
 
@@ -87,6 +114,15 @@ async function fetchJson(url) {
     throw new Error(`HTTP ${response.status} for ${url}`);
   }
   return response.json();
+}
+
+async function fetchRedditPostDetails(id) {
+  const data = await fetchJson(`https://www.reddit.com/comments/${encodeURIComponent(id)}.json?raw_json=1`);
+  const post = data?.[0]?.data?.children?.[0]?.data;
+  return {
+    title: post?.title || "",
+    selftext: post?.selftext || ""
+  };
 }
 
 async function fetchReddit() {
@@ -106,12 +142,12 @@ async function fetchReddit() {
       try {
         const data = await fetchJson(url);
         const items = data?.data?.children || [];
-        items.forEach((entry) => {
+        for (const entry of items) {
           const payload = entry.data || {};
-          if (shouldExcludeRedditItem(payload)) return;
-          if (!isAllowedRedditSubreddit(payload.subreddit)) return;
+          if (shouldExcludeRedditItem(payload)) continue;
+          if (!isAllowedRedditSubreddit(payload.subreddit)) continue;
           const combined = [payload.title, payload.selftext, payload.body].filter(Boolean).join(" ");
-          if (!isRelevantRedditText(combined)) return;
+          if (!isRelevantRedditText(combined)) continue;
 
           if (entry.kind === "t1") {
             comments.set(payload.id, {
@@ -124,19 +160,36 @@ async function fetchReddit() {
               subreddit: payload.subreddit || "—"
             });
           } else {
-            posts.set(payload.id, {
+            const basePost = {
               id: payload.id,
               created_at: new Date(Number(payload.created_utc || 0) * 1000).toISOString(),
               title: payload.title || "",
+              selftext: payload.selftext || "",
               subreddit: payload.subreddit || "—",
               score: Number(payload.score || 0),
               num_comments: Number(payload.num_comments || 0),
               permalink: payload.permalink || "",
               url: payload.url || "",
               author: payload.author || "—"
+            };
+
+            let details = { title: basePost.title, selftext: basePost.selftext };
+            if (!hasStrongRalphTitle(basePost.title)) {
+              try {
+                details = await fetchRedditPostDetails(basePost.id);
+              } catch (_error) {
+                details = { title: basePost.title, selftext: basePost.selftext };
+              }
+            }
+
+            if (!isPrimaryRalphTopic(details.title, details.selftext)) continue;
+            posts.set(payload.id, {
+              ...basePost,
+              title: details.title || basePost.title,
+              selftext: details.selftext || basePost.selftext
             });
           }
-        });
+        }
       } catch (error) {
         errors.push(`${sub} '${query}': ${error.message}`);
       }

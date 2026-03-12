@@ -1176,7 +1176,7 @@
     }
 
     function applyRedditPayload(parsed, sourceLabel) {
-      const posts = (parsed.posts || []).filter((item) => !shouldExcludeRedditItem(item));
+      const posts = (parsed.posts || []).filter((item) => !shouldExcludeRedditItem(item) && hasStrongRalphTitle(item.title));
       const comments = (parsed.comments || []).filter((item) => !shouldExcludeRedditItem(item));
       saveAndRender("reddit", {
         posts,
@@ -1235,11 +1235,28 @@
       return hasDirectPhrase || hasAuthorSignal || (hasRalph && hasContext);
     }
 
+    function hasStrongRalphTitle(title) {
+      const lower = String(title || "").toLowerCase();
+      return [
+        "ralph",
+        "wiggum",
+        "bmalph",
+        "microralph",
+        "ralphio",
+        "ralphloop",
+        "ralphy",
+        "chief wiggum",
+        "clancy wiggum",
+        "wiggy"
+      ].some((term) => lower.includes(term));
+    }
+
     function shouldExcludeRedditItem(payload) {
       const id = String(payload?.id || "");
       if (REDDIT_EXCLUDED_IDS.has(id)) return true;
       const permalink = String(payload?.permalink || "");
       if (permalink.includes("/comments/1q2c0ne/")) return true;
+      if (permalink.includes("/comments/1qgksrm/")) return true;
       return false;
     }
 
@@ -1366,6 +1383,7 @@
             const payload = entry.data || {};
             if (shouldExcludeRedditItem(payload)) return;
             if (!isAllowedRedditSubreddit(payload.subreddit)) return;
+            if (entry.kind !== "t1" && !hasStrongRalphTitle(payload.title)) return;
             const combined = [payload.title, payload.selftext, payload.body].filter(Boolean).join(" ");
             if (!isRelevantRedditText(combined)) return;
             if (entry.kind === "t1") {
