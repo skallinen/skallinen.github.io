@@ -20,7 +20,8 @@ const DEFAULT_CONFIG = {
   ]
 };
 const REDDIT_EXCLUDED_IDS = new Set([
-  "1q2c0ne"
+  "1q2c0ne",
+  "1qgksrm"
 ]);
 
 function parseArgs(argv) {
