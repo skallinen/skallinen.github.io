@@ -296,8 +296,10 @@ a:hover {
 }
 
 .hero__logos img {
-  height: 56px;
+  height: 80px;
+  max-height: 80px;
   width: auto;
+  max-width: none;
   filter: brightness(0) invert(1);
 }
 
