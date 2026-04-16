@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>90 Day Film — Shoot Your Story in Helsinki</title>
+  <meta name="description" content="Helsinki's international filmmaker residency program. Commission, create, and premiere a 90-second to 9-minute film in one of Europe's most cinematic cities. A program by DocPoint, HIFF, and the City of Helsinki.">
+  <meta property="og:title" content="90 Day Film — Shoot Your Story in Helsinki">
+  <meta property="og:description" content="Helsinki's international filmmaker residency program. 9 directors. 90 days. 90-second to 9-minute films. €90K production commission.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="site-header" id="site-header">
+    <nav class="nav">
+      <a href="#" class="nav__logo">
+        <span class="nav__logo-icon">90</span>
+        90 Day Film
+      </a>
+      <ul class="nav__links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#jury">Jury</a></li>
+        <li><a href="#benefits">Benefits</a></li>
+        <li><a href="#journey">Your Journey</a></li>
+        <li><a href="#premiere">Premiere</a></li>
+        <li><a href="#apply">Apply</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="#" class="nav__cta" onclick="event.preventDefault(); openApplicationForm();">Apply Now</a></li>
+      </ul>
+      <button class="nav__toggle" aria-label="Toggle menu" onclick="document.querySelector('.nav__links').classList.toggle('nav__links--open')">☰</button>
+    </nav>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero" id="hero">
+    <div class="hero__bg">
+      <img src="images/hero.png" alt="Helsinki waterfront at golden hour" loading="eager">
+      <div class="hero__overlay"></div>
+    </div>
+    <div class="hero__content">
+      <div class="hero__label">🎬 Applications Open Spring 2026</div>
+      <h1 class="hero__title">Shoot Your Story<br>in <em>Helsinki</em></h1>
+      <p class="hero__subtitle">
+        A 90-day filmmaker residency by DocPoint, Helsinki International Film Festival (HIFF), and the City of Helsinki.
+        Nine international filmmakers. Full production support. One extraordinary city. And a fantastic premiere at Finnish Film Affair.
+      </p>
+      <div class="hero__logos">
+        <a href="https://hiff.fi/en/" target="_blank" rel="noopener"><img src="images/logo-hiff.png" alt="HIFF — Helsinki International Film Festival"></a>
+        <a href="https://docpoint.info/" target="_blank" rel="noopener"><img src="images/logo-docpoint.png" alt="DocPoint — Helsinki Documentary Film Festival"></a>
+      </div>
+      <div class="hero__actions">
+        <a href="#" class="btn btn--primary" onclick="event.preventDefault(); openApplicationForm();">Apply Now →</a>
+        <a href="#about" class="btn btn--outline">Learn More</a>
+      </div>
+    </div>
+    <div class="hero__scroll">
+      <div class="hero__scroll-icon">
+        <div class="hero__scroll-dot"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== COUNTDOWN ===== -->
+  <section class="countdown-section" id="countdown">
+    <div class="countdown__glow"></div>
+    <div class="countdown__glow countdown__glow--2"></div>
+    <div class="container">
+      <div class="countdown__header fade-up">
+        <span class="countdown__eyebrow">The Clock Is Ticking</span>
+        <h2 class="countdown__title">90 Days Begin</h2>
+        <p class="countdown__subtitle">June 17, 2026 — The residency launches. Your Helsinki story starts here.</p>
+      </div>
+      <div class="countdown__timer fade-up" id="countdown-timer">
+        <div class="countdown__block">
+          <div class="countdown__digits" id="cd-days">000</div>
+          <div class="countdown__label">Days</div>
+        </div>
+        <div class="countdown__separator">:</div>
+        <div class="countdown__block">
+          <div class="countdown__digits" id="cd-hours">00</div>
+          <div class="countdown__label">Hours</div>
+        </div>
+        <div class="countdown__separator">:</div>
+        <div class="countdown__block">
+          <div class="countdown__digits" id="cd-minutes">00</div>
+          <div class="countdown__label">Minutes</div>
+        </div>
+        <div class="countdown__separator">:</div>
+        <div class="countdown__block">
+          <div class="countdown__digits" id="cd-seconds">00</div>
+          <div class="countdown__label">Seconds</div>
+        </div>
+      </div>
+      <div class="countdown__end-date fade-up">
+        <span>Residency concludes</span>
+        <strong>September 15, 2026</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ANCHOR NAV ===== -->
+  <nav class="anchor-nav" id="anchor-nav">
+    <ul class="anchor-nav__list">
+      <li><a href="#about">About 90 Day Film</a></li>
+      <li><a href="#jury">The Jury</a></li>
+      <li><a href="#benefits">What You Get</a></li>
+      <li><a href="#journey">Your Journey</a></li>
+      <li><a href="#premiere">The Premiere</a></li>
+      <li><a href="#apply">How to Apply</a></li>
+      <li><a href="#media">In the Media</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+
+  <!-- ===== KEY NUMBERS ===== -->
+  <section class="key-numbers fade-up">
+    <div class="container">
+      <div class="key-numbers__grid">
+        <div class="key-number">
+          <div class="key-number__value">9</div>
+          <div class="key-number__label">International filmmakers selected per annual cohort</div>
+        </div>
+        <div class="key-number">
+          <div class="key-number__value">€90K</div>
+          <div class="key-number__label">Production commission per participant</div>
+        </div>
+        <div class="key-number">
+          <div class="key-number__value">90<span style="font-size:1.6rem">s</span>–9<span style="font-size:1.6rem">min</span></div>
+          <div class="key-number__label">Film format — short, powerful, cinematic</div>
+        </div>
+        <div class="key-number">
+          <div class="key-number__value">90</div>
+          <div class="key-number__label">Days to conceive, produce, and premiere your film</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== WHY HELSINKI ===== -->
+  <section class="why-helsinki" id="why-helsinki">
+    <div class="why-helsinki__hero">
+      <img src="images/why-helsinki-sauna.png" alt="Traditional Finnish sauna by the sea in Helsinki" loading="lazy">
+      <div class="why-helsinki__hero-overlay"></div>
+      <div class="why-helsinki__hero-content fade-up">
+        <span class="section__eyebrow" style="color: var(--color-accent);">Our Values</span>
+        <h2 class="why-helsinki__title">Why Film in Helsinki?</h2>
+      </div>
+    </div>
+    <div class="why-helsinki__body">
+      <div class="container">
+        <div class="why-helsinki__values fade-up">
+          <div class="why-helsinki__value">
+            <div class="why-helsinki__value-word">Kiltteys</div>
+            <div class="why-helsinki__value-meaning">Kindness</div>
+          </div>
+          <div class="why-helsinki__value">
+            <div class="why-helsinki__value-word">Rehellisyys</div>
+            <div class="why-helsinki__value-meaning">Honesty</div>
+          </div>
+          <div class="why-helsinki__value">
+            <div class="why-helsinki__value-word">Sisu</div>
+            <div class="why-helsinki__value-meaning">Sisu</div>
+          </div>
+        </div>
+        <div class="why-helsinki__text fade-up">
+          <p>
+            HIFF and DocPoint are two festivals that embody the best of Finnish values: being honest and kind, being bold and brave, and standing up for what's right. These are core values found throughout Finnish culture — the happiest folks in the world nine years running — and you'll find them in every industry connection you make and every crew you build.
+          </p>
+          <p>
+            Helsinki provides a space that encourages collaboration over competition, where crews all speak English, the quality is always high, and everyone will work snow or shine — knowing there will be a warm sauna waiting at the end of the day. The Finnish way.
+          </p>
+          <p class="why-helsinki__cta-text">
+            So why not jump in? If you were given €90K and full production support to turn your feelings about Helsinki into a film of your own making — what would it look like? A noir horror? A historical doc? Something else entirely? <strong>We want to know.</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ABOUT ===== -->
+  <section class="section" id="about">
+    <div class="container">
+      <div class="split">
+        <div class="split__image fade-up">
+          <img src="images/filmmaker.png" alt="Filmmaker shooting in Helsinki">
+        </div>
+        <div class="fade-up">
+          <div class="section__header">
+            <span class="section__eyebrow">About the Program</span>
+            <h2 class="section__title">What is 90 Day Film?</h2>
+            <p class="section__desc">
+              90 Day Film is Helsinki's filmmaker residency program, jointly organised by 
+              <strong>DocPoint</strong> (Helsinki's international documentary film festival) and 
+              <strong>HIFF</strong> (Helsinki International Film Festival), in cooperation with the 
+              <strong>City of Helsinki</strong>.
+            </p>
+          </div>
+          <p class="section__desc" style="margin-bottom: 20px;">
+            Each year, nine international filmmakers — from established directors, producers and showrunners to bold emerging voices — are invited 
+            to spend 90 days in Helsinki. Each receives a <strong>€90,000 production commission</strong>, 
+            a Helsinki-based production crew, equipment, locations, talent, and temporary accommodation.
+          </p>
+          <p class="section__desc">
+            The format is deliberately compact: a <strong>90-second to 9-minute film</strong> designed to be 
+            short enough to complete within the residency window, long enough to constitute a genuine 
+            cinematic statement and a practical introduction to the local industry.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== QUOTE 1 ===== -->
+  <section class="quote-section">
+    <div class="quote-block fade-up">
+      <div class="quote-block__mark">"</div>
+      <p class="quote-block__text">
+        The short film is proof of concept. What we're really commissioning is nine informed opinions about what it means to make work here.
+      </p>
+      <p class="quote-block__attribution">
+        — <strong>Program spokesperson</strong>, DocPoint &amp; HIFF
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== BENEFITS ===== -->
+  <section class="section section--alt" id="benefits">
+    <div class="container">
+      <div class="section__header section__header--center fade-up">
+        <span class="section__eyebrow">What You Get</span>
+        <h2 class="section__title">Everything You Need to Create</h2>
+        <p class="section__desc" style="margin: 0 auto;">
+          90 Day Film provides a complete production infrastructure so you can focus entirely on your creative vision.
+        </p>
+      </div>
+      <div class="benefits-grid">
+        <div class="benefit-card fade-up">
+          <div class="benefit-card__icon">💰</div>
+          <h3 class="benefit-card__title">€90K Production Commission</h3>
+          <p class="benefit-card__desc">A fixed €90,000 production budget per filmmaker. No strings, no pitch competitions — selected filmmakers receive full funding.</p>
+        </div>
+        <div class="benefit-card fade-up">
+          <div class="benefit-card__icon">🎬</div>
+          <h3 class="benefit-card__title">Helsinki Production Crew</h3>
+          <p class="benefit-card__desc">Helsinki provides crew, talent, equipment, and locations — up to a defined programme cap.</p>
+        </div>
+        <div class="benefit-card fade-up">
+          <div class="benefit-card__icon">🏠</div>
+          <h3 class="benefit-card__title">Residency &amp; Accommodation</h3>
+          <p class="benefit-card__desc">Temporary accommodation and residency support in Helsinki for the duration of the program, including visa assistance.</p>
+        </div>
+        <div class="benefit-card fade-up">
+          <div class="benefit-card__icon">🎪</div>
+          <h3 class="benefit-card__title">Festival Premiere</h3>
+          <p class="benefit-card__desc">Your finished film screens as part of Finnish Film Affair, the industry market of Helsinki International Film Festival in September 2026.</p>
+        </div>
+        <div class="benefit-card fade-up">
+          <div class="benefit-card__icon">🌐</div>
+          <h3 class="benefit-card__title">Industry Network</h3>
+          <p class="benefit-card__desc">Build connections with Finland's production ecosystem — local crews, facilities, broadcasters, and distributors.</p>
+        </div>
+        <div class="benefit-card fade-up">
+          <div class="benefit-card__icon">🎯</div>
+          <h3 class="benefit-card__title">Production Incentive Pathway</h3>
+          <p class="benefit-card__desc">A gateway for scaling to larger international productions in Finland, with access to emerging Nordic production incentives.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SPLIT: WHY HELSINKI ===== -->
+  <section class="section">
+    <div class="container">
+      <div class="split split--reverse">
+        <div class="split__image fade-up">
+          <img src="images/production.png" alt="Film production in Helsinki">
+        </div>
+        <div class="fade-up">
+          <div class="section__header">
+            <span class="section__eyebrow">Why Helsinki</span>
+            <h2 class="section__title">A Cinematic City Within 10 km²</h2>
+          </div>
+          <p class="section__desc" style="margin-bottom: 16px;">
+            Helsinki offers an extraordinary concentration of locations within a compact, 
+            walkable city. Art Nouveau architecture, Baltic seascapes, brutalist housing blocks, 
+            boreal forests — all within a 10 km² radius.
+          </p>
+          <p class="section__desc" style="margin-bottom: 16px;">
+            Finland's film industry infrastructure is world-class. Experienced local crews, 
+            cutting-edge post-production facilities, and a culture of trust that makes 
+            collaboration frictionless.
+          </p>
+          <p class="section__desc">
+            The program is explicitly modelled on the city's internationally recognised 
+            <strong>90 Day Finn</strong> initiative — its most successful effort to attract 
+            global talent since 2021.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== JURY PANEL ===== -->
+  <section class="jury" id="jury">
+    <div class="jury__glow"></div>
+    <div class="container">
+      <div class="section__header section__header--center fade-up">
+        <span class="section__eyebrow">The Jury</span>
+        <h2 class="section__title" style="color: #fff;">Guided by Masters of Cinema</h2>
+        <p class="section__desc" style="max-width: 620px; margin: 0 auto;">
+          Our jury selects the filmmakers, mentors them throughout the residency, and joins them at the Helsinki premiere. Three voices that have shaped modern cinema.
+        </p>
+      </div>
+
+      <div class="jury__grid fade-up">
+
+        <div class="jury-card">
+          <div class="jury-card__image">
+            <img src="images/jury-emma-thompson.png" alt="Emma Thompson" loading="lazy">
+            <div class="jury-card__image-border"></div>
+          </div>
+          <div class="jury-card__info">
+            <h3 class="jury-card__name">Emma Thompson</h3>
+            <div class="jury-card__role">Actress, Screenwriter &amp; Producer</div>
+            <p class="jury-card__bio">Academy Award-winning actress and screenwriter. From <em>Howards End</em> to <em>Sense and Sensibility</em>, Thompson brings decades of experience at the intersection of performance and storytelling.</p>
+            <div class="jury-card__credits">
+              <span class="jury-card__credit">🏆 2× Academy Award Winner</span>
+              <span class="jury-card__credit">🎭 BAFTA Fellowship</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="jury-card">
+          <div class="jury-card__image">
+            <img src="images/jury-aki-kaurismaki.png" alt="Aki Kaurismäki" loading="lazy">
+            <div class="jury-card__image-border"></div>
+          </div>
+          <div class="jury-card__info">
+            <h3 class="jury-card__name">Aki Kaurismäki</h3>
+            <div class="jury-card__role">Director &amp; Screenwriter</div>
+            <p class="jury-card__bio">Finland's most internationally acclaimed filmmaker. His deadpan humanism — from <em>The Man Without a Past</em> to <em>Fallen Leaves</em> — defines a singular cinematic voice and an unmatched connection to Helsinki.</p>
+            <div class="jury-card__credits">
+              <span class="jury-card__credit">🏆 Cannes Grand Prix</span>
+              <span class="jury-card__credit">🎬 Cannes Jury Prize</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="jury-card">
+          <div class="jury-card__image">
+            <img src="images/jury-glen-close.png" alt="Glenn Close" loading="lazy">
+            <div class="jury-card__image-border"></div>
+          </div>
+          <div class="jury-card__info">
+            <h3 class="jury-card__name">Glenn Close</h3>
+            <div class="jury-card__role">Actress &amp; Producer</div>
+            <p class="jury-card__bio">One of the most celebrated actresses of her generation. From <em>Fatal Attraction</em> to <em>The Wife</em>, Close brings an extraordinary depth to every role — and a lifelong commitment to championing bold, independent storytelling.</p>
+            <div class="jury-card__credits">
+              <span class="jury-card__credit">🏆 3× Tony Award Winner</span>
+              <span class="jury-card__credit">🎬 8× Oscar Nominee</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="jury__variety fade-up">
+        <a href="variety/" class="jury__variety-link">
+          <span class="jury__variety-source">As featured in</span>
+          <span class="jury__variety-pub">Variety</span>
+          <span class="jury__variety-headline">"DocPoint and HIFF Launch '90 Day Film' to Bring International Filmmakers to Helsinki"</span>
+          <span class="jury__variety-arrow">→</span>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===== YOUR JOURNEY (Timeline) ===== -->
+  <section class="journey" id="journey">
+    <div class="container">
+      <div class="section__header section__header--center fade-up" style="margin-bottom: 64px;">
+        <span class="section__eyebrow">Your Journey</span>
+        <h2 class="section__title" style="color: #fff;">From Application to Premiere</h2>
+        <p class="section__desc" style="max-width: 600px; margin: 0 auto;">
+          Your 90 Day Film journey unfolds across ten phases — from first click to festival screening and beyond.
+        </p>
+      </div>
+
+      <div class="journey__timeline">
+        <div class="journey__line"></div>
+
+        <div class="journey__step fade-up" data-step="0" onclick="openJourneyModal(0)">
+          <div class="journey__marker">✍️</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 1 — Apply</div>
+            <h3 class="journey__step-title">Submit Your Application</h3>
+            <p class="journey__step-desc">
+              The 90 Day Film applications are a simple 3-step process: apply online between 
+              15 February – 28 February 2026, shortlist interviews in March–April 2026, 
+              and final selection of max 10 participants in May 2026.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="1" onclick="openJourneyModal(1)">
+          <div class="journey__marker">🏆</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 2 — Selection &amp; Onboarding</div>
+            <h3 class="journey__step-title">Selection &amp; Onboarding</h3>
+            <p class="journey__step-desc">
+              Nine participants are chosen based on profile, creative ambition, and potential 
+              for long-term engagement with the Finnish production ecosystem. Selections 
+              announced on 12 June — Helsinki Day — through a meemifiable live event.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="2" onclick="openJourneyModal(2)">
+          <div class="journey__marker">🇫🇮</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 3 — Feel Helsinki</div>
+            <h3 class="journey__step-title">Feel Helsinki</h3>
+            <p class="journey__step-desc">
+              Arrive in Helsinki. Walk the neighbourhoods, ride the trams, visit the archipelago. 
+              This is about immersion — finding out what resonates with you 
+              before a single frame is shot.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="3" onclick="openJourneyModal(3)">
+          <div class="journey__marker">💼</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 4 — Work Helsinki</div>
+            <h3 class="journey__step-title">Work Helsinki</h3>
+            <p class="journey__step-desc">
+              Access a co-working space, discover the Finnish film landscape through networking 
+              events and business visits, and receive personal business counselling with Helsinki Partners.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="4" onclick="openJourneyModal(4)">
+          <div class="journey__marker">💡</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 5 — Ideation</div>
+            <h3 class="journey__step-title">Facilitation &amp; Idea Development</h3>
+            <p class="journey__step-desc">
+              Workshops, idea showcases, and creative facilitation sessions. Develop your concept 
+              with local industry creatives and your fellow participants.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="5" onclick="openJourneyModal(5)">
+          <div class="journey__marker">📍</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 6 — Pre-Production</div>
+            <h3 class="journey__step-title">Location Scouting, Casting &amp; Crew</h3>
+            <p class="journey__step-desc">
+              Scout Helsinki's extraordinary locations. Cast local talent. Match with a 
+              Helsinki-based production crew.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="6" onclick="openJourneyModal(6)">
+          <div class="journey__marker">🎥</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 7 — Production</div>
+            <h3 class="journey__step-title">Filming in Helsinki</h3>
+            <p class="journey__step-desc">
+              Shoot your 90-second to 9-minute film with full production support. Behind-the-scenes 
+              documentation captures the process for promotional and festival use.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="7" onclick="openJourneyModal(7)">
+          <div class="journey__marker">🎞️</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 8 — Post-Production</div>
+            <h3 class="journey__step-title">Post-Production</h3>
+            <p class="journey__step-desc">
+              Full Helsinki-based post-production services — sound design, colour grading, 
+              music licensing. On Taiteiden yö (Night of the Arts), the production process 
+              is demoed in a dedicated post-production tram rolling through Helsinki.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="8" onclick="openJourneyModal(8)">
+          <div class="journey__marker">🎬</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 9 — Premiere</div>
+            <h3 class="journey__step-title">Attend Your Premiere &amp; Share Your Process</h3>
+            <p class="journey__step-desc">
+              World premiere at the Finnish Film Affair &amp; Helsinki International Film Festival. 
+              Each film screened in full, followed by an industry day featuring behind-the-scenes 
+              material and an in-depth exploration of the process.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+        <div class="journey__step fade-up" data-step="9" onclick="openJourneyModal(9)">
+          <div class="journey__marker">🌍</div>
+          <div class="journey__body">
+            <div class="journey__phase">Phase 10 — Show the World</div>
+            <h3 class="journey__step-title">Show the World</h3>
+            <p class="journey__step-desc">
+              International press coverage, your film shared through broadcasters and festivals, 
+              and support for your potential expansion to Finland. The 90-second to 9-minute film is your proof of concept.
+            </p>
+            <span class="journey__learn-more">Learn more →</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== THE BIG PREMIERE ===== -->
+  <section class="premiere" id="premiere">
+    <div class="premiere__hero">
+      <img src="images/premiere.png" alt="Grand premiere at Helsinki Senate Square" loading="lazy">
+      <div class="premiere__hero-overlay"></div>
+      <div class="premiere__hero-content fade-up">
+        <span class="premiere__eyebrow">🎬 The Grand Finale</span>
+        <h2 class="premiere__title">The Big<br><em>Premiere</em></h2>
+        <p class="premiere__subtitle">
+          Nine films. One unforgettable night. The world premiere at the heart of Helsinki.
+        </p>
+      </div>
+    </div>
+
+    <div class="premiere__body">
+      <div class="container">
+        <div class="premiere__intro fade-up">
+          <p>
+            Your finished film screens as part of 
+            <strong>Finnish Film Affair</strong>, the industry market of 
+            <strong>Helsinki International Film Festival</strong> in September 2026.
+          </p>
+        </div>
+
+        <div class="premiere__grid">
+          <div class="premiere__card premiere__card--main fade-up">
+            <div class="premiere__card-icon">🌟</div>
+            <h3 class="premiere__card-title">World Premiere Night</h3>
+            <p class="premiere__card-desc">
+              All nine 90 Day Film productions premiere at the Finnish Film Affair, in the heart of Helsinki. 
+              Each film screened in full, followed by the filmmaker's own reflection on the process — 
+              a celebration of what 90 days, one city, and total creative freedom can produce.
+            </p>
+            <div class="premiere__card-details">
+              <div class="premiere__detail">
+                <span class="premiere__detail-label">Venue</span>
+                <span class="premiere__detail-value">Senate Square, Helsinki</span>
+              </div>
+              <div class="premiere__detail">
+                <span class="premiere__detail-label">Festival</span>
+                <span class="premiere__detail-value">Finnish Film Affair &amp; HIFF</span>
+              </div>
+              <div class="premiere__detail">
+                <span class="premiere__detail-label">Audience</span>
+                <span class="premiere__detail-value">Industry, press &amp; public</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="premiere__card fade-up">
+            <div class="premiere__card-icon">🎤</div>
+            <h3 class="premiere__card-title">Industry Day</h3>
+            <p class="premiere__card-desc">
+              The premiere is followed by a full industry day — an exhibition of the entire 
+              creative process, screened behind-the-scenes material, and in-depth conversations 
+              with the filmmakers about what the experience meant and how this production 
+              incentive model could be applied elsewhere.
+            </p>
+          </div>
+
+          <div class="premiere__card fade-up">
+            <div class="premiere__card-icon">🌍</div>
+            <h3 class="premiere__card-title">Beyond Helsinki</h3>
+            <p class="premiere__card-desc">
+              After the premiere, your film travels — shared through the established festival 
+              networks of HIFF and DocPoint, broadcast partnerships, and international press 
+              coverage. Your 90-second to 9-minute film becomes your proof of concept for 
+              what comes next.
+            </p>
+          </div>
+        </div>
+
+        <div class="premiere__stats fade-up">
+          <div class="premiere__stat">
+            <div class="premiere__stat-value">9</div>
+            <div class="premiere__stat-label">World premieres<br>in one night</div>
+          </div>
+          <div class="premiere__stat-divider"></div>
+          <div class="premiere__stat">
+            <div class="premiere__stat-value">2</div>
+            <div class="premiere__stat-label">Days of screenings<br>&amp; industry events</div>
+          </div>
+          <div class="premiere__stat-divider"></div>
+          <div class="premiere__stat">
+            <div class="premiere__stat-value">1</div>
+            <div class="premiere__stat-label">Iconic venue on<br>Senate Square</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== QUOTE 2 ===== -->
+  <section class="quote-section">
+    <div class="quote-block fade-up">
+      <div class="quote-block__mark">"</div>
+      <p class="quote-block__text">
+        The structure is deliberately compact. A commission by design short enough to complete within the residency window, long enough to constitute a genuine cinematic statement.
+      </p>
+      <p class="quote-block__attribution">
+        — <strong>Variety</strong>, April 2026
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== APPLY / CTA ===== -->
+  <section class="cta-section" id="apply">
+    <div class="container">
+      <div class="fade-up">
+        <h2 class="cta-section__title">Ready to Tell Your Helsinki Story?</h2>
+        <p class="cta-section__desc">
+          Applications for the inaugural 90 Day Film cohort open in spring 2026. 
+          Here's how it works:
+        </p>
+      </div>
+      <div class="cta-section__steps fade-up">
+        <div class="cta-step">
+          <div class="cta-step__number">1</div>
+          <div class="cta-step__text">Apply online with portfolio &amp; pitch<br><strong>Spring 2026</strong></div>
+        </div>
+        <div class="cta-step">
+          <div class="cta-step__number">2</div>
+          <div class="cta-step__text">Shortlist interviews &amp; selection<br><strong>Spring 2026</strong></div>
+        </div>
+        <div class="cta-step">
+          <div class="cta-step__number">3</div>
+          <div class="cta-step__text">Residency &amp; production in Helsinki<br><strong>Summer–Fall 2026</strong></div>
+        </div>
+      </div>
+      <div class="fade-up">
+        <a href="#" class="btn btn--primary" id="apply-btn" style="font-size: 1.05rem; padding: 18px 40px;" onclick="event.preventDefault(); openApplicationForm();">
+          Apply Now →
+        </a>
+        <p style="margin-top: 20px; font-size: 0.85rem; color: rgba(13,13,13,0.5);">
+          Subscribe to be notified when applications open.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MEDIA ===== -->
+  <section class="media-section" id="media">
+    <div class="container">
+      <div class="section__header fade-up">
+        <span class="section__eyebrow">In the Media</span>
+        <h2 class="section__title">90 Day Film in the Press</h2>
+      </div>
+      <div class="media-grid fade-up">
+        <a href="variety/" class="media-card">
+          <div>
+            <div class="media-card__source">Variety</div>
+            <div class="media-card__title">DocPoint and HIFF Launch '90 Day Film' to Bring International Filmmakers to Helsinki — and Lay the Ground for a New Production Incentive</div>
+          </div>
+          <div class="media-card__arrow">→</div>
+        </a>
+        <a href="#" class="media-card">
+          <div>
+            <div class="media-card__source">Screen Daily</div>
+            <div class="media-card__title">Helsinki positions itself as Northern Europe's next production hub with filmmaker residency program</div>
+          </div>
+          <div class="media-card__arrow">→</div>
+        </a>
+        <a href="#" class="media-card">
+          <div>
+            <div class="media-card__source">Nordisk Film &amp; TV</div>
+            <div class="media-card__title">Finland's €60K filmmaker commission: how 90 Day Film reshapes Nordic production incentives</div>
+          </div>
+          <div class="media-card__arrow">→</div>
+        </a>
+        <a href="#" class="media-card">
+          <div>
+            <div class="media-card__source">Helsinki Times</div>
+            <div class="media-card__title">City of Helsinki backs new international film residency program connecting global directors with local industry</div>
+          </div>
+          <div class="media-card__arrow">→</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PARTNERS ===== -->
+  <section class="partners" id="partners">
+    <div class="container">
+      <div class="section__header section__header--center fade-up">
+        <span class="section__eyebrow">In Partnership With</span>
+        <h2 class="section__title" style="font-size: 1.8rem;">Organised &amp; Supported By</h2>
+      </div>
+      <div class="partners__grid fade-up">
+        <a href="https://docpoint.info/" target="_blank" rel="noopener" class="partners__item">DocPoint</a>
+        <a href="https://hiff.fi/en/" target="_blank" rel="noopener" class="partners__item">HIFF</a>
+        <a href="https://www.hel.fi/en" target="_blank" rel="noopener" class="partners__item">City of Helsinki</a>
+        <a href="https://www.helsinkipartners.com/" target="_blank" rel="noopener" class="partners__item">Helsinki Partners</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CONTACT ===== -->
+  <section class="contact" id="contact">
+    <div class="container">
+      <div class="section__header fade-up">
+        <span class="section__eyebrow">Get in Touch</span>
+        <h2 class="section__title">Contact Us</h2>
+        <p class="section__desc">
+          Have questions about the program? We'd love to hear from you.
+        </p>
+      </div>
+      <div class="contact__grid fade-up">
+        <div class="contact-card">
+          <div class="contact-card__name">Program Director</div>
+          <div class="contact-card__role">90 Day Film Program Management</div>
+          <a href="mailto:info@90dayfilm.fi" class="contact-card__link">info@90dayfilm.fi</a>
+          <a href="#" class="contact-card__link">+358 XX XXX XXXX</a>
+        </div>
+        <div class="contact-card">
+          <div class="contact-card__name">Marketing &amp; Press</div>
+          <div class="contact-card__role">Media inquiries &amp; partnerships</div>
+          <a href="mailto:press@90dayfilm.fi" class="contact-card__link">press@90dayfilm.fi</a>
+          <a href="#" class="contact-card__link">+358 XX XXX XXXX</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer__top">
+        <div>
+          <div class="footer__brand">90 Day Film</div>
+          <p class="footer__brand-desc">
+            Helsinki's international filmmaker residency program. Organised by 
+            DocPoint and HIFF in cooperation with the City of Helsinki.
+          </p>
+        </div>
+        <div>
+          <div class="footer__heading">Program</div>
+          <ul class="footer__list">
+            <li><a href="#about">About</a></li>
+            <li><a href="#benefits">Benefits</a></li>
+            <li><a href="#journey">Your Journey</a></li>
+            <li><a href="#apply">Apply</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="footer__heading">Partners</div>
+          <ul class="footer__list">
+            <li><a href="https://docpoint.info/" target="_blank" rel="noopener">DocPoint</a></li>
+            <li><a href="https://hiff.fi/en/" target="_blank" rel="noopener">HIFF</a></li>
+            <li><a href="https://www.hel.fi/en" target="_blank" rel="noopener">City of Helsinki</a></li>
+
+          </ul>
+        </div>
+        <div>
+          <div class="footer__heading">Resources</div>
+          <ul class="footer__list">
+            <li><a href="#">FAQ</a></li>
+            <li><a href="#">Press Kit</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Accessibility</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© 2026 90 Day Film. A HIFF &amp; DP initiative.</span>
+        <span>
+          <a href="#">Privacy</a> · <a href="#">Terms</a> · <a href="#">Cookies</a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== JOURNEY MODAL ===== -->
+  <div class="journey-modal" id="journey-modal">
+    <div class="journey-modal__backdrop" onclick="closeJourneyModal()"></div>
+    <div class="journey-modal__container">
+      <button class="journey-modal__close" onclick="closeJourneyModal()" aria-label="Close">✕</button>
+
+      <div class="journey-modal__carousel" id="journey-carousel">
+
+        <!-- Slide 0: Apply -->
+        <div class="journey-modal__slide" data-slide="0">
+          <div class="journey-modal__icon">✍️</div>
+          <div class="journey-modal__phase">Phase 1 — Apply</div>
+          <h3 class="journey-modal__title">Submit Your Application</h3>
+          <div class="journey-modal__content">
+            <p>The 90 Day Film applications are a simple 3-step process:</p>
+            <ul>
+              <li>Apply online between 15 February 2026 – 28 February 2026</li>
+              <li>Shortlist interviews in March–April 2026 – Max 10 participants will be selected</li>
+              <li>Final selection in May 2026</li>
+            </ul>
+            <h4>Who is this for?</h4>
+            <p>Directors, producers or showrunners who have directed or produced at least one feature-length film or a series that has screened at festivals, in cinemas or on streaming platforms.</p>
+            <h4>What we're looking for</h4>
+            <ul>
+              <li>A compelling artistic voice and distinctive visual perspective</li>
+              <li>A genuine interest in Helsinki and Nordic culture and expanding your company to the Nordics with long-term goals in mind</li>
+            </ul>
+            <h4>Application must include</h4>
+            <ul>
+              <li>Portfolio or showreel (max 10 min)</li>
+              <li>Free-form pitch — no fixed template</li>
+              <li>CV and short bio</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Slide 1: Selection & Onboarding -->
+        <div class="journey-modal__slide" data-slide="1">
+          <div class="journey-modal__icon">🏆</div>
+          <div class="journey-modal__phase">Phase 2 — Selection &amp; Onboarding</div>
+          <h3 class="journey-modal__title">Selection &amp; Onboarding</h3>
+          <div class="journey-modal__content">
+            <p>Nine participants are chosen. Selections are announced on <strong>12 June — Helsinki Day</strong> — through a meemifiable live event. Selected participants begin remote onboarding immediately after.</p>
+            <h4>Selection criteria</h4>
+            <ul>
+              <li>Profile and creative ambition</li>
+              <li>Diversity of perspective: cultural and creative</li>
+              <li>Potential for long-term engagement with the Finnish production ecosystem</li>
+            </ul>
+            <h4>Before the programme — Remote onboarding</h4>
+            <ul>
+              <li>Relocation services, including assistance with visa applications and finding an apartment</li>
+              <li>An online program to make the first connections and ensure a smooth arrival</li>
+              <li>Introduction to Helsinki's geography, culture, and seasons</li>
+              <li>Virtual meet-and-greet with your cohort of participants</li>
+              <li>A 90 Day Film onboarding box — inspired by Finland's legendary baby box — packed with useful items for your Helsinki life</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Slide 2: Feel Helsinki -->
+        <div class="journey-modal__slide" data-slide="2">
+          <div class="journey-modal__icon">🇫🇮</div>
+          <div class="journey-modal__phase">Phase 3 — Feel Helsinki</div>
+          <h3 class="journey-modal__title">Feel Helsinki</h3>
+          <div class="journey-modal__content">
+            <p>Arrive in Helsinki. Walk the neighbourhoods, ride the trams, visit the archipelago. This is about immersion — finding out what resonates with you before a single frame is shot.</p>
+            <h4>Immersion activities</h4>
+            <ul>
+              <li>Neighbourhood walks to feel the city</li>
+              <li>Sauna culture introduction (it's not optional, it's Finland)</li>
+              <li>Cultural programme — museums, galleries, live music, forest hikes</li>
+            </ul>
+            <h4>Accommodation</h4>
+            <p>Furnished apartments in central Helsinki, within walking or tram distance of production facilities. Each participant receives their own private space.</p>
+          </div>
+        </div>
+
+        <!-- Slide 3: Work Helsinki -->
+        <div class="journey-modal__slide" data-slide="3">
+          <div class="journey-modal__icon">💼</div>
+          <div class="journey-modal__phase">Phase 4 — Work Helsinki</div>
+          <h3 class="journey-modal__title">Work Helsinki</h3>
+          <div class="journey-modal__content">
+            <p>Get set up in Helsinki's creative ecosystem and start building your local network.</p>
+            <h4>What's included</h4>
+            <ul>
+              <li>Access to a co-working space during your stay in Helsinki</li>
+              <li>Discover the Finnish film landscape: make relevant connections to key industry players through networking events and business visits</li>
+              <li>Personal business counselling with Helsinki Partners</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Slide 4: Ideation -->
+        <div class="journey-modal__slide" data-slide="4">
+          <div class="journey-modal__icon">💡</div>
+          <div class="journey-modal__phase">Phase 5 — Ideation</div>
+          <h3 class="journey-modal__title">Facilitation &amp; Idea Development</h3>
+          <div class="journey-modal__content">
+            <p>Workshops, idea showcases, and creative facilitation sessions. Develop your concept with local industry creatives and your fellow participants.</p>
+            <h4>Creative workshops</h4>
+            <ul>
+              <li>Concept development sessions with experienced facilitators</li>
+              <li>Peer feedback rounds</li>
+              <li>Nordic storytelling masterclasses</li>
+              <li>Technical workshops on Helsinki-specific production challenges (light, weather, permits)</li>
+            </ul>
+            <h4>Idea showcase</h4>
+            <p>Present your refined concept to the programme team and invited industry guests. Receive structured feedback before moving into pre-production. This is collaborative, not competitive.</p>
+          </div>
+        </div>
+
+        <!-- Slide 5: Pre-Production -->
+        <div class="journey-modal__slide" data-slide="5">
+          <div class="journey-modal__icon">📍</div>
+          <div class="journey-modal__phase">Phase 6 — Pre-Production</div>
+          <h3 class="journey-modal__title">Location Scouting, Casting &amp; Crew</h3>
+          <div class="journey-modal__content">
+            <p>Scout Helsinki's extraordinary locations. Cast local talent. Match with a Helsinki-based production crew.</p>
+            <h4>Production support includes</h4>
+            <ul>
+              <li>Dedicated local line producer assigned to your project</li>
+              <li>Location scouting to help identify what you're looking for</li>
+              <li>Casting assistance — access to local actors</li>
+              <li>Equipment rental and facility access</li>
+            </ul>
+            <h4>Helsinki's production advantages</h4>
+            <p>Art Nouveau architecture, Baltic seascapes, islands, brutalist housing blocks, boreal forests — all within a 10 km² radius. Permits are straightforward, crews are experienced, and the city actively welcomes film production.</p>
+          </div>
+        </div>
+
+        <!-- Slide 6: Production -->
+        <div class="journey-modal__slide" data-slide="6">
+          <div class="journey-modal__icon">🎥</div>
+          <div class="journey-modal__phase">Phase 7 — Production</div>
+          <h3 class="journey-modal__title">Filming in Helsinki</h3>
+          <div class="journey-modal__content">
+            <p>Shoot your 90-second to 9-minute film with full production support. Behind-the-scenes documentation captures the process for promotional and festival use.</p>
+            <h4>What's provided</h4>
+            <ul>
+              <li>Full Helsinki-based production crew (DP, sound, gaffer, etc.)</li>
+              <li>Professional camera and lighting equipment</li>
+              <li>Behind-the-scenes documentation crew</li>
+              <li>On-set production management and logistics</li>
+            </ul>
+            <h4>The 90-second to 9-minute format</h4>
+            <p>Deliberately compact. Short enough to complete within the residency window. Long enough to constitute a genuine cinematic statement. No genre restrictions — documentary, fiction, hybrid. Your call.</p>
+          </div>
+        </div>
+
+        <!-- Slide 7: Post-Production -->
+        <div class="journey-modal__slide" data-slide="7">
+          <div class="journey-modal__icon">🎞️</div>
+          <div class="journey-modal__phase">Phase 8 — Post-Production</div>
+          <h3 class="journey-modal__title">Post-Production</h3>
+          <div class="journey-modal__content">
+            <h4>What's provided</h4>
+            <ul>
+              <li>Full Helsinki-based post-production services such as sound design, colour grading, music licensing, you name it</li>
+              <li>Cinema venue for testing and celebrating your completed result!</li>
+            </ul>
+            <h4>Taiteiden yö — Post-Production Tram</h4>
+            <p>On Night of the Arts, the behind-the-scenes production process is demoed live in a dedicated tram rolling through Helsinki — an open, public showcase of how the films were made.</p>
+          </div>
+        </div>
+
+        <!-- Slide 8: Premiere -->
+        <div class="journey-modal__slide" data-slide="8">
+          <div class="journey-modal__icon">🎬</div>
+          <div class="journey-modal__phase">Phase 9 — Premiere</div>
+          <h3 class="journey-modal__title">Attend Your Premiere &amp; Share Your Process</h3>
+          <div class="journey-modal__content">
+            <p>Official premiere at Finnish Film Affair &amp; Helsinki International Film Festival.</p>
+            <p>Each film screened in full, followed by the company's reflection. Industry audience: Finnish commissioners, international buyers, press, and the broader Helsinki AV ecosystem. Post-screening networking — the beginning of what comes next.</p>
+            <h4>World premiere</h4>
+            <p>World premiere of all 90 Days Film productions at the Finnish Film Affair, in the heart of Helsinki right on the Senate Square, each film screened in full.</p>
+            <h4>Industry day</h4>
+            <p>The premiere will be followed up by an industry day featuring an exhibition on the entire process, screened behind-the-scenes material, as well as an in-depth exploration of what the process meant to the filmmakers and how this production incentive model could be applied elsewhere.</p>
+          </div>
+        </div>
+
+        <!-- Slide 9: Show the World -->
+        <div class="journey-modal__slide" data-slide="9">
+          <div class="journey-modal__icon">🌍</div>
+          <div class="journey-modal__phase">Phase 10 — Show the World</div>
+          <h3 class="journey-modal__title">Show the World</h3>
+          <div class="journey-modal__content">
+            <h4>What each participant leaves with</h4>
+            <p>A completed short film made in Helsinki. Direct experience of Helsinki's production incentives, locations, and talent pool. A network across the Helsinki AV ecosystem. And a story — 90 days that became a film — that is itself the best possible advertisement for doing it again, bigger.</p>
+            <ul>
+              <li>International press coverage</li>
+              <li>Your film shared through broadcasters and festivals, using the established networks of HIFF and DocPoint</li>
+              <li>Your content used to showcase Helsinki around the world</li>
+              <li>Your short film is your proof of concept — for the feature, the series, or the documentary that comes next</li>
+              <li>Support for your potential expansion to Finland</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Carousel navigation -->
+      <div class="journey-modal__nav">
+        <button class="journey-modal__nav-btn" id="modal-prev" onclick="navigateModal(-1)" aria-label="Previous">
+          ← Prev
+        </button>
+        <div class="journey-modal__dots" id="modal-dots"></div>
+        <button class="journey-modal__nav-btn" id="modal-next" onclick="navigateModal(1)" aria-label="Next">
+          Next →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== APPLICATION FORM MODAL ===== -->
+  <div class="app-modal" id="app-modal">
+    <div class="app-modal__backdrop" onclick="closeApplicationForm()"></div>
+    <div class="app-modal__container">
+      <button class="app-modal__close" onclick="closeApplicationForm()" aria-label="Close">✕</button>
+
+      <!-- Progress bar -->
+      <div class="app-modal__progress">
+        <div class="app-modal__progress-bar" id="app-progress-bar"></div>
+      </div>
+      <div class="app-modal__steps-indicator" id="app-steps-indicator">
+        <div class="app-modal__step-dot active" data-step="0"><span>1</span>Eligibility</div>
+        <div class="app-modal__step-dot" data-step="1"><span>2</span>Company</div>
+        <div class="app-modal__step-dot" data-step="2"><span>3</span>Genre</div>
+        <div class="app-modal__step-dot" data-step="3"><span>4</span>Pitch</div>
+      </div>
+
+      <div class="app-modal__body" id="app-modal-body">
+
+        <!-- Step 0: Criteria & Values Checkboxes -->
+        <div class="app-modal__slide active" data-app-step="0">
+          <div class="app-modal__icon">✅</div>
+          <div class="app-modal__phase">Step 1 of 4</div>
+          <h3 class="app-modal__title">Confirm Your Eligibility</h3>
+          <p class="app-modal__desc">Please confirm that you meet the following criteria and share our values before proceeding.</p>
+
+          <div class="app-modal__checklist">
+            <h4>Program Criteria</h4>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I am a professional filmmaker or producer with a demonstrated body of work (features, documentaries or TV series)</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I am available to commit to fulfilling the 90-Day Film initiative with the required time spent in Helsinki</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I hold a valid passport and am eligible to film in Finland</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I am applying on behalf of a registered production company</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I promise to commit to the initiative rules</span>
+            </label>
+
+            <h4 style="margin-top: 28px;">Our Values</h4>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I am committed to respectful, inclusive collaboration with local crews and fellow filmmakers</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I approach Helsinki with genuine curiosity and openness to new creative perspectives</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I understand that the 90-second to 9-minute format is a creative constraint, not a limitation</span>
+            </label>
+            <label class="app-check">
+              <input type="checkbox" class="app-check__input" data-required>
+              <span class="app-check__box"></span>
+              <span class="app-check__label">I have read and commit myself to follow the <a href="https://hiff.fi/en/ra2024/info/#safer-space" target="_blank" style="color: var(--accent); text-decoration: underline;">safer space guidelines</a></span>
+            </label>
+          </div>
+          <p class="app-modal__hint" id="app-check-hint" style="display: none;">⚠ Please confirm all items above to continue.</p>
+        </div>
+
+        <!-- Step 1: Production Company & Applicant Info -->
+        <div class="app-modal__slide" data-app-step="1">
+          <div class="app-modal__icon">🏢</div>
+          <div class="app-modal__phase">Step 2 of 4</div>
+          <h3 class="app-modal__title">About Your Production Company</h3>
+          <p class="app-modal__desc">Tell us about your company and the person who will be joining the residency.</p>
+
+          <div class="app-form__group">
+            <label class="app-form__label" for="company-name">Production Company Name *</label>
+            <input type="text" class="app-form__input" id="company-name" placeholder="e.g. Nordic Light Productions" data-required>
+          </div>
+          <div class="app-form__row">
+            <div class="app-form__group">
+              <label class="app-form__label" for="company-country">Country *</label>
+              <input type="text" class="app-form__input" id="company-country" placeholder="e.g. United Kingdom" data-required>
+            </div>
+            <div class="app-form__group">
+              <label class="app-form__label" for="company-website">Website</label>
+              <input type="url" class="app-form__input" id="company-website" placeholder="https://">
+            </div>
+          </div>
+
+          <div class="app-form__divider"></div>
+
+          <h4 class="app-form__section-title">Person Joining the Residency</h4>
+          <div class="app-form__row">
+            <div class="app-form__group">
+              <label class="app-form__label" for="person-name">Full Name *</label>
+              <input type="text" class="app-form__input" id="person-name" placeholder="First and last name" data-required>
+            </div>
+            <div class="app-form__group">
+              <label class="app-form__label" for="person-email">Email *</label>
+              <input type="email" class="app-form__input" id="person-email" placeholder="name@company.com" data-required>
+            </div>
+          </div>
+          <div class="app-form__group">
+            <label class="app-form__label" for="person-nationality">Nationality of Participant *</label>
+            <input type="text" class="app-form__input" id="person-nationality" placeholder="e.g. British" data-required>
+          </div>
+          <div class="app-form__group">
+            <label class="app-form__label">Role *</label>
+            <div class="app-form__roles">
+              <label class="app-role">
+                <input type="radio" name="role" value="director" data-required-radio>
+                <span class="app-role__btn">🎬 Director</span>
+              </label>
+              <label class="app-role">
+                <input type="radio" name="role" value="producer">
+                <span class="app-role__btn">🎤 Producer</span>
+              </label>
+            </div>
+          </div>
+          <div class="app-form__group">
+            <label class="app-form__label" for="person-portfolio">Portfolio / Showreel Link *</label>
+            <input type="url" class="app-form__input" id="person-portfolio" placeholder="Link to your work (Vimeo, YouTube, website)" data-required>
+          </div>
+        </div>
+
+        <!-- Step 2: Documentary or Fiction -->
+        <div class="app-modal__slide" data-app-step="2">
+          <div class="app-modal__icon">🎞️</div>
+          <div class="app-modal__phase">Step 3 of 4</div>
+          <h3 class="app-modal__title">What Kind of Film?</h3>
+          <p class="app-modal__desc">Select the genre you're planning for your 90-second to 9-minute Helsinki film.</p>
+
+          <div class="app-genre__grid">
+            <label class="app-genre-card">
+              <input type="radio" name="genre" value="documentary" data-required-radio-genre>
+              <div class="app-genre-card__inner">
+                <div class="app-genre-card__icon">🎥</div>
+                <div class="app-genre-card__title">Documentary</div>
+                <div class="app-genre-card__desc">Real stories, real people. Capture the authentic spirit of Helsinki through observation, interviews, or essay filmmaking.</div>
+              </div>
+            </label>
+            <label class="app-genre-card">
+              <input type="radio" name="genre" value="fiction">
+              <div class="app-genre-card__inner">
+                <div class="app-genre-card__icon">🎭</div>
+                <div class="app-genre-card__title">Fiction</div>
+                <div class="app-genre-card__desc">Scripted narratives brought to life. Drama, comedy, thriller — use Helsinki as your stage for a crafted story.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Step 3: Pitch -->
+        <div class="app-modal__slide" data-app-step="3">
+          <div class="app-modal__icon">💡</div>
+          <div class="app-modal__phase">Step 4 of 4</div>
+          <h3 class="app-modal__title">Tell us why should you be chosen for this project?</h3>
+          <p class="app-modal__desc">This is your space. There's no template — be yourself.</p>
+
+          <div class="app-form__group">
+            <label class="app-form__label" for="pitch-text">Your Pitch *</label>
+            <textarea class="app-form__textarea" id="pitch-text" rows="10" placeholder="Tell us about yourself, your vision, and why you'd be a great fit for the 90 Day Film initiative." data-required></textarea>
+            <div class="app-form__char-count"><span id="pitch-char-count">0</span> characters</div>
+          </div>
+          <div class="app-form__group">
+            <label class="app-form__label" for="pitch-attachment">Attachment</label>
+            <div class="app-form__file-upload">
+              <input type="file" class="app-form__file-input" id="pitch-attachment" accept=".pdf,.doc,.docx,.txt,.mp4,.mov,.jpg,.png">
+              <label for="pitch-attachment" class="app-form__file-label">
+                <span class="app-form__file-icon">📎</span>
+                <span class="app-form__file-text">Choose a file or drag it here</span>
+                <span class="app-form__file-hint">PDF, DOC, TXT, images or video</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Navigation -->
+      <div class="app-modal__nav">
+        <button class="app-modal__nav-btn" id="app-prev" onclick="navigateApp(-1)" style="visibility: hidden;">
+          ← Back
+        </button>
+        <div class="app-modal__step-label" id="app-step-label">Step 1 of 4</div>
+        <button class="app-modal__nav-btn app-modal__nav-btn--next" id="app-next" onclick="navigateApp(1)">
+          Continue →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== APPLICATION SUCCESS MODAL ===== -->
+  <div class="app-modal" id="app-success-modal">
+    <div class="app-modal__backdrop" onclick="closeSuccessModal()"></div>
+    <div class="app-modal__container" style="max-width: 520px; text-align: center;">
+      <button class="app-modal__close" onclick="closeSuccessModal()" aria-label="Close">✕</button>
+      <div class="app-modal__body">
+        <div class="app-modal__slide active" style="padding: 60px 40px;">
+          <div style="font-size: 4rem; margin-bottom: 24px;">🎬</div>
+          <h3 class="app-modal__title" style="margin-bottom: 16px;">Application Received!</h3>
+          <p class="app-modal__desc" style="margin-bottom: 32px;">Thank you for applying to 90 Day Film. We've received your application and will review it carefully. Expect to hear from us within 4–6 weeks.</p>
+          <button class="btn btn--primary" onclick="closeSuccessModal()" style="margin: 0 auto;">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    // Intersection Observer for fade-up animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.1,
+      rootMargin: '0px 0px -40px 0px'
+    });
+
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+    // Header scroll effect
+    const header = document.getElementById('site-header');
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      const currentScroll = window.scrollY;
+      if (currentScroll > 100) {
+        header.style.background = 'rgba(13, 13, 13, 0.97)';
+      } else {
+        header.style.background = 'rgba(13, 13, 13, 0.85)';
+      }
+      lastScroll = currentScroll;
+    });
+
+    // Active anchor nav link
+    const sections = document.querySelectorAll('section[id]');
+    const anchorLinks = document.querySelectorAll('.anchor-nav__list a');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 180;
+        if (window.scrollY >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+      anchorLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+
+    // ===== Journey Modal Carousel =====
+    const modal = document.getElementById('journey-modal');
+    const slides = document.querySelectorAll('.journey-modal__slide');
+    const dotsContainer = document.getElementById('modal-dots');
+    const prevBtn = document.getElementById('modal-prev');
+    const nextBtn = document.getElementById('modal-next');
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    // Create dots
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'journey-modal__dot';
+      dot.setAttribute('aria-label', `Go to phase ${i + 1}`);
+      dot.onclick = () => goToSlide(i);
+      dotsContainer.appendChild(dot);
+    }
+
+    function updateModal() {
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === currentSlide);
+      });
+      dotsContainer.querySelectorAll('.journey-modal__dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentSlide);
+      });
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === totalSlides - 1;
+    }
+
+    function goToSlide(index) {
+      currentSlide = Math.max(0, Math.min(index, totalSlides - 1));
+      updateModal();
+    }
+
+    function navigateModal(direction) {
+      goToSlide(currentSlide + direction);
+    }
+
+    function openJourneyModal(stepIndex) {
+      currentSlide = stepIndex;
+      updateModal();
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeJourneyModal() {
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('open')) {
+        closeJourneyModal();
+      }
+      if (modal.classList.contains('open')) {
+        if (e.key === 'ArrowLeft') navigateModal(-1);
+        if (e.key === 'ArrowRight') navigateModal(1);
+      }
+    });
+
+    // ===== Countdown Timer =====
+    const targetDate = new Date('2026-06-17T00:00:00+03:00').getTime();
+    const cdDays = document.getElementById('cd-days');
+    const cdHours = document.getElementById('cd-hours');
+    const cdMinutes = document.getElementById('cd-minutes');
+    const cdSeconds = document.getElementById('cd-seconds');
+
+    function updateCountdown() {
+      const now = Date.now();
+      const diff = targetDate - now;
+
+      if (diff <= 0) {
+        cdDays.textContent = '000';
+        cdHours.textContent = '00';
+        cdMinutes.textContent = '00';
+        cdSeconds.textContent = '00';
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      cdDays.textContent = String(days).padStart(3, '0');
+      cdHours.textContent = String(hours).padStart(2, '0');
+      cdMinutes.textContent = String(minutes).padStart(2, '0');
+
+      const newSec = String(seconds).padStart(2, '0');
+      if (cdSeconds.textContent !== newSec) {
+        cdSeconds.textContent = newSec;
+        cdSeconds.classList.remove('tick');
+        void cdSeconds.offsetWidth;
+        cdSeconds.classList.add('tick');
+      }
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+
+    // ===== Application Form =====
+    const appModal = document.getElementById('app-modal');
+    const appSlides = document.querySelectorAll('[data-app-step]');
+    const appPrev = document.getElementById('app-prev');
+    const appNext = document.getElementById('app-next');
+    const appProgressBar = document.getElementById('app-progress-bar');
+    const appStepLabel = document.getElementById('app-step-label');
+    const appStepDots = document.querySelectorAll('.app-modal__step-dot');
+    let appCurrentStep = 0;
+    const appTotalSteps = appSlides.length;
+
+    function updateAppForm() {
+      appSlides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === appCurrentStep);
+      });
+      appStepDots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === appCurrentStep);
+        dot.classList.toggle('completed', i < appCurrentStep);
+      });
+      appPrev.style.visibility = appCurrentStep === 0 ? 'hidden' : 'visible';
+      appNext.textContent = appCurrentStep === appTotalSteps - 1 ? 'Submit Application →' : 'Continue →';
+      appProgressBar.style.width = ((appCurrentStep + 1) / appTotalSteps * 100) + '%';
+      appStepLabel.textContent = `Step ${appCurrentStep + 1} of ${appTotalSteps}`;
+
+      // Scroll modal body to top
+      document.getElementById('app-modal-body').scrollTop = 0;
+    }
+
+    function validateAppStep(step) {
+      return true;
+    }
+
+    function navigateApp(direction) {
+      if (direction === 1) {
+        if (!validateAppStep(appCurrentStep)) return;
+        if (appCurrentStep === appTotalSteps - 1) {
+          // Submit
+          submitApplication();
+          return;
+        }
+      }
+      appCurrentStep = Math.max(0, Math.min(appCurrentStep + direction, appTotalSteps - 1));
+      updateAppForm();
+    }
+
+    function openApplicationForm() {
+      appCurrentStep = 0;
+      // Reset form
+      appModal.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+      appModal.querySelectorAll('input[type="radio"]').forEach(c => c.checked = false);
+      appModal.querySelectorAll('input[type="text"], input[type="email"], input[type="url"], textarea').forEach(i => {
+        i.value = '';
+        i.classList.remove('app-form__input--error');
+      });
+      document.getElementById('pitch-char-count').textContent = '0';
+      document.getElementById('app-check-hint').style.display = 'none';
+      updateAppForm();
+      appModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeApplicationForm() {
+      appModal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function submitApplication() {
+      closeApplicationForm();
+      // Show success modal
+      const successModal = document.getElementById('app-success-modal');
+      successModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSuccessModal() {
+      const successModal = document.getElementById('app-success-modal');
+      successModal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    // Character count for pitch
+    const pitchText = document.getElementById('pitch-text');
+    const pitchCount = document.getElementById('pitch-char-count');
+    pitchText.addEventListener('input', () => {
+      pitchCount.textContent = pitchText.value.length;
+    });
+
+    // Close application modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (appModal.classList.contains('open')) closeApplicationForm();
+        const successModal = document.getElementById('app-success-modal');
+        if (successModal.classList.contains('open')) closeSuccessModal();
+      }
+    });
+
+    // Remove error styling on input
+    appModal.querySelectorAll('.app-form__input, .app-form__textarea').forEach(inp => {
+      inp.addEventListener('input', () => inp.classList.remove('app-form__input--error'));
+    });
+  </script>
+
+</body>
+</html>
