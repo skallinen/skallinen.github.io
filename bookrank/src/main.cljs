@@ -3,6 +3,7 @@
             [reagent.dom :as rdom]
             [router]
             [auth]
+            [db]
             [login]
             [clubs]
             [club-view]))
@@ -41,6 +42,22 @@
     [:button.btn.btn-small {:on-click toggle-dark!}
      (if @is-dark "Light" "Dark")]]])
 
+;; -- Join View (auto-join via invite link) --
+(defn join-view [invite-code]
+  (let [status (r/atom :joining)]
+    (db/join-club! invite-code
+                   (fn [club-id]
+                     (if club-id
+                       (router/navigate! (str "#/club/" club-id))
+                       (reset! status :failed))))
+    (fn [invite-code]
+      (case @status
+        :joining [:div.loading (str "Joining club with code " invite-code "...")]
+        :failed  [:div.empty-state
+                  [:div.empty-state-icon "❌"]
+                  [:div.empty-state-text (str "No club found for code: " invite-code)]
+                  [:button.btn.btn-primary {:on-click #(router/navigate! "#/clubs")} "Go to Clubs"]]))))
+
 ;; -- Router Dispatch --
 (defn current-page []
   (let [{:keys [page params]} @router/current-route]
@@ -59,6 +76,7 @@
         :clubs   [clubs/clubs-view]
         :club    [club-view/club-detail-view (:club-id params)]
         :ranking [club-view/ranking-page-view (:club-id params)]
+        :join    [join-view (:invite-code params)]
         ;; Default: show clubs
         [clubs/clubs-view]))))
 

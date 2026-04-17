@@ -34,6 +34,11 @@
            (= (first parts) "clubs"))
       {:page :clubs :params {}}
 
+      ;; #/join/:code
+      (and (= (count parts) 2)
+           (= (first parts) "join"))
+      {:page :join :params {:invite-code (nth parts 1)}}
+
       ;; Default
       :else
       {:page :home :params {}})))

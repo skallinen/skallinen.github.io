@@ -64,12 +64,15 @@
               ;; Invite code
               [:span.invite-code
                {:on-click (fn []
-                            (.writeText (.-clipboard js/navigator) (:invite_code @club))
-                            (reset! copied true)
-                            (js/setTimeout #(reset! copied false) 2000))}
+                            (let [base (str (.-origin js/window.location)
+                                            (.-pathname js/window.location)
+                                            "#/join/" (:invite_code @club))]
+                              (.writeText (.-clipboard js/navigator) base)
+                              (reset! copied true)
+                              (js/setTimeout #(reset! copied false) 2000)))}
                (:invite_code @club)
                (when @copied
-                 [:span.invite-copied " copied!"])]]]
+                 [:span.invite-copied " link copied!"])]]
             [:div {:style {:display "flex" :gap "8px"}}
              [:button.btn.btn-small {:on-click #(swap! show-add not)}
               (if @show-add "Cancel" "＋ Book")]
