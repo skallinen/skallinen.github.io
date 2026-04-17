@@ -4,7 +4,7 @@
 ;; Normal Distribution Scoring
 ;; Maps rank positions to 1–5 scores using
 ;; the inverse normal CDF (probit function).
-;; Mean = 3, 1 SD = 0.5 score units.
+;; Mean = 3, 1 SD = 2/3 score units (5 = +3σ, 1 = -3σ).
 ;; =============================================
 
 (println "[scoring] loaded")
@@ -42,7 +42,7 @@
     (let [;; Map position to percentile (0 = best = high percentile)
           percentile (- 1.0 (/ (+ position 0.5) total))
           z          (inv-normal-cdf percentile)
-          raw-score  (+ 3.0 (* z 0.5))
+          raw-score  (+ 3.0 (* z 0.6667))
           clamped    (max 0.0 (min 6.0 raw-score))]
       {:raw       clamped
        :display   (cond
