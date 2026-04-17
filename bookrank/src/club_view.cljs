@@ -146,7 +146,8 @@
                             [:div.book-voters (str (:voter-count score-data) "/" (count member-ids)
                                                    (when (pos? (count (:unread-by score-data)))
                                                      (str " +" (count (:unread-by score-data)) "☐")))]]
-                           [:div {:style {:text-align "right"}}
+                           [:div {:style {:text-align "right"}
+                                  :title "Score appears once every member has ranked or marked this book unread"}
                             [:div.book-score {:style {:color "var(--color-accent)"}} "—"]
                             (when score-data
                               [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]
