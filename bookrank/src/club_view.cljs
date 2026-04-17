@@ -52,7 +52,6 @@
             [:div
              [:h2.section-title (:name @club)]
              [:div {:style {:display "flex" :gap "12px" :align-items "center" :margin-top "6px"}}
-              ;; Members avatars
               [:div.members-row
                (doall
                 (for [m @members]
@@ -61,20 +60,22 @@
                     :src (or (:photo_url m) "")
                     :title (or (:display_name m) (:email m))
                     :alt (or (:display_name m) "")}]))]
-              ;; Invite code
               [:span.invite-code
-               {:on-click (fn []
-                            (let [base (str (.-origin js/window.location)
-                                            (.-pathname js/window.location)
-                                            "#/join/" (:invite_code @club))]
-                              (.writeText (.-clipboard js/navigator) base)
-                              (reset! copied true)
-                              (js/setTimeout #(reset! copied false) 2000)))}
+               {:on-click
+                (fn []
+                  (let [url (str (.-origin js/window.location)
+                                 (.-pathname js/window.location)
+                                 "#/join/"
+                                 (:invite_code @club))]
+                    (.writeText (.-clipboard js/navigator) url)
+                    (reset! copied true)
+                    (js/setTimeout #(reset! copied false) 2000)))}
                (:invite_code @club)
                (when @copied
-                 [:span.invite-copied " link copied!"])]]
+                 [:span.invite-copied " link copied!"])]]]
             [:div {:style {:display "flex" :gap "8px"}}
-             [:button.btn.btn-small {:on-click #(swap! show-add not)}
+             [:button.btn.btn-small
+              {:on-click #(swap! show-add not)}
               (if @show-add "Cancel" "＋ Book")]
              [:button.btn.btn-small.btn-primary
               {:on-click #(router/navigate! (str "#/club/" club-id "/rank"))}
