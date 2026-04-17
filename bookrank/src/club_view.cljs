@@ -28,7 +28,8 @@
         show-add   (r/atom false)
         copied     (r/atom false)
         active-tab (r/atom :scores)
-        expanded-book (r/atom nil)]
+        expanded-book (r/atom nil)
+        confirm-remove (r/atom nil)]
 
     ;; Fetch data
     (db/fetch-club! club-id club)
@@ -195,19 +196,30 @@
                            (str (count (:order member-ranking)) " ranked")
                            "Not ranked yet")])
                       (when (and is-admin? (not= (:id m) current-uid))
-                        [:button.btn.btn-small
-                         {:style {:font-size "0.7em" :padding "2px 8px" :color "#c00"}
-                          :on-click (fn [e]
-                                      (.stopPropagation e)
-                                      (let [name (or (:display_name m) "this member")
-                                            mid  (:id m)]
-                                        (js/setTimeout
-                                         (fn []
-                                           (when (js/confirm (str "Remove " name "?"))
-                                             (db/delete-member! club-id mid
-                                                                #(db/fetch-members! club-id members))))
-                                         10)))}
-                         "✕"])]]))])]))]))))
+                        (if (= @confirm-remove (:id m))
+                          [:div {:style {:display "flex" :gap "4px"}}
+                           [:button.btn.btn-small
+                            {:style {:font-size "0.7em" :padding "2px 8px" :background "#c00" :color "#fff"}
+                             :on-click (fn [e]
+                                         (.stopPropagation e)
+                                         (let [mid (:id m)]
+                                           (db/delete-member! club-id mid
+                                                              (fn []
+                                                                (reset! confirm-remove nil)
+                                                                (db/fetch-members! club-id members)))))}
+                            "Remove?"]
+                           [:button.btn.btn-small
+                            {:style {:font-size "0.7em" :padding "2px 8px"}
+                             :on-click (fn [e]
+                                         (.stopPropagation e)
+                                         (reset! confirm-remove nil))}
+                            "Cancel"]]
+                          [:button.btn.btn-small
+                           {:style {:font-size "0.7em" :padding "2px 8px" :color "#c00"}
+                            :on-click (fn [e]
+                                        (.stopPropagation e)
+                                        (reset! confirm-remove (:id m)))}
+                           "✕"]))]))]]))])))]))
 
 (defn ranking-page-view [club-id]
   (let [books   (r/atom [])
