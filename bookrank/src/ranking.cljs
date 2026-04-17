@@ -44,6 +44,7 @@
         saved    (r/atom false)
         loaded   (r/atom false)
         list-ref (atom nil)
+        dirty    (r/atom false)
         save-timer (atom nil)
         do-save! (fn []
                    ;; Debounced autosave: waits 500ms after last action
@@ -59,6 +60,7 @@
                                (fn []
                                  (reset! saving false)
                                  (reset! saved true)
+                                 (reset! dirty false)
                                  (js/setTimeout #(reset! saved false) 2000))))
                             500)))]
 
@@ -104,7 +106,7 @@
                                                 (into (vec new-ids)
                                                       (filterv (fn [id] (contains? @unread id))
                                                                @order)))
-                                        (do-save!)))
+                                        (reset! dirty true)))
                      100)))}
           (when @loaded
             (doall
@@ -189,8 +191,16 @@
                                 (do-save!))}
                    "📖"]])))])
 
+         ;; Confirm ranking button (shown after drag reorder)
+         (when @dirty
+           [:div {:style {:margin-top "16px" :text-align "center"}}
+            [:button.btn.btn-primary
+             {:disabled @saving
+              :on-click (fn [] (do-save!))}
+             "Confirm Ranking"]])
+
          ;; Autosave status
-         [:div {:style {:margin-top "16px" :text-align "center"}}
+         [:div {:style {:margin-top "8px" :text-align "center"}}
           (cond
             @saving [:span {:style {:color "var(--color-accent)" :font-size "0.8rem"}} "Saving..."]
             @saved  [:span.invite-copied "✓ Saved"]
