@@ -41,11 +41,12 @@
                           :created_at  (ts-now)
                           :invite_code code}))
           (.then (fn [doc-ref]
-                   ;; Add creator as member
+                   ;; Add creator as admin member
                    (-> (.set (.doc (.collection db (str "clubs/" (.-id doc-ref) "/members")) uid)
                              (clj->js {:display_name (:display-name @auth/user)
                                        :email        (:email @auth/user)
                                        :photo_url    (:photo-url @auth/user)
+                                       :role         "admin"
                                        :joined_at    (ts-now)}))
                        (.then (fn [] (when callback (callback (.-id doc-ref))))))))
           (.catch (fn [err] (js/console.error "[db] create-club error:" err)))))))
@@ -91,6 +92,7 @@
                                  (clj->js {:display_name (:display-name @auth/user)
                                            :email        (:email @auth/user)
                                            :photo_url    (:photo-url @auth/user)
+                                           :role         "member"
                                            :joined_at    (ts-now)}))
                            (.then (fn [] (when callback (callback club-id)))))))))
           (.catch (fn [err] (js/console.error "[db] join-club error:" err)))))))
@@ -169,6 +171,18 @@
         (.then (fn [snapshot]
                  (reset! members-atom (mapv doc->map (seq (.-docs snapshot))))))
         (.catch (fn [err] (js/console.error "[db] fetch-members error:" err))))))
+
+(defn delete-member!
+  "Delete a member from a club (admin only)."
+  [club-id member-id callback]
+  (when-let [db auth/firebase-db]
+    (-> (.delete (.doc db (str "clubs/" club-id "/members/" member-id)))
+        (.then (fn []
+                 ;; Also delete their ranking
+                 (-> (.delete (.doc db (str "clubs/" club-id "/rankings/" member-id)))
+                     (.catch (fn [_] nil))) ;; ignore if no ranking
+                 (when callback (callback))))
+        (.catch (fn [err] (js/console.error "[db] delete-member error:" err))))))
 
 (defn fetch-club!
   "Fetch a single club document."

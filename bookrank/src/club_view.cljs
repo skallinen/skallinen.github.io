@@ -41,7 +41,12 @@
             agg-scores   (scoring/compute-aggregate-scores @rankings)
             sorted-books (sort-by (fn [b]
                                     (- (or (get-in agg-scores [(:id b) :score]) 0)))
-                                  @books)]
+                                  @books)
+            current-uid  (:uid @auth/user)
+            is-admin?    (or (= current-uid (:created_by @club))
+                             (some (fn [m] (and (= (:id m) current-uid)
+                                                (= (:role m) "admin")))
+                                   @members))]
         [:div
          ;; Back link
          [:a.back-link {:on-click #(router/navigate! "#/clubs")} "← All Clubs"]
@@ -136,13 +141,25 @@
                      [:img.member-avatar {:src (or (:photo_url m) "")
                                           :alt (or (:display_name m) "")}]
                      [:div.book-info
-                      [:div.book-title (or (:display_name m) "Unknown")]
+                      [:div.book-title
+                       (or (:display_name m) "Unknown")
+                       (when (= (:role m) "admin")
+                         [:span {:style {:font-size "0.7em" :opacity 0.5 :margin-left "8px"}} "ADMIN"])]
                       [:div.book-author (or (:email m) "")]]
-                     (let [member-ranking (get @rankings (:id m))]
-                       [:div.book-voters
-                        (if member-ranking
-                          (str (count (:order member-ranking)) " ranked")
-                          "Not ranked yet")])]))])]))]))))
+                     [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
+                      (let [member-ranking (get @rankings (:id m))]
+                        [:div.book-voters
+                         (if member-ranking
+                           (str (count (:order member-ranking)) " ranked")
+                           "Not ranked yet")])
+                      (when (and is-admin? (not= (:id m) current-uid))
+                        [:button.btn.btn-small
+                         {:style {:font-size "0.7em" :padding "2px 8px" :color "#c00"}
+                          :on-click (fn []
+                                      (when (js/confirm (str "Remove " (or (:display_name m) "this member") "?"))
+                                        (db/delete-member! club-id (:id m)
+                                                           #(db/fetch-members! club-id members))))}
+                         "✕"])]]))])]))]))))
 
 (defn ranking-page-view [club-id]
   (let [books   (r/atom [])
