@@ -219,7 +219,9 @@
                             :on-click (fn [e]
                                         (.stopPropagation e)
                                         (reset! confirm-remove (:id m)))}
-                           "✕"]))]))]]))])))]))
+                           "✕"]))]]))]]))])))))
+
+
 
 (defn ranking-page-view [club-id]
   (let [books   (r/atom [])
