@@ -109,13 +109,21 @@
                               (>= (:raw score) 2.5) "score-mid"
                               :else                  "score-low")}
                     (:display score)]
-                   [:button.btn-icon
-                    {:title    "Mark as unread"
-                     :on-click (fn [e]
-                                 (.stopPropagation e)
-                                 (swap! unread conj book-id)
-                                 (reset! saved false))}
-                    "📕"]]))
+                   [:div {:style {:display "flex" :gap "2px"}}
+                    [:button.btn-icon
+                     {:title    "Mark as unread"
+                      :on-click (fn [e]
+                                  (.stopPropagation e)
+                                  (swap! unread conj book-id)
+                                  (reset! saved false))}
+                     "📕"]
+                    [:button.btn-icon
+                     {:title    "Remove from ranking"
+                      :on-click (fn [e]
+                                  (.stopPropagation e)
+                                  (swap! order (fn [o] (filterv #(not= % book-id) o)))
+                                  (reset! saved false))}
+                     "↩"]]]))
               ranked-books)))]
 
          ;; Unranked section (new books not yet ranked or marked unread)
