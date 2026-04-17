@@ -155,10 +155,16 @@
                       (when (and is-admin? (not= (:id m) current-uid))
                         [:button.btn.btn-small
                          {:style {:font-size "0.7em" :padding "2px 8px" :color "#c00"}
-                          :on-click (fn []
-                                      (when (js/confirm (str "Remove " (or (:display_name m) "this member") "?"))
-                                        (db/delete-member! club-id (:id m)
-                                                           #(db/fetch-members! club-id members))))}
+                          :on-click (fn [e]
+                                      (.stopPropagation e)
+                                      (let [name (or (:display_name m) "this member")
+                                            mid  (:id m)]
+                                        (js/setTimeout
+                                         (fn []
+                                           (when (js/confirm (str "Remove " name "?"))
+                                             (db/delete-member! club-id mid
+                                                                #(db/fetch-members! club-id members))))
+                                         10)))}
                          "✕"])]]))])]))]))))
 
 (defn ranking-page-view [club-id]
