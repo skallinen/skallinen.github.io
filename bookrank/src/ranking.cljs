@@ -191,9 +191,12 @@
                                 (do-save!))}
                    "📖"]])))])
 
-         ;; Confirm ranking button (shown after drag reorder)
+         ;; Confirm ranking button (fixed bar at bottom after drag reorder)
          (when @dirty
-           [:div {:style {:margin-top "16px" :text-align "center"}}
+           [:div {:style {:position "fixed" :bottom "0" :left "0" :right "0"
+                          :background "var(--color-bg)" :border-top "2px solid var(--color-accent)"
+                          :padding "12px" :text-align "center" :z-index "100"
+                          :box-shadow "0 -2px 8px rgba(0,0,0,0.15)"}}
             [:button.btn.btn-primary
              {:disabled @saving
               :on-click (fn [] (do-save!))}
