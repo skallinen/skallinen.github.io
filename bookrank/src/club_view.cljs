@@ -146,7 +146,10 @@
                             [:div.book-voters (str (:voter-count score-data) "/" (count member-ids)
                                                    (when (pos? (count (:unread-by score-data)))
                                                      (str " +" (count (:unread-by score-data)) "☐")))]]
-                           [:div.book-score {:style {:color "var(--color-accent)"}} "—"])]
+                           [:div {:style {:text-align "right"}}
+                            [:div.book-score {:style {:color "var(--color-accent)"}} "—"]
+                            (when score-data
+                              [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]
                         ;; Expanded member ratings
                         (when (and show-score? is-expanded?)
                           [:div.member-ratings

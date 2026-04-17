@@ -58,16 +58,14 @@
    If any member has a book unranked, the aggregate is hidden.
    Returns a map of {book-id -> {:score :display :voter-count :member-scores :unread-by :any-unranked?}}."
   [all-rankings member-ids all-book-ids]
-  (let [;; Only consider members who have submitted a ranking
-        active-member-ids (filterv #(contains? all-rankings %) member-ids)
-        ;; Build per-member sets for quick lookup
+  (let [;; Build per-member sets for quick lookup (all members)
         member-known (into {}
                           (map (fn [mid]
                                  (let [ranking (get all-rankings mid)
                                        order-set (set (or (:order ranking) []))
                                        unread-set (set (or (:unread ranking) []))]
                                    [mid {:order order-set :unread unread-set}]))
-                               active-member-ids))
+                               member-ids))
         ;; Collect per-book scores from all members
         book-scores  (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
         book-unread  (atom {})]  ;; {book-id -> #{uid}}
@@ -91,12 +89,12 @@
                  (let [scores  (map :score entries)
                        avg     (/ (reduce + scores) (count scores))
                        unread-set (get @book-unread book-id #{})
-                       ;; Check if any active member has this book unranked
+                       ;; Check if any member has this book unranked
                        any-unranked? (some (fn [mid]
                                              (let [m (get member-known mid)]
                                                (and (not (contains? (:order m) book-id))
                                                     (not (contains? (:unread m) book-id)))))
-                                           active-member-ids)
+                                           member-ids)
                        display (cond
                                  (> avg 5.0) "5+"
                                  (< avg 1.0) "1-"
