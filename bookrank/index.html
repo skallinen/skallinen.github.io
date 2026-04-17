@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookRank — Book Club Rankings</title>
+    <meta name="description" content="Rank books with your book club using a normal distribution scoring system.">
+
+    <!-- Design System -->
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Scittle & Reagent -->
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.reagent.js" type="application/javascript"></script>
+
+    <!-- Firebase (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- SortableJS -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+
+    <!-- App Logic (order matters for Scittle ns resolution) -->
+    <script type="application/x-scittle" src="src/config.cljs"></script>
+    <script type="application/x-scittle" src="src/scoring.cljs"></script>
+    <script type="application/x-scittle" src="src/router.cljs"></script>
+    <script type="application/x-scittle" src="src/auth.cljs"></script>
+    <script type="application/x-scittle" src="src/db.cljs"></script>
+    <script type="application/x-scittle" src="src/login.cljs"></script>
+    <script type="application/x-scittle" src="src/add_book.cljs"></script>
+    <script type="application/x-scittle" src="src/ranking.cljs"></script>
+    <script type="application/x-scittle" src="src/clubs.cljs"></script>
+    <script type="application/x-scittle" src="src/club_view.cljs"></script>
+    <script type="application/x-scittle" src="src/main.cljs"></script>
+</head>
+<body>
+    <div id="app"></div>
+</body>
+</html>

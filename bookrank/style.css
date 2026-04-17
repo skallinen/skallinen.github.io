@@ -1,0 +1,758 @@
+/* ========================================
+   BookRank — Swiss Minimalist Theme
+   Adapted from skallinen.github.io
+   ======================================== */
+
+:root {
+    --color-bg: #F2F2F2;
+    --color-text: #060606;
+    --color-accent: #9C9C9C;
+    --color-border: #E0E0E0;
+    --color-surface: #FFFFFF;
+    --color-success: #2E7D32;
+    --color-warning: #F57C00;
+    --color-danger: #C62828;
+
+    /* Score colors */
+    --color-score-high: #2E7D32;
+    --color-score-mid: #F57C00;
+    --color-score-low: #C62828;
+
+    /* Dark Mode */
+    --color-dark-primary: #39FF14;
+    --color-dark-secondary: #BD00FF;
+
+    --font-main: 'Space Grotesk', sans-serif;
+    --grid-gap: 24px;
+    --border-radius: 2px;
+    --transition-speed: 0.3s;
+}
+
+/* Dark Mode */
+body.dark-mode {
+    --color-bg: #050505;
+    --color-text: #F0F0F0;
+    --color-accent: var(--color-dark-primary);
+    --color-surface: #111;
+    --color-border: #333;
+    --color-success: #66BB6A;
+    --color-warning: #FFB74D;
+    --color-danger: #EF5350;
+    --color-score-high: #66BB6A;
+    --color-score-mid: #FFB74D;
+    --color-score-low: #EF5350;
+}
+
+/* ========================================
+   Reset & Base
+   ======================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    overflow-y: scroll;
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-main);
+    margin: 0;
+    padding: 0;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    line-height: 1.5;
+}
+
+/* ========================================
+   Layout
+   ======================================== */
+
+.app-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+/* ========================================
+   Header
+   ======================================== */
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--color-text);
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+
+.app-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.app-title:hover {
+    opacity: 0.7;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+}
+
+.user-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-accent);
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
+
+.btn {
+    background: transparent;
+    border: 1px solid var(--color-text);
+    color: var(--color-text);
+    padding: 8px 16px;
+    font-family: var(--font-main);
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border-radius: var(--border-radius);
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.btn-small {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+}
+
+.btn-primary {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.btn-primary:hover {
+    background: transparent;
+    color: var(--color-text);
+}
+
+.btn-danger {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+.btn-danger:hover {
+    background: var(--color-danger);
+    color: var(--color-bg);
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 1rem;
+    color: var(--color-accent);
+    transition: color 0.2s;
+}
+
+.btn-icon:hover {
+    color: var(--color-text);
+}
+
+/* ========================================
+   Login View
+   ======================================== */
+
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    gap: 24px;
+}
+
+.login-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+
+.login-subtitle {
+    font-size: 1rem;
+    color: var(--color-accent);
+    max-width: 400px;
+}
+
+.google-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    border: 2px solid var(--color-text);
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--border-radius);
+    transition: all 0.2s;
+}
+
+.google-btn:hover {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.google-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ========================================
+   Cards
+   ======================================== */
+
+.card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.card:hover {
+    border-color: var(--color-text);
+    transform: translateY(-1px);
+}
+
+body.dark-mode .card:hover {
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.15);
+    border-color: var(--color-dark-primary);
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+}
+
+.card-subtitle {
+    font-size: 0.8rem;
+    color: var(--color-accent);
+    margin: 0;
+}
+
+/* ========================================
+   Club List
+   ======================================== */
+
+.club-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.club-card {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.club-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ========================================
+   Section Headers
+   ======================================== */
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.section-subtitle {
+    font-size: 0.85rem;
+    color: var(--color-accent);
+    margin: 4px 0 0 0;
+}
+
+/* ========================================
+   Forms
+   ======================================== */
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    color: var(--color-accent);
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    border-radius: var(--border-radius);
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-text);
+}
+
+body.dark-mode .form-input:focus {
+    border-color: var(--color-dark-primary);
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-inline {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.form-inline .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* ========================================
+   Book List (Club View — Aggregate)
+   ======================================== */
+
+.book-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.book-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    transition: border-color 0.2s;
+}
+
+.book-item:hover {
+    border-color: var(--color-text);
+}
+
+.book-rank {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    min-width: 24px;
+    text-align: center;
+}
+
+.book-info {
+    flex: 1;
+}
+
+.book-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.book-author {
+    font-size: 0.8rem;
+    color: var(--color-accent);
+}
+
+.book-score {
+    font-size: 1.1rem;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: center;
+}
+
+.book-score.score-high {
+    color: var(--color-score-high);
+}
+
+.book-score.score-mid {
+    color: var(--color-score-mid);
+}
+
+.book-score.score-low {
+    color: var(--color-score-low);
+}
+
+.book-voters {
+    font-size: 0.7rem;
+    color: var(--color-accent);
+}
+
+/* ========================================
+   Ranking View (Drag & Drop)
+   ======================================== */
+
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    cursor: grab;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.ranking-item:active {
+    cursor: grabbing;
+}
+
+.ranking-item.sortable-ghost {
+    opacity: 0.3;
+}
+
+.ranking-item.sortable-chosen {
+    border-color: var(--color-text);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .ranking-item.sortable-chosen {
+    border-color: var(--color-dark-primary);
+    box-shadow: 0 4px 12px rgba(57, 255, 20, 0.15);
+}
+
+.drag-handle {
+    color: var(--color-accent);
+    font-size: 1rem;
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.ranking-position {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    min-width: 20px;
+    text-align: center;
+}
+
+.ranking-score {
+    font-size: 0.85rem;
+    font-weight: 700;
+    min-width: 36px;
+    text-align: center;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+}
+
+.ranking-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Unread section */
+.unread-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+.unread-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+}
+
+.unread-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--border-radius);
+    opacity: 0.6;
+    margin-bottom: 4px;
+}
+
+/* ========================================
+   Members
+   ======================================== */
+
+.members-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.member-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border);
+    transition: border-color 0.2s;
+}
+
+.member-avatar:hover {
+    border-color: var(--color-text);
+}
+
+/* ========================================
+   Invite Code
+   ======================================== */
+
+.invite-code {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--border-radius);
+    font-family: monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    color: var(--color-accent);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.invite-code:hover {
+    border-color: var(--color-text);
+    color: var(--color-text);
+}
+
+.invite-copied {
+    font-size: 0.7rem;
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+/* ========================================
+   Tabs
+   ======================================== */
+
+.tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 24px;
+}
+
+.tab {
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    color: var(--color-accent);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: var(--font-main);
+}
+
+.tab:hover {
+    color: var(--color-text);
+}
+
+.tab.active {
+    color: var(--color-text);
+    border-bottom-color: var(--color-text);
+}
+
+body.dark-mode .tab.active {
+    border-bottom-color: var(--color-dark-primary);
+}
+
+/* ========================================
+   Empty State
+   ======================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-accent);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+
+/* ========================================
+   Loading
+   ======================================== */
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--color-accent);
+    font-size: 0.85rem;
+}
+
+/* ========================================
+   Toast / Flash Messages
+   ======================================== */
+
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    background: var(--color-text);
+    color: var(--color-bg);
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--border-radius);
+    z-index: 9999;
+    animation: toast-in 0.3s ease-out;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ========================================
+   Back Link
+   ======================================== */
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--color-accent);
+    text-decoration: none;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--color-text);
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 600px) {
+    .app-container {
+        padding: 16px;
+    }
+
+    .app-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .login-title {
+        font-size: 1.8rem;
+    }
+
+    .form-row {
+        flex-direction: column;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
