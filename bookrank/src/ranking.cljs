@@ -43,7 +43,24 @@
         saving   (r/atom false)
         saved    (r/atom false)
         loaded   (r/atom false)
-        list-ref (atom nil)]
+        list-ref (atom nil)
+        save-timer (atom nil)
+        do-save! (fn []
+                   ;; Debounced autosave: waits 500ms after last action
+                   (when @save-timer (js/clearTimeout @save-timer))
+                   (reset! save-timer
+                           (js/setTimeout
+                            (fn []
+                              (reset! saving true)
+                              (db/save-ranking!
+                               club-id
+                               (filterv #(not (contains? @unread %)) @order)
+                               (vec @unread)
+                               (fn []
+                                 (reset! saving false)
+                                 (reset! saved true)
+                                 (js/setTimeout #(reset! saved false) 2000))))
+                            500)))]
 
     ;; Load existing ranking
     (let [ranking-data (r/atom nil)]
@@ -87,7 +104,7 @@
                                                 (into (vec new-ids)
                                                       (filterv (fn [id] (contains? @unread id))
                                                                @order)))
-                                        (reset! saved false)))
+                                        (do-save!)))
                      100)))}
           (when @loaded
             (doall
@@ -115,14 +132,14 @@
                       :on-click (fn [e]
                                   (.stopPropagation e)
                                   (swap! unread conj book-id)
-                                  (reset! saved false))}
+                                  (do-save!))}
                      "📕"]
                     [:button.btn-icon
                      {:title    "Remove from ranking"
                       :on-click (fn [e]
                                   (.stopPropagation e)
                                   (swap! order (fn [o] (filterv #(not= % book-id) o)))
-                                  (reset! saved false))}
+                                  (do-save!))}
                      "↩"]]]))
               ranked-books)))]
 
@@ -142,13 +159,13 @@
                     {:title    "Add to ranking"
                      :on-click (fn []
                                  (swap! order conj book-id)
-                                 (reset! saved false))}
+                                 (do-save!))}
                     "📊"]
                    [:button.btn-icon
                     {:title    "Mark as unread"
                      :on-click (fn []
                                  (swap! unread conj book-id)
-                                 (reset! saved false))}
+                                 (do-save!))}
                     "📕"]]])))])
 
          ;; Unread section
@@ -169,23 +186,12 @@
                                 ;; Add back to end of order if not present
                                 (when-not (some #{book-id} @order)
                                   (swap! order conj book-id))
-                                (reset! saved false))}
+                                (do-save!))}
                    "📖"]])))])
 
-         ;; Save button
-         [:div {:style {:margin-top "20px" :display "flex" :gap "12px" :align-items "center"}}
-          [:button.btn.btn-primary
-           {:disabled @saving
-            :on-click (fn []
-                        (reset! saving true)
-                        (db/save-ranking!
-                         club-id
-                         (filterv #(not (contains? @unread %)) @order)
-                         (vec @unread)
-                         (fn []
-                           (reset! saving false)
-                           (reset! saved true)
-                           (js/setTimeout #(reset! saved false) 2000))))}
-           (if @saving "Saving..." "Save Ranking")]
-          (when @saved
-            [:span.invite-copied "✓ Saved"])]]))))
+         ;; Autosave status
+         [:div {:style {:margin-top "16px" :text-align "center"}}
+          (cond
+            @saving [:span {:style {:color "var(--color-accent)" :font-size "0.8rem"}} "Saving..."]
+            @saved  [:span.invite-copied "✓ Saved"]
+            :else   nil)]]))))
