@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reseed BBC Club</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: monospace; padding: 40px; max-width: 800px; }
+        #status { white-space: pre-wrap; margin-top: 20px; color: #333; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; margin: 4px; }
+        .book-list { font-size: 12px; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h2>Reseed BBC Book Club</h2>
+    <p>Step 1: Sign in. Step 2: Check current books. Step 3: Delete & reseed.</p>
+    <div>
+        <button id="btn-signin">1. Sign In</button>
+        <button id="btn-check" disabled>2. Check Current Books</button>
+        <button id="btn-reseed" disabled>3. Delete All & Reseed</button>
+    </div>
+    <pre id="status"></pre>
+
+    <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",
+        authDomain: "book-club-e4916.firebaseapp.com",
+        projectId: "book-club-e4916",
+        storageBucket: "book-club-e4916.firebasestorage.app",
+        messagingSenderId: "910679044088",
+        appId: "1:910679044088:web:04f7c993a52c7f393af00d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+    let currentUser = null;
+    let bbcClubId = null;
+
+    const status = document.getElementById('status');
+    function log(msg) { status.textContent += msg + '\n'; }
+
+    // The correct book list in ranking order (best first)
+    const BOOKS = [
+        ["Rest Is Noise", "Alex Ross"],
+        ["Black Rain", "Masuji Ibuse"],
+        ["Thinking Fast and Slow", "Daniel Kahneman"],
+        ["The Sellout", "Paul Beatty"],
+        ["Design of Everyday Things", "Don Norman"],
+        ["The Three Body Problem Trilogy", "Liu Cixin"],
+        ["The Three Body Problem", "Liu Cixin"],
+        ["The Graveyard Book", "Neil Gaiman"],
+        ["Chew Vols 1-3", "Rob Guillory & John Layman"],
+        ["Death's End", "Liu Cixin"],
+        ["Isaac Newton", "James Gleick"],
+        ["White Tears", "Hari Kunzru"],
+        ["The Dark Forest", "Liu Cixin"],
+        ["Just Kids", "Patti Smith"],
+        ["Poetry Evening", "Rudyard Kipling"],
+        ["The Cost of Living", "Deborah Levy"],
+        ["History of Dance", "Gayle Kassing"],
+        ["Mr Loverman", "Bernardine Evaristo"],
+        ["Requiem for a Lost Empire", "Andrei Makine"],
+        ["Where Good Ideas Come From", "Steven B. Johnson"],
+        ["The Iceberg", "Marion Coutts"],
+        ["My Struggle", "Karl Ove Knausgård"],
+        ["Oryx and Crake", "Margaret Atwood"],
+        ["Creativity Inc", "Ed Catmull"],
+        ["The Successor", "Ismail Kadare"],
+        ["Debt: The First 5000 Years", "David Graeber"],
+        ["The Great Gatsby", "F. Scott Fitzgerald"],
+        ["Lolita", "Vladimir Nabokov"],
+        ["The Sympathizer", "Viet Thanh Nguyen"],
+        ["The Psychopath Test", "Jon Ronson"],
+        ["Steve Jobs", "Walter Isaacson"],
+        ["Sing to Me", "Jesse Browner"],
+        ["Hagakure", "Yamamoto Tsunetomo"],
+        ["The Wager: A Tale of Shipwreck, Mutiny and Murder", "David Grann"],
+        ["The Gene: An Intimate History", "Siddhartha Mukherjee"],
+        ["Siddhartha", "Hermann Hesse"],
+        ["The Goldfinch", "Donna Tartt"],
+        ["Isis: Inside the Army of Terror", "Michael Weiss & Hassan Hassan"],
+        ["Where the Crawdads Sing", "Delia Owens"],
+        ["The Innovators", "Walter Isaacson"],
+        ["Leading", "Alex Ferguson"],
+        ["How Google Works", "Eric Schmidt & Jonathan Rosenberg"],
+        ["Black Box Thinking", "Matthew Syed"],
+        ["The Aleppo Codex", "Matti Friedman"],
+        ["The Miracle of Mindfulness", "Thich Nhat Hanh"],
+        ["Disrupted", "Dan Lyons"],
+        ["The Circle", "Dave Eggers"],
+        ["The Behemoth", ""],
+        ["In Search of Excellence", "Tom Peters & Robert H. Waterman"],
+        ["Yellow Birds", "Kevin Powers"],
+        ["Deliverance", "James Dickey"],
+        ["Zodiac", "Neal Stephenson"],
+        ["Poke the Box", "Seth Godin"],
+        ["Red Badge of Courage", "Stephen Crane"],
+        ["Birdseye: The Adventures of a Curious Man", "Mark Kurlansky"]
+    ];
+
+    // Step 1: Sign in
+    document.getElementById('btn-signin').onclick = async () => {
+        try {
+            const result = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+            currentUser = result.user;
+            log('Signed in as: ' + currentUser.displayName + ' (' + currentUser.uid + ')');
+
+            // Find BBC club
+            const clubs = await db.collection('clubs').where('invite_code', '==', 'BBCLUB').get();
+            if (clubs.empty) {
+                log('ERROR: No BBC club found!');
+                return;
+            }
+            bbcClubId = clubs.docs[0].id;
+            log('BBC Club ID: ' + bbcClubId);
+            document.getElementById('btn-check').disabled = false;
+            document.getElementById('btn-reseed').disabled = false;
+        } catch (e) {
+            log('Sign in error: ' + e.message);
+        }
+    };
+
+    // Step 2: Check current books
+    document.getElementById('btn-check').onclick = async () => {
+        log('\n--- Current Books in BBC ---');
+        const snap = await db.collection('clubs/' + bbcClubId + '/books').get();
+        log('Total: ' + snap.size + ' books');
+        const existingTitles = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            existingTitles.push(d.title);
+            log('  ' + d.title + ' — ' + (d.author || '(no author)'));
+        });
+
+        // Compare with expected
+        log('\n--- Comparison ---');
+        const expectedTitles = BOOKS.map(b => b[0]);
+        const missing = expectedTitles.filter(t => !existingTitles.includes(t));
+        const extra = existingTitles.filter(t => !expectedTitles.includes(t));
+        if (missing.length) log('MISSING from DB: ' + JSON.stringify(missing));
+        if (extra.length) log('EXTRA in DB: ' + JSON.stringify(extra));
+        if (!missing.length && !extra.length) log('All ' + expectedTitles.length + ' books present ✓');
+
+        // Check ranking
+        log('\n--- Rankings ---');
+        const rankings = await db.collection('clubs/' + bbcClubId + '/rankings').get();
+        rankings.forEach(doc => {
+            const d = doc.data();
+            log('  User ' + doc.id + ': ' + (d.order ? d.order.length : 0) + ' ranked');
+        });
+    };
+
+    // Step 3: Delete all books & rankings, then reseed
+    document.getElementById('btn-reseed').onclick = async () => {
+        log('Starting reseed...');
+
+        const uid = currentUser.uid;
+
+        // Delete all existing books
+        log('\nDeleting existing books...');
+        const bookSnap = await db.collection('clubs/' + bbcClubId + '/books').get();
+        let deleted = 0;
+        for (const doc of bookSnap.docs) {
+            await doc.ref.delete();
+            deleted++;
+        }
+        log('Deleted ' + deleted + ' books');
+
+        // Delete all existing rankings
+        log('Deleting existing rankings...');
+        const rankSnap = await db.collection('clubs/' + bbcClubId + '/rankings').get();
+        for (const doc of rankSnap.docs) {
+            await doc.ref.delete();
+        }
+        log('Deleted ' + rankSnap.size + ' rankings');
+
+        // Add books in order
+        log('Adding ' + BOOKS.length + ' books...');
+        const bookIds = [];
+        for (let i = 0; i < BOOKS.length; i++) {
+            const [title, author] = BOOKS[i];
+            const ref = await db.collection('clubs/' + bbcClubId + '/books').add({
+                title: title,
+                author: author || '',
+                added_by: uid,
+                added_at: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            bookIds.push(ref.id);
+            log('  ' + (i+1) + '/' + BOOKS.length + ': ' + title + ' (id: ' + ref.id + ')');
+        }
+
+        // Save ranking for notjustsilicon (the current user) with all books in order
+        log('\nSaving ranking (all books in order)...');
+        await db.doc('clubs/' + bbcClubId + '/rankings/' + uid).set({
+            order: bookIds,
+            unread: [],
+            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        log('\n✓ Done! ' + BOOKS.length + ' books added with ranking set.');
+        log('Reload the app to see the changes.');
+    };
+    </script>
+</body>
+</html>
