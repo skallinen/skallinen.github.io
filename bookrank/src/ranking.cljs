@@ -161,7 +161,7 @@
                     {:title    "Add to ranking"
                      :on-click (fn []
                                  (swap! order conj book-id)
-                                 (do-save!))}
+                                 (reset! dirty true))}
                     "📊"]
                    [:button.btn-icon
                     {:title    "Mark as unread"
