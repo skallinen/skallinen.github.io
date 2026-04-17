@@ -219,7 +219,16 @@
                             :on-click (fn [e]
                                         (.stopPropagation e)
                                         (reset! confirm-remove (:id m)))}
-                           "✕"]))]]))]]))])))))
+                           "✕"]))       ;; close button vec, if, when
+                      ]]               ;; close div flex, div.book-item
+                    ))                 ;; close for, doall
+                  ]                    ;; close [:div (line 180)
+                  )                    ;; close case
+                  ]                    ;; close [:div (line 114)
+                  )                    ;; close if (line 109)
+                  )                    ;; close if (line 105)
+                  ]                    ;; close [:div (line 58)
+                  ))))                 ;; close fn, let, outer let, defn
 
 
 
