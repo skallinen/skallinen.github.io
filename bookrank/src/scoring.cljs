@@ -51,28 +51,43 @@
                     :else           (.toFixed clamped 1))})))
 
 (defn compute-aggregate-scores
-  "Given a map of {uid -> {:order [book-ids...] :unread #{book-ids...}}},
-   compute the aggregate score for each book.
-   Returns a map of {book-id -> {:score number :display string :voter-count int}}."
-  [all-rankings]
+  "Given a map of {uid -> {:order [book-ids...] :unread [book-ids...]}},
+   and total member-count, compute the aggregate score for each book.
+   Returns a map of {book-id -> {:score :display :voter-count :member-scores :unread-by :all-rated?}}."
+  [all-rankings member-count]
   (let [;; Collect per-book scores from all members
-        book-scores (atom {})]
-    (doseq [[_uid ranking] all-rankings]
+        book-scores  (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
+        book-unread  (atom {})]  ;; {book-id -> #{uid}}
+    ;; Collect ranked scores
+    (doseq [[uid ranking] all-rankings]
       (let [order  (or (:order ranking) [])
+            unread (set (or (:unread ranking) []))
             total  (count order)]
+        ;; Ranked books
         (doseq [[idx book-id] (map-indexed vector order)]
           (let [{:keys [raw]} (rank->score idx total)]
             (swap! book-scores update book-id
-                   (fn [scores] (conj (or scores []) raw)))))))
+                   (fn [entries] (conj (or entries []) {:uid uid :score raw})))))
+        ;; Unread books
+        (doseq [book-id unread]
+          (swap! book-unread update book-id
+                 (fn [s] (conj (or s #{}) uid))))))
     ;; Average scores per book
     (into {}
-          (map (fn [[book-id scores]]
-                 (let [avg   (/ (reduce + scores) (count scores))
+          (map (fn [[book-id entries]]
+                 (let [scores  (map :score entries)
+                       avg     (/ (reduce + scores) (count scores))
+                       unread-set (get @book-unread book-id #{})
+                       covered (+ (count entries) (count unread-set))
+                       all-rated? (>= covered member-count)
                        display (cond
                                  (> avg 5.0) "5+"
                                  (< avg 1.0) "1-"
                                  :else       (.toFixed avg 1))]
-                   [book-id {:score       avg
-                             :display     display
-                             :voter-count (count scores)}]))
+                   [book-id {:score          avg
+                             :display        display
+                             :voter-count    (count entries)
+                             :member-scores  entries
+                             :unread-by      unread-set
+                             :all-rated?     all-rated?}]))
                @book-scores))))
