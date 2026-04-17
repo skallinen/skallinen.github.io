@@ -52,10 +52,21 @@
 
 (defn compute-aggregate-scores
   "Given a map of {uid -> {:order [book-ids...] :unread [book-ids...]}},
-   and total member-count, compute the aggregate score for each book.
-   Returns a map of {book-id -> {:score :display :voter-count :member-scores :unread-by :all-rated?}}."
-  [all-rankings member-count]
-  (let [;; Collect per-book scores from all members
+   a seq of member-ids, and a set of all book IDs in the club,
+   compute the aggregate score for each book.
+   A book is 'unranked' for a member if it's not in their order or unread.
+   If any member has a book unranked, the aggregate is hidden.
+   Returns a map of {book-id -> {:score :display :voter-count :member-scores :unread-by :any-unranked?}}."
+  [all-rankings member-ids all-book-ids]
+  (let [;; Build per-member sets for quick lookup
+        member-known (into {}
+                          (map (fn [mid]
+                                 (let [ranking (get all-rankings mid)
+                                       order-set (set (or (:order ranking) []))
+                                       unread-set (set (or (:unread ranking) []))]
+                                   [mid {:order order-set :unread unread-set}]))
+                               member-ids))
+        ;; Collect per-book scores from all members
         book-scores  (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
         book-unread  (atom {})]  ;; {book-id -> #{uid}}
     ;; Collect ranked scores
@@ -72,14 +83,18 @@
         (doseq [book-id unread]
           (swap! book-unread update book-id
                  (fn [s] (conj (or s #{}) uid))))))
-    ;; Average scores per book
+    ;; Compute aggregates for all books that have at least one score
     (into {}
           (map (fn [[book-id entries]]
                  (let [scores  (map :score entries)
                        avg     (/ (reduce + scores) (count scores))
                        unread-set (get @book-unread book-id #{})
-                       covered (+ (count entries) (count unread-set))
-                       all-rated? (>= covered member-count)
+                       ;; Check if any member has this book unranked
+                       any-unranked? (some (fn [mid]
+                                             (let [m (get member-known mid)]
+                                               (and (not (contains? (:order m) book-id))
+                                                    (not (contains? (:unread m) book-id)))))
+                                           member-ids)
                        display (cond
                                  (> avg 5.0) "5+"
                                  (< avg 1.0) "1-"
@@ -89,5 +104,5 @@
                              :voter-count    (count entries)
                              :member-scores  entries
                              :unread-by      unread-set
-                             :all-rated?     all-rated?}]))
+                             :any-unranked?  (boolean any-unranked?)}]))
                @book-scores))))

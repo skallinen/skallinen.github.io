@@ -6,6 +6,7 @@
 
 ;; =============================================
 ;; Ranking View — Drag-and-Drop Book Ranking
+;; Three states per book: ranked, unranked, unread
 ;; Uses SortableJS for drag-and-drop.
 ;; =============================================
 
@@ -56,20 +57,22 @@
                existing-unread (set (or (:unread data) []))
                ;; Books in order that still exist
                valid-order (filterv #(contains? all-book-ids %) existing-order)
-               valid-unread (set (filter #(contains? all-book-ids %) existing-unread))
-               ;; New books not in any list
-               known (into (set valid-order) valid-unread)
-               new-books (filterv #(not (contains? known %)) (keys books-map))
-               ;; Add new books at the end of the order
-               final-order (into (vec valid-order) new-books)]
-           (reset! order final-order)
+               valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
+           ;; New books not in order or unread stay "unranked" (not stored anywhere)
+           (reset! order valid-order)
            (reset! unread valid-unread)
            (reset! loaded true)))
        500))
 
     (fn [club-id books-map]
-      (let [ranked-books (filterv #(not (contains? @unread %)) @order)
-            unread-books (filterv #(contains? @unread %) (keys books-map))
+      (let [order-set    (set @order)
+            unread-set   @unread
+            ranked-books (filterv #(not (contains? unread-set %)) @order)
+            unread-books (filterv #(contains? unread-set %) (keys books-map))
+            ;; Unranked = not in order AND not in unread
+            unranked-books (filterv #(and (not (contains? order-set %))
+                                         (not (contains? unread-set %)))
+                                    (keys books-map))
             total        (count ranked-books)]
         [:div
          ;; Ranked books (sortable)
@@ -114,6 +117,31 @@
                                  (reset! saved false))}
                     "📕"]]))
               ranked-books)))]
+
+         ;; Unranked section (new books not yet ranked or marked unread)
+         (when (seq unranked-books)
+           [:div.unread-section
+            [:div.unread-label "Unranked"]
+            (doall
+             (for [book-id unranked-books]
+               (let [book (get books-map book-id)]
+                 [:div.unread-item {:key book-id}
+                  [:div.book-info
+                   [:div.book-title (or (:title book) book-id)]
+                   [:div.book-author (or (:author book) "")]]
+                  [:div {:style {:display "flex" :gap "4px"}}
+                   [:button.btn-icon
+                    {:title    "Add to ranking"
+                     :on-click (fn []
+                                 (swap! order conj book-id)
+                                 (reset! saved false))}
+                    "📊"]
+                   [:button.btn-icon
+                    {:title    "Mark as unread"
+                     :on-click (fn []
+                                 (swap! unread conj book-id)
+                                 (reset! saved false))}
+                    "📕"]]])))])
 
          ;; Unread section
          (when (seq unread-books)

@@ -39,12 +39,13 @@
 
     (fn [club-id]
       (let [books-map    (into {} (map (fn [b] [(:id b) b]) @books))
-            member-count (count @members)
+            member-ids   (mapv :id @members)
             members-map  (into {} (map (fn [m] [(:id m) m]) @members))
-            agg-scores   (scoring/compute-aggregate-scores @rankings member-count)
+            all-book-ids (set (keys books-map))
+            agg-scores   (scoring/compute-aggregate-scores @rankings member-ids all-book-ids)
             sorted-books (sort-by (fn [b]
                                     (let [sd (get agg-scores (:id b))]
-                                      (if (and sd (:all-rated? sd))
+                                      (if (and sd (not (:any-unranked? sd)))
                                         (- (:score sd))
                                         100)))
                                   @books)
@@ -126,28 +127,28 @@
                   (map-indexed
                    (fn [idx book]
                      (let [score-data (get agg-scores (:id book))
-                           fully-rated? (and score-data (:all-rated? score-data))
+                           show-score? (and score-data (not (:any-unranked? score-data)))
                            is-expanded? (= @expanded-book (:id book))]
                        [:div {:key (:id book)}
                         [:div.book-item
-                         {:style (when fully-rated? {:cursor "pointer"})
-                          :on-click (when fully-rated?
+                         {:style (when show-score? {:cursor "pointer"})
+                          :on-click (when show-score?
                                       (fn [] (swap! expanded-book
                                                     #(if (= % (:id book)) nil (:id book)))))}
                          [:span.book-rank (str (inc idx))]
                          [:div.book-info
                           [:div.book-title (:title book)]
                           [:div.book-author (:author book)]]
-                         (if fully-rated?
+                         (if show-score?
                            [:div {:style {:text-align "right"}}
                             [:div.book-score {:class (score-class (:score score-data))}
                              (:display score-data)]
-                            [:div.book-voters (str (:voter-count score-data) "/" member-count
+                            [:div.book-voters (str (:voter-count score-data) "/" (count member-ids)
                                                    (when (pos? (count (:unread-by score-data)))
                                                      (str " +" (count (:unread-by score-data)) "☐")))]]
-                           [:div.book-score {:style {:color "var(--color-muted)"}} "—"])]
+                           [:div.book-score {:style {:color "var(--color-accent)"}} "—"])]
                         ;; Expanded member ratings
-                        (when (and fully-rated? is-expanded?)
+                        (when (and show-score? is-expanded?)
                           [:div.member-ratings
                            (doall
                             (for [{:keys [uid score]} (:member-scores score-data)]
