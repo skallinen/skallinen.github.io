@@ -94,6 +94,14 @@
                                     (keys books-map))
             total        (count ranked-books)]
         [:div
+         ;; Help tips
+         [:details {:style {:margin-bottom "12px" :font-size "0.82em" :opacity 0.8}}
+          [:summary {:style {:cursor "pointer" :color "var(--color-accent)"}} "ℹ How this works"]
+          [:div {:style {:padding "8px 12px" :line-height "1.5"}}
+           [:p "Drag books to reorder. Best at top, worst at bottom. The order is what matters — the score is just a representation."]
+           [:p {:style {:margin-top "6px"}} "📊 = add to your ranking · 📕 = mark as unread (haven't read it) · ↩ = remove from ranking"]
+           [:p {:style {:margin-top "6px"}} "Leave books " [:strong "unranked"] " if you're currently reading or plan to. Only mark " [:strong "unread"] " if it will stay unread for now."]
+           [:p {:style {:margin-top "6px"}} "Can't remember a book? Put it in the middle — if it wasn't memorable enough to recall, it's probably average."]]]
          ;; Ranked books (sortable)
          [:div.ranking-list
           {:ref (fn [el]

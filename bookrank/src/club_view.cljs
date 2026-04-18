@@ -124,6 +124,11 @@
               (case @active-tab
                 :scores
                 [:div.book-list
+                 [:div {:style {:font-size "0.8em" :opacity 0.7 :padding "4px 8px 10px" :line-height "1.4"}}
+                  "Collective rank uses "
+                  [:strong "reciprocal rank fusion"]
+                  " to merge everyone's lists. Scores (1–5) follow a normal distribution. "
+                  "A score only appears once every member has ranked or marked a book unread."]
                  (doall
                   (map-indexed
                    (fn [idx book]
