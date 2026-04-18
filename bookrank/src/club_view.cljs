@@ -137,7 +137,7 @@
                   "Collective rank uses "
                   [:strong "reciprocal rank fusion"]
                   " to merge everyone's lists. Scores (1–5) follow a normal distribution. "
-                  "A score only appears once every member has ranked or marked a book unread."]
+                  "A score only appears once every member has ranked or skipped a book."]
                  (doall
                   (map-indexed
                    (fn [idx book]
@@ -162,7 +162,7 @@
                                                    (when (pos? (count (:unread-by score-data)))
                                                      (str " +" (count (:unread-by score-data)) "☐")))]]
                            [:div {:style {:text-align "right"}
-                                  :title "Score appears once every member has ranked or marked this book unread"}
+                                  :title "Score appears once every member has ranked or skipped this book"}
                             [:div.book-score {:style {:color "var(--color-accent)"}} "—"]
                             (when score-data
                               [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]
@@ -187,7 +187,7 @@
                                   {:src (or (:photo_url member) "")
                                    :alt (or (:display_name member) "")}]
                                  [:span.member-name (or (:display_name member) "Unknown")]
-                                 [:span {:style {:opacity 0.5 :font-size "0.85em"}} "unread"]])))])]))
+                                 [:span {:style {:opacity 0.5 :font-size "0.85em"}} "skipped"]])))])]))
                    sorted-books))]
 
                 :members

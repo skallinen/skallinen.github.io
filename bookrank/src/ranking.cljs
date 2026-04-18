@@ -129,8 +129,8 @@
           [:summary {:style {:cursor "pointer" :color "var(--color-accent)"}} "ℹ How this works"]
           [:div {:style {:padding "8px 12px" :line-height "1.5"}}
            [:p "Drag books to reorder. Best at top, worst at bottom. The order is what matters — the score is just a representation."]
-           [:p {:style {:margin-top "6px"}} "📊 = add to your ranking · 📕 = mark as unread (haven't read it) · ↩ = remove from ranking"]
-           [:p {:style {:margin-top "6px"}} "Leave books " [:strong "unranked"] " if you're currently reading or plan to. Only mark " [:strong "unread"] " if it will stay unread for now."]
+           [:p {:style {:margin-top "6px"}} "📊 = add to your ranking · 📕 = skip (haven't read it) · ↩ = remove from ranking"]
+           [:p {:style {:margin-top "6px"}} "Leave books " [:strong "unranked"] " if you're currently reading or plan to. Only mark " [:strong "skipped"] " if it will stay unread for now."]
            [:p {:style {:margin-top "6px"}} "Can't remember a book? Put it in the middle — if it wasn't memorable enough to recall, it's probably average."]]]
          ;; Ranked books (sortable)
          [:div.ranking-list
@@ -171,7 +171,7 @@
                     (:display score)]
                    [:div {:style {:display "flex" :gap "2px"}}
                     [:button.btn-icon
-                     {:title    "Mark as unread"
+                     {:title    "Skip (haven't read)"
                       :on-click (fn [e]
                                   (.stopPropagation e)
                                   (swap! unread conj book-id)
@@ -208,7 +208,7 @@
                                    (do-save!)))}
                     "📊"]
                    [:button.btn-icon
-                    {:title    "Mark as unread"
+                    {:title    "Skip (haven't read)"
                      :on-click (fn []
                                  (swap! unread conj book-id)
                                  (if confirm?
@@ -216,10 +216,10 @@
                                    (do-save!)))}
                     "📕"]]])))])
 
-         ;; Unread section
+         ;; Skipped section
          (when (seq unread-books)
            [:div.unread-section
-            [:div.unread-label "Unread"]
+            [:div.unread-label "Skipped"]
             (doall
              (for [book-id unread-books]
                (let [book (get books-map book-id)]
