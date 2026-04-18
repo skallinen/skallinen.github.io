@@ -37,7 +37,7 @@
 
 (defn ranking-view
   "The drag-and-drop ranking view for a club."
-  [club-id books-map]
+  [club-id books-map confirm?]
   (let [order    (r/atom [])
         unread   (r/atom #{})
         saving   (r/atom false)
@@ -83,7 +83,7 @@
            (reset! loaded true)))
        500))
 
-    (fn [club-id books-map]
+    (fn [club-id books-map confirm?]
       (let [order-set    (set @order)
             unread-set   @unread
             ranked-books (filterv #(not (contains? unread-set %)) @order)
@@ -106,7 +106,9 @@
                                                 (into (vec new-ids)
                                                       (filterv (fn [id] (contains? @unread id))
                                                                @order)))
-                                        (reset! dirty true)))
+                                        (if confirm?
+                                          (reset! dirty true)
+                                          (do-save!))))
                      100)))}
           (when @loaded
             (doall
@@ -161,13 +163,17 @@
                     {:title    "Add to ranking"
                      :on-click (fn []
                                  (swap! order conj book-id)
-                                 (reset! dirty true))}
+                                 (if confirm?
+                                   (reset! dirty true)
+                                   (do-save!)))}
                     "📊"]
                    [:button.btn-icon
                     {:title    "Mark as unread"
                      :on-click (fn []
                                  (swap! unread conj book-id)
-                                 (do-save!))}
+                                 (if confirm?
+                                   (reset! dirty true)
+                                   (do-save!)))}
                     "📕"]]])))])
 
          ;; Unread section

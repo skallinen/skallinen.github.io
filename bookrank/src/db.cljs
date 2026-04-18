@@ -97,6 +97,16 @@
                            (.then (fn [] (when callback (callback club-id)))))))))
           (.catch (fn [err] (js/console.error "[db] join-club error:" err)))))))
 
+(defn update-club-settings!
+  "Update settings on a club document. settings is a clj map."
+  [club-id settings callback]
+  (when-let [db auth/firebase-db]
+    (-> (.update (.doc db (str "clubs/" club-id))
+                 (clj->js settings))
+        (.then (fn [] (when callback (callback))))
+        (.catch (fn [err]
+                  (js/console.error "[db] update-club-settings error:" err))))))
+
 ;; -- Books --
 
 (defn add-book!

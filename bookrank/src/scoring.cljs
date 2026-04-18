@@ -50,15 +50,25 @@
                     (< clamped 1.0) "1-"
                     :else           (.toFixed clamped 1))})))
 
+;; =============================================
+;; Reciprocal Rank Fusion (RRF)
+;; Standard algorithm for merging ranked lists.
+;; Score(book) = Σ 1/(k + rank), where k=60
+;; =============================================
+
 (defn compute-aggregate-scores
   "Given a map of {uid -> {:order [book-ids...] :unread [book-ids...]}},
    a seq of member-ids, and a set of all book IDs in the club,
-   compute the aggregate score for each book.
+   compute the aggregate score for each book using RRF.
    A book is 'unranked' for a member if it's not in their order or unread.
    If any member has a book unranked, the aggregate is hidden.
-   Returns a map of {book-id -> {:score :display :voter-count :member-scores :unread-by :any-unranked?}}."
+   After RRF sorting, display scores are assigned using the normal distribution
+   system (same as individual rankings).
+   Returns a map of {book-id -> {:score :display :rrf-score :voter-count
+                                  :member-scores :unread-by :any-unranked?}}."
   [all-rankings member-ids all-book-ids]
-  (let [;; Build per-member sets for quick lookup (all members)
+  (let [k 60  ;; RRF constant
+        ;; Build per-member sets for quick lookup (all members)
         member-known (into {}
                           (map (fn [mid]
                                  (let [ranking (get all-rankings mid)
@@ -66,43 +76,50 @@
                                        unread-set (set (or (:unread ranking) []))]
                                    [mid {:order order-set :unread unread-set}]))
                                member-ids))
-        ;; Collect per-book scores from all members
-        book-scores  (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
+        ;; Collect per-book RRF scores and member scores
+        book-rrf     (atom {})   ;; {book-id -> rrf-total}
+        book-members (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
         book-unread  (atom {})]  ;; {book-id -> #{uid}}
-    ;; Collect ranked scores
+    ;; Calculate RRF scores from each member's ranking
     (doseq [[uid ranking] all-rankings]
       (let [order  (or (:order ranking) [])
             unread (set (or (:unread ranking) []))
             total  (count order)]
-        ;; Ranked books
+        ;; Ranked books: compute both RRF and individual score
         (doseq [[idx book-id] (map-indexed vector order)]
-          (let [{:keys [raw]} (rank->score idx total)]
-            (swap! book-scores update book-id
-                   (fn [entries] (conj (or entries []) {:uid uid :score raw})))))
+          (let [rrf-contribution (/ 1.0 (+ k (inc idx)))  ;; 1-indexed rank
+                {:keys [raw]} (rank->score idx total)]
+            (swap! book-rrf update book-id
+                   (fn [v] (+ (or v 0) rrf-contribution)))
+            (swap! book-members update book-id
+                   (fn [entries]
+                     (conj (or entries [])
+                           {:uid uid :score raw})))))
         ;; Unread books
         (doseq [book-id unread]
           (swap! book-unread update book-id
                  (fn [s] (conj (or s #{}) uid))))))
-    ;; Compute aggregates for all books that have at least one score
-    (into {}
-          (map (fn [[book-id entries]]
-                 (let [scores  (map :score entries)
-                       avg     (/ (reduce + scores) (count scores))
-                       unread-set (get @book-unread book-id #{})
-                       ;; Check if any member has this book unranked
-                       any-unranked? (some (fn [mid]
-                                             (let [m (get member-known mid)]
-                                               (and (not (contains? (:order m) book-id))
-                                                    (not (contains? (:unread m) book-id)))))
-                                           member-ids)
-                       display (cond
-                                 (> avg 5.0) "5+"
-                                 (< avg 1.0) "1-"
-                                 :else       (.toFixed avg 1))]
-                   [book-id {:score          avg
-                             :display        display
-                             :voter-count    (count entries)
-                             :member-scores  entries
-                             :unread-by      unread-set
-                             :any-unranked?  (boolean any-unranked?)}]))
-               @book-scores))))
+    ;; Sort books by RRF score (descending) and assign display scores
+    (let [scored-books (sort-by (fn [[_ rrf]] (- rrf)) @book-rrf)
+          total-scored (count scored-books)
+          ;; Assign position-based display scores
+          scored-with-pos (map-indexed
+                           (fn [idx [book-id rrf-score]]
+                             (let [{:keys [raw display]} (rank->score idx total-scored)
+                                   unread-set (get @book-unread book-id #{})
+                                   entries (get @book-members book-id [])
+                                   any-unranked?
+                                   (some (fn [mid]
+                                           (let [m (get member-known mid)]
+                                             (and (not (contains? (:order m) book-id))
+                                                  (not (contains? (:unread m) book-id)))))
+                                         member-ids)]
+                               [book-id {:score          raw
+                                         :display        display
+                                         :rrf-score      rrf-score
+                                         :voter-count    (count entries)
+                                         :member-scores  entries
+                                         :unread-by      unread-set
+                                         :any-unranked?  (boolean any-unranked?)}]))
+                           scored-books)]
+      (into {} scored-with-pos))))

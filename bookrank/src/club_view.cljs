@@ -47,7 +47,7 @@
             sorted-books (sort-by (fn [b]
                                     (let [sd (get agg-scores (:id b))]
                                       (if (and sd (not (:any-unranked? sd)))
-                                        (- (:score sd))
+                                        (- (or (:rrf-score sd) 0))
                                         100)))
                                   @books)
             current-uid  (:uid @auth/user)
@@ -222,7 +222,32 @@
                            "✕"]))       ;; close button vec, if, when
                       ]]               ;; close div flex, div.book-item
                     ))                 ;; close for, doall
-                  ]                    ;; close [:div (line 180)
+                  ;; Admin settings
+                  (when is-admin?
+                    [:div {:style {:margin-top "20px"
+                                  :padding "12px"
+                                  :border-top "1px solid var(--color-border)"}}
+                     [:div {:style {:font-size "0.85em"
+                                    :font-weight "600"
+                                    :margin-bottom "8px"
+                                    :opacity 0.7}}
+                      "Club Settings"]
+                     [:label {:style {:display "flex"
+                                      :align-items "center"
+                                      :gap "8px"
+                                      :font-size "0.85em"
+                                      :cursor "pointer"}}
+                      [:input {:type "checkbox"
+                               :checked (boolean (:confirm_ranking @club))
+                               :on-change
+                               (fn [e]
+                                 (let [v (.. e -target -checked)]
+                                   (swap! club assoc :confirm_ranking v)
+                                   (db/update-club-settings!
+                                    club-id
+                                    {:confirm_ranking v}
+                                    nil)))}]
+                      "Require confirm after ranking changes"]])]
                   )                    ;; close case
                   ]                    ;; close [:div (line 114)
                   )                    ;; close if (line 109)
@@ -234,12 +259,15 @@
 
 (defn ranking-page-view [club-id]
   (let [books   (r/atom [])
+        club    (r/atom nil)
         loading (r/atom true)]
     (db/fetch-books! club-id books)
+    (db/fetch-club! club-id club)
     (js/setTimeout #(reset! loading false) 1000)
 
     (fn [club-id]
-      (let [books-map (into {} (map (fn [b] [(:id b) b]) @books))]
+      (let [books-map (into {} (map (fn [b] [(:id b) b]) @books))
+            confirm?  (boolean (:confirm_ranking @club))]
         [:div
          [:a.back-link {:on-click #(router/navigate! (str "#/club/" club-id))} "← Back to Club"]
          [:div.section-header
@@ -252,4 +280,4 @@
              [:div.empty-state
               [:div.empty-state-icon "📖"]
               [:div.empty-state-text "No books to rank yet."]]
-             [ranking/ranking-view club-id books-map]))]))))
+             [ranking/ranking-view club-id books-map confirm?]))]))))
