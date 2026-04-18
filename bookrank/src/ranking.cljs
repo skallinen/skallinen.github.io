@@ -12,6 +12,13 @@
 
 (println "[ranking] loaded")
 
+(defn book-search-url [platform title]
+  (let [q (js/encodeURIComponent title)]
+    (case platform
+      :storygraph (str "https://app.thestorygraph.com/browse?search_term=" q)
+      :wikipedia  (str "https://en.wikipedia.org/w/index.php?search=" q "+book")
+      "")))
+
 (defonce sortable-instance (atom nil))
 
 (defn init-sortable!
@@ -131,7 +138,21 @@
                    [:span.ranking-position (str (inc idx))]
                    [:div.book-info
                     [:div.book-title (or (:title book) book-id)]
-                    [:div.book-author (or (:author book) "")]]
+                    [:div.book-author (or (:author book) "")]
+                    [:div {:style {:display "flex" :gap "8px" :margin-top "2px"}}
+                     [:a {:href (book-search-url :storygraph (or (:title book) ""))
+                          :target "_blank"
+                          :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
+                      "StoryGraph ↗"]
+                     [:a {:href (book-search-url :wikipedia (or (:title book) ""))
+                          :target "_blank"
+                          :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
+                      "Wikipedia ↗"]]
+                    (when (:synopsis book)
+                      [:div {:style {:font-size "0.75em" :opacity 0.5
+                                     :margin-top "2px" :font-style "italic"
+                                     :line-height "1.3"}}
+                       (:synopsis book)])]
                    [:span.ranking-score
                     {:class (cond
                               (>= (:raw score) 4.0) "score-high"
@@ -165,7 +186,21 @@
                  [:div.unread-item {:key book-id}
                   [:div.book-info
                    [:div.book-title (or (:title book) book-id)]
-                   [:div.book-author (or (:author book) "")]]
+                   [:div.book-author (or (:author book) "")]
+                   [:div {:style {:display "flex" :gap "8px" :margin-top "2px"}}
+                    [:a {:href (book-search-url :storygraph (or (:title book) ""))
+                         :target "_blank"
+                         :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
+                     "StoryGraph ↗"]
+                    [:a {:href (book-search-url :wikipedia (or (:title book) ""))
+                         :target "_blank"
+                         :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
+                     "Wikipedia ↗"]]
+                   (when (:synopsis book)
+                     [:div {:style {:font-size "0.75em" :opacity 0.5
+                                    :margin-top "2px" :font-style "italic"
+                                    :line-height "1.3"}}
+                      (:synopsis book)])]
                   [:div {:style {:display "flex" :gap "4px"}}
                    [:button.btn-icon
                     {:title    "Add to ranking"

@@ -153,23 +153,7 @@
                          [:span.book-rank (str (inc idx))]
                          [:div.book-info
                           [:div.book-title (:title book)]
-                          [:div.book-author (:author book)]
-                          [:div {:style {:display "flex" :gap "8px" :margin-top "2px"}}
-                           [:a {:href (book-search-url :storygraph (:title book))
-                                :target "_blank"
-                                :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}
-                                :on-click #(.stopPropagation %)}
-                            "StoryGraph ↗"]
-                           [:a {:href (book-search-url :wikipedia (:title book))
-                                :target "_blank"
-                                :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}
-                                :on-click #(.stopPropagation %)}
-                            "Wikipedia ↗"]]
-                          (when (:synopsis book)
-                            [:div {:style {:font-size "0.75em" :opacity 0.6
-                                           :margin-top "3px" :font-style "italic"
-                                           :line-height "1.3"}}
-                             (:synopsis book)])]
+                          [:div.book-author (:author book)]]
                          (if show-score?
                            [:div {:style {:text-align "right"}}
                             [:div.book-score {:class (score-class (:score score-data))}
