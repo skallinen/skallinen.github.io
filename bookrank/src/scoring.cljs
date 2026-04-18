@@ -117,7 +117,7 @@
                                [book-id {:score          raw
                                          :display        display
                                          :rrf-score      rrf-score
-                                         :voter-count    (count entries)
+                                         :voter-count    (+ (count entries) (count unread-set))
                                          :member-scores  entries
                                          :unread-by      unread-set
                                          :any-unranked?  (boolean any-unranked?)}]))
