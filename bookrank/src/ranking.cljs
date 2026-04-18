@@ -19,6 +19,29 @@
       :wikipedia  (str "https://en.wikipedia.org/w/index.php?search=" q "+book")
       "")))
 
+(defn book-details-widget
+  "Collapsible widget showing links and synopsis for a book."
+  [book]
+  [:details {:style {:margin-top "2px" :font-size "0.75em"}}
+   [:summary {:style {:cursor "pointer" :color "#888" :list-style "none"
+                      :display "inline-flex" :align-items "center" :gap "2px"}
+              :on-click #(.stopPropagation %)}
+    [:span {:style {:font-size "0.8em" :transition "transform 0.2s"}} "▸"]
+    [:span "info"]]
+   [:div {:style {:padding "4px 0 2px 12px" :line-height "1.4"}}
+    [:div {:style {:display "flex" :gap "10px" :margin-bottom "3px"}}
+     [:a {:href (book-search-url :storygraph (or (:title book) ""))
+          :target "_blank"
+          :style {:color "#888" :text-decoration "none"}}
+      "StoryGraph ↗"]
+     [:a {:href (book-search-url :wikipedia (or (:title book) ""))
+          :target "_blank"
+          :style {:color "#888" :text-decoration "none"}}
+      "Wikipedia ↗"]]
+    (when (:synopsis book)
+      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3"}}
+       (:synopsis book)])]])
+
 (defonce sortable-instance (atom nil))
 
 (defn init-sortable!
@@ -139,20 +162,7 @@
                    [:div.book-info
                     [:div.book-title (or (:title book) book-id)]
                     [:div.book-author (or (:author book) "")]
-                    [:div {:style {:display "flex" :gap "8px" :margin-top "2px"}}
-                     [:a {:href (book-search-url :storygraph (or (:title book) ""))
-                          :target "_blank"
-                          :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
-                      "StoryGraph ↗"]
-                     [:a {:href (book-search-url :wikipedia (or (:title book) ""))
-                          :target "_blank"
-                          :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
-                      "Wikipedia ↗"]]
-                    (when (:synopsis book)
-                      [:div {:style {:font-size "0.75em" :opacity 0.5
-                                     :margin-top "2px" :font-style "italic"
-                                     :line-height "1.3"}}
-                       (:synopsis book)])]
+                    [book-details-widget book]]
                    [:span.ranking-score
                     {:class (cond
                               (>= (:raw score) 4.0) "score-high"
@@ -187,20 +197,7 @@
                   [:div.book-info
                    [:div.book-title (or (:title book) book-id)]
                    [:div.book-author (or (:author book) "")]
-                   [:div {:style {:display "flex" :gap "8px" :margin-top "2px"}}
-                    [:a {:href (book-search-url :storygraph (or (:title book) ""))
-                         :target "_blank"
-                         :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
-                     "StoryGraph ↗"]
-                    [:a {:href (book-search-url :wikipedia (or (:title book) ""))
-                         :target "_blank"
-                         :style {:font-size "0.7em" :opacity 0.6 :text-decoration "none"}}
-                     "Wikipedia ↗"]]
-                   (when (:synopsis book)
-                     [:div {:style {:font-size "0.75em" :opacity 0.5
-                                    :margin-top "2px" :font-style "italic"
-                                    :line-height "1.3"}}
-                      (:synopsis book)])]
+                   [book-details-widget book]]
                   [:div {:style {:display "flex" :gap "4px"}}
                    [:button.btn-icon
                     {:title    "Add to ranking"
