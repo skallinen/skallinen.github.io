@@ -2,7 +2,8 @@
   (:require [reagent.core :as r]
             [router]
             [auth]
-            [db]))
+            [db]
+            [state]))
 
 ;; =============================================
 ;; Clubs View — List, Create, Join
@@ -11,8 +12,7 @@
 (println "[clubs] loaded")
 
 (defn clubs-view []
-  (let [clubs       (r/atom [])
-        loading     (r/atom true)
+  (let [;; UI-only state (local to this component)
         show-create (r/atom false)
         show-join   (r/atom false)
         club-name   (r/atom "")
@@ -21,10 +21,12 @@
         joining     (r/atom false)]
 
     ;; Fetch clubs on mount
-    (db/fetch-clubs! clubs)
-    (js/setTimeout #(reset! loading false) 1500)
+    (db/fetch-clubs! state/clubs)
+    (js/setTimeout #(reset! state/clubs-loading false) 1500)
 
     (fn []
+      (let [clubs   @state/clubs
+            loading @state/clubs-loading]
       [:div
        [:div.section-header
         [:div
@@ -83,20 +85,20 @@
             (if @creating "Creating..." "Create")]]])
 
        ;; Club list
-       (if @loading
+       (if loading
          [:div.loading "Loading your clubs..."]
-         (if (empty? @clubs)
+         (if (empty? clubs)
            [:div.empty-state
             [:div.empty-state-icon "📚"]
             [:div.empty-state-text "No book clubs yet. Create one or join with an invite code."]]
            [:div.club-grid
             (doall
-             (for [club @clubs]
-               [:div.card.club-card
-                {:key (:id club)
-                 :on-click #(router/navigate! (str "#/club/" (:id club)))}
-                [:div
-                 [:div.card-title (:name club)]
-                 [:div.card-subtitle (str "Code: " (:invite_code club))]]
-                [:div.club-meta
-                 [:span "→"]]]))]))])))
+              (for [c clubs]
+                [:div.card.club-card
+                 {:key (:id c)
+                  :on-click #(router/navigate! (str "#/club/" (:id c)))}
+                 [:div
+                  [:div.card-title (:name c)]
+                  [:div.card-subtitle (str "Code: " (:invite_code c))]]
+                 [:div.club-meta
+                   [:span "→"]]]))]))]))))

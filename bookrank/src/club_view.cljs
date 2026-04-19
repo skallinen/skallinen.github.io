@@ -5,7 +5,8 @@
             [db]
             [scoring]
             [add-book]
-            [ranking]))
+            [ranking]
+            [state]))
 
 ;; =============================================
 ;; Club View — Books, Scores, Members
@@ -29,54 +30,55 @@
     :else           "score-low"))
 
 (defn club-detail-view [club-id]
-  (let [club       (r/atom nil)
-        books      (r/atom [])
-        members    (r/atom [])
-        rankings   (r/atom {})
-        loading    (r/atom true)
+  (let [;; UI-only state (local to this component)
         show-add   (r/atom false)
         copied     (r/atom false)
         active-tab (r/atom :scores)
         expanded-book (r/atom nil)
         confirm-remove (r/atom nil)]
 
-    ;; Fetch data
-    (db/fetch-club! club-id club)
-    (db/fetch-books! club-id books)
-    (db/fetch-members! club-id members)
-    (db/fetch-all-rankings! club-id rankings)
-    (js/setTimeout #(reset! loading false) 1500)
+    ;; Reset state if navigating to a different club
+    (when (not= club-id @state/current-club-id)
+      (state/reset-club-state!)
+      (reset! state/current-club-id club-id))
+
+    ;; Fetch data into centralized state
+    (db/fetch-club! club-id state/club)
+    (db/fetch-books! club-id state/books)
+    (db/fetch-members! club-id state/members)
+    (db/fetch-all-rankings! club-id state/rankings)
+    (js/setTimeout #(reset! state/club-loading false) 1500)
 
     (fn [club-id]
-      (let [books-map    (into {} (map (fn [b] [(:id b) b]) @books))
-            member-ids   (mapv :id @members)
-            members-map  (into {} (map (fn [m] [(:id m) m]) @members))
+      (let [books-map    (into {} (map (fn [b] [(:id b) b]) @state/books))
+            member-ids   (mapv :id @state/members)
+            members-map  (into {} (map (fn [m] [(:id m) m]) @state/members))
             all-book-ids (set (keys books-map))
-            agg-scores   (scoring/compute-aggregate-scores @rankings member-ids all-book-ids)
+            agg-scores   (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids)
             sorted-books (sort-by (fn [b]
                                     (let [sd (get agg-scores (:id b))]
                                       (if (and sd (not (:any-unranked? sd)))
                                         (- (or (:rrf-score sd) 0))
                                         100)))
-                                  @books)
+                                  @state/books)
             current-uid  (:uid @auth/user)
-            is-admin?    (or (= current-uid (:created_by @club))
+            is-admin?    (or (= current-uid (:created_by @state/club))
                              (some (fn [m] (and (= (:id m) current-uid)
                                                 (= (:role m) "admin")))
-                                   @members))]
+                                   @state/members))]
         [:div
          ;; Back link
          [:a.back-link {:on-click #(router/navigate! "#/clubs")} "← All Clubs"]
 
          ;; Club header
-         (when @club
+         (when @state/club
            [:div.section-header
             [:div
-             [:h2.section-title (:name @club)]
+             [:h2.section-title (:name @state/club)]
              [:div {:style {:display "flex" :gap "12px" :align-items "center" :margin-top "6px"}}
               [:div.members-row
                (doall
-                (for [m @members]
+                (for [m @state/members]
                   [:img.member-avatar
                    {:key (:id m)
                     :src (or (:photo_url m) "")
@@ -88,11 +90,11 @@
                   (let [url (str (.-origin js/window.location)
                                  (.-pathname js/window.location)
                                  "#/join/"
-                                 (:invite_code @club))]
+                                 (:invite_code @state/club))]
                     (.writeText (.-clipboard js/navigator) url)
                     (reset! copied true)
                     (js/setTimeout #(reset! copied false) 2000)))}
-               (:invite_code @club)
+               (:invite_code @state/club)
                (when @copied
                  [:span.invite-copied " link copied!"])]]]
             [:div {:style {:display "flex" :gap "8px"}}
@@ -108,14 +110,14 @@
            [add-book/add-book-form club-id
             (fn []
               (reset! show-add false)
-              (db/fetch-books! club-id books))])
+              (db/fetch-books! club-id state/books))])
 
          ;; Loading
-         (if @loading
+         (if @state/club-loading
            [:div.loading "Loading books..."]
 
            ;; Book list
-           (if (empty? @books)
+           (if (empty? @state/books)
              [:div.empty-state
               [:div.empty-state-icon "📖"]
               [:div.empty-state-text "No books yet. Add the first one!"]]
@@ -128,7 +130,7 @@
                 "Aggregate Scores"]
                [:button.tab {:class (when (= @active-tab :members) "active")
                              :on-click #(reset! active-tab :members)}
-                (str "Members (" (count @members) ")")]]
+                (str "Members (" (count @state/members) ")")]]
 
               (case @active-tab
                 :scores
@@ -193,7 +195,7 @@
                 :members
                 [:div
                  (doall
-                  (for [m @members]
+                  (for [m @state/members]
                     [:div.book-item {:key (:id m)}
                      [:img.member-avatar {:src (or (:photo_url m) "")
                                           :alt (or (:display_name m) "")}]
@@ -204,7 +206,7 @@
                          [:span {:style {:font-size "0.7em" :opacity 0.5 :margin-left "8px"}} "ADMIN"])]
                       [:div.book-author (or (:email m) "")]]
                      [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
-                      (let [member-ranking (get @rankings (:id m))]
+                      (let [member-ranking (get @state/rankings (:id m))]
                         [:div.book-voters
                          (if member-ranking
                            (str (count (:order member-ranking)) " ranked")
@@ -220,8 +222,8 @@
                                            (db/delete-member! club-id mid
                                                               (fn []
                                                                 (reset! confirm-remove nil)
-                                                                (db/fetch-members! club-id members)
-                                                                (db/fetch-all-rankings! club-id rankings)))))}
+                                                                (db/fetch-members! club-id state/members)
+                                                                (db/fetch-all-rankings! club-id state/rankings)))))}
                             "Remove?"]
                            [:button.btn.btn-small
                             {:style {:font-size "0.7em" :padding "2px 8px"}
@@ -253,11 +255,11 @@
                                       :font-size "0.85em"
                                       :cursor "pointer"}}
                       [:input {:type "checkbox"
-                               :checked (boolean (:confirm_ranking @club))
+                               :checked (boolean (:confirm_ranking @state/club))
                                :on-change
                                (fn [e]
                                  (let [v (.. e -target -checked)]
-                                   (swap! club assoc :confirm_ranking v)
+                                   (swap! state/club assoc :confirm_ranking v)
                                    (db/update-club-settings!
                                     club-id
                                     {:confirm_ranking v}
@@ -276,22 +278,22 @@
   (let [books   (r/atom [])
         club    (r/atom nil)
         loading (r/atom true)]
-    (db/fetch-books! club-id books)
+    (db/fetch-books! club-id state/books)
     (db/fetch-club! club-id club)
     (js/setTimeout #(reset! loading false) 1000)
 
     (fn [club-id]
-      (let [books-map (into {} (map (fn [b] [(:id b) b]) @books))
-            confirm?  (boolean (:confirm_ranking @club))]
+      (let [books-map (into {} (map (fn [b] [(:id b) b]) @state/books))
+            confirm?  (boolean (:confirm_ranking @state/club))]
         [:div
          [:a.back-link {:on-click #(router/navigate! (str "#/club/" club-id))} "← Back to Club"]
          [:div.section-header
           [:div
            [:h2.section-title "Your Ranking"]
            [:p.section-subtitle "Drag books to reorder. Best at top, worst at bottom."]]]
-         (if @loading
+         (if @state/club-loading
            [:div.loading "Loading books..."]
-           (if (empty? @books)
+           (if (empty? @state/books)
              [:div.empty-state
               [:div.empty-state-icon "📖"]
               [:div.empty-state-text "No books to rank yet."]]
