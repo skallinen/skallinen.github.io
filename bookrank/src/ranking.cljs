@@ -94,24 +94,22 @@
                                  (js/setTimeout #(reset! saved false) 2000))))
                             500)))]
 
-    ;; Load existing ranking
+    ;; Load existing ranking using callback (no more setTimeout race condition)
     (let [ranking-data (r/atom nil)]
-      (db/fetch-ranking! club-id ranking-data)
-      ;; Use a timeout to wait for fetch
-      (js/setTimeout
-       (fn []
-         (let [data @ranking-data
-               all-book-ids (set (keys books-map))
-               existing-order (or (:order data) [])
-               existing-unread (set (or (:unread data) []))
-               ;; Books in order that still exist
-               valid-order (filterv #(contains? all-book-ids %) existing-order)
-               valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
-           ;; New books not in order or unread stay "unranked" (not stored anywhere)
-           (reset! order valid-order)
-           (reset! unread valid-unread)
-           (reset! loaded true)))
-       500))
+      (db/fetch-ranking! club-id ranking-data
+        (fn []
+          (let [data @ranking-data
+                all-book-ids (set (keys books-map))
+                existing-order (or (:order data) [])
+                existing-unread (set (or (:unread data) []))
+                ;; Books in order that still exist
+                valid-order (filterv #(contains? all-book-ids %) existing-order)
+                ;; NOTE: Firestore field is 'unread' but UI shows 'skipped' (backward compat)
+                valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
+            ;; New books not in order or unread stay "unranked" (not stored anywhere)
+            (reset! order valid-order)
+            (reset! unread valid-unread)
+            (reset! loaded true)))))
 
     (fn [club-id books-map confirm?]
       (let [order-set    (set @order)

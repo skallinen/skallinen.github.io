@@ -220,7 +220,8 @@
                                            (db/delete-member! club-id mid
                                                               (fn []
                                                                 (reset! confirm-remove nil)
-                                                                (db/fetch-members! club-id members)))))}
+                                                                (db/fetch-members! club-id members)
+                                                                (db/fetch-all-rankings! club-id rankings)))))}
                             "Remove?"]
                            [:button.btn.btn-small
                             {:style {:font-size "0.7em" :padding "2px 8px"}

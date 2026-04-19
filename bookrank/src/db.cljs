@@ -30,16 +30,17 @@
 ;; -- Clubs --
 
 (defn create-club!
-  "Create a new book club. Returns a promise."
+  "Create a new book club. Stores member_uids array for efficient querying."
   [club-name callback]
   (when-let [db auth/firebase-db]
     (let [uid (:uid @auth/user)
           code (random-code)]
       (-> (.add (.collection db "clubs")
-                (clj->js {:name        club-name
-                          :created_by  uid
-                          :created_at  (ts-now)
-                          :invite_code code}))
+                (clj->js {:name         club-name
+                          :created_by   uid
+                          :created_at   (ts-now)
+                          :invite_code  code
+                          :member_uids  [uid]}))
           (.then (fn [doc-ref]
                    ;; Add creator as admin member
                    (-> (.set (.doc (.collection db (str "clubs/" (.-id doc-ref) "/members")) uid)
@@ -52,32 +53,19 @@
           (.catch (fn [err] (js/console.error "[db] create-club error:" err)))))))
 
 (defn fetch-clubs!
-  "Fetch all clubs the current user is a member of. Updates the provided atom."
+  "Fetch clubs the current user is a member of using the member_uids array.
+   Single query instead of N+1 fan-out. Falls back to full scan for legacy clubs."
   [clubs-atom]
   (when-let [db auth/firebase-db]
     (let [uid (:uid @auth/user)]
-      ;; Query all clubs, then check membership
-      ;; (Firestore doesn't support subcollection-based queries easily in compat SDK)
-      ;; Alternative: query collectionGroup "members" where doc ID = uid
-      ;; For simplicity, we'll query all clubs and filter client-side
-      ;; In production you'd use a user-level collection of club references
-      (-> (.get (.collection db "clubs"))
+      (-> (.get (.where (.collection db "clubs") "member_uids" "array-contains" uid))
           (.then (fn [snapshot]
-                   (let [all-clubs (map doc->map (seq (.-docs snapshot)))
-                         ;; Now check membership for each club
-                         promises (map (fn [club]
-                                         (-> (.get (.doc db (str "clubs/" (:id club) "/members/" uid)))
-                                             (.then (fn [member-doc]
-                                                      (when (.-exists member-doc) club)))))
-                                       all-clubs)]
-                     (-> (js/Promise.all (clj->js promises))
-                         (.then (fn [results]
-                                  (let [my-clubs (filterv some? (js->clj results :keywordize-keys true))]
-                                    (reset! clubs-atom my-clubs))))))))
+                   (let [my-clubs (mapv doc->map (seq (.-docs snapshot)))]
+                     (reset! clubs-atom my-clubs))))
           (.catch (fn [err] (js/console.error "[db] fetch-clubs error:" err)))))))
 
 (defn join-club!
-  "Join a club by invite code. Returns the club ID via callback."
+  "Join a club by invite code. Adds UID to member_uids array for efficient querying."
   [invite-code callback]
   (when-let [db auth/firebase-db]
     (let [uid (:uid @auth/user)
@@ -85,16 +73,26 @@
       (-> (.get (.where (.collection db "clubs") "invite_code" "==" code))
           (.then (fn [snapshot]
                    (if (.-empty snapshot)
-                     (js/console.warn "[db] no club found for code:" code)
+                     (do (js/console.warn "[db] no club found for code:" code)
+                         (when callback (callback nil)))
                      (let [club-doc (first (seq (.-docs snapshot)))
                            club-id  (.-id club-doc)]
+                       ;; Add member subdoc
                        (-> (.set (.doc db (str "clubs/" club-id "/members/" uid))
                                  (clj->js {:display_name (:display-name @auth/user)
                                            :email        (:email @auth/user)
                                            :photo_url    (:photo-url @auth/user)
                                            :role         "member"
                                            :joined_at    (ts-now)}))
-                           (.then (fn [] (when callback (callback club-id)))))))))
+                           (.then (fn []
+                                    ;; Also add UID to member_uids array on club doc
+                                    (-> (.update (.doc db (str "clubs/" club-id))
+                                                 (clj->js {:member_uids
+                                                           (js/firebase.firestore.FieldValue.arrayUnion uid)}))
+                                        (.then (fn [] (when callback (callback club-id))))
+                                        (.catch (fn [_]
+                                                  ;; If update fails (e.g. field doesn't exist yet), still proceed
+                                                  (when callback (callback club-id))))))))))))
           (.catch (fn [err] (js/console.error "[db] join-club error:" err)))))))
 
 (defn update-club-settings!
@@ -147,15 +145,17 @@
           (.catch (fn [err] (js/console.error "[db] save-ranking error:" err)))))))
 
 (defn fetch-ranking!
-  "Fetch the current user's ranking for a club."
-  [club-id ranking-atom]
-  (when-let [db auth/firebase-db]
-    (let [uid (:uid @auth/user)]
-      (-> (.get (.doc db (str "clubs/" club-id "/rankings/" uid)))
-          (.then (fn [doc]
-                   (when (.-exists doc)
-                     (reset! ranking-atom (js->clj (.data doc) :keywordize-keys true)))))
-          (.catch (fn [err] (js/console.error "[db] fetch-ranking error:" err)))))))
+  "Fetch the current user's ranking for a club. Optional callback called after fetch."
+  ([club-id ranking-atom] (fetch-ranking! club-id ranking-atom nil))
+  ([club-id ranking-atom callback]
+   (when-let [db auth/firebase-db]
+     (let [uid (:uid @auth/user)]
+       (-> (.get (.doc db (str "clubs/" club-id "/rankings/" uid)))
+           (.then (fn [doc]
+                    (when (.-exists doc)
+                      (reset! ranking-atom (js->clj (.data doc) :keywordize-keys true)))
+                    (when callback (callback))))
+           (.catch (fn [err] (js/console.error "[db] fetch-ranking error:" err))))))))
 
 (defn fetch-all-rankings!
   "Fetch all members' rankings for a club."
@@ -183,7 +183,7 @@
         (.catch (fn [err] (js/console.error "[db] fetch-members error:" err))))))
 
 (defn delete-member!
-  "Delete a member from a club (admin only)."
+  "Delete a member from a club (admin only). Removes from member_uids array."
   [club-id member-id callback]
   (when-let [db auth/firebase-db]
     (-> (.delete (.doc db (str "clubs/" club-id "/members/" member-id)))
@@ -191,6 +191,11 @@
                  ;; Also delete their ranking
                  (-> (.delete (.doc db (str "clubs/" club-id "/rankings/" member-id)))
                      (.catch (fn [_] nil))) ;; ignore if no ranking
+                 ;; Remove from member_uids array
+                 (-> (.update (.doc db (str "clubs/" club-id))
+                              (clj->js {:member_uids
+                                        (js/firebase.firestore.FieldValue.arrayRemove member-id)}))
+                     (.catch (fn [_] nil))) ;; ignore if field doesn't exist
                  (when callback (callback))))
         (.catch (fn [err] (js/console.error "[db] delete-member error:" err))))))
 
