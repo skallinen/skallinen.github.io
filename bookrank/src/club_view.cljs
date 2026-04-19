@@ -275,23 +275,22 @@
 
 
 (defn ranking-page-view [club-id]
-  (let [books   (r/atom [])
-        club    (r/atom nil)
-        loading (r/atom true)]
+  (let [loading (r/atom true)
+        club    (r/atom nil)]
     (db/fetch-books! club-id state/books)
     (db/fetch-club! club-id club)
     (js/setTimeout #(reset! loading false) 1000)
 
     (fn [club-id]
       (let [books-map (into {} (map (fn [b] [(:id b) b]) @state/books))
-            confirm?  (boolean (:confirm_ranking @state/club))]
+            confirm?  (boolean (:confirm_ranking @club))]
         [:div
          [:a.back-link {:on-click #(router/navigate! (str "#/club/" club-id))} "← Back to Club"]
          [:div.section-header
           [:div
            [:h2.section-title "Your Ranking"]
            [:p.section-subtitle "Drag books to reorder. Best at top, worst at bottom."]]]
-         (if @state/club-loading
+         (if @loading
            [:div.loading "Loading books..."]
            (if (empty? @state/books)
              [:div.empty-state
