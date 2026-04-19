@@ -133,7 +133,9 @@
 ;; -- Rankings --
 
 (defn save-ranking!
-  "Save the current user's ranking for a club."
+  "Save the current user's ranking for a club.
+   NOTE: The Firestore field is 'unread' but the UI calls it 'skipped'.
+   Kept as 'unread' for backward compatibility with existing data."
   [club-id order unread callback]
   (when-let [db auth/firebase-db]
     (let [uid (:uid @auth/user)]

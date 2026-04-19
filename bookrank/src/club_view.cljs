@@ -14,14 +14,6 @@
 
 (println "[club-view] loaded")
 
-(defn book-search-url
-  "Generate a search URL for a book on a given platform."
-  [platform title]
-  (let [q (js/encodeURIComponent title)]
-    (case platform
-      :storygraph (str "https://app.thestorygraph.com/browse?search_term=" q)
-      :wikipedia  (str "https://en.wikipedia.org/w/index.php?search=" q "+book")
-      "")))
 
 (defn score-class [score]
   (cond
