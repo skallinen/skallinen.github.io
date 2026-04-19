@@ -25,7 +25,7 @@
   (let [;; UI-only state (local to this component)
         show-add   (r/atom false)
         copied     (r/atom false)
-        active-tab (r/atom :scores)
+        active-tab (r/atom :ranking)
         expanded-book (r/atom nil)
         confirm-remove (r/atom nil)]
 
@@ -55,6 +55,7 @@
                                         100)))
                                   @state/books)
             current-uid  (:uid @auth/user)
+            confirm?     (boolean (:confirm_ranking @state/club))
             is-admin?    (or (= current-uid (:created_by @state/club))
                              (some (fn [m] (and (= (:id m) current-uid)
                                                 (= (:role m) "admin")))
@@ -93,10 +94,7 @@
             [:div {:style {:display "flex" :gap "8px"}}
              [:button.btn.btn-small
               {:on-click #(swap! show-add not)}
-              (if @show-add "Cancel" "＋ Book")]
-             [:button.btn.btn-small.btn-primary
-              {:on-click #(router/navigate! (str "#/club/" club-id "/rank"))}
-              "My Ranking"]]])
+              (if @show-add "Cancel" "＋ Book")]]])
 
          ;; Add book form
          (when @show-add
@@ -116,6 +114,9 @@
              [:div
               ;; Tabs
               [:div.tabs
+               [:button.tab {:class (when (= @active-tab :ranking) "active")
+                             :on-click #(reset! active-tab :ranking)}
+                "My Ranking"]
                [:button.tab {:class (when (= @active-tab :scores) "active")
                              :on-click #(reset! active-tab :scores)}
                 "Aggregate Scores"]
@@ -124,7 +125,11 @@
                 (str "Members (" (count @state/members) ")")]]
 
               (case @active-tab
+                :ranking
+                [ranking/ranking-view club-id books-map confirm?]
+
                 :scores
+
                 [:div.book-list
                  [:div {:style {:font-size "0.8em" :opacity 0.7 :padding "4px 8px 10px" :line-height "1.4"}}
                   "Collective rank uses "
