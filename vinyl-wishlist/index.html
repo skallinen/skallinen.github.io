@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vinyl Wishlist</title>
-    <link rel="stylesheet" href="style.css?v=nuke">
+    <link rel="stylesheet" href="style.css">
 
     <!-- Scittle & Reagent Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -21,11 +21,11 @@
         href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
 
-    <!-- Openskill (Bundle.run for UMD) -->
+    <!-- Openskill (via esm.sh) -->
     <script type="module">
-        import { rate, rating, ordinal } from 'https://cdn.skypack.dev/openskill';
+        import { rate, rating, ordinal } from 'https://esm.sh/openskill';
         window.openskill = { rate, rating, ordinal };
-        console.log("Openskill loaded via Skypack:", window.openskill);
+        console.log("Openskill loaded via esm.sh:", window.openskill);
     </script>
 
     <!-- Plotly.js -->
