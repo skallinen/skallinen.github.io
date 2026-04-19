@@ -28,9 +28,27 @@
 (defonce rankings (r/atom {}))
 (defonce club-loading (r/atom true))
 
-(defn reset-club-state!
-  "Clear club data when navigating away or to a different club."
+;; -- Firestore Subscriptions --
+;; Holds unsubscribe functions from .onSnapshot() listeners.
+;; Must be cleaned up when navigating to a different club.
+(defonce subscriptions (atom []))
+
+(defn cleanup-subscriptions!
+  "Unsubscribe all active Firestore listeners."
   []
+  (doseq [unsub @subscriptions]
+    (when (fn? unsub) (unsub)))
+  (reset! subscriptions []))
+
+(defn add-subscription!
+  "Track an unsubscribe function for cleanup."
+  [unsub-fn]
+  (swap! subscriptions conj unsub-fn))
+
+(defn reset-club-state!
+  "Clear club data and unsubscribe listeners when navigating away."
+  []
+  (cleanup-subscriptions!)
   (reset! club nil)
   (reset! books [])
   (reset! members [])

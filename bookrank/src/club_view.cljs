@@ -34,11 +34,12 @@
       (state/reset-club-state!)
       (reset! state/current-club-id club-id))
 
-    ;; Fetch data into centralized state
-    (db/fetch-club! club-id state/club)
-    (db/fetch-books! club-id state/books)
-    (db/fetch-members! club-id state/members)
-    (db/fetch-all-rankings! club-id state/rankings)
+    ;; Subscribe to real-time data (auto-updates when any member saves)
+    (state/add-subscription! (db/subscribe-club! club-id state/club))
+    (state/add-subscription! (db/subscribe-books! club-id state/books))
+    (state/add-subscription! (db/subscribe-members! club-id state/members))
+    (state/add-subscription! (db/subscribe-rankings! club-id state/rankings))
+    ;; First snapshot arrives almost instantly; timeout is a fallback
     (js/setTimeout #(reset! state/club-loading false) 1500)
 
     (fn [club-id]
@@ -100,9 +101,7 @@
          ;; Add book form
          (when @show-add
            [add-book/add-book-form club-id
-            (fn []
-              (reset! show-add false)
-              (db/fetch-books! club-id state/books))])
+            (fn [] (reset! show-add false))])
 
          ;; Loading
          (if @state/club-loading
@@ -214,8 +213,8 @@
                                            (db/delete-member! club-id mid
                                                               (fn []
                                                                 (reset! confirm-remove nil)
-                                                                (db/fetch-members! club-id state/members)
-                                                                (db/fetch-all-rankings! club-id state/rankings)))))}
+                                                                ;; No manual fetch needed — subscriptions auto-update
+                                                                ))))}
                             "Remove?"]
                            [:button.btn.btn-small
                             {:style {:font-size "0.7em" :padding "2px 8px"}

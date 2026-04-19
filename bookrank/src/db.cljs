@@ -210,3 +210,51 @@
                  (when (.-exists doc)
                    (reset! club-atom (doc->map doc)))))
         (.catch (fn [err] (js/console.error "[db] fetch-club error:" err))))))
+
+;; =============================================
+;; Real-time Subscriptions (.onSnapshot)
+;; Each returns an unsubscribe function.
+;; Call the returned fn to stop listening.
+;; =============================================
+
+(defn subscribe-club!
+  "Subscribe to real-time updates on a club document."
+  [club-id club-atom]
+  (when-let [db auth/firebase-db]
+    (.onSnapshot (.doc db (str "clubs/" club-id))
+                 (fn [doc]
+                   (when (.-exists doc)
+                     (reset! club-atom (doc->map doc))))
+                 (fn [err] (js/console.error "[db] subscribe-club error:" err)))))
+
+(defn subscribe-books!
+  "Subscribe to real-time updates on a club's books."
+  [club-id books-atom]
+  (when-let [db auth/firebase-db]
+    (.onSnapshot (.collection db (str "clubs/" club-id "/books"))
+                 (fn [snapshot]
+                   (reset! books-atom (mapv doc->map (seq (.-docs snapshot)))))
+                 (fn [err] (js/console.error "[db] subscribe-books error:" err)))))
+
+(defn subscribe-members!
+  "Subscribe to real-time updates on a club's members."
+  [club-id members-atom]
+  (when-let [db auth/firebase-db]
+    (.onSnapshot (.collection db (str "clubs/" club-id "/members"))
+                 (fn [snapshot]
+                   (reset! members-atom (mapv doc->map (seq (.-docs snapshot)))))
+                 (fn [err] (js/console.error "[db] subscribe-members error:" err)))))
+
+(defn subscribe-rankings!
+  "Subscribe to real-time updates on all members' rankings."
+  [club-id rankings-atom]
+  (when-let [db auth/firebase-db]
+    (.onSnapshot (.collection db (str "clubs/" club-id "/rankings"))
+                 (fn [snapshot]
+                   (let [rankings (into {}
+                                        (map (fn [doc]
+                                               [(.-id doc)
+                                                (js->clj (.data doc) :keywordize-keys true)])
+                                             (seq (.-docs snapshot))))]
+                     (reset! rankings-atom rankings)))
+                 (fn [err] (js/console.error "[db] subscribe-rankings error:" err)))))
