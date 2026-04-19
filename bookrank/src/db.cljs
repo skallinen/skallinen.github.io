@@ -128,6 +128,23 @@
         (.catch (fn [err]
                   (js/console.error "[db] update-club-settings error:" err))))))
 
+(defn delete-club!
+  "Delete a club and all its subcollections (books, rankings, members).
+   Firestore doesn't cascade deletes, so we do it manually."
+  [club-id callback]
+  (when-let [db auth/firebase-db]
+    (letfn [(delete-collection [path]
+              (-> (.get (.collection db path))
+                  (.then (fn [snap]
+                           (js/Promise.all
+                            (clj->js (mapv #(.delete (.-ref %)) (seq (.-docs snap)))))))))]
+      (-> (delete-collection (str "clubs/" club-id "/books"))
+          (.then #(delete-collection (str "clubs/" club-id "/rankings")))
+          (.then #(delete-collection (str "clubs/" club-id "/members")))
+          (.then #(.delete (.doc db (str "clubs/" club-id))))
+          (.then (fn [] (when callback (callback))))
+          (.catch (fn [err] (js/console.error "[db] delete-club error:" err)))))))
+
 ;; -- Books --
 
 (defn add-book!

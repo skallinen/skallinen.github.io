@@ -27,7 +27,9 @@
         copied     (r/atom false)
         active-tab (r/atom :ranking)
         expanded-book (r/atom nil)
-        confirm-remove (r/atom nil)]
+        confirm-remove (r/atom nil)
+        confirm-delete-club (r/atom false)
+        delete-club-input (r/atom "")]
 
     ;; Reset state if navigating to a different club
     (when (not= club-id @state/current-club-id)
@@ -129,7 +131,6 @@
                 [ranking/ranking-view club-id books-map confirm?]
 
                 :scores
-
                 [:div.book-list
                  [:div {:style {:font-size "0.8em" :opacity 0.7 :padding "4px 8px 10px" :line-height "1.4"}}
                   "Collective rank uses "
@@ -189,7 +190,7 @@
                    sorted-books))]
 
                 :members
-                [:div
+                [:div.book-list
                  (doall
                   (for [m @state/members]
                     [:div.book-item {:key (:id m)}
@@ -214,12 +215,8 @@
                             {:style {:font-size "0.7em" :padding "2px 8px" :background "#c00" :color "#fff"}
                              :on-click (fn [e]
                                          (.stopPropagation e)
-                                         (let [mid (:id m)]
-                                           (db/delete-member! club-id mid
-                                                              (fn []
-                                                                (reset! confirm-remove nil)
-                                                                ;; No manual fetch needed — subscriptions auto-update
-                                                                ))))}
+                                         (db/delete-member! club-id (:id m)
+                                                            (fn [] (reset! confirm-remove nil))))}
                             "Remove?"]
                            [:button.btn.btn-small
                             {:style {:font-size "0.7em" :padding "2px 8px"}
@@ -232,14 +229,13 @@
                             :on-click (fn [e]
                                         (.stopPropagation e)
                                         (reset! confirm-remove (:id m)))}
-                           "✕"]))       ;; close button vec, if, when
-                      ]]               ;; close div flex, div.book-item
-                    ))                 ;; close for, doall
-                  ;; Admin settings
-                  (when is-admin?
+                           "\u2715"]))]]))
+                 ;; Admin settings
+                 (when is-admin?
+                   [:<>
                     [:div {:style {:margin-top "20px"
-                                  :padding "12px"
-                                  :border-top "1px solid var(--color-border)"}}
+                                   :padding "12px"
+                                   :border-top "1px solid var(--color-border)"}}
                      [:div {:style {:font-size "0.85em"
                                     :font-weight "600"
                                     :margin-bottom "8px"
@@ -260,13 +256,38 @@
                                     club-id
                                     {:confirm_ranking v}
                                     nil)))}]
-                      "Require confirm after ranking changes"]])]
-                  )                    ;; close case
-                  ]                    ;; close [:div (line 114)
-                  )                    ;; close if (line 109)
-                  )                    ;; close if (line 105)
-                  ]                    ;; close [:div (line 58)
-                  ))))                 ;; close fn, let, outer let, defn
+                      "Require confirm after ranking changes"]]
+                    [:div {:style {:margin-top "24px" :padding-top "16px" :border-top "1px solid #333"}}
+                     (if (not @confirm-delete-club)
+                       [:button.btn.btn-small
+                        {:style {:background "transparent" :color "#c00" :border "1px solid #c00" :font-size "0.8em"}
+                         :on-click #(reset! confirm-delete-club true)}
+                        "Delete Club"]
+                       [:div {:style {:background "#1a0000" :padding "12px" :border-radius "8px" :border "1px solid #c00"}}
+                        [:p {:style {:color "#c00" :margin "0 0 8px" :font-size "0.85em" :font-weight "600"}}
+                         "\u26a0 This will permanently delete the club, all books, rankings, and members."]
+                        [:p {:style {:color "#888" :margin "0 0 8px" :font-size "0.8em"}}
+                         (str "Type \"" (:name @state/club) "\" to confirm:")]
+                        [:input.form-input {:type "text"
+                                            :value @delete-club-input
+                                            :style {:margin-bottom "8px" :font-size "0.85em"}
+                                            :on-change #(reset! delete-club-input (-> % .-target .-value))}]
+                        [:div {:style {:display "flex" :gap "8px"}}
+                         [:button.btn.btn-small
+                          {:style {:background "#c00" :color "#fff" :border "none" :font-size "0.8em"}
+                           :disabled (not= @delete-club-input (:name @state/club))
+                           :on-click (fn []
+                                       (db/delete-club! club-id
+                                                        (fn []
+                                                          (state/reset-club-state!)
+                                                          (router/navigate! "#/clubs"))))}
+                          "Delete Forever"]
+                         [:button.btn.btn-small
+                          {:style {:font-size "0.8em"}
+                           :on-click #(do (reset! confirm-delete-club false)
+                                          (reset! delete-club-input ""))}
+                          "Cancel"]]])]])])]))]))))
+
 
 
 
