@@ -4,6 +4,7 @@
             [router]
             [auth]
             [db]
+            [state]
             [login]
             [clubs]
             [club-view]))
@@ -94,6 +95,12 @@
   (println "[main] initializing BookRank")
   (router/init-router!)
   (auth/init-auth!)
+  ;; Check superuser status when user signs in
+  (add-watch auth/user :superuser-check
+             (fn [_ _ _ new-user]
+               (if new-user
+                 (db/check-superuser! state/is-superuser)
+                 (reset! state/is-superuser false))))
   (mount-root))
 
 (init)

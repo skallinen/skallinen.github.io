@@ -18,6 +18,9 @@
 (defonce clubs (r/atom []))
 (defonce clubs-loading (r/atom true))
 
+;; -- Superuser --
+(defonce is-superuser (r/atom false))
+
 ;; -- Current Club Data --
 ;; These hold data for whichever club is currently being viewed.
 ;; Reset when navigating to a different club.

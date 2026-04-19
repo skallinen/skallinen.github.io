@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html><head><title>Grant Superuser</title></head>
+<body style="font-family:monospace;padding:20px;background:#111;color:#eee">
+<h2>Grant Superuser Status</h2>
+<p style="color:#888">Sign in with the account you want to make a superuser. The script will create a doc in the <code>superusers</code> collection.</p>
+<p style="color:#f0c040">⚠ After running this once, update Firestore rules to prevent further client-side writes to <code>superusers</code>.</p>
+<button id="btn" style="padding:12px 24px;cursor:pointer;font-size:16px" onclick="doGrant()">Grant Superuser to Current User</button>
+<pre id="log">Ready. Sign in first.</pre>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",authDomain:"book-club-e4916.firebaseapp.com",projectId:"book-club-e4916"});
+var db = firebase.firestore();
+var log = document.getElementById('log');
+function L(msg) { log.textContent += '\n' + msg; }
+
+firebase.auth().onAuthStateChanged(function(user) {
+  if (!user) {
+    L('Not signed in. Click the button to sign in and grant.');
+  } else {
+    L('Signed in as: ' + user.email + ' (UID: ' + user.uid + ')');
+    L('Click the button to grant superuser status.');
+  }
+});
+
+async function doGrant() {
+  var user = firebase.auth().currentUser;
+  if (!user) {
+    await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    user = firebase.auth().currentUser;
+  }
+  L('\nGranting superuser to: ' + user.email);
+
+  // TEMPORARILY allow write — you'll need to relax the rule for this one-time operation
+  // or run this before deploying the restrictive rules
+  await db.doc('superusers/' + user.uid).set({
+    email: user.email,
+    display_name: user.displayName,
+    granted_at: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  L('✓ Superuser granted!');
+  L('UID: ' + user.uid);
+  L('Email: ' + user.email);
+  L('\nNow deploy the restrictive Firestore rules that block further writes to superusers/');
+}
+</script>
+</body></html>

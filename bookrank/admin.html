@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html><head><title>BookRank Admin</title></head>
+<body style="font-family:'Space Grotesk',monospace;padding:20px;background:#111;color:#eee;max-width:900px;margin:0 auto">
+<h2 style="color:#f0c040">⚙ BookRank Admin</h2>
+<p style="color:#888">Superuser-only. Manage books and data across all clubs.</p>
+
+<div id="auth-gate" style="display:none">
+  <p style="color:#c00">⛔ Access denied. You are not a superuser.</p>
+</div>
+
+<div id="admin-panel" style="display:none">
+  <div style="margin-bottom:16px">
+    <label style="color:#aaa">Select Club:</label>
+    <select id="club-select" style="padding:6px 12px;font-size:14px;background:#222;color:#eee;border:1px solid #444;margin-left:8px"></select>
+    <span id="club-info" style="color:#666;margin-left:12px"></span>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button onclick="listBooks()" style="padding:8px 16px;cursor:pointer">📚 List Books</button>
+    <button onclick="listMembers()" style="padding:8px 16px;cursor:pointer">👥 List Members</button>
+    <button onclick="listRankings()" style="padding:8px 16px;cursor:pointer">📊 List Rankings</button>
+  </div>
+
+  <h3 style="color:#f0c040;margin-top:24px">Actions</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <button onclick="showAddBook()" style="padding:8px 16px;cursor:pointer">➕ Add Book</button>
+    <button onclick="showUpdateBook()" style="padding:8px 16px;cursor:pointer">✏️ Update Book</button>
+    <button onclick="showDeleteBook()" style="padding:8px 16px;cursor:pointer">🗑 Delete Book</button>
+  </div>
+
+  <div id="action-form" style="display:none;background:#1a1a1a;padding:16px;border-radius:8px;margin-bottom:16px"></div>
+</div>
+
+<pre id="log" style="background:#0a0a0a;padding:16px;border-radius:8px;max-height:500px;overflow-y:auto;font-size:13px"></pre>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",authDomain:"book-club-e4916.firebaseapp.com",projectId:"book-club-e4916"});
+var db = firebase.firestore();
+var log = document.getElementById('log');
+var currentClubId = null;
+
+function L(msg) { log.textContent += msg + '\n'; log.scrollTop = log.scrollHeight; }
+function clearLog() { log.textContent = ''; }
+function getClubId() { return document.getElementById('club-select').value; }
+
+firebase.auth().onAuthStateChanged(async function(user) {
+  if (!user) {
+    L('Signing in...');
+    await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    return;
+  }
+  L('Signed in as: ' + user.email);
+
+  // Check superuser status
+  var suDoc = await db.doc('superusers/' + user.uid).get();
+  if (!suDoc.exists) {
+    document.getElementById('auth-gate').style.display = 'block';
+    L('⛔ Not a superuser');
+    return;
+  }
+
+  L('✓ Superuser verified\n');
+  document.getElementById('admin-panel').style.display = 'block';
+
+  // Load all clubs
+  var clubs = await db.collection('clubs').get();
+  var select = document.getElementById('club-select');
+  clubs.forEach(function(doc) {
+    var opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = doc.data().name + ' (' + doc.id.substr(0,8) + '...)';
+    select.appendChild(opt);
+  });
+
+  select.addEventListener('change', function() {
+    var id = select.value;
+    document.getElementById('club-info').textContent = 'ID: ' + id;
+  });
+
+  if (select.options.length > 0) {
+    select.dispatchEvent(new Event('change'));
+  }
+
+  L('Loaded ' + clubs.size + ' clubs. Select one and use the buttons above.\n');
+});
+
+// --- List ---
+async function listBooks() {
+  clearLog();
+  var cid = getClubId();
+  L('Books in club ' + cid + ':\n');
+  var snap = await db.collection('clubs/' + cid + '/books').get();
+  snap.forEach(function(doc) {
+    var d = doc.data();
+    L('  [' + doc.id.substr(0,8) + '] ' + (d.title || '?') + ' — ' + (d.author || '?'));
+  });
+  L('\nTotal: ' + snap.size);
+}
+
+async function listMembers() {
+  clearLog();
+  var cid = getClubId();
+  L('Members in club ' + cid + ':\n');
+  var snap = await db.collection('clubs/' + cid + '/members').get();
+  snap.forEach(function(doc) {
+    var d = doc.data();
+    L('  [' + doc.id.substr(0,8) + '] ' + (d.display_name || '?') + ' — ' + (d.email || '?') + ' (' + (d.role || 'member') + ')');
+  });
+  L('\nTotal: ' + snap.size);
+}
+
+async function listRankings() {
+  clearLog();
+  var cid = getClubId();
+  L('Rankings in club ' + cid + ':\n');
+  var snap = await db.collection('clubs/' + cid + '/rankings').get();
+  snap.forEach(function(doc) {
+    var d = doc.data();
+    var ranked = (d.order || []).length;
+    var skipped = (d.unread || []).length;
+    L('  [' + doc.id.substr(0,8) + '] ranked: ' + ranked + ', skipped: ' + skipped);
+  });
+  L('\nTotal: ' + snap.size);
+}
+
+// --- Actions ---
+function showAddBook() {
+  var form = document.getElementById('action-form');
+  form.style.display = 'block';
+  form.innerHTML = '<h4 style="color:#f0c040;margin:0 0 12px">Add Book</h4>' +
+    '<input id="ab-title" placeholder="Title" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"><br>' +
+    '<input id="ab-author" placeholder="Author" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"><br>' +
+    '<textarea id="ab-synopsis" placeholder="Synopsis (optional)" rows="3" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"></textarea><br>' +
+    '<button onclick="doAddBook()" style="padding:8px 16px;cursor:pointer">Add</button>';
+}
+
+async function doAddBook() {
+  var cid = getClubId();
+  var title = document.getElementById('ab-title').value.trim();
+  var author = document.getElementById('ab-author').value.trim();
+  var synopsis = document.getElementById('ab-synopsis').value.trim();
+  if (!title) { L('Title required'); return; }
+  var data = { title: title, author: author, added_by: firebase.auth().currentUser.uid, added_at: firebase.firestore.FieldValue.serverTimestamp() };
+  if (synopsis) data.synopsis = synopsis;
+  var ref = await db.collection('clubs/' + cid + '/books').add(data);
+  L('✓ Added: ' + title + ' [' + ref.id.substr(0,8) + ']');
+  document.getElementById('action-form').style.display = 'none';
+}
+
+function showUpdateBook() {
+  var form = document.getElementById('action-form');
+  form.style.display = 'block';
+  form.innerHTML = '<h4 style="color:#f0c040;margin:0 0 12px">Update Book</h4>' +
+    '<p style="color:#888;font-size:12px">First list books to get the ID prefix, then paste the full ID here.</p>' +
+    '<input id="ub-id" placeholder="Book doc ID" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"><br>' +
+    '<input id="ub-field" placeholder="Field (title, author, synopsis)" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"><br>' +
+    '<input id="ub-value" placeholder="New value" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"><br>' +
+    '<button onclick="doUpdateBook()" style="padding:8px 16px;cursor:pointer">Update</button>';
+}
+
+async function doUpdateBook() {
+  var cid = getClubId();
+  var id = document.getElementById('ub-id').value.trim();
+  var field = document.getElementById('ub-field').value.trim();
+  var value = document.getElementById('ub-value').value.trim();
+  if (!id || !field || !value) { L('All fields required'); return; }
+  var update = {}; update[field] = value;
+  await db.doc('clubs/' + cid + '/books/' + id).update(update);
+  L('✓ Updated ' + field + ' on [' + id.substr(0,8) + ']');
+  document.getElementById('action-form').style.display = 'none';
+}
+
+function showDeleteBook() {
+  var form = document.getElementById('action-form');
+  form.style.display = 'block';
+  form.innerHTML = '<h4 style="color:#c00;margin:0 0 12px">Delete Book</h4>' +
+    '<p style="color:#888;font-size:12px">⚠ This also cleans the book ID from all member rankings.</p>' +
+    '<input id="db-id" placeholder="Book doc ID" style="display:block;margin:4px 0;padding:6px;width:100%;box-sizing:border-box;background:#222;color:#eee;border:1px solid #444"><br>' +
+    '<button onclick="doDeleteBook()" style="padding:8px 16px;cursor:pointer;background:#c00;color:#fff;border:none">Delete</button>';
+}
+
+async function doDeleteBook() {
+  var cid = getClubId();
+  var id = document.getElementById('db-id').value.trim();
+  if (!id) { L('Book ID required'); return; }
+  var doc = await db.doc('clubs/' + cid + '/books/' + id).get();
+  if (!doc.exists) { L('Book not found: ' + id); return; }
+  var title = doc.data().title;
+  await db.doc('clubs/' + cid + '/books/' + id).delete();
+  L('✓ Deleted: ' + title);
+
+  // Clean rankings
+  var rs = await db.collection('clubs/' + cid + '/rankings').get();
+  for (var r of rs.docs) {
+    var d = r.data();
+    var order = (d.order || []).filter(function(x) { return x !== id; });
+    var unread = (d.unread || []).filter(function(x) { return x !== id; });
+    if (order.length !== (d.order||[]).length || unread.length !== (d.unread||[]).length) {
+      await r.ref.update({order: order, unread: unread});
+      L('  Cleaned ranking: ' + r.id.substr(0,8));
+    }
+  }
+  document.getElementById('action-form').style.display = 'none';
+}
+</script>
+</body></html>

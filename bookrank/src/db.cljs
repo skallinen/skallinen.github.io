@@ -27,6 +27,29 @@
         len   (count chars)]
     (apply str (repeatedly 6 #(nth chars (rand-int len))))))
 
+;; -- Superuser --
+
+(defn check-superuser!
+  "Check if the current user has superuser status. Updates the provided atom."
+  [superuser-atom]
+  (when-let [db auth/firebase-db]
+    (let [uid (:uid @auth/user)]
+      (-> (.get (.doc db (str "superusers/" uid)))
+          (.then (fn [doc]
+                   (reset! superuser-atom (.-exists doc))
+                   (when (.-exists doc)
+                     (println "[db] superuser confirmed:" (:email @auth/user)))))
+          (.catch (fn [_] (reset! superuser-atom false)))))))
+
+(defn fetch-all-clubs!
+  "Fetch all clubs in the system (superuser only). Updates the provided atom."
+  [clubs-atom]
+  (when-let [db auth/firebase-db]
+    (-> (.get (.collection db "clubs"))
+        (.then (fn [snapshot]
+                 (reset! clubs-atom (mapv doc->map (seq (.-docs snapshot))))))
+        (.catch (fn [err] (js/console.error "[db] fetch-all-clubs error:" err))))))
+
 ;; -- Clubs --
 
 (defn create-club!
