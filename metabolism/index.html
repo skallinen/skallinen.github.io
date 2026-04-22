@@ -593,6 +593,114 @@
       line-height: var(--lh-normal);
     }
 
+
+    /* ─── MOBILE ──────────────────────────────────────── */
+    @media (max-width: 680px) {
+      :root {
+        --space: 1.4rem;
+        --display:    clamp(1.8rem, 8vw, 3rem);
+        --display-sm: clamp(1.3rem, 6vw, 2rem);
+        --body-lg:    clamp(0.95rem, 4vw, 1.2rem);
+        --body-sm:    clamp(0.8rem, 3.5vw, 1rem);
+        --label:      clamp(0.65rem, 2.8vw, 0.8rem);
+      }
+      html { font-size: 100%; }
+
+      /* Make slides scrollable instead of clipped */
+      html, body { overflow: auto; height: auto; }
+      .deck { height: auto; overflow: visible; position: static; }
+      .slide {
+        position: static;
+        opacity: 1 !important;
+        pointer-events: all !important;
+        display: none;
+        min-height: 100svh;
+        padding: var(--space);
+        justify-content: flex-start;
+        padding-top: calc(var(--space) * 2);
+      }
+      .slide.active { display: flex; }
+
+      /* Stack all horizontal layouts */
+      .row           { flex-direction: column; gap: 1.2rem; }
+      .row .col      { flex: unset; }
+      .risk-cards    { flex-direction: column; }
+      .case-split    { flex-direction: column; }
+      .rule-split    { flex-direction: column; gap: 0.8rem; }
+      .phase-row     { flex-wrap: wrap; }
+      .phase-row-label { min-width: unset; width: 100%; margin-bottom: 0.2rem; }
+      .phase-sublabel { padding-left: 0; margin-top: 0.3rem; }
+
+      /* State grid: 1 column on very small screens */
+      .state-grid { grid-template-columns: 1fr; grid-template-rows: unset; }
+
+      /* Chain: wrap nodes */
+      .chain, .chain-sm {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 1rem 0;
+      }
+      .chain-node { white-space: normal; font-size: 0.85rem; }
+
+      /* Hide chain nav overlay (no room) */
+      #chain-nav { display: none !important; }
+
+      /* Slides with full-bleed image panels: stack vertically */
+      /* s6 (metabolism intro) and s7 (no neutral state) */
+      #s6 > div[style*="display:flex"],
+      #s7 > div[style*="display:flex"] {
+        flex-direction: column;
+        height: auto;
+      }
+      /* The image panel: cap its height */
+      #s6 > div > div:last-child,
+      #s7 > div > div:last-child {
+        position: relative !important;
+        height: 40vw;
+        flex: unset;
+        width: 100%;
+      }
+      /* Inner col in those slides */
+      #s6 > div > .col,
+      #s7 > div > .col {
+        padding: var(--space) !important;
+      }
+
+      /* Blockquote hero — reduce size handled by --display token */
+      blockquote.hero { font-size: var(--display); }
+
+      /* Hero quote slide (s1) */
+      #s1 .col { max-width: 100%; }
+
+      /* Slide 5 footnote (positioned absolutely) — make static */
+      #s5 p[style*="position:absolute"] {
+        position: static !important;
+        margin-top: 1.2rem;
+        font-size: 0.65rem;
+      }
+
+      /* Progress / counter / hint */
+      #progress { height: 3px; }
+      #counter  { font-size: 0.65rem; bottom: 0.8rem; right: 1rem; }
+      #nav-hint { display: none; }
+
+      /* Mermaid diagrams: allow scroll if too wide */
+      .diagram-wrap { overflow-x: auto; }
+      .diagram-wrap .mermaid svg { max-height: none !important; min-width: 480px; }
+
+      /* Practice rows: stack label + quality */
+      .practice-row { flex-direction: column; }
+      .pr-practice  { flex: unset; width: 100%; }
+      .pr-arrow     { display: none; }
+      .pr-quality   { padding-top: 0; }
+
+      /* Formula block */
+      .formula-block { padding: 1rem; }
+
+      /* Takeaway list: slightly tighter */
+      .takeaway-list li { font-size: var(--body-sm); }
+    }
+
   </style>
 </head>
 <body>
