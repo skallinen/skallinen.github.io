@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture is Metabolism</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=STIX+Two+Text:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    /* ─── RESET ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── TOKENS ─────────────────────────────────────────── */
+    :root {
+      --white:       #ffffff;
+      --black:       #000000;
+      --rose:        #E3CAC3;
+      --linen:       #EEE7E1;
+      --peach:       #F9EDDD;
+      --orange:      #a9431e;
+      --teal:        #7badb6;
+
+      --font:        'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
+      --display:     clamp(2.4rem, 5vw, 5.2rem);
+      --display-sm:  clamp(1.6rem, 3vw, 3rem);
+      --body-lg:     clamp(1rem, 1.6vw, 1.5rem);
+      --body-sm:     clamp(0.85rem, 1.2vw, 1.1rem);
+      --label:       clamp(0.7rem, 0.9vw, 0.9rem);
+
+      --lh-tight:    1.05;
+      --lh-normal:   1.35;
+      --space:       clamp(2rem, 5vw, 5rem);
+    }
+
+    /* ─── BASE ───────────────────────────────────────────── */
+    html {
+      font-size: 150%;
+    }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: var(--font);
+      background: var(--black);
+    }
+
+    /* ─── DECK ───────────────────────────────────────────── */
+    .deck {
+      position: relative;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── SLIDE ──────────────────────────────────────────── */
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: var(--space);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .slide.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ─── BACKGROUND VARIANTS ────────────────────────────── */
+    .bg-black  { background: var(--black); color: var(--white); }
+    .bg-white  { background: var(--white); color: var(--black); }
+    .bg-rose   { background: var(--rose);  color: var(--black); }
+    .bg-linen  { background: var(--linen); color: var(--black); }
+    .bg-peach  { background: var(--peach); color: var(--black); }
+
+    /* ─── TYPOGRAPHY ─────────────────────────────────────── */
+    .display {
+      font-size: var(--display);
+      font-weight: 800;
+      line-height: var(--lh-tight);
+      letter-spacing: -0.02em;
+    }
+    .display-sm {
+      font-size: var(--display-sm);
+      font-weight: 700;
+      line-height: var(--lh-tight);
+      letter-spacing: -0.015em;
+    }
+    .body-lg {
+      font-size: var(--body-lg);
+      font-weight: 400;
+      line-height: var(--lh-normal);
+    }
+    .body-sm {
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+    }
+    .label {
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .accent { color: var(--orange); }
+    .teal   { color: var(--teal); }
+    .muted  { opacity: 0.45; }
+
+    em { font-style: italic; }
+    strong { font-weight: 700; }
+
+    /* ─── BLOCKQUOTE ─────────────────────────────────────── */
+    blockquote {
+      border-left: 4px solid currentColor;
+      padding-left: 1.5em;
+      margin: 1.5em 0;
+    }
+    blockquote.hero {
+      border: none;
+      padding: 0;
+      font-size: var(--display);
+      font-weight: 800;
+      line-height: var(--lh-tight);
+      letter-spacing: -0.02em;
+    }
+    .attribution {
+      margin-top: 1rem;
+      font-size: var(--body-sm);
+      font-weight: 500;
+      opacity: 0.55;
+    }
+
+    /* ─── LAYOUT HELPERS ─────────────────────────────────── */
+    .col { display: flex; flex-direction: column; gap: 1.2rem; }
+    .row { display: flex; flex-direction: row; gap: clamp(2rem,4vw,5rem); align-items: flex-start; }
+    .row .col { flex: 1; }
+    .spacer { flex: 1; }
+    .mt-sm { margin-top: 1rem; }
+    .mt-md { margin-top: 2rem; }
+
+    /* ─── SECTION LABEL ──────────────────────────────────── */
+    .section-label {
+      display: inline-block;
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0.35em 0.7em;
+      background: var(--black);
+      color: var(--white);
+      margin-bottom: 1.5rem;
+      align-self: flex-start;
+    }
+    .bg-black .section-label {
+      background: var(--white);
+      color: var(--black);
+    }
+
+    /* ─── PROPERTY TABLE ─────────────────────────────────── */
+    .prop-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--body-sm);
+    }
+    .prop-table th, .prop-table td {
+      text-align: left;
+      padding: 0.7em 1em;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      vertical-align: top;
+    }
+    .bg-black .prop-table th,
+    .bg-black .prop-table td { border-color: rgba(255,255,255,0.15); }
+    .prop-table th {
+      font-weight: 700;
+      font-size: var(--label);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding-bottom: 0.9em;
+      border-bottom-width: 2px;
+    }
+    .prop-table tr:last-child td { border-bottom: none; }
+
+    /* ─── TAKEAWAY LIST ──────────────────────────────────── */
+    .takeaway-list {
+      list-style: none;
+      counter-reset: t;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1em;
+    }
+    .takeaway-list li {
+      counter-increment: t;
+      display: flex;
+      gap: 1em;
+      align-items: baseline;
+      font-size: var(--body-lg);
+      line-height: var(--lh-normal);
+    }
+    .takeaway-list li::before {
+      content: counter(t);
+      font-size: var(--label);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      min-width: 1.6em;
+      color: var(--orange);
+      flex-shrink: 0;
+      padding-top: 0.25em;
+    }
+    .takeaway-label {
+      font-weight: 700;
+      display: block;
+    }
+    .takeaway-sub {
+      font-weight: 400;
+      font-size: var(--body-sm);
+      opacity: 0.7;
+      display: block;
+      margin-top: 0.15em;
+    }
+
+    /* ─── RISK CARDS ─────────────────────────────────────── */
+    .risk-cards {
+      display: flex;
+      gap: clamp(1rem,2.5vw,3rem);
+      margin-top: 1rem;
+    }
+    .risk-card {
+      flex: 1;
+      padding: 1.5em;
+      background: rgba(0,0,0,0.06);
+      border-top: 3px solid var(--orange);
+    }
+    .bg-black .risk-card { background: rgba(255,255,255,0.07); border-color: var(--orange); }
+    .risk-card .risk-title {
+      font-weight: 800;
+      font-size: var(--body-lg);
+      margin-bottom: 0.5em;
+    }
+    .risk-card .risk-body {
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+      opacity: 0.8;
+    }
+
+    /* ─── MERMAID / DIAGRAM CONTAINERS ───────────────────── */
+    .diagram-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0.5rem 0;
+      overflow: visible;
+    }
+    .diagram-wrap .mermaid {
+      width: 100%;
+      max-width: 100%;
+    }
+    .diagram-wrap .mermaid svg {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      max-height: 260px !important;
+      overflow: visible !important;
+    }
+    /* Force edge label backgrounds to be fully opaque */
+    .diagram-wrap .edgeLabel rect,
+    .diagram-wrap .edgeLabel .label rect {
+      opacity: 1 !important;
+      fill: #F9EDDD !important;
+    }
+
+    /* ─── PHASE FLOW DIAGRAM ─────────────────────────────── */
+    .phase-diagram { display:flex; flex-direction:column; gap:1.2rem; margin:1.5rem 0; }
+    .phase-row { display:flex; align-items:center; gap:0.8rem; }
+    .phase-row-label {
+      min-width:6.5rem; font-size:0.65rem; font-weight:700;
+      letter-spacing:0.05em; text-transform:uppercase;
+      color:rgba(0,0,0,0.45); flex-shrink:0;
+    }
+    .phase-track { display:flex; align-items:center; gap:0.25rem; flex:1; }
+    .pb {
+      padding:0.35em 0.65em; font-size:0.68rem; font-weight:700;
+      letter-spacing:0.02em; white-space:nowrap; flex-shrink:0;
+    }
+    .pb-ddd  { background:#7badb6; color:#fff; }
+    .pb-code { background:var(--black); color:#fff; text-align:center; }
+    .pb-code.wide { min-width:6rem; }
+    .pb-code.narrow { min-width:2rem; }
+    .pb-learn { background:var(--orange); color:#fff; }
+    .pb-skip  { color:rgba(0,0,0,0.2); font-size:0.65rem; font-style:italic; flex:1; letter-spacing:0.04em; }
+    .phase-sublabel {
+      font-size:0.63rem; color:rgba(0,0,0,0.4);
+      padding-left:7.3rem; margin-top:-0.7rem;
+    }
+    .phase-divider { border:none; border-top:1px solid rgba(0,0,0,0.08); margin:0.3rem 0; }
+
+    /* ─── CASE STUDY SPLIT ───────────────────────────────── */
+    .case-split {
+      display: flex;
+      gap: clamp(1.5rem, 3vw, 4rem);
+    }
+    .case-col {
+      flex: 1;
+      padding: 1.5em;
+    }
+    .case-col.v1 {
+      background: var(--linen);
+    }
+    .case-col.v2 {
+      background: var(--black);
+      color: var(--white);
+    }
+    .case-col .case-head {
+      font-weight: 800;
+      font-size: var(--body-lg);
+      margin-bottom: 0.8em;
+    }
+    .case-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+    }
+    .case-col ul li {
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+      padding-left: 1.2em;
+      position: relative;
+    }
+    .case-col ul li::before {
+      content: "—";
+      position: absolute;
+      left: 0;
+      opacity: 0.4;
+    }
+
+    /* ─── SLIDE COUNTER ──────────────────────────────────── */
+    #counter {
+      position: fixed;
+      bottom: 1.6rem;
+      right: 2rem;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.3);
+      z-index: 100;
+      mix-blend-mode: screen;
+    }
+
+    /* Progress bar */
+    #progress {
+      position: fixed;
+      bottom: 0; left: 0;
+      height: 2px;
+      background: var(--orange);
+      transition: width 0.35s ease;
+      z-index: 100;
+    }
+
+    /* Nav hint */
+    #nav-hint {
+      position: fixed;
+      bottom: 1.6rem;
+      left: 2rem;
+      font-family: var(--font);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.2);
+      z-index: 100;
+      mix-blend-mode: screen;
+    }
+
+    /* ─── PILL TAG ───────────────────────────────────────── */
+    .pill {
+      display: inline-block;
+      padding: 0.25em 0.75em;
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--orange);
+      color: var(--white);
+    }
+
+    /* ─── TWO-COLUMN RULE SPLIT ──────────────────────────── */
+    .rule-split {
+      display: flex;
+      gap: clamp(1.5rem, 3vw, 4rem);
+      margin-top: 1rem;
+    }
+    .rule-col {
+      flex: 1;
+      padding: 1.5em;
+    }
+    .rule-col.protects { background: var(--linen); }
+    .rule-col.manages  { background: rgba(0,0,0,0.06); }
+    .rule-col .rule-col-head {
+      font-weight: 800;
+      margin-bottom: 0.8em;
+      font-size: var(--body-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .rule-col ul {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 0.6em;
+    }
+    .rule-col ul li {
+      font-size: var(--body-sm);
+      padding-left: 1.2em;
+      position: relative;
+      line-height: var(--lh-normal);
+    }
+    .rule-col ul li::before { content: "—"; position: absolute; left: 0; opacity: 0.35; }
+
+    /* ─── PRACTICES TABLE ────────────────────────────────── */
+    .practice-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 1rem;
+    }
+    .practice-row {
+      display: flex;
+      align-items: stretch;
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+    .practice-row:last-child { border-bottom: 1px solid rgba(0,0,0,0.1); }
+    .pr-practice {
+      flex: 0 0 35%;
+      padding: 0.9em 1em;
+      font-weight: 700;
+      font-size: var(--body-sm);
+      background: rgba(0,0,0,0.04);
+    }
+    .pr-arrow {
+      flex: 0 0 4%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1em; opacity: 0.35;
+    }
+    .pr-quality {
+      flex: 1;
+      padding: 0.9em 1em;
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+    }
+
+    /* ─── STATE GRID ─────────────────────────────────────── */
+    .state-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: clamp(0.5rem, 1vw, 1rem);
+      flex: 1;
+    }
+    .state-cell {
+      padding: 1.1em 1.3em;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4em;
+    }
+    .state-cell .state-name {
+      font-weight: 800;
+      font-size: var(--body-lg);
+      letter-spacing: -0.01em;
+    }
+    .state-cell .state-response {
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+    }
+    .state-cell .state-sequence {
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 0.3em;
+      opacity: 0.55;
+    }
+    .state-cell .state-example {
+      font-size: calc(var(--body-sm) * 0.9);
+      line-height: var(--lh-normal);
+      opacity: 0.65;
+      margin-top: 0.3em;
+    }
+    .state-cell.s-clear    { background: var(--linen); }
+    .state-cell.s-comp     { background: var(--peach); }
+    .state-cell.s-complex  { background: var(--rose); }
+    .state-cell.s-chaotic  { background: var(--black); color: var(--white); }
+
+    /* ─── CHAIN MAP ───────────────────────────────────────── */
+    .chain {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 2.5rem 0 2rem;
+    }
+    .chain-node {
+      padding: 0.9em 1.4em;
+      border: 2px solid var(--black);
+      font-weight: 700;
+      font-size: clamp(0.9rem, 1.6vw, 1.2rem);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .chain-node.active {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: var(--white);
+    }
+    .chain-arrow {
+      font-size: 1.4rem;
+      padding: 0 0.5em;
+      color: var(--black);
+      flex-shrink: 0;
+    }
+    .chain-sm {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 1.8rem;
+    }
+    .chain-sm .chain-node {
+      padding: 0.4em 0.9em;
+      font-size: clamp(0.7rem, 1.1vw, 0.85rem);
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      border-width: 1.5px;
+    }
+    .chain-sm .chain-arrow {
+      font-size: 1rem;
+      padding: 0 0.35em;
+    }
+
+    /* ─── FIXED CHAIN NAV OVERLAY ────────────────────────── */
+    #chain-nav {
+      display: none;
+      position: fixed;
+      top: var(--space);
+      right: var(--space);
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 50;
+    }
+    .cn-node {
+      font-family: var(--font);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(0,0,0,0.35);
+      transition: color 0.25s;
+    }
+    #chain-nav.on-dark .cn-node { color: rgba(255,255,255,0.35); }
+    .cn-node.active { color: var(--orange) !important; }
+    .cn-arrow {
+      font-size: 0.6rem;
+      color: rgba(0,0,0,0.2);
+    }
+    #chain-nav.on-dark .cn-arrow { color: rgba(255,255,255,0.2); }
+
+    /* ─── FORMULA ────────────────────────────────────────── */
+    .formula-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 2rem;
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--font);
+    }
+    .formula-lhs {
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      opacity: 0.5;
+    }
+    .formula-eq {
+      font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+      font-weight: 800;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+    .formula-eq .f-op { opacity: 0.4; font-weight: 400; }
+    .formula-eq .f-highlight { color: var(--orange); }
+    .formula-note {
+      font-size: var(--body-sm);
+      opacity: 0.45;
+      margin-top: 0.5rem;
+      line-height: var(--lh-normal);
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ─── SLIDE 0: TITLE ───────────────────────────────── -->
+  <section class="slide bg-black active" id="s0">
+    <div class="col" style="height:100%; justify-content:space-between; padding:var(--space);">
+      <div></div>
+      <div class="col" style="gap:1rem;">
+        <p class="display" style="font-size:clamp(2.5rem,6vw,7rem); line-height:1.05; max-width:14ch;">
+          Architecture <span style="color:var(--orange);">is</span> Metabolism
+        </p>
+        <p class="body-lg" style="opacity:0.5; margin-top:0.5rem;">How AI Changes the Rules. And Which Ones Still Matter.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.3rem;">
+        <p class="body-sm" style="opacity:0.35; letter-spacing:0.06em; text-transform:uppercase; font-size:0.6rem;">Created by</p>
+        <p class="body-sm" style="opacity:0.7;">Niklas Höglund &nbsp;·&nbsp; Per Nissiä &nbsp;·&nbsp; Sami Kallinen</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 1: TITLE / QUOTE ─────────────────────────── -->
+  <section class="slide bg-black" id="s1">
+    <div class="col" style="max-width: 75%;">
+      <blockquote class="hero">
+        "To get the benefits of new technology, we must also change the rules that were designed to accommodate the limitation that the technology has now diminished."
+      </blockquote>
+      <p class="attribution">— Eliyahu M. Goldratt</p>
+    </div>
+  </section>
+
+
+  <!-- ─── SLIDE 2b: HOOK + CHAIN ──────────────────────────────── -->
+  <section class="slide bg-white" id="s2b">
+    <span class="section-label">Hook</span>
+    <div class="row" style="align-items:center;">
+      <div class="col" style="flex:1.2;">
+        <p class="display">No deploys on Fridays.</p>
+      </div>
+      <div class="col" style="flex:1; gap:1.6rem;">
+        <p class="body-lg">When was that rule written?</p>
+        <p class="body-lg">What was it protecting?</p>
+        <p class="body-lg">Is that thing still real?</p>
+        <div style="width:100%; height:2px; background:var(--black);"></div>
+        <p class="body-lg"><strong>Every rule presents itself as protection. The work is figuring out what it is actually protecting.</strong></p>
+      </div>
+    </div>
+    <div style="margin-top:2rem; border-top:1px solid rgba(0,0,0,0.1); padding-top:1.4rem;">
+      <p class="body-sm muted">Rules are the outermost layer. An organisation has a goal. Qualities help it reach that goal. Rules exist to cultivate those qualities. The rule is the surface. The quality is what matters.</p>
+      <p class="body-sm muted" style="margin-top:0.6rem;">Some rules are easy to audit: the limitation is gone, the rule is wrong, update it. Some require expertise to unpick. Some only reveal themselves through probing. The answer is not visible until something changes.</p>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 3: WHAT IS AN ORGANISATION ─────────────── -->
+  <section class="slide bg-linen" id="s3">
+    <span class="section-label">Reframe</span>
+    <div class="row">
+      <div class="col" style="flex:1;">
+        <p class="display-sm">An organisation is people united around a shared goal.</p>
+        <p class="body-lg mt-md">Qualities become important to that goal. Some are visible. Some are invisible until they're gone.</p>
+      </div>
+      <div class="col" style="flex:1.2; margin-top:0.5rem;">
+        <div class="rule-split" style="margin-top:0;">
+          <div class="rule-col protects">
+            <div class="rule-col-head">Cultivates quality</div>
+            <ul>
+              <li>No deploys on Fridays <em>(protects stability)</em></li>
+              <li>Every change needs a reviewer <em>(protects understanding)</em></li>
+            </ul>
+          </div>
+          <div class="rule-col manages">
+            <div class="rule-col-head">Manages a limitation</div>
+            <ul>
+              <li>Document only critical paths <em>(writing more was too expensive)</em></li>
+              <li>Deploy once a quarter <em>(deploys used to be risky)</em></li>
+            </ul>
+          </div>
+        </div>
+        <p class="body-sm mt-md muted">The question, for any rule, is whether it is still cultivating the quality it was built for.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 4: ARCHITECTURE IS QUALITIES ──────────── -->
+  <section class="slide bg-black" id="s4">
+    <span class="section-label" style="background:var(--white);color:var(--black);">Reframe</span>
+    <div class="row" style="align-items:flex-start; gap:4rem;">
+      <div class="col" style="flex:1;">
+        <p class="display">Architecture is not the diagram.</p>
+        <div style="height:1.5rem;"></div>
+        <p class="display-sm" style="color:var(--orange);">Architecture is the set of qualities your system actually has.</p>
+        <div style="height:1.5rem;"></div>
+        <p class="body-lg">How understandable it is. How safely you can change it. How quickly it recovers.</p>
+        <p class="body-lg" style="margin-top:0.8rem; opacity:0.55;">The diagram on the wiki is at best a description. More qualities means better architecture.</p>
+      </div>
+      <div class="col" style="flex:1; gap:1.4rem; padding-top:0.5rem;">
+        <p class="body-lg"><strong>Qualities can be measured.</strong> Not always directly, but proxied.</p>
+        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.2rem;">
+          <div style="padding:0.6em 1em; background:rgba(255,255,255,0.07);">
+            <p class="body-sm">How often do you deploy without incident?</p>
+          </div>
+          <div style="padding:0.6em 1em; background:rgba(255,255,255,0.07);">
+            <p class="body-sm">How many people can safely change a given module?</p>
+          </div>
+          <div style="padding:0.6em 1em; background:rgba(255,255,255,0.07);">
+            <p class="body-sm">How long does recovery take when something breaks?</p>
+          </div>
+          <div style="padding:0.6em 1em; background:rgba(255,255,255,0.07);">
+            <p class="body-sm">Do engineers sweat before they push?</p>
+          </div>
+        </div>
+        <div style="margin-top:0.6rem; padding:1em 1.2em; border-left:3px solid var(--orange); background:rgba(255,255,255,0.05);">
+          <p class="body-sm">Architecture decisions are choices: which qualities to cultivate and which trade-offs to accept. The diagram describes what resulted. It does not produce it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 5: WHAT IS A PRODUCT ───────────────────── -->
+  <section class="slide bg-white" id="s5">
+    <span class="section-label">Reframe</span>
+    <div class="col" style="max-width:80%;">
+      <p class="display" style="max-width:16ch;">A product is not what was shipped.</p>
+      <div style="width:100%; height:2px; background:var(--black); margin:1.5rem 0;"></div>
+      <p class="display-sm">It is the compounding output of people, skills, and interactions. Sustained over time.</p>
+      <div style="margin:1.8rem 0 1.4rem; padding-left:1.2em; border-left:3px solid var(--orange);">
+        <p style="font-family:'STIX Two Text', Georgia, serif; font-size:clamp(1.2rem,2.4vw,1.9rem); font-weight:400; letter-spacing:0.01em; line-height:1.4;">
+          <em>P</em>(<em>t</em>) &nbsp;=&nbsp; (people &thinsp;&times;&thinsp; skills &thinsp;&times;&thinsp; interactions)<sup style="font-size:0.6em; font-weight:700; color:var(--orange); font-family:'STIX Two Text', Georgia, serif;"><em>t</em></sup>
+        </p>
+        <p class="body-sm muted" style="margin-top:0.4em;">Each factor compounds the others over time. What was shipped is a snapshot. What the organisation is capable of is the accumulation.*</p>
+      </div>
+      <p class="body-lg">The interesting question isn't <em>what did we ship?</em><br>It's <em><strong>what is this organisation currently capable of sustaining?</strong></em></p>
+      <p style="position:absolute; bottom:var(--space); left:var(--space); right:var(--space); font-family:'STIX Two Text', Georgia, serif; font-size:0.75rem; opacity:0.38; line-height:1.5;">
+        * A more accurate representation is recursive: <em>P</em>(0) = initial capability; &nbsp;<em>P</em>(<em>t</em>) = <em>P</em>(<em>t</em>&minus;1) &times; (people &thinsp;&middot;&thinsp; skills &thinsp;&middot;&thinsp; interactions). Each result becomes the base for the next period, the way compound interest works. Harder to read; closer to what actually happens.
+      </p>
+    </div>
+  </section>
+
+
+  <!-- ─── SLIDE 6: BROOKS / METABOLISM INTRO ───────────── -->
+  <section class="slide bg-rose" id="s6" style="padding:0; overflow:hidden;">
+    <span class="section-label" style="position:absolute; top:var(--space); left:var(--space); z-index:2;">The Metaphor</span>
+    <div style="display:flex; width:100%; height:100%;">
+      <div class="col" style="flex:1.1; gap:1.4rem; justify-content:center; padding:var(--space) calc(var(--space)*1.5) var(--space) var(--space);">
+        <p class="display-sm">Fred Brooks, 1986:</p>
+        <blockquote style="border-left-color:var(--orange);">
+          <p class="body-lg">"The secret is that it is grown, not built."</p>
+        </blockquote>
+        <p class="body-lg">He was right that the building metaphor fails.</p>
+        <p class="body-lg">But the organism metaphor alone doesn't go far enough.</p>
+        <div style="height:1rem;"></div>
+        <p class="body-lg"><strong>An organism tells you <em>what</em> something is.</strong></p>
+        <p class="display-sm" style="color:var(--orange);">Metabolism tells you what something does to stay alive.</p>
+      </div>
+      <div style="flex:0.8; position:relative; min-width:0;">
+        <img src="mycelium.png" alt="Mycelium network" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 6: FOUR PROPERTIES ─────────────────────── -->
+  <section class="slide bg-black" id="s6">
+    <span class="section-label" style="background:var(--white);color:var(--black);">The Metaphor</span>
+    <p class="display-sm" style="margin-bottom:1.5rem;">Metabolism has four useful properties.</p>
+    <table class="prop-table">
+      <thead>
+        <tr>
+          <th style="width:28%;">Property</th>
+          <th>What it means for software</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Adaptive</strong></td>
+          <td>Always self-adjusting. Not a fixed structure: every decision, every incident, every release shapes it. The architecture you have is the result of everything that happened to it.</td>
+        </tr>
+        <tr>
+          <td><strong>Distributed</strong></td>
+          <td>No central controller. Every cell does its part locally. The real architecture lives in what people actually do, not in what any diagram says they should.</td>
+        </tr>
+        <tr>
+          <td><strong>Continuous</strong></td>
+          <td>Metabolism does not pause. A codebase not being actively maintained is not in stasis. It is breaking down. There is no neutral state.</td>
+        </tr>
+        <tr>
+          <td><strong class="accent">Produces waste</strong></td>
+          <td>A working metabolism generates byproducts. Technical debt, legacy patterns, accumulated workarounds: normal outputs of a functioning system. When waste stops being managed, the organism gets sick.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─── SLIDE 7: NO NEUTRAL STATE ────────────────────── -->
+  <section class="slide bg-black" id="s7" style="padding:0; overflow:hidden;">
+    <span class="section-label" style="background:var(--white);color:var(--black); position:absolute; top:var(--space); left:var(--space); z-index:2;">The Metaphor</span>
+    <div style="display:flex; width:100%; height:100%;">
+      <div class="col" style="flex:1; gap:2rem; justify-content:center; padding:var(--space) calc(var(--space)*1.5) var(--space) var(--space);">
+        <blockquote class="hero" style="font-size:clamp(1.6rem,3.5vw,3.5rem); border-left-color:var(--orange);">
+          "A codebase that is not being actively maintained is not stable.<br>It is <span class="accent">degrading.</span>"
+        </blockquote>
+        <p class="display-sm">There is no neutral state.</p>
+        <div style="width:100%; height:2px; background:rgba(255,255,255,0.2);"></div>
+        <p class="body-lg">Choosing not to invest in your system is a decision. It just looks like inaction.</p>
+      </div>
+      <div style="flex:1; position:relative; min-width:0;">
+        <img src="decay.png" alt="Organic decay" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 8: QUALITY IS EMERGENT ─────────────────── -->
+  <section class="slide bg-linen" id="s8" style="padding:0; overflow:hidden;">
+    <span class="section-label" style="position:absolute; top:var(--space); left:var(--space); z-index:2;">Qualities are Emergent</span>
+    <div style="display:flex; width:100%; height:100%;">
+      <div style="flex:1; position:relative; min-width:0;">
+        <img src="coral.png" alt="Coral reef" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+      </div>
+      <div class="col" style="flex:1; gap:1.4rem; justify-content:center; padding:var(--space) var(--space) var(--space) calc(var(--space)*1.5);">
+        <p class="display">You cannot<br>design quality.</p>
+        <p class="body-lg">Understandability, resilience, recoverability. None of these arrive by decision.</p>
+        <p class="body-lg">They <strong>emerge</strong> from what teams actually do every day: the habits, the pressures, the constraints. Compounded over time.</p>
+        <div style="width:100%; height:2px; background:rgba(0,0,0,0.15);"></div>
+        <blockquote style="border-color:var(--orange);">
+          <p class="body-sm">"If a team is afraid to deploy on Fridays, the system is fragile. Regardless of what the documentation says."</p>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 9: PRACTICES AS LEVERS ──────────────────── -->
+  <section class="slide bg-white" id="s9">
+    <span class="section-label">Qualities are Emergent</span>
+    <div class="col">
+      <p class="display-sm" style="margin-bottom:0.5rem;">Practices are the levers of emergence.</p>
+      <p class="body-sm muted" style="margin-bottom:1rem;">No practice produces its quality directly. They produce the <em>conditions</em> from which quality emerges.</p>
+      <div class="practice-rows">
+        <div class="practice-row">
+          <div class="pr-practice">Write the press release first</div>
+          <div class="pr-arrow">→</div>
+          <div class="pr-quality">Forces clarity on user value before a line of code is written. Collaborative formulation of the <em>why</em>.</div>
+        </div>
+        <div class="practice-row">
+          <div class="pr-practice">Rotate devs through customer support</div>
+          <div class="pr-arrow">→</div>
+          <div class="pr-quality">You handle support for the code you wrote. When a user is confused or something breaks, you have to diagnose it fast. That closes the feedback loop between writing code and living with the consequences of it.</div>
+        </div>
+        <div class="practice-row">
+          <div class="pr-practice">Test-driven development</div>
+          <div class="pr-arrow">→</div>
+          <div class="pr-quality">Forces modularity before implementation. Code that is hard to test is almost always too tightly coupled.</div>
+        </div>
+      </div>
+      <div style="margin-top:1.4rem; padding:1em 1.2em; background:var(--peach);">
+        <p class="body-sm"><strong>Resistance is diagnostic.</strong> When a team resists a practice, that's not a bad attitude. It's a symptom of the system's current health. The practice is the probe. What it is telling you depends on what kind of situation you are in.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 10: THE METHODOLOGY ───────────────────── -->
+  <section class="slide bg-white" id="s10">
+    <span class="section-label">Case Study</span>
+    <p class="display-sm" style="margin-bottom:1.2rem;">How we build software.</p>
+
+    <!-- Diamond labels -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr 1fr;">
+      <div style="grid-column:span 2; padding:0.4em 1em; text-align:center; font-size:0.6rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; background:rgba(123,173,182,0.1); border:1.5px solid rgba(123,173,182,0.4); border-bottom:none; color:#5a9aa5;">◇ Diamond 1: Understand the problem</div>
+      <div style="grid-column:span 2; padding:0.4em 1em; text-align:center; font-size:0.6rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; background:rgba(169,67,30,0.07); border:1.5px solid rgba(169,67,30,0.3); border-left:none; border-bottom:none; color:var(--orange);">◇ Diamond 2: Build the solution</div>
+    </div>
+
+    <!-- 4-column phase grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr 1fr; border:1.5px solid rgba(0,0,0,0.12); margin-bottom:1rem;">
+      <!-- Discover -->
+      <div style="padding:1rem 0.9rem; border-right:1px solid rgba(0,0,0,0.1); display:flex; flex-direction:column; gap:0.5rem;">
+        <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#7badb6;">Discover ↗</div>
+        <div style="font-size:0.63rem; color:rgba(0,0,0,0.45); line-height:1.45;">Explore broadly. Understand users and their world before shaping any solution.</div>
+        <div style="display:flex; flex-direction:column; gap:0.22rem; margin-top:0.3rem;">
+          <div class="pb pb-ddd">User Interviews</div>
+          <div class="pb pb-ddd">User Flows</div>
+          <div class="pb pb-ddd">Field Research</div>
+          <div class="pb pb-ddd">Big Picture ES</div>
+        </div>
+      </div>
+      <!-- Define -->
+      <div style="padding:1rem 0.9rem; border-right:2px solid var(--black); display:flex; flex-direction:column; gap:0.5rem;">
+        <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#7badb6;">Define ↘</div>
+        <div style="font-size:0.63rem; color:rgba(0,0,0,0.45); line-height:1.45;">Narrow to valuable, sliceable work.</div>
+        <div style="display:flex; flex-direction:column; gap:0.22rem; margin-top:0.3rem;">
+          <div class="pb pb-ddd">User Story Mapping</div>
+          <div class="pb pb-ddd">Story Slicing</div>
+        </div>
+      </div>
+      <!-- Develop -->
+      <div style="padding:1rem 0.9rem; border-right:1px solid rgba(0,0,0,0.1); display:flex; flex-direction:column; gap:0.5rem;">
+        <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--orange);">Develop ↗</div>
+        <div style="font-size:0.63rem; color:rgba(0,0,0,0.45); line-height:1.45;">Design the solution in detail before coding.</div>
+        <div style="display:flex; flex-direction:column; gap:0.22rem; margin-top:0.3rem;">
+          <div class="pb pb-ddd">Tactical Event Storming</div>
+          <div class="pb pb-ddd">Event Modelling</div>
+          <div class="pb pb-ddd">Example Mapping</div>
+        </div>
+      </div>
+      <!-- Deliver -->
+      <div style="padding:1rem 0.9rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <div style="font-size:0.68rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--orange);">Deliver ↘</div>
+        <div style="font-size:0.63rem; color:rgba(0,0,0,0.45); line-height:1.45;">Implement, test and ship.</div>
+        <div style="display:flex; flex-direction:column; gap:0.22rem; margin-top:0.3rem;">
+          <div class="pb pb-code">BDD</div>
+          <div class="pb pb-code narrow">Code</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="body-sm muted">Each phase is a collection of practices. Practices enforce rules. Rules cultivate qualities. The artifacts are evidence the practices ran. Not the point of them.</p>
+  </section>
+
+  <!-- ─── SLIDE 11: TWO VERSIONS ─────────────────────────── -->
+  <section class="slide bg-peach" id="s11">
+    <span class="section-label">Case Study</span>
+    <p class="display-sm" style="margin-bottom:1.2rem;">Two versions. Two different questions.</p>
+    <div class="case-split">
+      <div class="case-col v1">
+        <div class="case-head">The greenfield product</div>
+        <ul>
+          <li>Built through the full methodology. Both diamonds.</li>
+          <li>Accumulated judgment built in over time.</li>
+          <li>Evaluating question: <em>can we change and recover safely?</em></li>
+          <li>Fewer features at first pass.</li>
+        </ul>
+      </div>
+      <div class="case-col v2">
+        <div class="case-head" style="color:var(--orange);">The vibecoded weekend PoC</div>
+        <ul>
+          <li>A test: can we build this with AI in a weekend?</li>
+          <li>The answer was yes. More features, faster.</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:1.4rem; padding:1em 1.2em; background:rgba(0,0,0,0.07);">
+      <p class="body-sm">A feature comparison measures features. What does it miss?</p>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 11b: EXTERNALISATION ───────────────────── -->
+  <section class="slide bg-linen" id="s11b">
+    <span class="section-label">Case Study</span>
+    <div class="row" style="align-items:flex-start; gap:4rem;">
+      <div class="col" style="flex:1;">
+        <p class="display-sm">The PoC had most of the same thinking.</p>
+        <div style="height:1rem;"></div>
+        <p class="body-lg">Prioritisation happened, as prompts. Domain understanding was there, in the prompter's head. UX decisions were made, driven by whatever the AI generated.</p>
+        <div style="height:1rem;"></div>
+        <p class="body-lg">The difference is not what was thought. It is what got out.</p>
+        <div style="height:1rem;"></div>
+        <p class="body-sm muted">In P(t) = (people × skills × interactions)<sup>t</sup>, the t exponent only works if interactions produce something shared. A solo prompter produces no compound interactions.</p>
+      </div>
+      <div class="col" style="flex:1.1;">
+        <table class="prop-table">
+          <thead>
+            <tr><th>What the phases externalise</th><th>In the PoC</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Domain model: shared, challengeable, correctable</td>
+              <td style="color:rgba(0,0,0,0.35); font-style:italic;">in one person's head</td>
+            </tr>
+            <tr>
+              <td>Prioritisation logic: recorded, visible to the team</td>
+              <td style="color:rgba(0,0,0,0.35); font-style:italic;">implicit, as prompts</td>
+            </tr>
+            <tr>
+              <td>Design decisions: explicit, with the reasoning</td>
+              <td style="color:rgba(0,0,0,0.35); font-style:italic;">generated, not decided</td>
+            </tr>
+            <tr>
+              <td>Expected behaviour: machine-verifiable, survives refactoring</td>
+              <td style="color:rgba(0,0,0,0.35); font-style:italic;">observed once, then gone</td>
+            </tr>
+            <tr>
+              <td>Intent: the next developer knows why, not just what</td>
+              <td style="color:rgba(0,0,0,0.35); font-style:italic;">gone when prompter leaves</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 10b: POC COMPARISON ────────────────────── -->
+  <section class="slide bg-white" id="s10b">
+    <span class="section-label">Case Study</span>
+    <p class="display-sm" style="margin-bottom:1.2rem;">What the PoC covered.</p>
+
+    <!-- Header -->
+    <div style="display:grid; grid-template-columns:4.5rem 1fr 1fr 1.5fr 1fr; border-bottom:2px solid var(--black);">
+      <div></div>
+      <div style="padding:0.4em 0.6em; text-align:center; font-size:0.62rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#7badb6;">Discover</div>
+      <div style="padding:0.4em 0.6em; text-align:center; font-size:0.62rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#7badb6; border-right:2px solid var(--black);">Define</div>
+      <div style="padding:0.4em 0.6em; text-align:center; font-size:0.62rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--orange);">Develop</div>
+      <div style="padding:0.4em 0.6em; text-align:center; font-size:0.62rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--orange);">Deliver</div>
+    </div>
+
+    <!-- Full methodology row -->
+    <div style="display:grid; grid-template-columns:4.5rem 1fr 1fr 1.5fr 1fr; border-bottom:1px solid rgba(0,0,0,0.1); min-height:4.5rem;">
+      <div style="padding:0.6em 0.4em; font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:rgba(0,0,0,0.4); display:flex; align-items:center;">Full<br>build</div>
+      <div style="padding:0.6em; border-left:1px solid rgba(0,0,0,0.08); display:flex; flex-wrap:wrap; gap:0.2rem; align-content:center;">
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Interviews</div>
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Flows</div>
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Big Pic. ES</div>
+      </div>
+      <div style="padding:0.6em; border-left:1px solid rgba(0,0,0,0.08); border-right:2px solid var(--black); display:flex; flex-wrap:wrap; gap:0.2rem; align-content:center;">
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">USM</div>
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Slicing</div>
+      </div>
+      <div style="padding:0.6em; border-left:1px solid rgba(0,0,0,0.08); display:flex; flex-wrap:wrap; gap:0.2rem; align-content:center;">
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Tact. ES</div>
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Ev. Model</div>
+        <div class="pb pb-ddd" style="font-size:0.62rem; padding:0.28em 0.55em;">Ex. Map</div>
+      </div>
+      <div style="padding:0.6em; border-left:1px solid rgba(0,0,0,0.08); display:flex; flex-wrap:wrap; gap:0.2rem; align-content:center;">
+        <div class="pb pb-code" style="font-size:0.62rem; padding:0.28em 0.55em;">BDD</div>
+        <div class="pb pb-code" style="font-size:0.62rem; padding:0.28em 0.55em;">Code</div>
+      </div>
+    </div>
+
+    <!-- PoC row -->
+    <div style="display:grid; grid-template-columns:4.5rem 1fr 1fr 1.5fr 1fr; min-height:4.5rem;">
+      <div style="padding:0.6em 0.4em; font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--orange); display:flex; align-items:center;">PoC</div>
+      <div style="border-left:1px solid rgba(0,0,0,0.08); background:rgba(0,0,0,0.03); display:flex; align-items:center; justify-content:center;">
+        <span style="font-size:0.7rem; color:rgba(0,0,0,0.15); letter-spacing:0.1em;">— — —</span>
+      </div>
+      <div style="border-left:1px solid rgba(0,0,0,0.08); border-right:2px solid var(--black); background:rgba(0,0,0,0.03); display:flex; align-items:center; justify-content:center;">
+        <span style="font-size:0.7rem; color:rgba(0,0,0,0.15); letter-spacing:0.1em;">— — —</span>
+      </div>
+      <div style="border-left:1px solid rgba(0,0,0,0.08); background:rgba(0,0,0,0.03); display:flex; align-items:center; justify-content:center;">
+        <span style="font-size:0.7rem; color:rgba(0,0,0,0.15); letter-spacing:0.1em;">— — —</span>
+      </div>
+      <div style="padding:0.6em; border-left:1px solid rgba(0,0,0,0.08); display:flex; flex-wrap:wrap; gap:0.2rem; align-content:center;">
+        <div class="pb pb-code" style="font-size:0.62rem; padding:0.28em 0.55em;">Code</div>
+        <div class="pb pb-learn" style="font-size:0.62rem; padding:0.28em 0.55em;">Learn</div>
+      </div>
+    </div>
+
+
+  </section>
+
+
+
+  <!-- ─── SLIDE 13: THE BOTTLENECK ──────────────────────── -->
+  <section class="slide bg-white" id="s13">
+    <span class="section-label">Case Study</span>
+    <div class="row" style="align-items:flex-start; gap:4rem;">
+      <div class="col" style="flex:1;">
+        <p class="display">Speed of code generation was a real limitation.</p>
+        <div style="height:1.5rem;"></div>
+        <p class="display-sm" style="color:var(--orange);">AI genuinely reduces it.</p>
+        <div style="height:1.5rem;"></div>
+        <p class="body-lg">For production software, it was never the bottleneck. The limitation has moved.</p>
+        <div style="height:1rem;"></div>
+        <p class="body-lg">To understanding what to build. To the shared knowledge baked into decisions. To the ability to verify that what was generated is what was intended.</p>
+        <div style="height:1rem;"></div>
+        <p class="body-lg">That cost, AI has not changed.</p>
+        <p class="body-sm muted" style="margin-top:1.2rem; font-style:italic;">Note: AI will also reshape the other phases. That is a real and open question. Not addressed in this case study.</p>
+      </div>
+      <div class="col" style="flex:1; gap:0.8rem; padding-top:0.3rem;">
+        <p class="body-sm muted" style="text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Where production effort goes</p>
+        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.4rem;">
+          <div style="display:flex; align-items:center; gap:0.8rem;">
+            <div style="font-size:0.62rem; font-weight:700; width:4.5rem; color:#7badb6; text-align:right;">Discover</div>
+            <div style="height:1.8rem; width:62%; background:#7badb6; opacity:0.5;"></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.8rem;">
+            <div style="font-size:0.62rem; font-weight:700; width:4.5rem; color:#7badb6; text-align:right;">Define</div>
+            <div style="height:1.8rem; width:44%; background:#7badb6; opacity:0.5;"></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.8rem;">
+            <div style="font-size:0.62rem; font-weight:700; width:4.5rem; color:var(--orange); text-align:right;">Develop</div>
+            <div style="height:1.8rem; width:54%; background:var(--orange); opacity:0.5;"></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.8rem;">
+            <div style="font-size:0.62rem; font-weight:700; width:4.5rem; color:var(--black); text-align:right;">Code</div>
+            <div style="height:1.8rem; display:flex; width:82%;">
+              <div style="height:100%; width:18%; background:var(--black);"></div>
+              <div style="height:100%; flex:1; background:rgba(0,0,0,0.13);"></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:1.4rem; margin-top:0.9rem; align-items:center;">
+          <div style="display:flex; align-items:center; gap:0.4rem;">
+            <div style="width:0.8rem; height:0.8rem; background:var(--black);"></div>
+            <span style="font-size:0.58rem; font-weight:700; letter-spacing:0.04em;">AFTER AI</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.4rem;">
+            <div style="width:0.8rem; height:0.8rem; background:rgba(0,0,0,0.13);"></div>
+            <span style="font-size:0.58rem; font-weight:700; letter-spacing:0.04em; opacity:0.5;">BEFORE AI</span>
+          </div>
+        </div>
+        <p class="body-sm muted" style="margin-top:0.6rem; font-style:italic;">Proportions are illustrative. The point is the relative weight.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── SLIDE 13b: CODE THROUGH THE DIAMOND ──────────────── -->
+  <section class="slide bg-white" id="s13b">
+    <span class="section-label">Case Study</span>
+    <div class="row" style="align-items:flex-start; gap:4rem;">
+      <div class="col" style="flex:1; gap:1.4rem;">
+        <p class="display-sm">LLMs are text models. Code is text. That is why generation is fast.</p>
+        <div style="width:100%; height:2px; background:var(--black);"></div>
+        <p class="body-lg">But code differs from other text. <strong>You can run it.</strong></p>
+        <p class="body-lg">Code lived in the Deliver column. Was that because it belonged there, or because it was expensive to produce anywhere else?</p>
+        <p class="body-lg" style="color:var(--orange);">If that cost has changed, which rules followed from it?</p>
+      </div>
+      <div class="col" style="flex:1; gap:1rem;">
+        <p class="body-sm muted" style="text-transform:uppercase; letter-spacing:0.06em; font-weight:700; margin-bottom:0.2rem;">Where could executable artifacts appear?</p>
+        <!-- Diamond phase grid with question marks -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1.5fr 1fr; border:1.5px solid rgba(0,0,0,0.12);">
+          <div style="padding:0.8rem 0.7rem; border-right:1px solid rgba(0,0,0,0.1); display:flex; flex-direction:column; gap:0.5rem;">
+            <div style="font-size:0.65rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#7badb6;">Discover</div>
+            <div style="font-size:0.72rem; color:var(--orange); font-weight:700;">Runnable prototypes?</div>
+            <div style="font-size:0.6rem; color:rgba(0,0,0,0.4); line-height:1.4;">Test domain assumptions before any commitments are made.</div>
+          </div>
+          <div style="padding:0.8rem 0.7rem; border-right:2px solid var(--black); display:flex; flex-direction:column; gap:0.5rem;">
+            <div style="font-size:0.65rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#7badb6;">Define</div>
+            <div style="font-size:0.72rem; color:var(--orange); font-weight:700;">Executable specs?</div>
+            <div style="font-size:0.6rem; color:rgba(0,0,0,0.4); line-height:1.4;">Slice stories into scenarios that run, not just scenarios that are written.</div>
+          </div>
+          <div style="padding:0.8rem 0.7rem; border-right:1px solid rgba(0,0,0,0.1); display:flex; flex-direction:column; gap:0.5rem;">
+            <div style="font-size:0.65rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--orange);">Develop</div>
+            <div style="font-size:0.72rem; color:var(--orange); font-weight:700;">Verifiable models?</div>
+            <div style="font-size:0.6rem; color:rgba(0,0,0,0.4); line-height:1.4;">Event models that run against real data, not just describe it.</div>
+          </div>
+          <div style="padding:0.8rem 0.7rem; display:flex; flex-direction:column; gap:0.5rem;">
+            <div style="font-size:0.65rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--orange);">Deliver</div>
+            <div style="font-size:0.7rem; color:rgba(0,0,0,0.35); font-style:italic;">As before.</div>
+          </div>
+        </div>
+        <p class="body-sm muted" style="margin-top:0.8rem;">These were not new ideas. They were too expensive to sustain. If that limitation has changed, which rules built around it are still protecting something?</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 14: BIG BALL OF MUD ─────────────────────── -->
+  <section class="slide bg-black" id="s14-mud" style="padding:0; overflow:hidden;">
+    <span class="section-label" style="background:var(--white);color:var(--black); position:absolute; top:var(--space); left:var(--space); z-index:2;">Case Study</span>
+    <div style="display:flex; width:100%; height:100%;">
+      <!-- left: text -->
+      <div class="col" style="flex:1; gap:2rem; justify-content:center; padding:var(--space) calc(var(--space) * 1.5) var(--space) var(--space); min-width:0;">
+        <blockquote class="hero" style="font-size:clamp(1.4rem,3vw,3rem); border-left-color:var(--orange);">
+          "AI does not fix a big ball of mud."
+        </blockquote>
+        <p class="display-sm" style="color:var(--orange);">It makes the mud faster to produce.</p>
+        <div style="width:100%; height:2px; background:rgba(255,255,255,0.15);"></div>
+        <p class="body-lg">When AI generates the artifact of a phase, which practices ran?</p>
+        <p class="body-lg">If the practices did not run, which rules were enforced?</p>
+        <p class="body-lg" style="color:var(--orange);">If those rules were not enforced, which qualities emerged?</p>
+        <p class="body-sm" style="opacity:0.45;">The answer is not always obvious. Some gaps are visible immediately. Some require analysis. Some only become clear in retrospect.</p>
+      </div>
+      <!-- right: image -->
+      <div style="flex:1; min-width:0; position:relative;">
+        <img src="mud.png" alt="A big ball of mud" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 15: FOUR STATES INTRO ─────────────────────── -->
+  <section class="slide bg-white" id="s15">
+    <span class="section-label">How to Respond</span>
+    <div class="row" style="align-items:center;">
+      <div class="col" style="flex:1;">
+        <p class="display">Not every part of this is the same kind of problem.</p>
+        <p class="body-lg" style="margin-top:1.5rem; opacity:0.6;">Dropping a rule, keeping it, or probing it: each requires knowing what kind of situation you are in.</p>
+        <p class="body-lg" style="margin-top:1rem; opacity:0.6;">Knowing which rules to update is the easier problem. Getting the new practices to actually run, so the new qualities can emerge, is harder. That is metabolism.</p>
+      </div>
+      <div class="col" style="flex:1; gap:1.4rem;">
+        <p class="body-lg">Some of what AI has changed is <strong>clear</strong>: the old rule is just wrong, no experiment needed.</p>
+        <p class="body-lg">Some is <strong>complicated</strong>: analysis and expertise can get you to a good answer.</p>
+        <p class="body-lg">Some is <strong>complex</strong>: cause and effect only visible in retrospect. The right move is to probe.</p>
+        <div style="padding:1em 1.2em; background:var(--peach); border-left:3px solid var(--orange);">
+          <p class="body-sm">And some is <strong>chaotic</strong>. When a practice has collapsed faster than anyone noticed, the ground is still moving. Treating chaos as complexity is how organisations make it worse.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 16: FOUR STATE GRID ────────────────────────── -->
+  <section class="slide bg-white" id="s16">
+    <span class="section-label">How to Respond</span>
+    <div style="display:flex; flex-direction:column; height:calc(100% - var(--space) * 2); gap:1rem;">
+      <p class="display-sm" style="flex-shrink:0;">Different states require different responses.</p>
+      <div class="state-grid">
+
+        <div class="state-cell s-clear">
+          <div class="state-name">Clear</div>
+          <div class="state-sequence">Sense → Categorise → Respond</div>
+          <div class="state-response">Cause and effect are obvious. Best practice exists. Apply it directly.</div>
+          <div class="state-example">If documentation is no longer expensive to produce, the rule that said "document only the essentials" is just wrong. Update it.</div>
+        </div>
+
+        <div class="state-cell s-comp">
+          <div class="state-name">Complicated</div>
+          <div class="state-sequence">Sense → Analyse → Respond</div>
+          <div class="state-response">Multiple good answers. Analysis and expertise can get you there. Good practice, not best practice.</div>
+          <div class="state-example">Where to introduce AI agents in your pipeline is knowable, but requires judgment and domain expertise.</div>
+        </div>
+
+        <div class="state-cell s-complex">
+          <div class="state-name">Complex</div>
+          <div class="state-sequence">Probe → Sense → Respond</div>
+          <div class="state-response">Cause and effect only visible in retrospect. No right answer in advance. Run small experiments. Watch what changes. Adjust.</div>
+          <div class="state-example">Which skills atrophy when agents take over? Which gaps grow faster and stay invisible longest? You won't know until you look.</div>
+        </div>
+
+        <div class="state-cell s-chaotic">
+          <div class="state-name" style="color:var(--orange);">Chaotic</div>
+          <div class="state-sequence">Act → Stabilise → Sense</div>
+          <div class="state-response">Accountability has eroded. A practice has collapsed. Don't analyse. Act to stabilise first, then sense, then respond.</div>
+          <div class="state-example" style="opacity:0.5;">Assign a historian: someone capturing what is actually happening and why, in real time, so there's something to learn from when the chaos settles.</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 18: AGENTIC SETUP — OUR OWN WORK ──────── -->
+  <section class="slide bg-linen" id="s18">
+    <span class="section-label">In Practice</span>
+    <div class="row" style="align-items:flex-start; gap:3rem;">
+      <div class="col" style="flex:1; gap:1.2rem; padding-top:0.5rem;">
+        <p class="display-sm">What this looks like in our own setup.</p>
+        <p class="body-lg">Applying these principles to how we build with AI agents: the knowledge layer and the quality enforcement chain.</p>
+        <div style="height:0.5rem;"></div>
+        <p class="body-sm muted">DDD creates the shared understanding. Guardrails encode the rules. The toolchain enforces quality at every step, so the metabolism keeps running even when agents write the code.</p>
+        <div style="margin-top:1rem; padding:1em 1.2em; background:rgba(0,0,0,0.06); border-left:3px solid var(--black);">
+          <p class="body-sm">Where we introduce AI agents, what rules we keep, which skills we protect: each choice shapes the conditions from which the next set of qualities will grow.</p>
+        </div>
+      </div>
+      <div class="col" style="flex:1.4;">
+        <div class="diagram-wrap">
+          <div class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EEE7E1','primaryTextColor':'#000','primaryBorderColor':'#000','lineColor':'#000','secondaryColor':'#E3CAC3','tertiaryColor':'#F9EDDD','fontFamily':'Plus Jakarta Sans, Helvetica Neue, sans-serif','fontSize':'11px'}}}%%
+graph LR
+  DDD["DDD"] --> wiki["wiki"]
+  DDD --> prds["prds"]
+  wiki --> documentation["documentation"]
+  wiki --> prds
+  prds --> tickets["tickets"]
+  tickets --> implementation["implementation"]
+  documentation --> implementation
+  guardrails["guardrails"] --> implementation
+
+  style DDD fill:#7badb6,color:#fff,stroke:#7badb6
+  style implementation fill:#000,color:#fff,stroke:#000
+  style documentation fill:#000,color:#fff,stroke:#000
+  style guardrails fill:#a9431e,color:#fff,stroke:#a9431e
+          </div>
+        </div>
+        <div class="diagram-wrap" style="margin-top:0.3rem;">
+          <div class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EEE7E1','primaryTextColor':'#000','primaryBorderColor':'#000','lineColor':'#000','fontFamily':'Plus Jakarta Sans, Helvetica Neue, sans-serif','fontSize':'11px'}}}%%
+graph LR
+  linting["linting"] --> tdd["tdd"]
+  agents["AGENTS.md"] --> skills["SKILLS"]
+  tdd --> eval["clj repl / EVAL"]
+  skills --> mcp["MCP"]
+  eval --> e2e["e2e"]
+  mcp --> ralph["RALPH-loop.sh"]
+
+  style agents fill:#7badb6,color:#fff,stroke:#7badb6
+  style ralph fill:#a9431e,color:#fff,stroke:#a9431e
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 17: TAKEAWAYS ───────────────────────────── -->
+  <section class="slide bg-white" id="s17">
+    <span class="section-label">Takeaways</span>
+    <div class="row" style="align-items:flex-start;">
+      <div class="col" style="flex:0.4;">
+        <p class="display-sm">Five questions to take back.</p>
+      </div>
+      <div class="col" style="flex:1;">
+        <ol class="takeaway-list">
+          <li>
+            <div>
+              <span class="takeaway-label">What qualities does your organisation actually care about?</span>
+              <span class="takeaway-sub">Not what the architecture says. What do your team's daily habits actually produce?</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <span class="takeaway-label">Which of your rules are managing limitations that no longer exist?</span>
+              <span class="takeaway-sub">Rules that cultivate qualities: keep. Rules that managed costs AI has changed: question.</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <span class="takeaway-label">What is your team's resistance telling you?</span>
+              <span class="takeaway-sub">Resistance is diagnostic, not disciplinary. It tells you which qualities the system currently lacks the health to support.</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <span class="takeaway-label">Where has the limitation moved?</span>
+              <span class="takeaway-sub">AI helped with code generation. If that was the limitation, it has moved. Is it now in understanding what to build? In shared knowledge of why decisions were made?</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <span class="takeaway-label">Is your metabolism healthy?</span>
+              <span class="takeaway-sub">Are the daily practices that produce your qualities actually running? A process that quietly stops does not announce itself. The qualities just stop emerging.</span>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 18: CLOSE QUOTE ─────────────────────────── -->
+  <section class="slide bg-black" id="s18" style="padding:0; overflow:hidden;">
+    <div style="display:flex; width:100%; height:100%;">
+      <div style="flex:1; position:relative; min-width:0;">
+        <img src="cell.png" alt="Living cell" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+      </div>
+      <div class="col" style="flex:1; gap:2rem; justify-content:center; padding:var(--space) var(--space) var(--space) calc(var(--space)*1.5);">
+        <blockquote class="hero">
+          "Metabolism does not finish.<br>It either <span class="accent">continues</span> or it stops."
+        </blockquote>
+        <div style="height:1rem;"></div>
+        <p class="body-lg">The AI transition is not a problem an organisation solves and moves on from. It is a new set of conditions the organism now has to metabolise, continuously, the way it always has.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SLIDE 20: CLOSING QUESTIONS ──────────────────── -->
+  <section class="slide bg-rose" id="s20">
+    <div class="col" style="max-width:78%;">
+      <p class="label" style="margin-bottom:2rem; opacity:0.5;">Questions to sit with</p>
+      <p class="display">What qualities does your organisation actually care about?</p>
+      <p class="display" style="color:var(--orange);">How much of that comes from what your teams actually do every day?</p>
+
+    </div>
+  </section>
+
+</div><!-- /deck -->
+
+<!-- ─── FIXED CHAIN NAV ──────────────────────────── -->
+<div id="chain-nav">
+  <span class="cn-node" data-idx="0">Organisation</span>
+  <span class="cn-arrow">·</span>
+  <span class="cn-node" data-idx="1">Goal</span>
+  <span class="cn-arrow">·</span>
+  <span class="cn-node" data-idx="2">Qualities</span>
+  <span class="cn-arrow">·</span>
+  <span class="cn-node" data-idx="3">Rules</span>
+</div>
+
+<div id="counter"></div>
+<div id="progress"></div>
+<div id="nav-hint">← → to navigate</div>
+
+<script>
+  // ─── Mermaid init ─────────────────────────────
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: 'loose',
+    useMaxWidth: true,
+    flowchart: { useMaxWidth: true, htmlLabels: false }
+  });
+
+  // ─── Fix Mermaid SVG overflow ─────────────────
+  // Mermaid sets explicit width/height attributes on SVG after render,
+  // overriding CSS. Strip them and let CSS control sizing instead.
+  function fixMermaidSVGs() {
+    document.querySelectorAll('.diagram-wrap svg').forEach(svg => {
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      svg.style.removeProperty('max-width');
+      svg.style.width  = '100%';
+      svg.style.height = 'auto';
+    });
+  }
+  // Run once after initial render, and again on first navigation
+  setTimeout(fixMermaidSVGs, 800);
+  setTimeout(fixMermaidSVGs, 2000);
+
+  // ─── Slide navigation ─────────────────────────
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  const chainNav = document.getElementById('chain-nav');
+  // Map slide id → array of active node indices (0=Org,1=Goal,2=Qualities,3=Rules)
+  const chainSlideMap = { 's2b': [3], 's3': [0, 1, 2], 's4': [2] };
+  let current = 0;
+  const total = slides.length;
+
+  function updateChainNav(slideEl) {
+    const id = slideEl.id;
+    if (id in chainSlideMap) {
+      const active = chainSlideMap[id];
+      chainNav.querySelectorAll('.cn-node').forEach((n, i) => {
+        n.classList.toggle('active', active.includes(i));
+      });
+      chainNav.classList.toggle('on-dark', slideEl.classList.contains('bg-black'));
+      chainNav.style.display = 'flex';
+    } else {
+      chainNav.style.display = 'none';
+    }
+  }
+
+  function goTo(n, pushState = true) {
+    slides[current].classList.remove('active');
+    current = Math.max(0, Math.min(n, total - 1));
+    slides[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${total}`;
+    progress.style.width = `${((current + 1) / total) * 100}%`;
+    if (pushState) history.replaceState(null, '', `#${current + 1}`);
+    updateChainNav(slides[current]);
+  }
+
+  // Restore slide from URL hash on load
+  const hashSlide = parseInt(window.location.hash.replace('#', ''), 10);
+  const startSlide = (!isNaN(hashSlide) && hashSlide >= 1 && hashSlide <= total)
+    ? hashSlide - 1 : 0;
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(current + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                     goTo(current - 1);
+  });
+
+  document.getElementById('deck').addEventListener('click', e => {
+    const x = e.clientX / window.innerWidth;
+    x > 0.45 ? goTo(current + 1) : goTo(current - 1);
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 40) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+  }, {passive:true});
+
+  goTo(startSlide);
+</script>
+
+</body>
+</html>
+
