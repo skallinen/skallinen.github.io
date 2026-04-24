@@ -701,6 +701,94 @@
       .takeaway-list li { font-size: var(--body-sm); }
     }
 
+    /* ─── SPEAKER NOTES BUTTON ───────────────────────────── */
+    .notes-btn {
+      position: absolute;
+      bottom: 1.6rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 50%;
+      border: none;
+      background: rgba(128,128,128,0.18);
+      color: rgba(128,128,128,0.55);
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      transition: background 0.2s, color 0.2s, opacity 0.2s;
+      opacity: 0;
+      line-height: 1;
+    }
+    .slide:hover .notes-btn,
+    .notes-btn:focus {
+      opacity: 1;
+    }
+    .notes-btn:hover {
+      background: rgba(128,128,128,0.32);
+      color: rgba(128,128,128,0.9);
+    }
+    /* Tooltip popup */
+    .notes-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 3.4rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: clamp(280px, 50vw, 560px);
+      max-height: 60vh;
+      overflow-y: auto;
+      background: rgba(20,20,20,0.96);
+      color: rgba(255,255,255,0.88);
+      font-family: var(--font);
+      font-size: 0.82rem;
+      line-height: 1.6;
+      padding: 1.1em 1.3em;
+      border-radius: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+      z-index: 201;
+      pointer-events: none;
+    }
+    .notes-tooltip.open {
+      display: block;
+      pointer-events: auto;
+    }
+    .notes-tooltip h4 {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.45;
+      margin-bottom: 0.8em;
+    }
+    .notes-tooltip ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55em;
+      padding: 0;
+      margin: 0;
+    }
+    .notes-tooltip ul li {
+      padding-left: 1.1em;
+      position: relative;
+    }
+    .notes-tooltip ul li::before {
+      content: "–";
+      position: absolute;
+      left: 0;
+      opacity: 0.4;
+    }
+    .notes-tooltip ul li strong {
+      color: rgba(255,255,255,0.95);
+    }
+    @media (max-width: 680px) {
+      .notes-btn { bottom: 3rem; }
+    }
+
   </style>
 </head>
 <body>
@@ -731,6 +819,20 @@
         "To get the benefits of new technology, we must also change the rules that were designed to accommodate the limitation that the technology has now diminished."
       </blockquote>
       <p class="attribution">— Eliyahu M. Goldratt</p>
+    </div>
+    <button class="notes-btn" title="Speaker notes" aria-label="Speaker notes">📝</button>
+    <div class="notes-tooltip">
+      <h4>Speaker notes</h4>
+      <ul>
+        <li><strong>The Horse:</strong> Great-grandpa fell asleep in the cart and the horse found the way home. It was slow, but it was "autonomous."</li>
+        <li><strong>The Car Trade-off:</strong> We traded the horse for speed, but the car was "dumb." It required a human pilot.</li>
+        <li><strong>The Created Limitation:</strong> Because the car needs a driver, you have to bring it with you everywhere. This led to the rule of Individual Ownership.</li>
+        <li><strong>The Resulting Waste:</strong> Because we "own" our drivers, our cars sit idle 95% of the time. We've paved our cities just to store "waiting" machines.</li>
+        <li><strong>The Self-Driving Promise:</strong> It gives us the "Horse" autonomy back, but at 70mph.</li>
+        <li><strong>The Goldratt Warning:</strong> If we keep the rule of "Ownership," a self-driving car is just an expensive paperweight that sits in a parking lot for 9 hours while you work.</li>
+        <li><strong>The Real Value:</strong> To actually win, you have to break the ownership rule. If the car can drive itself, it should be serving someone else the moment you get out.</li>
+        <li><strong>The Bottom Line:</strong> Technology removes the limitation (the need for a driver), but you only get the ROI if you change the rule (from "owning" to "using").</li>
+      </ul>
     </div>
   </section>
 
@@ -1447,6 +1549,15 @@ graph LR
       <p class="display" style="color:var(--orange);">How much of that comes from what your teams actually do every day?</p>
 
     </div>
+    <button class="notes-btn" title="Speaker notes" aria-label="Speaker notes">📝</button>
+    <div class="notes-tooltip">
+      <h4>Main takeaways</h4>
+      <ul>
+        <li><strong>The metabolism metaphor:</strong> Organisations are living systems — they don't finish, they either continue or stop. The same is true for architectural health.</li>
+        <li><strong>Be open to the new situation:</strong> AI changes the cost structure of many things we thought were fixed. That demands genuine openness, not just optimism — a willingness to question rules that were built around limitations that no longer exist.</li>
+        <li><strong>Think more holistically:</strong> Technology alone doesn't deliver value. The full system — rules, practices, shared understanding, culture — has to move together. Partial change often creates new waste rather than removing old waste.</li>
+      </ul>
+    </div>
   </section>
 
 </div><!-- /deck -->
@@ -1535,7 +1646,23 @@ graph LR
     if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                     goTo(current - 1);
   });
 
+  // Speaker notes toggle
+  document.querySelectorAll('.notes-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation(); // don't advance slide
+      const tooltip = btn.nextElementSibling;
+      tooltip.classList.toggle('open');
+      btn.setAttribute('aria-expanded', tooltip.classList.contains('open'));
+    });
+  });
+  // Close notes when navigating away
+  function closeAllNotes() {
+    document.querySelectorAll('.notes-tooltip.open').forEach(t => t.classList.remove('open'));
+  }
+
   document.getElementById('deck').addEventListener('click', e => {
+    if (e.target.closest('.notes-btn') || e.target.closest('.notes-tooltip')) return;
+    closeAllNotes();
     const x = e.clientX / window.innerWidth;
     x > 0.45 ? goTo(current + 1) : goTo(current - 1);
   });
