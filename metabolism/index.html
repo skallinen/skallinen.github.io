@@ -704,32 +704,30 @@
     /* ─── SPEAKER NOTES BUTTON ───────────────────────────── */
     .notes-btn {
       position: absolute;
-      bottom: 1.6rem;
+      bottom: 1.4rem;
       left: 50%;
       transform: translateX(-50%);
-      width: 1.8rem;
-      height: 1.8rem;
-      border-radius: 50%;
       border: none;
-      background: rgba(128,128,128,0.18);
-      color: rgba(128,128,128,0.55);
-      font-size: 0.85rem;
+      background: transparent;
+      color: rgba(128,128,128,0.4);
+      font-family: var(--font);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: 0.3em 0.6em;
       z-index: 200;
-      transition: background 0.2s, color 0.2s, opacity 0.2s;
+      transition: color 0.2s, opacity 0.2s;
       opacity: 0;
-      line-height: 1;
+      white-space: nowrap;
     }
     .slide:hover .notes-btn,
     .notes-btn:focus {
       opacity: 1;
     }
     .notes-btn:hover {
-      background: rgba(128,128,128,0.32);
-      color: rgba(128,128,128,0.9);
+      color: rgba(128,128,128,0.75);
     }
     /* Tooltip popup */
     .notes-tooltip {
@@ -820,18 +818,17 @@
       </blockquote>
       <p class="attribution">— Eliyahu M. Goldratt</p>
     </div>
-    <button class="notes-btn" title="Speaker notes" aria-label="Speaker notes">📝</button>
+    <button class="notes-btn" title="Speaker notes" aria-label="Speaker notes">Notes</button>
     <div class="notes-tooltip">
-      <h4>Speaker notes</h4>
+      <h4>The Horse vs. The Car</h4>
       <ul>
-        <li><strong>The Horse:</strong> Great-grandpa fell asleep in the cart and the horse found the way home. It was slow, but it was "autonomous."</li>
-        <li><strong>The Car Trade-off:</strong> We traded the horse for speed, but the car was "dumb." It required a human pilot.</li>
-        <li><strong>The Created Limitation:</strong> Because the car needs a driver, you have to bring it with you everywhere. This led to the rule of Individual Ownership.</li>
-        <li><strong>The Resulting Waste:</strong> Because we "own" our drivers, our cars sit idle 95% of the time. We've paved our cities just to store "waiting" machines.</li>
-        <li><strong>The Self-Driving Promise:</strong> It gives us the "Horse" autonomy back, but at 70mph.</li>
-        <li><strong>The Goldratt Warning:</strong> If we keep the rule of "Ownership," a self-driving car is just an expensive paperweight that sits in a parking lot for 9 hours while you work.</li>
-        <li><strong>The Real Value:</strong> To actually win, you have to break the ownership rule. If the car can drive itself, it should be serving someone else the moment you get out.</li>
-        <li><strong>The Bottom Line:</strong> Technology removes the limitation (the need for a driver), but you only get the ROI if you change the rule (from "owning" to "using").</li>
+        <li><strong>The Original "Tech":</strong> Great-grandfather's dad went out drinking and fell asleep in the cart. The horse knew the way home.</li>
+        <li><strong>The Car Shift:</strong> We introduced cars. They are faster, but they have a new limitation: they need a driver.</li>
+        <li><strong>The Chain Reaction:</strong> Because you need a driver, if you can't afford a taxi, you have to bring the car with you to use it.</li>
+        <li><strong>The Resulting Rule:</strong> The car is tied to the person. This leads to very low utilization. The car spends most of its time waiting.</li>
+        <li><strong>The Self-Driving Solution:</strong> This technology diminishes the limitation of needing a driver.</li>
+        <li><strong>The Goldratt Failure:</strong> If we keep the old rule — "I must bring my car with me and let it wait" — the technology is wasted. The car still sits idle 95% of the time.</li>
+        <li><strong>The Goal:</strong> Change the rule. If the car doesn't need a driver, it doesn't need to wait for you. It should be moving.</li>
       </ul>
     </div>
   </section>
@@ -1549,7 +1546,7 @@ graph LR
       <p class="display" style="color:var(--orange);">How much of that comes from what your teams actually do every day?</p>
 
     </div>
-    <button class="notes-btn" title="Speaker notes" aria-label="Speaker notes">📝</button>
+    <button class="notes-btn" title="Speaker notes" aria-label="Speaker notes">Notes</button>
     <div class="notes-tooltip">
       <h4>Main takeaways</h4>
       <ul>
