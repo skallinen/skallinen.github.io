@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Key Diagnostic</title>
+  <style>
+    body { background: #0a0a1a; color: #e0e0e0; font-family: monospace; padding: 40px; }
+    h1 { color: #c792ea; font-size: 18px; }
+    .prompt { color: #7b8cde; margin: 20px 0 10px; font-size: 16px; }
+    .hint { color: #556; font-size: 13px; margin-bottom: 10px; }
+    #log { white-space: pre; font-size: 14px; line-height: 1.8; max-height: 500px; overflow-y: auto; }
+    .key-event { border-bottom: 1px solid #1a1a3a; padding: 4px 0; }
+    .label { color: #c792ea; }
+    .val { color: #82aaff; }
+    .done { color: #c3e88d; }
+    #current-test { color: #ffd700; font-size: 18px; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <h1>Paredit Adventures - Key Diagnostic</h1>
+  <p class="hint">Press each key combo as prompted. This will help us map your actual key events.</p>
+  <div id="current-test"></div>
+  <div id="log"></div>
+
+  <script>
+    const tests = [
+      { name: "C-z", desc: "Ctrl + z (undo)" },
+      { name: "Cmd-z", desc: "Cmd + z (undo mac)" },
+    ];
+
+    let currentIdx = 0;
+    const results = [];
+    const logEl = document.getElementById("log");
+    const testEl = document.getElementById("current-test");
+
+    function showTest() {
+      if (currentIdx >= tests.length) {
+        testEl.innerHTML = '<span class="done">All done! Copy the log below and share it.</span>';
+        // Print summary
+        logEl.innerHTML += "\n\n--- SUMMARY (copy this) ---\n";
+        results.forEach(r => {
+          logEl.innerHTML += `${r.name}: key="${r.key}" code="${r.code}" ctrl=${r.ctrl} meta=${r.meta} alt=${r.alt} shift=${r.shift}\n`;
+        });
+        return;
+      }
+      const t = tests[currentIdx];
+      testEl.innerHTML = `Test ${currentIdx + 1}/${tests.length}: Press <span class="label">${t.name}</span><br><span class="hint">${t.desc}</span>`;
+    }
+
+    const modifierKeys = new Set([
+      "Control", "Alt", "Shift", "Meta",
+      "CapsLock", "Tab", "Escape",
+      "AltGraph", "OS", "Fn", "FnLock",
+      "Hyper", "Super", "Symbol", "SymbolLock"
+    ]);
+
+    document.addEventListener("keydown", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Ignore pure modifier keypresses — wait for the actual key
+      if (modifierKeys.has(e.key)) return;
+
+      const info = {
+        name: currentIdx < tests.length ? tests[currentIdx].name : "extra",
+        key: e.key,
+        code: e.code,
+        ctrl: e.ctrlKey,
+        meta: e.metaKey,
+        alt: e.altKey,
+        shift: e.shiftKey,
+      };
+
+      const line = `<span class="key-event"><span class="label">${info.name}:</span> ` +
+        `key=<span class="val">"${info.key}"</span> ` +
+        `code=<span class="val">"${info.code}"</span> ` +
+        `ctrl=<span class="val">${info.ctrl}</span> ` +
+        `meta=<span class="val">${info.meta}</span> ` +
+        `alt=<span class="val">${info.alt}</span> ` +
+        `shift=<span class="val">${info.shift}</span></span>\n`;
+
+      logEl.innerHTML += line;
+      results.push(info);
+
+      if (currentIdx < tests.length) {
+        currentIdx++;
+        showTest();
+      }
+    });
+
+    showTest();
+  </script>
+</body>
+</html>

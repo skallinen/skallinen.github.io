@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paredit Adventures</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black:  #000000;
+      --white:  #ffffff;
+      --orange: #a9431e;
+      --teal:   #7badb6;
+      --rose:   #E3CAC3;
+      --linen:  #EEE7E1;
+      --peach:  #F9EDDD;
+      --font:   'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--white);
+      color: var(--black);
+      font-family: var(--font);
+      font-weight: 400;
+      font-size: 15px;
+      line-height: 1.35;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    #header {
+      padding: 18px 40px 12px;
+      text-align: center;
+      width: 100%;
+      background: var(--white);
+    }
+    #header h1 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(0,0,0,0.35);
+    }
+    #header h1 span {
+      color: var(--orange);
+    }
+    #game-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 4px 40px;
+    }
+    canvas {
+      border: 1.5px solid rgba(0,0,0,0.08);
+      border-radius: 6px;
+      background: var(--white);
+    }
+    #hud {
+      display: flex;
+      gap: 32px;
+      padding: 14px 40px;
+      width: 100%;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      border-top: 1.5px solid rgba(0,0,0,0.08);
+    }
+    #hud .hud-item {
+      color: rgba(0,0,0,0.35);
+    }
+    #hud .hud-item span {
+      color: var(--black);
+      font-weight: 700;
+    }
+    #command-log {
+      position: fixed;
+      bottom: 52px;
+      left: 24px;
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: rgba(0,0,0,0.15);
+      max-width: 300px;
+    }
+    #command-log .cmd-entry { padding: 1px 0; }
+    #command-log .cmd-entry .cmd-name {
+      color: var(--orange);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1><span>PAREDIT</span> ADVENTURES</h1>
+  </div>
+  <div id="game-area">
+    <canvas id="game-canvas" width="900" height="550"></canvas>
+  </div>
+  <div id="hud">
+    <div class="hud-item" id="hud-level">Level <span>1</span></div>
+    <div class="hud-item" id="hud-command">Cmd <span>-</span></div>
+    <div class="hud-item" id="hud-moves">Moves <span>0</span></div>
+    <div class="hud-item" id="hud-time">Time <span>0s</span></div>
+    <div class="hud-item" id="hud-goal">Goal <span>-</span></div>
+    <div class="hud-item" style="color:rgba(0,0,0,0.2)">C-/ undo &nbsp; r reset &nbsp; esc skip</div>
+  </div>
+  <div id="command-log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.22/dist/scittle.js"></script>
+  <script type="application/x-scittle" src="src/engine.cljs"></script>
+  <script type="application/x-scittle" src="src/paredit.cljs"></script>
+  <script type="application/x-scittle" src="src/render.cljs"></script>
+  <script type="application/x-scittle" src="src/specs.cljs"></script>
+  <script type="application/x-scittle" src="src/puzzlegen.cljs"></script>
+  <script type="application/x-scittle" src="src/levels.cljs"></script>
+  <script type="application/x-scittle" src="src/game.cljs"></script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Paredit Adventures - Tests</title>
+  <style>
+    body { background: #fff; font-family: 'Plus Jakarta Sans', sans-serif; padding: 40px; font-size: 14px; }
+    .pass { color: #2a7a3a; }
+    .fail { color: #a9431e; font-weight: 700; }
+    h1 { font-size: 18px; margin-bottom: 20px; }
+    h2 { font-size: 14px; margin-top: 20px; color: #666; }
+    pre { margin: 2px 0; }
+    #summary { margin-top: 30px; font-size: 16px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Paredit Adventures — Test Suite</h1>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.22/dist/scittle.js"></script>
+  <script type="application/x-scittle" src="src/engine.cljs"></script>
+  <script type="application/x-scittle" src="src/paredit.cljs"></script>
+  <script type="application/x-scittle">
+(ns test-runner
+  (:require [engine :as e]
+            [paredit :as p]))
+
+(def results-el (js/document.getElementById "results"))
+(def pass-count (atom 0))
+(def fail-count (atom 0))
+
+(defn log-result [name passed? detail]
+  (if passed? (swap! pass-count inc) (swap! fail-count inc))
+  (let [div (js/document.createElement "pre")]
+    (set! (.-className div) (if passed? "pass" "fail"))
+    (set! (.-textContent div)
+          (str (if passed? "PASS" "FAIL") " " name
+               (when (not passed?) (str " — " detail))))
+    (.appendChild results-el div)))
+
+(defn section [title]
+  (let [h2 (js/document.createElement "h2")]
+    (set! (.-textContent h2) title)
+    (.appendChild results-el h2)))
+
+(defn test-cmd [name cmd-key input-tree input-cursor expected-tree expected-cursor]
+  (let [result (p/execute-command {:tree input-tree :cursor input-cursor} cmd-key)
+        tree-ok (= (:tree result) expected-tree)
+        cursor-ok (= (:cursor result) expected-cursor)
+        passed? (and tree-ok cursor-ok)]
+    (log-result name passed?
+                (str "tree: " (pr-str (:tree result)) " (expected " (pr-str expected-tree) ")"
+                     " cursor: " (pr-str (:cursor result)) " (expected " (pr-str expected-cursor) ")"))))
+
+;; ── Navigation ──────────────────────────────────────────────────
+
+(section "Navigation")
+
+(test-cmd "forward-sexp" :forward-sexp [:a :b :c] [0] [:a :b :c] [1])
+(test-cmd "forward-sexp at end" :forward-sexp [:a :b :c] [2] [:a :b :c] [2])
+(test-cmd "backward-sexp" :backward-sexp [:a :b :c] [2] [:a :b :c] [1])
+(test-cmd "backward-sexp at start" :backward-sexp [:a :b :c] [0] [:a :b :c] [0])
+(test-cmd "down-sexp" :down-sexp [:a [:b :c] :d] [1] [:a [:b :c] :d] [1 0])
+(test-cmd "down-sexp on atom" :down-sexp [:a :b :c] [0] [:a :b :c] [0])
+(test-cmd "up-sexp" :up-sexp [:a [:b :c] :d] [1 0] [:a [:b :c] :d] [1])
+(test-cmd "up-sexp at root" :up-sexp [:a :b :c] [0] [:a :b :c] [0])
+
+;; ── Forward Slurp (must be INSIDE the list) ─────────────────────
+
+(section "Forward Slurp")
+
+;; Emacs: point inside (b c), slurp pulls d in
+(test-cmd "fwd-slurp: from inside list"
+  :forward-slurp [:a [:b :c] :d] [1 0]
+  [:a [:b :c :d]] [1 0])
+
+;; Cursor ON the list (not inside) — should be no-op (like Emacs)
+(test-cmd "fwd-slurp: ON list is no-op"
+  :forward-slurp [:a [:b :c] :d :e] [1]
+  [:a [:b :c] :d :e] [1])
+
+(test-cmd "fwd-slurp: no next sibling"
+  :forward-slurp [:a [:b :c]] [1 0]
+  [:a [:b :c]] [1 0])
+
+;; ── Backward Slurp ──────────────────────────────────────────────
+
+(section "Backward Slurp")
+
+(test-cmd "bkwd-slurp: from inside list"
+  :backward-slurp [:a :b [:c :d]] [2 0]
+  [:a [:b :c :d]] [1 1])
+
+(test-cmd "bkwd-slurp: ON list is no-op"
+  :backward-slurp [:a :b [:c :d] :e] [2]
+  [:a :b [:c :d] :e] [2])
+
+;; ── Forward Barf ────────────────────────────────────────────────
+
+(section "Forward Barf")
+
+(test-cmd "fwd-barf: from inside list"
+  :forward-barf [:a [:b :c :d]] [1 0]
+  [:a [:b :c] :d] [1 0])
+
+(test-cmd "fwd-barf: ON list is no-op"
+  :forward-barf [:a [:b :c :d] :e] [1]
+  [:a [:b :c :d] :e] [1])
+
+;; ── Backward Barf ───────────────────────────────────────────────
+
+(section "Backward Barf")
+
+(test-cmd "bkwd-barf: from inside list"
+  :backward-barf [[:a :b :c] :d] [0 1]
+  [:a [:b :c] :d] [1 0])
+
+(test-cmd "bkwd-barf: ON list is no-op"
+  :backward-barf [:a [:b :c :d] :e] [1]
+  [:a [:b :c :d] :e] [1])
+
+;; ── Wrap ────────────────────────────────────────────────────────
+
+(section "Wrap")
+
+(test-cmd "wrap atom" :wrap-round [:a :b :c] [1] [:a [:b] :c] [1])
+(test-cmd "wrap list" :wrap-round [:a [:b :c] :d] [1] [:a [[:b :c]] :d] [1])
+
+;; ── Splice ──────────────────────────────────────────────────────
+
+(section "Splice")
+
+(test-cmd "splice from inside"
+  :splice-sexp [:a [:b :c] :d] [1 0]
+  [:a :b :c :d] [1])
+
+;; ── Raise ───────────────────────────────────────────────────────
+
+(section "Raise")
+
+(test-cmd "raise atom"
+  :raise-sexp [:x [:a :star :b] :y] [1 1]
+  [:x :star :y] [1])
+
+(test-cmd "raise from deeper"
+  :raise-sexp [:a [:b [:c :gem :d]]] [1 1 1]
+  [:a [:b :gem]] [1 1])
+
+;; ── Transpose ───────────────────────────────────────────────────
+
+(section "Transpose")
+
+(test-cmd "transpose" :transpose-sexps [:a :b :c] [1] [:b :a :c] [1])
+(test-cmd "transpose at start" :transpose-sexps [:a :b :c] [0] [:a :b :c] [0])
+
+;; ── Splice Kill Backward ────────────────────────────────────────
+
+(section "Splice Kill Backward")
+
+(test-cmd "splice-kill-bwd"
+  :splice-kill-bwd [:a [:x :y :gem] :b] [1 2]
+  [:a :gem :b] [1])
+
+(test-cmd "splice-kill-bwd cursor at start"
+  :splice-kill-bwd [:a [:gem :x :y] :b] [1 0]
+  [:a :gem :x :y :b] [1])
+
+;; ── Splice Kill Forward ─────────────────────────────────────────
+
+(section "Splice Kill Forward")
+
+;; Emacs: kills FROM point forward (including element at point)
+(test-cmd "splice-kill-fwd: kills cursor element and after"
+  :splice-kill-fwd [:a [:gem :x :y] :b] [1 1]
+  [:a :gem :b] [1])
+
+(test-cmd "splice-kill-fwd: cursor at start kills all, no-op"
+  :splice-kill-fwd [:a [:x :y] :b] [1 0]
+  [:a [:x :y] :b] [1 0])
+
+(test-cmd "splice-kill-fwd: cursor at end kills last"
+  :splice-kill-fwd [:a [:x :y :gem] :b] [1 2]
+  [:a :x :y :b] [2])
+
+;; ── Convolute ───────────────────────────────────────────────────
+
+(section "Convolute")
+
+(test-cmd "convolute"
+  :convolute-sexp [:a [:b :c :d]] [1 1]
+  [:b [:a :c :d]] [1 1])
+
+(test-cmd "convolute with tail"
+  :convolute-sexp [:a [:b :c] :d] [1 1]
+  [:b [:a :c :d]] [1 1])
+
+;; ── Split ───────────────────────────────────────────────────────
+
+(section "Split")
+
+(test-cmd "split"
+  :split-sexp [[:a :b :c :d]] [0 2]
+  [[:a :b] [:c :d]] [1 0])
+
+;; ── Join ────────────────────────────────────────────────────────
+
+(section "Join")
+
+(test-cmd "join" :join-sexp [[:a :b] [:c :d]] [0] [[:a :b :c :d]] [0])
+(test-cmd "join no next list" :join-sexp [[:a :b] :c] [0] [[:a :b] :c] [0])
+
+;; ── Summary ─────────────────────────────────────────────────────
+
+(let [total (+ @pass-count @fail-count)
+      summary-el (js/document.getElementById "summary")]
+  (set! (.-textContent summary-el)
+        (str @pass-count "/" total " passed"
+             (when (pos? @fail-count) (str ", " @fail-count " FAILED"))))
+  (set! (.-className summary-el) (if (zero? @fail-count) "pass" "fail")))
+  </script>
+</body>
+</html>
