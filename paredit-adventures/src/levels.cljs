@@ -484,25 +484,27 @@
   (let [stages (take (inc stage-idx) stage-defs)]
     (set (mapcat :commands stages))))
 
+;; Canonical display order for all commands
+(def command-display-order
+  [:forward-sexp :backward-sexp :down-sexp :up-sexp
+   :forward-slurp :backward-slurp :forward-barf :backward-barf
+   :wrap-round :splice-sexp :raise-sexp :transpose-sexps
+   :splice-kill-bwd :splice-kill-fwd :convolute-sexp
+   :split-sexp :join-sexp :undo])
+
 (defn get-commands-with-disabled
-  "Get command list showing enabled + disabled (known but not allowed)."
+  "Get command list in canonical order. Known commands shown as enabled
+   or disabled (strikethrough). Unknown commands omitted."
   [level stage-idx all-commands]
   (let [unlocked (set (:unlocked-commands level))
-        known (get-known-commands stage-idx)
-        ;; Don't show nav commands as disabled, only structural ones
-        skip #{:forward-sexp :backward-sexp :down-sexp :up-sexp :undo}]
-    (into
-     ;; Enabled commands first
-     (mapv (fn [cmd-key]
-             (let [cmd (get all-commands cmd-key)]
-               {:key cmd-key :name (:name cmd)
-                :keys (:keys cmd) :enabled true}))
-           (:unlocked-commands level))
-     ;; Disabled commands (known but not in this level)
+        known (get-known-commands stage-idx)]
+    (vec
      (keep (fn [cmd-key]
-             (when (and (not (unlocked cmd-key))
-                        (not (skip cmd-key)))
+             (when (known cmd-key)
                (let [cmd (get all-commands cmd-key)]
-                 {:key cmd-key :name (:name cmd)
-                  :keys (:keys cmd) :enabled false})))
-           (sort (vec (filter #(not (unlocked %)) known)))))))
+                 (when cmd
+                   {:key cmd-key
+                    :name (:name cmd)
+                    :keys (:keys cmd)
+                    :enabled (boolean (unlocked cmd-key))}))))
+           command-display-order))))
