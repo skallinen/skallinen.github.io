@@ -4,7 +4,8 @@
 
 (ns levels
   (:require [engine :as e]
-            [puzzlegen :as pg]))
+            [puzzlegen :as pg]
+            [specs :as specs]))
 
 ;; ── Level definitions ───────────────────────────────────────────
 
@@ -292,12 +293,19 @@
                     ""
                     "Press any key to begin."]}}
 
-   ;; ── Level 14: The Gauntlet ───────────────────────────────
+   ;; ── Level 14: The Refactoring — Phase 1 ─────────────────
    {:id 14
-    :title "The Gauntlet"
-    :tree [[:a :star] :b [[:gem] :c [:heart :d]]]
+    :title "The Refactoring — Phase 1: Flatten"
+    :tree [:defn :handler
+            [:let [:x [:add :a :b]]
+              [:let [:y [:mul :x :c]]
+                [:print :y]]]]
     :cursor [0]
-    :goal-type :collect-all
+    :goal-type :shape
+    :goal-tree [:defn :handler
+                 [:let [:x [:add :a :b]]
+                   [:y [:mul :x :c]]
+                   [:print :y]]]
     :unlocked-commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                         :forward-slurp :backward-slurp
                         :forward-barf :backward-barf
@@ -306,12 +314,15 @@
                         :splice-kill-bwd :splice-kill-fwd
                         :convolute-sexp
                         :split-sexp :join-sexp :undo]
-    :intro {:title "The Gauntlet"
-            :lines ["Use everything you've learned."
+    :intro {:title "The Refactoring"
+            :lines ["Welcome to the final challenge."
                     ""
-                    "Collect all the treasures!"
-                    "You may need to reshape the tree"
-                    "to reach them all."
+                    "A complex nested structure awaits."
+                    "Use ALL the paredit skills you've learned"
+                    "to refactor it step by step."
+                    ""
+                    "Phase 1: Flatten the nested lets."
+                    "Splice the inner (let) into the outer."
                     ""
                     "Press any key to begin."]}}])
 
@@ -381,7 +392,7 @@
                :splice-kill-bwd :splice-kill-fwd
                :convolute-sexp
                :split-sexp :join-sexp :undo]}
-   {:tutorial 14 :practice nil             :practice-rounds 0
+   {:tutorial 14 :practice nil             :practice-rounds 2
     :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                :forward-slurp :backward-slurp
                :forward-barf :backward-barf
@@ -405,36 +416,53 @@
 
 (defn get-step
   "Get level data for a given stage and round.
-   Round 0 = tutorial, round 1+ = generated practice."
+   Round 0 = tutorial, round 1+ = specs or generated practice."
   [stage-idx round]
   (when-let [stage (get-stage stage-idx)]
     (if (zero? round)
-      ;; Tutorial round: use the hand-crafted level
-      (let [level (nth level-defs (dec (:tutorial stage)) nil)]
-        (when level
-          (assoc level :unlocked-commands (:commands stage))))
-      ;; Practice round: generate a puzzle (retry if already solved)
-      (when-let [gen-key (:practice stage)]
-        (let [difficulty round
-              puzzle (loop [attempts 0]
-                       (let [p (pg/generate-puzzle gen-key difficulty)]
-                         (if (and (= (:tree p) (:goal-tree p))
-                                  (< attempts 10))
-                           (recur (inc attempts))
-                           p)))]
-          {:id (str "S" (inc stage-idx) "R" round)
-           :title (str "Practice " round "/" (:practice-rounds stage))
-           :tree (:tree puzzle)
-           :cursor (:cursor puzzle)
-           :goal-type (:goal-type puzzle)
-           :goal-tree (:goal-tree puzzle)
+      (if-let [spec (specs/specs-by-stage-round stage-idx 0)]
+        (let [goal (:goal spec)]
+          {:id (:id spec) :title (:title spec)
+           :tree (:tree spec) :cursor (:cursor spec)
+           :goal-type (:type goal) :goal-tree (:tree goal)
+           :goal-target (:target goal)
            :unlocked-commands (:commands stage)
-           :intro {:title (str "Practice Round " round)
-                   :lines ["Apply what you just learned!"
-                           ""
-                           "Transform the tree to match the goal."
-                           ""
-                           "Press any key to begin."]}})))))
+           :intro (:intro spec)})
+        (let [level (nth level-defs (dec (:tutorial stage)) nil)]
+          (when level
+            (assoc level :unlocked-commands (:commands stage)))))
+      (if-let [spec (specs/specs-by-stage-round stage-idx round)]
+        (let [goal (:goal spec)]
+          {:id (:id spec) :title (:title spec)
+           :tree (:tree spec) :cursor (:cursor spec)
+           :goal-type (:type goal) :goal-tree (:tree goal)
+           :goal-target (:target goal)
+           :unlocked-commands (:commands stage)
+           :intro (or (:intro spec)
+                      {:title (:title spec)
+                       :lines ["Press any key to begin."]})})
+        (when-let [gen-key (:practice stage)]
+          (let [difficulty round
+                puzzle (loop [attempts 0]
+                         (let [p (pg/generate-puzzle gen-key difficulty)]
+                           (if (and (= (:tree p) (:goal-tree p))
+                                    (< attempts 10))
+                             (recur (inc attempts))
+                             p)))]
+            {:id (str "S" (inc stage-idx) "R" round)
+             :title (str "Practice " round "/" (:practice-rounds stage))
+             :tree (:tree puzzle)
+             :cursor (:cursor puzzle)
+             :goal-type (:goal-type puzzle)
+             :goal-tree (:goal-tree puzzle)
+             :unlocked-commands (:commands stage)
+             :intro {:title (str "Practice Round " round)
+                     :lines ["Apply what you just learned!"
+                             ""
+                             "Transform the tree to match the goal."
+                             ""
+                             "Press any key to begin."]}}))))))
+
 
 (defn stage-total-rounds
   "Total rounds (tutorial + practice) for a stage."

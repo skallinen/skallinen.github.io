@@ -718,13 +718,23 @@
     :solution [:forward-sexp :split-sexp :up-sexp :join-sexp]}
 
    ;; ══════════════════════════════════════════════════════════════
-   ;; Stage 13: The Gauntlet
+   ;; Stage 13: The Refactoring — multi-step boss quiz
+   ;; A complex nested "code" structure that requires all skills.
    ;; ══════════════════════════════════════════════════════════════
+
+   ;; Phase 1: Flatten — splice the inner let into the outer
    {:id "S13R0" :stage 13 :round 0
-    :title "The Gauntlet"
-    :tree [[:a :star] :b [[:gem] :c [:heart :d]]]
+    :title "The Refactoring — Phase 1: Flatten"
+    :tree [:defn :handler
+            [:let [:x [:add :a :b]]
+              [:let [:y [:mul :x :c]]
+                [:print :y]]]]
     :cursor [0]
-    :goal {:type :collect-all}
+    :goal {:type :shape
+           :tree [:defn :handler
+                   [:let [:x [:add :a :b]]
+                     [:y [:mul :x :c]]
+                     [:print :y]]]}
     :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                :forward-slurp :backward-slurp
                :forward-barf :backward-barf
@@ -733,13 +743,88 @@
                :splice-kill-bwd :splice-kill-fwd
                :convolute-sexp
                :split-sexp :join-sexp :undo]
-    :solution nil  ;; complex, multiple valid solutions
-    :intro {:title "The Gauntlet"
-            :lines ["Use everything you've learned."
+    :solution nil ;; multiple solutions possible
+    :intro {:title "The Refactoring"
+            :lines ["Welcome to the final challenge."
                     ""
-                    "Collect all the treasures!"
-                    "You may need to reshape the tree"
-                    "to reach them all."
+                    "A complex nested structure awaits."
+                    "Use ALL the paredit skills you've learned"
+                    "to refactor it step by step."
+                    ""
+                    "Phase 1: Flatten the nested lets."
+                    "Splice the inner (let) into the outer."
+                    ""
+                    "Press any key to begin."]}}
+
+   ;; Phase 2: Reorder — move :y binding before :print
+   {:id "S13R1" :stage 13 :round 1
+    :title "The Refactoring — Phase 2: Extract"
+    :tree [:defn :handler
+            [:let [:x [:add :a :b]
+                   :y [:mul :x :c]]
+              [:if [:gt :y :threshold]
+                [:print :y]
+                [:print :x]]]]
+    :cursor [0]
+    :goal {:type :shape
+           :tree [:defn :handler
+                   [:let [:x [:add :a :b]
+                          :y [:mul :x :c]]
+                     [:if [:gt :y :threshold]
+                       [:log :y]
+                       [:log :x]]]]}
+    :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
+               :forward-slurp :backward-slurp
+               :forward-barf :backward-barf
+               :wrap-round :splice-sexp :raise-sexp
+               :transpose-sexps
+               :splice-kill-bwd :splice-kill-fwd
+               :convolute-sexp
+               :split-sexp :join-sexp :undo]
+    :solution nil
+    :intro {:title "Phase 2: Rename"
+            :lines ["The structure is flattened."
+                    ""
+                    "Now rename :print to :log in both branches."
+                    "Navigate to each :print and use raise"
+                    "after placing :log."
+                    ""
+                    "Hint: This requires creative use of"
+                    "wrap, raise, and navigation."
+                    ""
+                    "Press any key to begin."]}}
+
+   ;; Phase 3: The final restructure
+   {:id "S13R2" :stage 13 :round 2
+    :title "The Refactoring — Phase 3: Restructure"
+    :tree [:defn :process
+            [:let [:data [:fetch :id]]
+              [:transform :data]
+              [:validate :data]
+              [:save :data]]]
+    :cursor [0]
+    :goal {:type :shape
+           :tree [:defn :process
+                   [:let [:data [:fetch :id]]
+                     [[:transform :data]
+                      [:validate :data]
+                      [:save :data]]]]}
+    :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
+               :forward-slurp :backward-slurp
+               :forward-barf :backward-barf
+               :wrap-round :splice-sexp :raise-sexp
+               :transpose-sexps
+               :splice-kill-bwd :splice-kill-fwd
+               :convolute-sexp
+               :split-sexp :join-sexp :undo]
+    :solution nil
+    :intro {:title "Phase 3: Group Operations"
+            :lines ["Almost done!"
+                    ""
+                    "Group the three operations (transform,"
+                    "validate, save) into a single list."
+                    ""
+                    "Use wrap + slurp to collect them."
                     ""
                     "Press any key to begin."]}}])
 

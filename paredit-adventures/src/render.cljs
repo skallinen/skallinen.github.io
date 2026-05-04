@@ -42,28 +42,96 @@
    :lock   "\u2602"})
 
 ;; ── Layout calculation ──────────────────────────────────────────
-;; We compute a layout tree: each node gets {:x :y :w :h :depth :path :node}
+;; Nodes get {:x :y :w :h :depth :path :node :type}
+;; Lists auto-switch between horizontal and vertical layout:
+;; - Horizontal: children side by side (compact for short lists)
+;; - Vertical: children stacked top to bottom (for complex trees)
 
 (def atom-width 44)
 (def atom-height 40)
 (def padding 12)
 (def gap 10)
 (def min-list-width 30)
+(def max-horizontal-width 500) ;; Switch to vertical above this
+
+(defn- has-nested-lists?
+  "Check if any child of node is a list."
+  [node]
+  (some e/sexp? node))
+
+(defn- should-layout-vertical?
+  "Decide if a list should use vertical layout."
+  [node horizontal-width]
+  (and (> (count node) 2)
+       (or (> horizontal-width max-horizontal-width)
+           (and (> (count node) 3) (has-nested-lists? node)))))
+
+(declare measure-node layout-node)
+
+(defn- measure-horizontal
+  "Measure a list laid out horizontally."
+  [child-measures]
+  (let [total-w (+ (* 2 padding)
+                   (reduce + (map :w child-measures))
+                   (* gap (dec (count child-measures))))
+        max-h (apply max (map :h child-measures))]
+    {:w total-w :h (+ (* 2 padding) max-h) :layout :horizontal}))
+
+(defn- measure-vertical
+  "Measure a list laid out vertically."
+  [child-measures]
+  (let [max-w (apply max (map :w child-measures))
+        total-h (+ (* 2 padding)
+                    (reduce + (map :h child-measures))
+                    (* gap (dec (count child-measures))))]
+    {:w (+ (* 2 padding) max-w) :h total-h :layout :vertical}))
 
 (defn measure-node
   "Calculate the width and height needed for a node."
   [node]
   (if (e/atom? node)
-    {:w atom-width :h atom-height}
+    {:w atom-width :h atom-height :layout :atom}
     (if (empty? node)
-      {:w min-list-width :h atom-height}
+      {:w min-list-width :h atom-height :layout :atom}
       (let [child-measures (mapv measure-node node)
-            total-w (+ (* 2 padding)
-                       (reduce + (map :w child-measures))
-                       (* gap (dec (count child-measures))))
-            max-h (apply max (map :h child-measures))
-            total-h (+ (* 2 padding) max-h)]
-        {:w total-w :h total-h}))))
+            horiz (measure-horizontal child-measures)]
+        (if (should-layout-vertical? node (:w horiz))
+          (measure-vertical child-measures)
+          horiz)))))
+
+(defn- layout-horizontal
+  "Layout children horizontally within parent bounds."
+  [node x y depth path child-measures]
+  (let [max-ch (apply max (map :h child-measures))
+        start-x (+ x padding)
+        cy (+ y padding)]
+    (loop [i 0, cx start-x, acc []]
+      (if (>= i (count node))
+        acc
+        (let [child (nth node i)
+              cm (nth child-measures i)
+              child-y (+ cy (/ (- max-ch (:h cm)) 2))
+              child-layouts (layout-node child cx child-y
+                                         (inc depth) (conj path i))]
+          (recur (inc i)
+                 (+ cx (:w cm) gap)
+                 (into acc child-layouts)))))))
+
+(defn- layout-vertical
+  "Layout children vertically (stacked) within parent bounds."
+  [node x y depth path child-measures]
+  (let [start-y (+ y padding)
+        cx (+ x padding)]
+    (loop [i 0, cy start-y, acc []]
+      (if (>= i (count node))
+        acc
+        (let [child (nth node i)
+              cm (nth child-measures i)
+              child-layouts (layout-node child cx cy
+                                         (inc depth) (conj path i))]
+          (recur (inc i)
+                 (+ cy (:h cm) gap)
+                 (into acc child-layouts)))))))
 
 (defn layout-node
   "Position a node and its children. Returns a flat list of layout rects."
@@ -79,24 +147,10 @@
       (if (empty? node)
         [self]
         (let [child-measures (mapv measure-node node)
-              ;; Center children vertically
-              max-ch (apply max (map :h child-measures))
-              start-x (+ x padding)
-              cy (+ y padding)]
-          (loop [i 0
-                 cx start-x
-                 acc [self]]
-            (if (>= i (count node))
-              acc
-              (let [child (nth node i)
-                    cm (nth child-measures i)
-                    child-y (+ cy (/ (- max-ch (:h cm)) 2))
-                    child-layouts (layout-node child cx child-y
-                                               (inc depth)
-                                               (conj path i))]
-                (recur (inc i)
-                       (+ cx (:w cm) gap)
-                       (into acc child-layouts))))))))))
+              children (if (= (:layout measure) :vertical)
+                         (layout-vertical node x y depth path child-measures)
+                         (layout-horizontal node x y depth path child-measures))]
+          (into [self] children))))))
 
 (defn compute-layout
   "Compute the full layout for a tree, centered on the canvas."
