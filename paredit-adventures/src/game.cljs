@@ -208,8 +208,10 @@
 
 (defn key-to-command
   "Map a keyboard event to a paredit command keyword.
-   Cross-platform: checks both e.key and e.code to support
-   Mac (Alt munges e.key), Linux, Windows, and non-QWERTY layouts."
+   Cross-platform strategy:
+   - Letters (f,b,d,u,s,r,k,t,j): use key-letter (checks e.key then e.code)
+   - Symbols (),(}{,/,?): use e.key ONLY (layout-independent character)
+   - Arrows, Backspace: use e.code (physical key, universal)"
   [e]
   (let [code (.-code e)
         key (.-key e)
@@ -218,94 +220,96 @@
         meta (.-metaKey e)
         shift (.-shiftKey e)
         letter (key-letter e)
-        ;; On Mac, Cmd (meta) can act as Ctrl for Emacs bindings
         ctrl-like (or ctrl meta)]
     (cond
-      ;; ── Navigation: C-M-{f,b,d,u} ────────────────────────
+      ;; ── Navigation: C-M-{f,b,d,u} (letters → key-letter) ─
       (and ctrl-like alt (= letter "f"))  :forward-sexp
       (and ctrl-like alt (= letter "b"))  :backward-sexp
       (and ctrl-like alt (= letter "d"))  :down-sexp
       (and ctrl-like alt (= letter "u"))  :up-sexp
 
-      ;; ── C-M-t : transpose ─────────────────────────────────
+      ;; ── Transpose: C-M-t (letter) ─────────────────────────
       (and ctrl-like alt (= letter "t"))  :transpose-sexps
 
-      ;; ── Forward slurp: C-) or C-right or M-right ─────────
-      ;; C-) : Ctrl+Shift+0 on US layout, or e.key = ")"
-      (and ctrl-like shift (or (= key ")") (= code "Digit0")))
-      :forward-slurp
+      ;; ── Symbol bindings ──────────────────────────────────────
+      ;; Strategy: check e.key for the symbol (any layout),
+      ;; PLUS e.code with shift as fallback (Playwright/US layout)
 
+      ;; ── Forward slurp: C-) ────────────────────────────────
+      (and ctrl-like (or (= key ")")
+                         (and shift (= code "Digit0"))))
+      :forward-slurp
+      ;; or C-right / M-right
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            (not shift) (= code "ArrowRight"))
       :forward-slurp
 
-      ;; ── Backward slurp: C-( or C-left or M-left ──────────
-      (and ctrl-like shift (not alt) (or (= key "(") (= code "Digit9")))
+      ;; ── Backward slurp: C-( ───────────────────────────────
+      (and ctrl-like (not alt) (or (= key "(")
+                                    (and shift (= code "Digit9"))))
       :backward-slurp
-
+      ;; or C-left / M-left
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            (not shift) (= code "ArrowLeft"))
       :backward-slurp
 
-      ;; ── Forward barf: C-} or C-S-right or M-S-right ──────
-      (and ctrl-like shift (or (= key "}") (= code "BracketRight")))
+      ;; ── Forward barf: C-} ─────────────────────────────────
+      (and ctrl-like (or (= key "}")
+                          (and shift (= code "BracketRight"))))
       :forward-barf
-
+      ;; or C-S-right / M-S-right
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            shift (= code "ArrowRight"))
       :forward-barf
 
-      ;; ── Backward barf: C-{ or C-S-left or M-S-left ───────
-      (and ctrl-like shift (or (= key "{") (= code "BracketLeft")))
+      ;; ── Backward barf: C-{ ────────────────────────────────
+      (and ctrl-like (or (= key "{")
+                          (and shift (= code "BracketLeft"))))
       :backward-barf
-
+      ;; or C-S-left / M-S-left
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            shift (= code "ArrowLeft"))
       :backward-barf
 
       ;; ── Wrap: M-( ─────────────────────────────────────────
-      ;; Alt+Shift+9 (US layout) or e.key = "("
-      (and alt (not ctrl-like) shift
-           (or (= key "(") (= code "Digit9")))
+      (and alt (not ctrl-like) (or (= key "(")
+                                    (and shift (= code "Digit9"))))
       :wrap-round
 
-      ;; ── Splice: M-s ───────────────────────────────────────
+      ;; ── Splice: M-s (letter) ──────────────────────────────
       (and alt (not ctrl-like) (not shift) (= letter "s"))
       :splice-sexp
 
-      ;; ── Raise: M-r ────────────────────────────────────────
+      ;; ── Raise: M-r (letter) ───────────────────────────────
       (and alt (not ctrl-like) (not shift) (= letter "r"))
       :raise-sexp
 
-      ;; ── Split: M-S ────────────────────────────────────────
+      ;; ── Split: M-S (letter + shift) ───────────────────────
       (and alt (not ctrl-like) shift (= letter "s"))
       :split-sexp
 
-      ;; ── Join: M-J ─────────────────────────────────────────
+      ;; ── Join: M-J (letter + shift) ────────────────────────
       (and alt (not ctrl-like) shift (= letter "j"))
       :join-sexp
 
-      ;; ── Convolute: M-? ────────────────────────────────────
-      ;; Alt+Shift+/ or Ctrl+Shift+/ or e.key = "?"
-      (and (or alt ctrl-like) shift
-           (or (= key "?") (= code "Slash")))
+      ;; ── Convolute: M-? (symbol + code fallback) ───────────
+      (and (or alt ctrl-like) (or (= key "?")
+                                   (and shift (= code "Slash"))))
       :convolute-sexp
 
-      ;; ── Splice kill backward: M-up or C-M-backspace ──────
+      ;; ── Splice kill backward: M-up (arrow) or C-M-bksp ───
       (and alt (not ctrl-like) (not shift) (= code "ArrowUp"))
       :splice-kill-bwd
-
       (and ctrl-like alt (= code "Backspace"))
       :splice-kill-bwd
 
-      ;; ── Splice kill forward: M-down or M-k ────────────────
+      ;; ── Splice kill forward: M-down (arrow) or M-k (letter)
       (and alt (not ctrl-like) (not shift) (= code "ArrowDown"))
       :splice-kill-fwd
-
       (and alt (not ctrl-like) (not shift) (= letter "k"))
       :splice-kill-fwd
 
@@ -342,9 +346,8 @@
         (if (and (or (= key "r") (= code "KeyR")) (not ctrl-like) (not alt) (not shift))
           (do (.preventDefault e)
               (load-step! (:stage @state) (:round @state)))
-        ;; Undo: C-/ (Emacs undo) — check both key and code for cross-platform
-        (if (and ctrl-like (not alt) (not shift)
-                 (or (= key "/") (= code "Slash")))
+        ;; Undo: C-/ (symbol → e.key)
+        (if (and ctrl-like (not alt) (not shift) (= key "/"))
           (do
             (.preventDefault e)
             (when (seq (:history @state))
