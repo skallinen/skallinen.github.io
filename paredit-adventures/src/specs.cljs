@@ -756,9 +756,9 @@
                     ""
                     "Press any key to begin."]}}
 
-   ;; Phase 2: Reorder — move :y binding before :print
+   ;; Phase 2: Restructure the if branches
    {:id "S13R1" :stage 13 :round 1
-    :title "The Refactoring — Phase 2: Extract"
+    :title "The Refactoring — Phase 2: Simplify"
     :tree [:defn :handler
             [:let [:x [:add :a :b]
                    :y [:mul :x :c]]
@@ -770,9 +770,10 @@
            :tree [:defn :handler
                    [:let [:x [:add :a :b]
                           :y [:mul :x :c]]
-                     [:if [:gt :y :threshold]
-                       [:log :y]
-                       [:log :x]]]]}
+                     [:print
+                       [:if [:gt :y :threshold]
+                         :y
+                         :x]]]]}
     :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                :forward-slurp :backward-slurp
                :forward-barf :backward-barf
@@ -782,15 +783,12 @@
                :convolute-sexp
                :split-sexp :join-sexp :undo]
     :solution nil
-    :intro {:title "Phase 2: Rename"
-            :lines ["The structure is flattened."
+    :intro {:title "Phase 2: Simplify"
+            :lines ["Both branches call :print."
                     ""
-                    "Now rename :print to :log in both branches."
-                    "Navigate to each :print and use raise"
-                    "after placing :log."
-                    ""
-                    "Hint: This requires creative use of"
-                    "wrap, raise, and navigation."
+                    "Extract :print out of the :if."
+                    "Raise :y and :x from their :print wrappers,"
+                    "then convolute to pull :print outside."
                     ""
                     "Press any key to begin."]}}
 

@@ -232,12 +232,20 @@
   (.fillText ctx text (/ canvas-w 2) 16))
 
 (defn draw-goal-tree
-  "Draw a small version of the target tree in the top-right corner."
+  "Draw a scaled version of the target tree in the top-right corner.
+   Auto-scales to fit within a max box size."
   [ctx canvas-w goal-tree]
-  (let [scale 0.6
-        measure (measure-node goal-tree)
-        sw (* (:w measure) scale)
-        sh (* (:h measure) scale)
+  (let [measure (measure-node goal-tree)
+        raw-w (:w measure)
+        raw-h (:h measure)
+        ;; Max box: 250px wide, 150px tall
+        max-w 250
+        max-h 150
+        scale (min 0.6
+                   (/ max-w raw-w)
+                   (/ max-h raw-h))
+        sw (* raw-w scale)
+        sh (* raw-h scale)
         margin 16
         ox (- canvas-w sw margin)
         oy margin]
