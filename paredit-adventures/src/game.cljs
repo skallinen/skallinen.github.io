@@ -191,120 +191,123 @@
 
 ;; ── Input handling ──────────────────────────────────────────────
 
+(defn- key-letter
+  "Get the lowercase letter from a key event, checking both e.key and e.code.
+   Returns the letter string or nil. Handles Mac Alt munging e.key."
+  [e]
+  (let [key (.-key e)
+        code (.-code e)]
+    (cond
+      ;; e.key is a single ASCII letter (Linux/Windows, or Ctrl-only on Mac)
+      (and (= 1 (count key)) (re-matches #"[a-zA-Z]" key))
+      (.toLowerCase key)
+      ;; e.code is KeyX — extract the letter (works on Mac with Alt)
+      (and (> (count code) 3) (= "Key" (subs code 0 3)))
+      (.toLowerCase (subs code 3))
+      :else nil)))
+
 (defn key-to-command
   "Map a keyboard event to a paredit command keyword.
-   Uses e.code (physical key) for reliability across OS/layouts.
-   Mac Alt produces special chars in e.key, so we ignore e.key for combos."
+   Cross-platform: checks both e.key and e.code to support
+   Mac (Alt munges e.key), Linux, Windows, and non-QWERTY layouts."
   [e]
   (let [code (.-code e)
+        key (.-key e)
         ctrl (.-ctrlKey e)
         alt (.-altKey e)
         meta (.-metaKey e)
         shift (.-shiftKey e)
-        key (.-key e)
-        ;; On Mac, use Meta as Ctrl equivalent for Emacs bindings
+        letter (key-letter e)
+        ;; On Mac, Cmd (meta) can act as Ctrl for Emacs bindings
         ctrl-like (or ctrl meta)]
     (cond
-      ;; C-M-f : forward sexp
-      (and ctrl-like alt (= code "KeyF"))
-      :forward-sexp
+      ;; ── Navigation: C-M-{f,b,d,u} ────────────────────────
+      (and ctrl-like alt (= letter "f"))  :forward-sexp
+      (and ctrl-like alt (= letter "b"))  :backward-sexp
+      (and ctrl-like alt (= letter "d"))  :down-sexp
+      (and ctrl-like alt (= letter "u"))  :up-sexp
 
-      ;; C-M-b : backward sexp  (code may vary by layout)
-      (and ctrl-like alt (= code "KeyB"))
-      :backward-sexp
+      ;; ── C-M-t : transpose ─────────────────────────────────
+      (and ctrl-like alt (= letter "t"))  :transpose-sexps
 
-      ;; C-M-d : down into sexp
-      (and ctrl-like alt (= code "KeyD"))
-      :down-sexp
-
-      ;; C-M-u : up out of sexp
-      (and ctrl-like alt (= code "KeyU"))
-      :up-sexp
-
-      ;; C-) : forward slurp  (Ctrl+Shift+0 → code=Digit0)
-      (and ctrl-like shift (= code "Digit0"))
+      ;; ── Forward slurp: C-) or C-right or M-right ─────────
+      ;; C-) : Ctrl+Shift+0 on US layout, or e.key = ")"
+      (and ctrl-like shift (or (= key ")") (= code "Digit0")))
       :forward-slurp
 
-      ;; C-right or M-right : forward slurp (no shift)
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            (not shift) (= code "ArrowRight"))
       :forward-slurp
 
-      ;; C-( : backward slurp  (Ctrl+Shift+9 → code=Digit9)
-      (and ctrl-like shift (not alt) (= code "Digit9"))
+      ;; ── Backward slurp: C-( or C-left or M-left ──────────
+      (and ctrl-like shift (not alt) (or (= key "(") (= code "Digit9")))
       :backward-slurp
 
-      ;; C-left or M-left : backward slurp (no shift)
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            (not shift) (= code "ArrowLeft"))
       :backward-slurp
 
-      ;; C-} : forward barf  (Ctrl+Shift+] → code=BracketRight)
-      (and ctrl-like shift (= code "BracketRight"))
+      ;; ── Forward barf: C-} or C-S-right or M-S-right ──────
+      (and ctrl-like shift (or (= key "}") (= code "BracketRight")))
       :forward-barf
 
-      ;; C-S-right or M-S-right : forward barf
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            shift (= code "ArrowRight"))
       :forward-barf
 
-      ;; C-{ : backward barf  (Ctrl+Shift+[ → code=BracketLeft)
-      (and ctrl-like shift (= code "BracketLeft"))
+      ;; ── Backward barf: C-{ or C-S-left or M-S-left ───────
+      (and ctrl-like shift (or (= key "{") (= code "BracketLeft")))
       :backward-barf
 
-      ;; C-S-left or M-S-left : backward barf
       (and (or (and ctrl-like (not alt))
                (and alt (not ctrl-like)))
            shift (= code "ArrowLeft"))
       :backward-barf
 
-      ;; M-( : wrap  (Alt+Shift+9 on Mac produces "·" but code is Digit9)
-      (and alt (not ctrl-like) shift (= code "Digit9"))
+      ;; ── Wrap: M-( ─────────────────────────────────────────
+      ;; Alt+Shift+9 (US layout) or e.key = "("
+      (and alt (not ctrl-like) shift
+           (or (= key "(") (= code "Digit9")))
       :wrap-round
 
-      ;; M-s : splice
-      (and alt (not ctrl-like) (not shift) (= code "KeyS"))
+      ;; ── Splice: M-s ───────────────────────────────────────
+      (and alt (not ctrl-like) (not shift) (= letter "s"))
       :splice-sexp
 
-      ;; M-r : raise
-      (and alt (not ctrl-like) (not shift) (= code "KeyR"))
+      ;; ── Raise: M-r ────────────────────────────────────────
+      (and alt (not ctrl-like) (not shift) (= letter "r"))
       :raise-sexp
 
-      ;; M-S (alt+shift+s) : split
-      (and alt (not ctrl-like) shift (= code "KeyS"))
+      ;; ── Split: M-S ────────────────────────────────────────
+      (and alt (not ctrl-like) shift (= letter "s"))
       :split-sexp
 
-      ;; M-J (alt+shift+j) : join
-      (and alt (not ctrl-like) shift (= code "KeyJ"))
+      ;; ── Join: M-J ─────────────────────────────────────────
+      (and alt (not ctrl-like) shift (= letter "j"))
       :join-sexp
 
-      ;; M-? (alt+shift+/) or C-S-/ : convolute
-      (and alt (not ctrl-like) shift (= code "Slash"))
+      ;; ── Convolute: M-? ────────────────────────────────────
+      ;; Alt+Shift+/ or Ctrl+Shift+/ or e.key = "?"
+      (and (or alt ctrl-like) shift
+           (or (= key "?") (= code "Slash")))
       :convolute-sexp
 
-      (and ctrl-like (not alt) shift (= code "Slash"))
-      :convolute-sexp
-
-      ;; M-up or C-M-backspace : splice killing backward
+      ;; ── Splice kill backward: M-up or C-M-backspace ──────
       (and alt (not ctrl-like) (not shift) (= code "ArrowUp"))
       :splice-kill-bwd
 
       (and ctrl-like alt (= code "Backspace"))
       :splice-kill-bwd
 
-      ;; M-down or M-k : splice killing forward
+      ;; ── Splice kill forward: M-down or M-k ────────────────
       (and alt (not ctrl-like) (not shift) (= code "ArrowDown"))
       :splice-kill-fwd
 
-      (and alt (not ctrl-like) (not shift) (= code "KeyK"))
+      (and alt (not ctrl-like) (not shift) (= letter "k"))
       :splice-kill-fwd
-
-      ;; C-M-t : transpose sexps
-      (and ctrl-like alt (= code "KeyT"))
-      :transpose-sexps
 
       :else nil)))
 
@@ -336,11 +339,12 @@
         (if (= key "Escape")
           (do (.preventDefault e) (advance!))
         ;; R (no modifiers): restart current puzzle
-        (if (and (= code "KeyR") (not ctrl-like) (not alt) (not shift))
+        (if (and (or (= key "r") (= code "KeyR")) (not ctrl-like) (not alt) (not shift))
           (do (.preventDefault e)
               (load-step! (:stage @state) (:round @state)))
-        ;; Undo: C-/ (Emacs undo)
-        (if (and ctrl-like (not alt) (not shift) (= code "Slash"))
+        ;; Undo: C-/ (Emacs undo) — check both key and code for cross-platform
+        (if (and ctrl-like (not alt) (not shift)
+                 (or (= key "/") (= code "Slash")))
           (do
             (.preventDefault e)
             (when (seq (:history @state))
