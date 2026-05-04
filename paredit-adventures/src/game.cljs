@@ -5,7 +5,8 @@
             [paredit :as p]
             [render :as r]
             [levels :as l]
-            [specs :as specs]))
+            [specs :as specs]
+            [keymap :as km]))
 
 ;; ── Game state ──────────────────────────────────────────────────
 
@@ -206,12 +207,14 @@
       (.toLowerCase (subs code 3))
       :else nil)))
 
+(def keymap (atom (or (km/load-keymap) (km/make-default-keymap))))
+(def calibrating (atom nil)) ;; nil or {:step-idx N :results {}}
+
 (defn key-to-command
   "Map a keyboard event to a paredit command keyword.
-   Cross-platform strategy:
-   - Letters (f,b,d,u,s,r,k,t,j): use key-letter (checks e.key then e.code)
-   - Symbols (),(}{,/,?): use e.key ONLY (layout-independent character)
-   - Arrows, Backspace: use e.code (physical key, universal)"
+   - Letters: key-letter (e.key then e.code fallback for Mac Alt)
+   - Symbols (){}?/: calibrated keymap (layout-independent)
+   - Arrows, Backspace: e.code (universal physical keys)"
   [e]
   (let [code (.-code e)
         key (.-key e)
@@ -220,9 +223,10 @@
         meta (.-metaKey e)
         shift (.-shiftKey e)
         letter (key-letter e)
-        ctrl-like (or ctrl meta)]
+        ctrl-like (or ctrl meta)
+        kmap @keymap]
     (cond
-      ;; ── Navigation: C-M-{f,b,d,u} (letters → key-letter) ─
+      ;; ── Navigation: C-M-{f,b,d,u} (letters) ─────────────
       (and ctrl-like alt (= letter "f"))  :forward-sexp
       (and ctrl-like alt (= letter "b"))  :backward-sexp
       (and ctrl-like alt (= letter "d"))  :down-sexp
@@ -231,13 +235,9 @@
       ;; ── Transpose: C-M-t (letter) ─────────────────────────
       (and ctrl-like alt (= letter "t"))  :transpose-sexps
 
-      ;; ── Symbol bindings ──────────────────────────────────────
-      ;; Strategy: check e.key for the symbol (any layout),
-      ;; PLUS e.code with shift as fallback (Playwright/US layout)
-
-      ;; ── Forward slurp: C-) ────────────────────────────────
-      (and ctrl-like (or (= key ")")
-                         (and shift (= code "Digit0"))))
+      ;; ── Slurp/Barf: calibrated symbol keys ───────────────
+      ;; Forward slurp: C-)
+      (and ctrl-like (km/match-key e (:slurp-fwd kmap)))
       :forward-slurp
       ;; or C-right / M-right
       (and (or (and ctrl-like (not alt))
@@ -245,9 +245,8 @@
            (not shift) (= code "ArrowRight"))
       :forward-slurp
 
-      ;; ── Backward slurp: C-( ───────────────────────────────
-      (and ctrl-like (not alt) (or (= key "(")
-                                    (and shift (= code "Digit9"))))
+      ;; Backward slurp: C-(
+      (and ctrl-like (not alt) (km/match-key e (:slurp-bwd kmap)))
       :backward-slurp
       ;; or C-left / M-left
       (and (or (and ctrl-like (not alt))
@@ -255,9 +254,8 @@
            (not shift) (= code "ArrowLeft"))
       :backward-slurp
 
-      ;; ── Forward barf: C-} ─────────────────────────────────
-      (and ctrl-like (or (= key "}")
-                          (and shift (= code "BracketRight"))))
+      ;; Forward barf: C-}
+      (and ctrl-like (km/match-key e (:barf-fwd kmap)))
       :forward-barf
       ;; or C-S-right / M-S-right
       (and (or (and ctrl-like (not alt))
@@ -265,9 +263,8 @@
            shift (= code "ArrowRight"))
       :forward-barf
 
-      ;; ── Backward barf: C-{ ────────────────────────────────
-      (and ctrl-like (or (= key "{")
-                          (and shift (= code "BracketLeft"))))
+      ;; Backward barf: C-{
+      (and ctrl-like (km/match-key e (:barf-bwd kmap)))
       :backward-barf
       ;; or C-S-left / M-S-left
       (and (or (and ctrl-like (not alt))
@@ -276,8 +273,8 @@
       :backward-barf
 
       ;; ── Wrap: M-( ─────────────────────────────────────────
-      (and alt (not ctrl-like) (or (= key "(")
-                                    (and shift (= code "Digit9"))))
+      ;; Use backward-slurp key binding with Alt instead of Ctrl
+      (and alt (not ctrl-like) (km/match-key e (:slurp-bwd kmap)))
       :wrap-round
 
       ;; ── Splice: M-s (letter) ──────────────────────────────
@@ -296,18 +293,18 @@
       (and alt (not ctrl-like) shift (= letter "j"))
       :join-sexp
 
-      ;; ── Convolute: M-? (symbol + code fallback) ───────────
+      ;; ── Convolute: M-? ────────────────────────────────────
       (and (or alt ctrl-like) (or (= key "?")
                                    (and shift (= code "Slash"))))
       :convolute-sexp
 
-      ;; ── Splice kill backward: M-up (arrow) or C-M-bksp ───
+      ;; ── Splice kill backward: M-up or C-M-bksp ───────────
       (and alt (not ctrl-like) (not shift) (= code "ArrowUp"))
       :splice-kill-bwd
       (and ctrl-like alt (= code "Backspace"))
       :splice-kill-bwd
 
-      ;; ── Splice kill forward: M-down (arrow) or M-k (letter)
+      ;; ── Splice kill forward: M-down or M-k ────────────────
       (and alt (not ctrl-like) (not shift) (= code "ArrowDown"))
       :splice-kill-fwd
       (and alt (not ctrl-like) (not shift) (= letter "k"))
@@ -321,15 +318,44 @@
   (some #{cmd-key} (:unlocked-commands (:level @state))))
 
 (defn handle-key! [e]
+  (if-let [cal @calibrating]
+    ;; ── Calibration mode ────────────────────────────────────
+    (let [key (.-key e)
+          code (.-code e)
+          shift (.-shiftKey e)]
+      (.preventDefault e)
+      (if (= key "Escape")
+        ;; Skip calibration, use defaults
+        (do (reset! calibrating nil)
+            (reset! keymap (km/make-default-keymap))
+            (km/save-keymap! (km/make-default-keymap)))
+      (when-not (#{"Control" "Alt" "Shift" "Meta" "CapsLock"} key)
+        (let [step-idx (:step-idx cal)
+              steps km/calibration-steps
+              step (nth steps step-idx)
+              result {:code code :key key :shift shift}
+              new-results (assoc (:results cal) (:id step) result)
+              next-idx (inc step-idx)]
+          (if (< next-idx (count steps))
+            (reset! calibrating {:step-idx next-idx :results new-results})
+            (do
+              (reset! keymap new-results)
+              (km/save-keymap! new-results)
+              (reset! calibrating nil)))))))
+
   (let [{:keys [phase]} @state]
     (case phase
       :intro
       (do
         (.preventDefault e)
-        (swap! state assoc
-               :phase :playing
-               :message nil
-               :start-time (.now js/Date)))
+        (if (= (.-key e) "c")
+          ;; Recalibrate keys
+          (do (km/clear-keymap!)
+              (reset! calibrating {:step-idx 0 :results {}}))
+          (swap! state assoc
+                 :phase :playing
+                 :message nil
+                 :start-time (.now js/Date))))
 
       :playing
       (let [code (.-code e)
@@ -422,14 +448,49 @@
       :victory
       (do
         (.preventDefault e)
-        (advance!)))))
+        (advance!))))))
 
 (.addEventListener js/window "keydown" handle-key!)
 
 ;; ── Game loop ───────────────────────────────────────────────────
 
+(defn draw-calibration [ctx cw ch]
+  (when-let [cal @calibrating]
+    (let [step (nth km/calibration-steps (:step-idx cal))
+          font r/game-font]
+      ;; Background
+      (set! (.-fillStyle ctx) "rgba(255,255,255,0.97)")
+      (.fillRect ctx 0 0 cw ch)
+      ;; Title
+      (set! (.-fillStyle ctx) "#000")
+      (set! (.-font ctx) (str "800 20px " font))
+      (set! (.-textAlign ctx) "center")
+      (set! (.-textBaseline ctx) "middle")
+      (.fillText ctx "Keyboard Setup" (/ cw 2) (- (/ ch 2) 60))
+      ;; Instruction
+      (set! (.-fillStyle ctx) "rgba(0,0,0,0.5)")
+      (set! (.-font ctx) (str "400 14px " font))
+      (.fillText ctx (str "Step " (inc (:step-idx cal)) " of " (count km/calibration-steps))
+                 (/ cw 2) (- (/ ch 2) 30))
+      ;; Key to press
+      (set! (.-fillStyle ctx) "#a9431e")
+      (set! (.-font ctx) (str "700 28px " font))
+      (.fillText ctx (str "Press:  " (:desc step))
+                 (/ cw 2) (/ ch 2))
+      ;; Hint
+      (set! (.-fillStyle ctx) "rgba(0,0,0,0.25)")
+      (set! (.-font ctx) (str "400 12px " font))
+      (.fillText ctx "Hold Ctrl, then press the key that produces the symbol on your keyboard"
+                 (/ cw 2) (+ (/ ch 2) 40))
+      (.fillText ctx "Press Escape to use defaults (US layout)"
+                 (/ cw 2) (+ (/ ch 2) 60)))))
+
 (defn game-loop [timestamp]
   (r/render-frame ctx canvas-w canvas-h @state timestamp)
+
+  ;; Draw calibration overlay if active
+  (when @calibrating
+    (draw-calibration ctx canvas-w canvas-h))
 
   ;; Draw goal target indicator for :reach goals
   (let [{:keys [phase tree level]} @state]
@@ -484,6 +545,12 @@
       (fn [stage round]
         (load-step! stage round)))
 
+(set! (.-skipCalibration js/window)
+      (fn []
+        (reset! calibrating nil)
+        (reset! keymap (km/make-default-keymap))
+        (km/save-keymap! (km/make-default-keymap))))
+
 (set! (.-getPuzzleSpecs js/window)
       (fn []
         (clj->js (mapv (fn [s]
@@ -496,6 +563,10 @@
                         specs/puzzle-specs))))
 
 ;; ── Start ───────────────────────────────────────────────────────
+
+;; Start calibration if no saved keymap
+(when (km/needs-calibration?)
+  (reset! calibrating {:step-idx 0 :results {}}))
 
 (load-step! 0 0)
 (js/requestAnimationFrame game-loop)
