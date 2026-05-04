@@ -722,19 +722,17 @@
    ;; A complex nested "code" structure that requires all skills.
    ;; ══════════════════════════════════════════════════════════════
 
-   ;; Phase 1: Flatten — splice the inner let into the outer
+   ;; Phase 1: Flatten — splice inner nesting out
    {:id "S13R0" :stage 13 :round 0
-    :title "The Refactoring — Phase 1: Flatten"
-    :tree [:defn :handler
-            [:let [:x [:add :a :b]]
-              [:let [:y [:mul :x :c]]
-                [:print :y]]]]
+    :title "Final Challenge — Phase 1"
+    :tree [:a [:b [:gem :star]
+               [:c [:d [:heart :gem]]
+                   :star]]]
     :cursor [0]
     :goal {:type :shape
-           :tree [:defn :handler
-                   [:let [:x [:add :a :b]]
-                     [:y [:mul :x :c]]
-                     [:print :y]]]}
+           :tree [:a [:b [:gem :star]
+                      :d [:heart :gem]
+                      :star]]}
     :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                :forward-slurp :backward-slurp
                :forward-barf :backward-barf
@@ -743,37 +741,28 @@
                :splice-kill-bwd :splice-kill-fwd
                :convolute-sexp
                :split-sexp :join-sexp :undo]
-    :solution nil ;; multiple solutions possible
-    :intro {:title "The Refactoring"
-            :lines ["Welcome to the final challenge."
+    :solution nil
+    :intro {:title "Final Challenge"
+            :lines ["The ultimate test."
                     ""
-                    "A complex nested structure awaits."
-                    "Use ALL the paredit skills you've learned"
-                    "to refactor it step by step."
+                    "A deep nested structure with"
+                    "scattered treasures."
                     ""
-                    "Phase 1: Flatten the nested lets."
-                    "Splice the inner (let) into the outer."
+                    "Phase 1: Flatten the inner nesting."
+                    "Remove the [:c] wrapper and raise :d."
                     ""
                     "Press any key to begin."]}}
 
-   ;; Phase 2: Restructure the if branches
+   ;; Phase 2: Reorder and group
    {:id "S13R1" :stage 13 :round 1
-    :title "The Refactoring — Phase 2: Simplify"
-    :tree [:defn :handler
-            [:let [:x [:add :a :b]
-                   :y [:mul :x :c]]
-              [:if [:gt :y :threshold]
-                [:print :y]
-                [:print :x]]]]
+    :title "Final Challenge — Phase 2"
+    :tree [:a :gem [:b :star :heart]
+           :c [:d :gem :star] :heart]
     :cursor [0]
     :goal {:type :shape
-           :tree [:defn :handler
-                   [:let [:x [:add :a :b]
-                          :y [:mul :x :c]]
-                     [:print
-                       [:if [:gt :y :threshold]
-                         :y
-                         :x]]]]}
+           :tree [:a :c [:gem :gem]
+                  [:b :star :star]
+                  [:d :heart :heart]]}
     :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                :forward-slurp :backward-slurp
                :forward-barf :backward-barf
@@ -783,30 +772,29 @@
                :convolute-sexp
                :split-sexp :join-sexp :undo]
     :solution nil
-    :intro {:title "Phase 2: Simplify"
-            :lines ["Both branches call :print."
+    :intro {:title "Phase 2: Sort the Treasures"
+            :lines ["Treasures are scattered everywhere."
                     ""
-                    "Extract :print out of the :if."
-                    "Raise :y and :x from their :print wrappers,"
-                    "then convolute to pull :print outside."
+                    "Group them by type:"
+                    "gems together, stars together,"
+                    "hearts together."
+                    ""
+                    "Use transpose, wrap, slurp, barf."
                     ""
                     "Press any key to begin."]}}
 
-   ;; Phase 3: The final restructure
+   ;; Phase 3: Complex restructure
    {:id "S13R2" :stage 13 :round 2
-    :title "The Refactoring — Phase 3: Restructure"
-    :tree [:defn :process
-            [:let [:data [:fetch :id]]
-              [:transform :data]
-              [:validate :data]
-              [:save :data]]]
+    :title "Final Challenge — Phase 3"
+    :tree [[:gem :a :b :star]
+           [:heart :c :d :gem]
+           [:star :e :f :heart]]
     :cursor [0]
     :goal {:type :shape
-           :tree [:defn :process
-                   [:let [:data [:fetch :id]]
-                     [[:transform :data]
-                      [:validate :data]
-                      [:save :data]]]]}
+           :tree [[:gem :heart :star]
+                  [:a :c :e]
+                  [:b :d :f]
+                  [:star :gem :heart]]}
     :commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                :forward-slurp :backward-slurp
                :forward-barf :backward-barf
@@ -816,13 +804,15 @@
                :convolute-sexp
                :split-sexp :join-sexp :undo]
     :solution nil
-    :intro {:title "Phase 3: Group Operations"
-            :lines ["Almost done!"
+    :intro {:title "Phase 3: The Grand Shuffle"
+            :lines ["Three rows of mixed treasures"
+                    "and letters."
                     ""
-                    "Group the three operations (transform,"
-                    "validate, save) into a single list."
+                    "Reorganize into columns:"
+                    "first items, middle items, last items."
                     ""
-                    "Use wrap + slurp to collect them."
+                    "This is the hardest puzzle."
+                    "Use everything you've learned!"
                     ""
                     "Press any key to begin."]}}])
 

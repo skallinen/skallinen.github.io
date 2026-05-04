@@ -293,19 +293,18 @@
                     ""
                     "Press any key to begin."]}}
 
-   ;; ── Level 14: The Refactoring — Phase 1 ─────────────────
+   ;; ── Level 14: Final Challenge — Phase 1 ──────────────────
+   ;; (loaded from specs.cljs, this is fallback only)
    {:id 14
-    :title "The Refactoring — Phase 1: Flatten"
-    :tree [:defn :handler
-            [:let [:x [:add :a :b]]
-              [:let [:y [:mul :x :c]]
-                [:print :y]]]]
+    :title "Final Challenge — Phase 1"
+    :tree [:a [:b [:gem :star]
+               [:c [:d [:heart :gem]]
+                   :star]]]
     :cursor [0]
     :goal-type :shape
-    :goal-tree [:defn :handler
-                 [:let [:x [:add :a :b]]
-                   [:y [:mul :x :c]]
-                   [:print :y]]]
+    :goal-tree [:a [:b [:gem :star]
+                    :d [:heart :gem]
+                    :star]]
     :unlocked-commands [:forward-sexp :backward-sexp :down-sexp :up-sexp
                         :forward-slurp :backward-slurp
                         :forward-barf :backward-barf
@@ -314,15 +313,14 @@
                         :splice-kill-bwd :splice-kill-fwd
                         :convolute-sexp
                         :split-sexp :join-sexp :undo]
-    :intro {:title "The Refactoring"
-            :lines ["Welcome to the final challenge."
+    :intro {:title "Final Challenge"
+            :lines ["The ultimate test."
                     ""
-                    "A complex nested structure awaits."
-                    "Use ALL the paredit skills you've learned"
-                    "to refactor it step by step."
+                    "A deep nested structure with"
+                    "scattered treasures."
                     ""
-                    "Phase 1: Flatten the nested lets."
-                    "Splice the inner (let) into the outer."
+                    "Phase 1: Flatten the inner nesting."
+                    "Remove wrappers and raise elements."
                     ""
                     "Press any key to begin."]}}])
 
