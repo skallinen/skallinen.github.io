@@ -14,6 +14,14 @@
 (def ctx (.getContext canvas "2d"))
 (def canvas-w (.-width canvas))
 (def canvas-h (.-height canvas))
+(def mouse-pos (atom {:x 0 :y 0}))
+
+(.addEventListener canvas "mousemove"
+  (fn [e]
+    (let [rect (.getBoundingClientRect canvas)]
+      (reset! mouse-pos
+              {:x (- (.-clientX e) (.-left rect))
+               :y (- (.-clientY e) (.-top rect))}))))
 
 (def state
   (atom {:tree [:a :b :c]
@@ -486,7 +494,8 @@
                  (/ cw 2) (+ (/ ch 2) 60)))))
 
 (defn game-loop [timestamp]
-  (r/render-frame ctx canvas-w canvas-h @state timestamp)
+  (let [{:keys [x y]} @mouse-pos]
+    (r/render-frame ctx canvas-w canvas-h @state timestamp x y))
 
   ;; Draw calibration overlay if active
   (when @calibrating

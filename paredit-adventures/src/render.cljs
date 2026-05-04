@@ -231,52 +231,80 @@
   (set! (.-textBaseline ctx) "top")
   (.fillText ctx text (/ canvas-w 2) 16))
 
-(defn draw-goal-tree
-  "Draw a scaled version of the target tree in the top-right corner.
-   Auto-scales to fit within a max box size."
-  [ctx canvas-w goal-tree]
+(defn draw-goal-tree-at
+  "Draw the goal tree at a given position and scale."
+  [ctx goal-tree ox oy scale]
+  (.save ctx)
+  (.translate ctx ox oy)
+  (.scale ctx scale scale)
+  (let [layouts (layout-node goal-tree 0 0 0 [])]
+    (doseq [{:keys [x y w h depth type]} layouts]
+      (when (= type :list)
+        (let [ci (mod depth (count depth-colors))
+              fill (nth depth-colors ci)
+              border (nth depth-border-colors ci)]
+          (set! (.-fillStyle ctx) fill)
+          (set! (.-strokeStyle ctx) border)
+          (set! (.-lineWidth ctx) 1)
+          (draw-rounded-rect ctx x y w h 8)
+          (.fill ctx)
+          (.stroke ctx))))
+    (doseq [{:keys [x y w h type node]} layouts]
+      (when (= type :atom)
+        (draw-atom ctx x y w h node))))
+  (.restore ctx))
+
+(defn goal-preview-bounds
+  "Calculate the bounds of the small goal preview."
+  [canvas-w goal-tree]
   (let [measure (measure-node goal-tree)
         raw-w (:w measure)
         raw-h (:h measure)
-        ;; Max box: 250px wide, 150px tall
-        max-w 250
-        max-h 150
-        scale (min 0.6
-                   (/ max-w raw-w)
-                   (/ max-h raw-h))
+        scale (min 0.6 (/ 250 raw-w) (/ 150 raw-h))
         sw (* raw-w scale)
         sh (* raw-h scale)
-        margin 16
-        ox (- canvas-w sw margin)
-        oy margin]
-    ;; Label
-    (set! (.-fillStyle ctx) "rgba(0,0,0,0.25)")
-    (set! (.-font ctx) (str "700 10px " game-font))
-    (set! (.-textAlign ctx) "right")
-    (set! (.-textBaseline ctx) "top")
-    (.fillText ctx "GOAL" (- ox 10) (+ oy (/ sh 2) -5))
-    ;; Draw scaled
-    (.save ctx)
-    (.translate ctx ox oy)
-    (.scale ctx scale scale)
-    (let [layouts (layout-node goal-tree 0 0 0 [])]
-      ;; Draw lists
-      (doseq [{:keys [x y w h depth type]} layouts]
-        (when (= type :list)
-          (let [ci (mod depth (count depth-colors))
-                fill (nth depth-colors ci)
-                border (nth depth-border-colors ci)]
-            (set! (.-fillStyle ctx) fill)
-            (set! (.-strokeStyle ctx) border)
-            (set! (.-lineWidth ctx) 1)
-            (draw-rounded-rect ctx x y w h 8)
-            (.fill ctx)
-            (.stroke ctx))))
-      ;; Draw atoms
-      (doseq [{:keys [x y w h type node]} layouts]
-        (when (= type :atom)
-          (draw-atom ctx x y w h node))))
-    (.restore ctx)))
+        margin 16]
+    {:x (- canvas-w sw margin) :y margin :w sw :h sh :scale scale}))
+
+(defn draw-goal-tree
+  "Draw goal tree — small preview, or magnified if hovered."
+  [ctx canvas-w canvas-h goal-tree mouse-x mouse-y]
+  (let [{:keys [x y w h scale]} (goal-preview-bounds canvas-w goal-tree)
+        hovered (and (>= mouse-x x) (<= mouse-x (+ x w))
+                     (>= mouse-y y) (<= mouse-y (+ y h)))]
+    (if hovered
+      ;; Magnified: draw centered, filling most of the canvas
+      (let [measure (measure-node goal-tree)
+            raw-w (:w measure)
+            raw-h (:h measure)
+            mag-scale (min 0.9
+                           (/ (* canvas-w 0.85) raw-w)
+                           (/ (* canvas-h 0.8) raw-h))
+            mag-w (* raw-w mag-scale)
+            mag-h (* raw-h mag-scale)
+            mag-x (/ (- canvas-w mag-w) 2)
+            mag-y (/ (- canvas-h mag-h) 2)]
+        ;; Semi-transparent backdrop
+        (set! (.-fillStyle ctx) "rgba(255,255,255,0.92)")
+        (.fillRect ctx 0 0 canvas-w canvas-h)
+        ;; Label
+        (set! (.-fillStyle ctx) "rgba(0,0,0,0.3)")
+        (set! (.-font ctx) (str "700 14px " game-font))
+        (set! (.-textAlign ctx) "center")
+        (set! (.-textBaseline ctx) "bottom")
+        (.fillText ctx "GOAL (move mouse away to close)" (/ canvas-w 2) (- mag-y 8))
+        ;; Draw magnified
+        (draw-goal-tree-at ctx goal-tree mag-x mag-y mag-scale))
+      ;; Small preview
+      (do
+        ;; Label
+        (set! (.-fillStyle ctx) "rgba(0,0,0,0.25)")
+        (set! (.-font ctx) (str "700 10px " game-font))
+        (set! (.-textAlign ctx) "right")
+        (set! (.-textBaseline ctx) "top")
+        (.fillText ctx "GOAL" (- x 10) (+ y (/ h 2) -5))
+        ;; Draw small
+        (draw-goal-tree-at ctx goal-tree x y scale)))))
 
 (defn draw-available-commands [ctx commands-list y-start row-h]
   ;; Check if any are disabled — show banner
@@ -500,7 +528,7 @@
 
 (defn render-frame
   "Render a complete frame."
-  [ctx canvas-w canvas-h game-state time-ms]
+  [ctx canvas-w canvas-h game-state time-ms mouse-x mouse-y]
   ;; Clear
   (set! (.-fillStyle ctx) "#ffffff")
   (.fillRect ctx 0 0 canvas-w canvas-h)
@@ -517,7 +545,7 @@
 
     ;; Draw goal tree preview for :shape goals
     (when goal-tree
-      (draw-goal-tree ctx canvas-w goal-tree))
+      (draw-goal-tree ctx canvas-w canvas-h goal-tree mouse-x mouse-y))
 
     ;; Draw available commands — fit all within canvas
     (when (seq available-commands)
