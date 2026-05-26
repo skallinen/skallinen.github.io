@@ -35,20 +35,23 @@
 (defn rank->score
   "Convert a 0-indexed rank position and total count to a 1-5 score.
    Position 0 is the best (highest score).
+   Uses the inverse normal CDF for bell-curve spacing, then rescales
+   so that #1 is always 5.0 and last is always 1.0 regardless of total.
    Returns a map {:raw score :display string}."
   [position total]
-  (if (<= total 0)
-    {:raw 3.0 :display "—"}
-    (let [;; Map position to percentile (0 = best = high percentile)
-          percentile (- 1.0 (/ (+ position 0.5) total))
-          z          (inv-normal-cdf percentile)
-          raw-score  (+ 3.0 (* z 0.6667))
-          clamped    (max 0.0 (min 6.0 raw-score))]
-      {:raw       clamped
-       :display   (cond
-                    (> clamped 5.0) "5+"
-                    (< clamped 1.0) "1-"
-                    :else           (.toFixed clamped 1))})))
+  (cond
+    (<= total 0) {:raw 3.0 :display "—"}
+    (= total 1)  {:raw 3.0 :display "3.0"}
+    :else
+    (let [;; Compute z-scores for this position, best, and worst
+          z-i   (inv-normal-cdf (- 1.0 (/ (+ position 0.5) total)))
+          z-max (inv-normal-cdf (- 1.0 (/ 0.5 total)))          ;; z for position 0 (best)
+          z-min (inv-normal-cdf (/ 0.5 total))                   ;; z for position n-1 (worst)
+          ;; Linearly rescale from [z-min, z-max] to [1, 5]
+          raw-score (+ 1.0 (* 4.0 (/ (- z-i z-min) (- z-max z-min))))
+          clamped   (max 1.0 (min 5.0 raw-score))]
+      {:raw     clamped
+       :display (.toFixed clamped 1)})))
 
 ;; =============================================
 ;; Reciprocal Rank Fusion (RRF)
