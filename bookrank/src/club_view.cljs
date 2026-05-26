@@ -21,6 +21,48 @@
     (>= score 2.5) "score-mid"
     :else           "score-low"))
 
+(defn score-bg-class [score]
+  (cond
+    (>= score 4.0) "score-bg-high"
+    (>= score 2.5) "score-bg-mid"
+    :else           "score-bg-low"))
+
+(defn book-revealed?
+  "Check if a book is revealed. Books without a :revealed field (legacy)
+   are treated as revealed for backward compatibility."
+  [book]
+  (let [v (:revealed book)]
+    (or (nil? v) (true? v))))
+
+(defn my-score-for-book
+  "Compute the current user's score for a specific book based on their ranking."
+  [book-id rankings]
+  (let [uid (:uid @auth/user)
+        my-ranking (get rankings uid)
+        order (or (:order my-ranking) [])
+        total (count order)
+        idx (.indexOf (to-array order) book-id)]
+    (when (>= idx 0)
+      (scoring/rank->score idx total))))
+
+(defn scorecard-overlay
+  "Full-screen overlay showing book title and the user's score in giant text.
+   Tap anywhere to dismiss."
+  [book-id books-map rankings]
+  (let [book (get books-map book-id)
+        score-data (my-score-for-book book-id rankings)]
+    (when (and book score-data)
+      [:div.scorecard-overlay
+       {:class (score-bg-class (:raw score-data))
+        :on-click (fn [e]
+                    (.stopPropagation e)
+                    (reset! state/scorecard-book nil))}
+       [:div.scorecard-book-title (or (:title book) "Untitled")]
+       [:div.scorecard-book-author (or (:author book) "")]
+       [:div.scorecard-score (:display score-data)]
+       [:div.scorecard-label "Your Score"]
+       [:div.scorecard-dismiss "tap to close"]])))
+
 (defn club-detail-view [club-id]
   (let [;; UI-only state (local to this component)
         show-add   (r/atom false)
@@ -50,12 +92,16 @@
             members-map  (into {} (map (fn [m] [(:id m) m]) @state/members))
             all-book-ids (set (keys books-map))
             agg-scores   (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids)
+            ;; Only include revealed books in aggregate sorting
+            revealed-books (filter book-revealed? @state/books)
             sorted-books (sort-by (fn [b]
                                     (let [sd (get agg-scores (:id b))]
                                       (if (and sd (not (:any-unranked? sd)))
                                         (- (or (:rrf-score sd) 0))
                                         100)))
-                                  @state/books)
+                                  revealed-books)
+            ;; Unrevealed books shown separately
+            unrevealed-books (filter (complement book-revealed?) @state/books)
             current-uid  (:uid @auth/user)
             confirm?     (boolean (:confirm_ranking @state/club))
             is-admin?    (or (= current-uid (:created_by @state/club))
@@ -63,6 +109,10 @@
                                                 (= (:role m) "admin")))
                                    @state/members))]
         [:div
+         ;; Scorecard overlay (full-screen score reveal)
+         (when-let [sc-book @state/scorecard-book]
+           [scorecard-overlay sc-book books-map @state/rankings])
+
          ;; Back link
          [:a.back-link {:on-click #(router/navigate! "#/clubs")} "← All Clubs"]
 
@@ -137,6 +187,7 @@
                   [:strong "reciprocal rank fusion"]
                   " to merge everyone's lists. Scores (1–5) follow a normal distribution. "
                   "A score only appears once every member has ranked or skipped a book."]
+                 ;; Revealed books — normal aggregate view
                  (doall
                   (map-indexed
                    (fn [idx book]
@@ -187,7 +238,27 @@
                                    :alt (or (:display_name member) "")}]
                                  [:span.member-name (or (:display_name member) "Unknown")]
                                  [:span {:style {:opacity 0.5 :font-size "0.85em"}} "skipped"]])))])]))
-                   sorted-books))]
+                   sorted-books))
+                 ;; Unrevealed books — locked, with admin reveal button
+                 (when (seq unrevealed-books)
+                   [:div.unread-section
+                    [:div.unread-label "🔒 Awaiting Reveal"]
+                    (doall
+                     (for [book unrevealed-books]
+                       [:div.book-item {:key (:id book)
+                                        :style {:opacity 0.7}}
+                        [:span.book-rank "·"]
+                        [:div.book-info
+                         [:div.book-title (:title book)]
+                         [:div.book-author (:author book)]]
+                        [:div {:style {:display "flex" :gap "6px" :align-items "center"}}
+                         [:span.unrevealed-badge "🔒 hidden"]
+                         (when is-admin?
+                           [:button.btn-reveal
+                            {:on-click (fn [e]
+                                         (.stopPropagation e)
+                                         (db/reveal-book! club-id (:id book) nil))}
+                            "Reveal"])]]))])]
 
                 :members
                 [:div.book-list

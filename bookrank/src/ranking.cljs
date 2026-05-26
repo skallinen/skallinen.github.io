@@ -2,7 +2,8 @@
   (:require [reagent.core :as r]
             [scoring]
             [db]
-            [auth]))
+            [auth]
+            [state]))
 
 ;; =============================================
 ;; Ranking View — Drag-and-Drop Book Ranking
@@ -151,7 +152,8 @@
              (map-indexed
               (fn [idx book-id]
                 (let [book  (get books-map book-id)
-                      score (scoring/rank->score idx total)]
+                      score (scoring/rank->score idx total)
+                      unrevealed? (and (some? (:revealed book)) (not (:revealed book)))]
                   [:div.ranking-item
                    {:key          book-id
                     :data-book-id book-id}
@@ -167,6 +169,14 @@
                               (>= (:raw score) 2.5) "score-mid"
                               :else                  "score-low")}
                     (:display score)]
+                   ;; Scorecard button for unrevealed books
+                   (when unrevealed?
+                     [:button.scorecard-trigger
+                      {:title    "Show full-screen score"
+                       :on-click (fn [e]
+                                   (.stopPropagation e)
+                                   (reset! state/scorecard-book book-id))}
+                      "📱 Show"])
                    [:div {:style {:display "flex" :gap "2px"}}
                     [:button.btn-icon
                      {:title    "Skip (haven't read)"

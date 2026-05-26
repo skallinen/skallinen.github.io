@@ -767,6 +767,154 @@ body.dark-mode .tab.active {
 }
 
 /* ========================================
+   Scorecard Overlay (Full-screen score reveal)
+   ======================================== */
+
+.scorecard-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    animation: scorecard-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.scorecard-overlay.score-bg-high {
+    background: linear-gradient(135deg, #1b5e20 0%, #2E7D32 40%, #43A047 100%);
+    color: #fff;
+}
+
+.scorecard-overlay.score-bg-mid {
+    background: linear-gradient(135deg, #e65100 0%, #F57C00 40%, #FF9800 100%);
+    color: #fff;
+}
+
+.scorecard-overlay.score-bg-low {
+    background: linear-gradient(135deg, #b71c1c 0%, #C62828 40%, #E53935 100%);
+    color: #fff;
+}
+
+.scorecard-book-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-align: center;
+    opacity: 0.9;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+    max-width: 90vw;
+}
+
+.scorecard-book-author {
+    font-size: 0.9rem;
+    font-weight: 400;
+    text-align: center;
+    opacity: 0.6;
+    margin-bottom: 32px;
+}
+
+.scorecard-score {
+    font-size: min(30vw, 180px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.scorecard-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.5;
+    margin-top: 24px;
+}
+
+.scorecard-dismiss {
+    font-size: 0.75rem;
+    opacity: 0.4;
+    margin-top: auto;
+    padding-bottom: 16px;
+}
+
+@keyframes scorecard-in {
+    from {
+        opacity: 0;
+        transform: scale(0.85);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Scorecard trigger button in ranking list */
+.scorecard-trigger {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--font-main);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.scorecard-trigger:hover {
+    color: var(--color-text);
+    border-color: var(--color-text);
+}
+
+/* Unrevealed badge in aggregate scores */
+.unrevealed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+    padding: 2px 8px;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--border-radius);
+}
+
+/* Reveal button for admin */
+.btn-reveal {
+    background: transparent;
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+    padding: 3px 10px;
+    font-family: var(--font-main);
+    cursor: pointer;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border-radius: var(--border-radius);
+    transition: all 0.2s;
+}
+
+.btn-reveal:hover {
+    background: var(--color-success);
+    color: #fff;
+}
+
+/* ========================================
    Responsive
    ======================================== */
 

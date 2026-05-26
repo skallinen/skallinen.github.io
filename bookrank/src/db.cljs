@@ -157,7 +157,8 @@
                           :author     author
                           :added_by   uid
                           :added_at   (ts-now)
-                          :date_read  (or date-read nil)}))
+                          :date_read  (or date-read nil)
+                          :revealed   false}))
           (.then (fn [_] (when callback (callback))))
           (.catch (fn [err] (js/console.error "[db] add-book error:" err)))))))
 
@@ -169,6 +170,15 @@
         (.then (fn [snapshot]
                  (reset! books-atom (mapv doc->map (seq (.-docs snapshot))))))
         (.catch (fn [err] (js/console.error "[db] fetch-books error:" err))))))
+
+(defn reveal-book!
+  "Reveal a book's scores (admin only). Sets revealed=true on the book doc."
+  [club-id book-id callback]
+  (when-let [db auth/firebase-db]
+    (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
+                 (clj->js {:revealed true}))
+        (.then (fn [] (when callback (callback))))
+        (.catch (fn [err] (js/console.error "[db] reveal-book error:" err))))))
 
 ;; -- Rankings --
 
