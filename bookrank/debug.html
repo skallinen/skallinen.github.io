@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookRank Debug</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; background: #050505; color: #f0f0f0; padding: 24px; max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 8px; }
+        h2 { font-size: 1rem; color: #9c9c9c; margin-top: 24px; }
+        .loading { color: #9c9c9c; }
+        .error { color: #ef5350; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.85rem; }
+        th { text-align: left; padding: 6px 10px; border-bottom: 2px solid #333; color: #9c9c9c; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 6px 10px; border-bottom: 1px solid #222; }
+        .missing { background: rgba(239, 83, 80, 0.15); }
+        .skipped { background: rgba(255, 183, 77, 0.1); }
+        .ranked { background: rgba(102, 187, 106, 0.1); }
+        .tag { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 2px; }
+        .tag-missing { background: #c62828; color: #fff; }
+        .tag-ranked { background: #2e7d32; color: #fff; }
+        .tag-skipped { background: #f57c00; color: #fff; }
+        .summary { padding: 12px; border: 1px solid #333; margin: 12px 0; line-height: 1.6; }
+        select { background: #111; color: #f0f0f0; border: 1px solid #333; padding: 8px 12px; font-family: inherit; font-size: 0.9rem; margin: 8px 0; }
+    </style>
+
+    <!-- Firebase (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <h1>🔍 BookRank Debug — Ranking Inspector</h1>
+    <div id="status" class="loading">Initializing Firebase...</div>
+    <div id="output"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",
+            authDomain: "book-club-e4916.firebaseapp.com",
+            projectId: "book-club-e4916",
+            storageBucket: "book-club-e4916.firebasestorage.app",
+            messagingSenderId: "910679044088",
+            appId: "1:910679044088:web:04f7c993a52c7f393af00d"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        const statusEl = document.getElementById('status');
+        const outputEl = document.getElementById('output');
+
+        const ADMIN_EMAIL = 'notjustsilicon@gmail.com';
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                statusEl.innerHTML = '<span class="error">Not logged in. Please log in at <a href="index.html" style="color:#39ff14">index.html</a> first, then refresh this page.</span>';
+                return;
+            }
+            if (user.email !== ADMIN_EMAIL) {
+                statusEl.innerHTML = '<span class="error">Access denied. Admin only.</span>';
+                return;
+            }
+            statusEl.textContent = `Logged in as ${user.displayName || user.email}. Loading clubs...`;
+
+            try {
+                // Fetch clubs
+                const clubsSnap = await db.collection('clubs').where('member_uids', 'array-contains', user.uid).get();
+                const clubs = clubsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                if (clubs.length === 0) {
+                    statusEl.textContent = 'No clubs found.';
+                    return;
+                }
+
+                // For each club, do the analysis
+                for (const club of clubs) {
+                    await analyzeClub(club);
+                }
+                statusEl.textContent = 'Debug complete.';
+            } catch (err) {
+                statusEl.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+                console.error(err);
+            }
+        });
+
+        async function analyzeClub(club) {
+            const clubId = club.id;
+
+            // Fetch books, members, rankings
+            const [booksSnap, membersSnap, rankingsSnap] = await Promise.all([
+                db.collection(`clubs/${clubId}/books`).get(),
+                db.collection(`clubs/${clubId}/members`).get(),
+                db.collection(`clubs/${clubId}/rankings`).get(),
+            ]);
+
+            const books = {};
+            booksSnap.docs.forEach(d => { books[d.id] = { id: d.id, ...d.data() }; });
+            const bookIds = new Set(Object.keys(books));
+
+            const members = {};
+            membersSnap.docs.forEach(d => { members[d.id] = { id: d.id, ...d.data() }; });
+
+            const rankings = {};
+            rankingsSnap.docs.forEach(d => { rankings[d.id] = d.data(); });
+
+            // Build output
+            let html = `<h2>📚 ${club.name} — ${Object.keys(books).length} books, ${Object.keys(members).length} members</h2>`;
+
+            // Member selector
+            const memberOptions = Object.values(members)
+                .map(m => `<option value="${m.id}">${m.display_name || m.email || m.id}</option>`)
+                .join('');
+            const selectId = `select-${clubId}`;
+            const detailId = `detail-${clubId}`;
+            html += `<label>Inspect member: <select id="${selectId}" onchange="showMember('${clubId}')">${memberOptions}</select></label>`;
+
+            // Summary table
+            html += `<div class="summary"><strong>Overview per member:</strong><table><tr><th>Member</th><th>Ranked</th><th>Skipped</th><th>Unranked (missing)</th><th>Stale IDs</th></tr>`;
+            for (const [uid, member] of Object.entries(members)) {
+                const ranking = rankings[uid];
+                const order = ranking?.order || [];
+                const unread = ranking?.unread || [];
+                const orderSet = new Set(order);
+                const unreadSet = new Set(unread);
+
+                const rankedCount = order.filter(id => bookIds.has(id)).length;
+                const skippedCount = unread.filter(id => bookIds.has(id)).length;
+                const staleInOrder = order.filter(id => !bookIds.has(id));
+                const staleInUnread = unread.filter(id => !bookIds.has(id));
+                const staleCount = staleInOrder.length + staleInUnread.length;
+
+                const missing = [...bookIds].filter(id => !orderSet.has(id) && !unreadSet.has(id));
+                const missingCount = missing.length;
+                const rowClass = missingCount > 0 ? 'missing' : '';
+
+                html += `<tr class="${rowClass}">
+                    <td>${member.display_name || member.email || uid}</td>
+                    <td>${rankedCount}</td>
+                    <td>${skippedCount}</td>
+                    <td><strong>${missingCount}</strong></td>
+                    <td>${staleCount > 0 ? `<span class="error">${staleCount}</span>` : '0'}</td>
+                </tr>`;
+            }
+            html += `</table></div>`;
+            html += `<div id="${detailId}"></div>`;
+
+            outputEl.innerHTML += html;
+
+            // Show first member by default
+            window.debugData = window.debugData || {};
+            window.debugData[clubId] = { books, members, rankings, bookIds };
+            showMember(clubId);
+        }
+
+        window.showMember = function(clubId) {
+            const { books, members, rankings, bookIds } = window.debugData[clubId];
+            const selectEl = document.getElementById(`select-${clubId}`);
+            const detailEl = document.getElementById(`detail-${clubId}`);
+            const uid = selectEl.value;
+            const member = members[uid];
+            const ranking = rankings[uid];
+
+            if (!ranking) {
+                detailEl.innerHTML = `<p class="error">${member.display_name || uid} has no ranking document at all.</p>`;
+                return;
+            }
+
+            const order = ranking.order || [];
+            const unread = ranking.unread || [];
+            const orderSet = new Set(order);
+            const unreadSet = new Set(unread);
+
+            let html = `<h2>${member.display_name || uid} — Detail</h2>`;
+            html += `<table><tr><th>#</th><th>Book</th><th>Author</th><th>Status</th></tr>`;
+
+            // All books with their status
+            const allBooksSorted = Object.values(books).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            allBooksSorted.forEach((book, i) => {
+                let status, cls, tagCls;
+                if (orderSet.has(book.id)) {
+                    const pos = order.indexOf(book.id);
+                    status = `Ranked #${pos + 1}`;
+                    cls = 'ranked';
+                    tagCls = 'tag-ranked';
+                } else if (unreadSet.has(book.id)) {
+                    status = 'Skipped';
+                    cls = 'skipped';
+                    tagCls = 'tag-skipped';
+                } else {
+                    status = 'MISSING';
+                    cls = 'missing';
+                    tagCls = 'tag-missing';
+                }
+                html += `<tr class="${cls}">
+                    <td>${i + 1}</td>
+                    <td>${book.title || book.id}</td>
+                    <td>${book.author || ''}</td>
+                    <td><span class="tag ${tagCls}">${status}</span></td>
+                </tr>`;
+            });
+
+            // Stale IDs (in ranking but book no longer exists)
+            const staleOrder = order.filter(id => !bookIds.has(id));
+            const staleUnread = unread.filter(id => !bookIds.has(id));
+            if (staleOrder.length > 0 || staleUnread.length > 0) {
+                html += `</table><h2 style="color:#ef5350">⚠ Stale IDs (in ranking but book deleted)</h2><table><tr><th>Book ID</th><th>Was in</th></tr>`;
+                staleOrder.forEach(id => {
+                    html += `<tr class="missing"><td>${id}</td><td>order</td></tr>`;
+                });
+                staleUnread.forEach(id => {
+                    html += `<tr class="missing"><td>${id}</td><td>unread</td></tr>`;
+                });
+            }
+
+            html += `</table>`;
+            html += `<div class="summary">
+                <strong>Raw ranking data:</strong><br>
+                order: ${order.length} entries<br>
+                unread: ${unread.length} entries<br>
+                updated_at: ${ranking.updated_at?.toDate?.() || 'N/A'}
+            </div>`;
+
+            detailEl.innerHTML = html;
+        };
+    </script>
+</body>
+</html>
