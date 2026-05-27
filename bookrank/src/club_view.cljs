@@ -50,22 +50,18 @@
 
 (defn scorecard-overlay
   "Full-screen overlay showing book title and the user's score in giant text.
-   Includes a 140-char opinion input that auto-saves.
-   Tap anywhere (except the input) to dismiss."
+   Includes a 140-char opinion with submit/edit flow.
+   Tap anywhere (except the opinion area) to dismiss."
   [book-id books-map rankings club-id]
   (let [book (get books-map book-id)
         score-data (my-score-for-book book-id rankings)
         uid (:uid @auth/user)
         my-ranking (get rankings uid)
         existing-opinion (get (:opinions my-ranking) (keyword book-id) "")
+        has-existing? (and existing-opinion (seq existing-opinion))
         opinion-text (r/atom (or existing-opinion ""))
-        save-timer (atom nil)
-        do-save! (fn []
-                   (when @save-timer (js/clearTimeout @save-timer))
-                   (reset! save-timer
-                           (js/setTimeout
-                            #(db/save-opinion! club-id book-id @opinion-text nil)
-                            500)))]
+        editing? (r/atom (not has-existing?))
+        saving? (r/atom false)]
     (fn [book-id books-map rankings club-id]
       (let [book (get books-map book-id)
             score-data (my-score-for-book book-id rankings)]
@@ -82,16 +78,37 @@
            [:div.scorecard-label "Your Score"]
            [:div.scorecard-opinion
             {:on-click (fn [e] (.stopPropagation e))}
-            [:textarea.opinion-input
-             {:placeholder "Your take (140 chars)"
-              :max-length 140
-              :value @opinion-text
-              :on-change (fn [e]
-                           (let [v (.. e -target -value)]
-                             (when (<= (count v) 140)
-                               (reset! opinion-text v)
-                               (do-save!))))}]
-            [:div.opinion-counter (str (count @opinion-text) "/140")]]
+            (if @editing?
+              ;; Editing mode: textarea + submit
+              [:<>
+               [:textarea.opinion-input
+                {:placeholder "Your take (140 chars)"
+                 :max-length 140
+                 :value @opinion-text
+                 :auto-focus true
+                 :on-change (fn [e]
+                              (let [v (.. e -target -value)]
+                                (when (<= (count v) 140)
+                                  (reset! opinion-text v))))}]
+               [:div {:style {:display "flex" :justify-content "space-between"
+                              :align-items "center" :margin-top "6px"}}
+                [:div.opinion-counter (str (count @opinion-text) "/140")]
+                [:button.btn-opinion-submit
+                 {:disabled (or @saving? (empty? @opinion-text))
+                  :on-click (fn []
+                              (reset! saving? true)
+                              (db/save-opinion! club-id book-id @opinion-text
+                                                (fn []
+                                                  (reset! saving? false)
+                                                  (reset! editing? false))))}
+                 (if @saving? "..." "Submit")]]]
+              ;; Submitted mode: rendered text + edit button
+              (when (seq @opinion-text)
+                [:<>
+                 [:div.opinion-submitted (str "\"" @opinion-text "\"")]
+                 [:button.btn-opinion-edit
+                  {:on-click #(reset! editing? true)}
+                  "Edit"]]))]
            [:div.scorecard-dismiss "tap to close"]])))))
 
 (defn club-detail-view [club-id]

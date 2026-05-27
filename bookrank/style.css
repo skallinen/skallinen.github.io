@@ -883,6 +883,57 @@ body.dark-mode .tab.active {
     margin-top: 4px;
 }
 
+.opinion-submitted {
+    font-size: 0.95rem;
+    font-style: italic;
+    line-height: 1.4;
+    opacity: 0.85;
+    text-align: center;
+}
+
+.btn-opinion-submit {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: #fff;
+    font-family: var(--font-main);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 5px 14px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-opinion-submit:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.btn-opinion-submit:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.btn-opinion-edit {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: var(--font-main);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    margin-top: 8px;
+    padding: 2px 8px;
+    transition: color 0.2s;
+}
+
+.btn-opinion-edit:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
 /* Opinion display in ranking list */
 .book-opinion {
     font-size: 0.75rem;
