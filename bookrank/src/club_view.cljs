@@ -35,7 +35,8 @@
     (or (nil? v) (true? v))))
 
 (defn my-score-for-book
-  "Compute the current user's score for a specific book based on their ranking."
+  "Compute the current user's score for a specific book based on their ranking.
+   Returns the score data merged with :position and :total."
   [book-id rankings]
   (let [uid (:uid @auth/user)
         my-ranking (get rankings uid)
@@ -43,7 +44,9 @@
         total (count order)
         idx (.indexOf (to-array order) book-id)]
     (when (>= idx 0)
-      (scoring/rank->score idx total))))
+      (assoc (scoring/rank->score idx total)
+             :position (inc idx)
+             :total total))))
 
 (defn scorecard-overlay
   "Full-screen overlay showing book title and the user's score in giant text.
@@ -60,6 +63,7 @@
        [:div.scorecard-book-title (or (:title book) "Untitled")]
        [:div.scorecard-book-author (or (:author book) "")]
        [:div.scorecard-score (:display score-data)]
+       [:div.scorecard-rank (str "#" (:position score-data) " / " (:total score-data))]
        [:div.scorecard-label "Your Score"]
        [:div.scorecard-dismiss "tap to close"]])))
 
