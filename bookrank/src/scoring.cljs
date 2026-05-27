@@ -56,7 +56,8 @@
 ;; =============================================
 ;; Reciprocal Rank Fusion (RRF)
 ;; Standard algorithm for merging ranked lists.
-;; Score(book) = Σ 1/(k + rank), where k=60
+;; Score(book) = avg( 1/(k + rank) ), where k=60
+;; Averaged over rankers so skip count doesn't bias results.
 ;; =============================================
 
 (defn compute-aggregate-scores
@@ -81,6 +82,7 @@
                                member-ids))
         ;; Collect per-book RRF scores and member scores
         book-rrf     (atom {})   ;; {book-id -> rrf-total}
+        book-rankers (atom {})   ;; {book-id -> count of members who ranked it}
         book-members (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
         book-unread  (atom {})]  ;; {book-id -> #{uid}}
     ;; Calculate RRF scores from each member's ranking
@@ -94,6 +96,8 @@
                 {:keys [raw]} (rank->score idx total)]
             (swap! book-rrf update book-id
                    (fn [v] (+ (or v 0) rrf-contribution)))
+            (swap! book-rankers update book-id
+                   (fn [v] (inc (or v 0))))
             (swap! book-members update book-id
                    (fn [entries]
                      (conj (or entries [])
@@ -102,8 +106,12 @@
         (doseq [book-id unread]
           (swap! book-unread update book-id
                  (fn [s] (conj (or s #{}) uid))))))
-    ;; Sort books by RRF score (descending) and assign display scores
-    (let [scored-books (sort-by (fn [[_ rrf]] (- rrf)) @book-rrf)
+    ;; Average RRF by ranker count, then sort descending
+    (let [book-rrf-avg (into {} (map (fn [[bid total]]
+                                       (let [n (get @book-rankers bid 1)]
+                                         [bid (/ total n)]))
+                                     @book-rrf))
+          scored-books (sort-by (fn [[_ rrf]] (- rrf)) book-rrf-avg)
           total-scored (count scored-books)
           ;; Assign position-based display scores
           scored-with-pos (map-indexed
