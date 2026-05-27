@@ -846,6 +846,61 @@ body.dark-mode .tab.active {
     margin-top: 24px;
 }
 
+/* Opinion input in scorecard modal */
+.scorecard-opinion {
+    margin-top: 20px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.opinion-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--border-radius);
+    color: #fff;
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    padding: 10px 12px;
+    resize: none;
+    height: 60px;
+    line-height: 1.4;
+}
+
+.opinion-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.opinion-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.opinion-counter {
+    font-size: 0.7rem;
+    opacity: 0.4;
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* Opinion display in ranking list */
+.book-opinion {
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--color-accent);
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+/* Opinion in aggregate expanded view */
+.member-opinion {
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--color-accent);
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
 .scorecard-dismiss {
     font-size: 0.75rem;
     opacity: 0.4;
