@@ -31,8 +31,11 @@
     [:span "info"]]
    [:div {:style {:padding "4px 0 2px 12px" :line-height "1.4"}}
     (when (and opinion (seq opinion))
-      [:div.book-opinion (str "\"" opinion "\"")])
-    [:div {:style {:display "flex" :gap "10px" :margin-bottom "3px"}}
+      [:div.book-opinion [:span.opinion-label "opinion tweet: "] (str "\"" opinion "\"")])
+    (when (:synopsis book)
+      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3" :margin-bottom "3px"}}
+       (:synopsis book)])
+    [:div {:style {:display "flex" :gap "10px"}}
      [:a {:href (book-search-url :storygraph (or (:title book) ""))
           :target "_blank"
           :style {:color "#888" :text-decoration "none"}}
@@ -40,10 +43,7 @@
      [:a {:href (book-search-url :wikipedia (or (:title book) ""))
           :target "_blank"
           :style {:color "#888" :text-decoration "none"}}
-      "Wikipedia ↗"]]
-    (when (:synopsis book)
-      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3"}}
-       (:synopsis book)])]])
+      "Wikipedia ↗"]]]])
 
 (defonce sortable-instance (atom nil))
 
