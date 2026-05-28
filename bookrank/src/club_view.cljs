@@ -272,14 +272,14 @@
                               (let [member (get members-map uid)
                                     member-ranking (get @state/rankings uid)
                                     opinion (get (:opinions member-ranking) (keyword (:id book)) nil)]
-                                [:div.member-rating-row {:key uid}
+                                [:div.member-rating-row {:key uid
+                                                          :class (when (and opinion (seq opinion)) "has-tooltip")}
                                  [:img.member-avatar-small
                                   {:src (or (:photo_url member) "")
                                    :alt (or (:display_name member) "")}]
-                                 [:div {:style {:flex 1}}
-                                  [:span.member-name (or (:display_name member) "Unknown")]
-                                  (when (and opinion (seq opinion))
-                                    [:div.member-opinion (str "\"" opinion "\"")])]
+                                 [:span.member-name (or (:display_name member) "Unknown")]
+                                 (when (and opinion (seq opinion))
+                                   [:div.member-tooltip (str "\"" opinion "\"")])
                                  [:span.member-score {:class (score-class score)}
                                   (.toFixed score 1)]])))
                            (doall
