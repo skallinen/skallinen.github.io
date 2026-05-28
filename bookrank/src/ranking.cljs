@@ -31,9 +31,9 @@
     [:span "info"]]
    [:div {:style {:padding "4px 0 2px 12px" :line-height "1.4"}}
     (when (and opinion (seq opinion))
-      [:div.book-opinion [:span.opinion-label "opinion tweet: "] (str "\"" opinion "\"")])
+      [:div.book-opinion [:span.opinion-label "Opinion tweet: "] (str "\"" opinion "\"")])
     (when (:synopsis book)
-      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3" :margin-bottom "3px"}}
+      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3" :margin-bottom "8px"}}
        (:synopsis book)])
     [:div {:style {:display "flex" :gap "10px"}}
      [:a {:href (book-search-url :storygraph (or (:title book) ""))
