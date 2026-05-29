@@ -429,8 +429,7 @@ body.dark-mode .form-input:focus {
 .book-score {
     font-size: 1.1rem;
     font-weight: 700;
-    min-width: 40px;
-    text-align: center;
+    text-align: right;
 }
 
 .book-score.score-high {
