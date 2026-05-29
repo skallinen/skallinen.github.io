@@ -575,14 +575,14 @@
                          (when-let [dt (format-date (:revealed_at book))]
                            [:div {:style {:font-size "0.7rem" :color "var(--color-accent)" :margin-top "1px"}} dt])]
                         (if show-score?
-                          [:div {:style {:text-align "right"}}
+                          [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}}
                            (let [ranked-count (count (:member-scores score-data))]
                              (when (< ranked-count 3)
                                [:div.book-voters
                                 (str "Only " ranked-count " of " (count member-ids) " ranked")]))
                            [:div.book-score {:class (score-class (:score score-data))}
                             (:display score-data)]]
-                          [:div {:style {:text-align "right"}
+                          [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}
                                  :title "Score appears once every member has ranked or skipped this book"}
                            [:div.book-score {:style {:color "var(--color-accent)"}} "\u2014"]
                            (when score-data
