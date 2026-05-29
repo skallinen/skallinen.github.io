@@ -187,23 +187,40 @@
             ;; Back link
              [:a.back-link {:on-click close! :style {:cursor "pointer"}} "\u2190 Back"]
 
-            ;; Header: title + rank
+            ;; Header: title + ranks
             [:div.modal-header
              [:h3.modal-title (or (:title book) "Untitled")]
-             (when score-data
-               [:span {:style {:font-size "0.8rem" :color "var(--color-accent)" :margin-left "4px"}}
-                (str "#" (:position score-data) " / " (:total score-data))])
+             [:div {:style {:display "flex" :gap "12px" :align-items "center" :margin-top "2px"}}
+              (when score-data
+                [:span {:style {:font-size "0.8rem" :color "var(--color-accent)"}}
+                 (str "#" (:position score-data) " / " (:total score-data))])
+              (when (and all-rated? agg-data)
+                (let [sorted-ids (->> agg-scores
+                                      (filter (fn [[_ v]] (not (:any-unranked? v))))
+                                      (sort-by (fn [[_ v]] (- (:score v))))
+                                      (map-indexed (fn [i [bid _]] [bid (inc i)])))
+                      agg-rank (some (fn [[bid r]] (when (= bid book-id) r)) sorted-ids)
+                      agg-total (count sorted-ids)]
+                  [:span {:style {:font-size "0.8rem" :color "#888"}}
+                   (str "Aggregate #" agg-rank " / " agg-total)]))]
              ;; Author
              [:div.modal-author (or (:author book) "")]]
 
             ;; Score
-            (when score-data
+            (when (or score-data (and all-rated? agg-data))
               [:div.modal-score-section
-               [:div
-                [:div.modal-score-big
-                 {:class (score-class (:raw score-data))}
-                 (:display score-data)]
-                [:div.modal-score-label "Your Score"]]])
+               (when score-data
+                 [:div
+                  [:div.modal-score-big
+                   {:class (score-class (:raw score-data))}
+                   (:display score-data)]
+                  [:div.modal-score-label "Your Score"]])
+               (when (and all-rated? agg-data)
+                 [:div {:style (when score-data {:margin-left "24px"})}
+                  [:div.modal-score-big
+                   {:class (score-class (:score agg-data))}
+                   (:display agg-data)]
+                  [:div.modal-score-label "Aggregate"]])])
 
             ;; Synopsis
             (when (:synopsis book)
@@ -307,6 +324,7 @@
                               (when (seq new-uid)
                                 (db/update-book-chosen-by! club-id book-id new-uid nil))))}
               [:option {:value ""} "\u2014 select \u2014"]
+              [:option {:value "unclaimed"} "Unclaimed"]
               (doall
                (for [m @state/members]
                  [:option {:key (:id m) :value (:id m)}
