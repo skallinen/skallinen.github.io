@@ -149,16 +149,18 @@
 
 (defn add-book!
   "Add a book to a club."
-  [club-id title author date-read callback]
+  [club-id title author date-read callback & [{:keys [synopsis]}]]
   (when-let [db auth/firebase-db]
-    (let [uid (:uid @auth/user)]
+    (let [uid (:uid @auth/user)
+          doc (cond-> {:title      title
+                       :author     author
+                       :added_by   uid
+                       :added_at   (ts-now)
+                       :date_read  (or date-read nil)
+                       :revealed   false}
+                synopsis (assoc :synopsis synopsis))]
       (-> (.add (.collection db (str "clubs/" club-id "/books"))
-                (clj->js {:title      title
-                          :author     author
-                          :added_by   uid
-                          :added_at   (ts-now)
-                          :date_read  (or date-read nil)
-                          :revealed   false}))
+                (clj->js doc))
           (.then (fn [_] (when callback (callback))))
           (.catch (fn [err] (js/console.error "[db] add-book error:" err)))))))
 
@@ -172,22 +174,39 @@
         (.catch (fn [err] (js/console.error "[db] fetch-books error:" err))))))
 
 (defn reveal-book!
-  "Reveal a book's scores (admin only). Sets revealed=true and revealed_at=now."
+  "Reveal a book's scores (admin only). Sets revealed=true and revealed_at=now.
+   Also sets discussed_at to now if not already set."
   [club-id book-id callback]
   (when-let [db auth/firebase-db]
-    (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
-                 (clj->js {:revealed true :revealed_at (ts-now)}))
-        (.then (fn [] (when callback (callback))))
+    ;; First read the book to check if discussed_at is already set
+    (-> (.get (.doc db (str "clubs/" club-id "/books/" book-id)))
+        (.then (fn [doc]
+                 (let [data (js->clj (.data doc) :keywordize-keys true)
+                       updates (cond-> {:revealed true :revealed_at (ts-now)}
+                                 (not (:discussed_at data))
+                                 (assoc :discussed_at (ts-now)))]
+                   (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
+                                (clj->js updates))
+                       (.then (fn [] (when callback (callback))))))))
         (.catch (fn [err] (js/console.error "[db] reveal-book error:" err))))))
 
 (defn update-book-date!
-  "Update the meeting date (revealed_at) for a book. Admin only."
+  "Update the discussed_at date for a book."
   [club-id book-id date-str callback]
   (when-let [db auth/firebase-db]
     (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
-                 (clj->js {:revealed_at date-str}))
+                 (clj->js {:discussed_at date-str}))
         (.then (fn [] (when callback (callback))))
         (.catch (fn [err] (js/console.error "[db] update-book-date error:" err))))))
+
+(defn update-book-chosen-by!
+  "Update the chosen_by (added_by) field for a book."
+  [club-id book-id uid callback]
+  (when-let [db auth/firebase-db]
+    (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
+                 (clj->js {:added_by uid}))
+        (.then (fn [] (when callback (callback))))
+        (.catch (fn [err] (js/console.error "[db] update-book-chosen-by error:" err))))))
 
 ;; -- Rankings --
 

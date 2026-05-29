@@ -119,7 +119,7 @@
 (defn format-date [ts]
   (when ts
     (try
-      (let [d (if (string? ts) (js/Date. ts) (js/Date. (.-seconds ts)))]
+      (let [d (if (string? ts) (js/Date. ts) (js/Date. (* 1000 (.-seconds ts))))]
         (when-not (js/isNaN (.getTime d))
           (.toLocaleDateString d "en-US" (clj->js {:year "numeric" :month "long"}))))
       (catch :default _ nil))))
@@ -296,43 +296,54 @@
                       [:span.member-name (or (:display_name member) "Unknown")]
                       [:span {:style {:opacity 0.5 :font-size "0.85em"}} "skipped"]])))]])
 
-            ;; Chosen by
-            (when-let [added-uid (:added_by book)]
-              (let [added-member (get members-map added-uid)]
-                (when added-member
-                  [:div.modal-section
-                   [:div.modal-section-label "Chosen by"]
-                   [:div {:style {:font-size "0.85rem"}} (or (:display_name added-member) "Unknown")]])))
+            ;; Chosen by (always editable)
+            [:div.modal-section
+             [:div.modal-section-label "Chosen by"]
+             [:select.modal-date-input
+              {:value (or (:added_by book) "")
+               :style {:width "auto" :min-width "150px"}
+               :on-change (fn [e]
+                            (let [new-uid (.. e -target -value)]
+                              (when (seq new-uid)
+                                (db/update-book-chosen-by! club-id book-id new-uid nil))))}
+              [:option {:value ""} "\u2014 select \u2014"]
+              (doall
+               (for [m @state/members]
+                 [:option {:key (:id m) :value (:id m)}
+                  (or (:display_name m) (:email m))]))
+              [:option {:value "past-peter"} "Peter (past)"]
+              [:option {:value "past-jocke"} "Jocke (past)"]]
 
-            ;; Meeting date
-            (when revealed?
-              [:div.modal-section
-               [:div.modal-section-label "Book Club Meeting"]
-               (if @date-editing?
-                 [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
-                  [:input.modal-date-input
-                   {:type "date"
-                    :value @date-value
-                    :on-change #(reset! date-value (.. % -target -value))}]
-                  [:button.modal-btn.modal-btn-small
-                   {:style {:width "auto"}
-                    :on-click (fn []
-                                (db/update-book-date! club-id book-id @date-value nil)
-                                (reset! date-editing? false))}
-                   "Save"]
-                  [:button.modal-btn.modal-btn-small
-                   {:style {:width "auto"}
-                    :on-click #(reset! date-editing? false)}
-                   "Cancel"]]
-                 [:div.modal-meeting-date
-                  (or (format-date (:revealed_at book)) "Date not set")
-                  (when is-admin?
-                    [:button.modal-btn.modal-btn-small
-                     {:style {:width "auto"}
-                      :on-click (fn []
-                                  (reset! date-value "")
-                                  (reset! date-editing? true))}
-                     "Edit"])])])
+            ;; Discussed date (always editable)
+            [:div.modal-section
+             [:div.modal-section-label "Discussed"]
+             (if @date-editing?
+               [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
+                [:input.modal-date-input
+                 {:type "date"
+                  :value @date-value
+                  :on-change #(reset! date-value (.. % -target -value))}]
+                [:button.modal-btn.modal-btn-small
+                 {:style {:width "auto"}
+                  :on-click (fn []
+                              (db/update-book-date! club-id book-id @date-value nil)
+                              (reset! date-editing? false))}
+                 "Save"]
+                [:button.modal-btn.modal-btn-small
+                 {:style {:width "auto"}
+                  :on-click #(reset! date-editing? false)}
+                 "Cancel"]]
+               [:div.modal-meeting-date
+                (let [discussed (:discussed_at book)
+                      display-date (or (when discussed (format-date discussed))
+                                       (when revealed? (format-date (:revealed_at book))))]
+                  (or display-date "Not set"))
+                [:button.modal-btn.modal-btn-small
+                 {:style {:width "auto"}
+                  :on-click (fn []
+                              (reset! date-value "")
+                              (reset! date-editing? true))}
+                 "Edit"]])]
 
             ;; Links
             [:div.modal-section
@@ -344,16 +355,18 @@
                    :target "_blank"}
                "Wikipedia \u2197"]]]
 
+            ;; Show Score (unrevealed books, any context)
+            (when (and unrevealed? is-ranked?)
+              [:div.modal-actions
+               [:button.modal-btn.modal-btn-accent
+                {:on-click (fn []
+                             (close!)
+                             (reset! state/scorecard-book book-id))}
+                "Show Score"]])
+
             ;; Action buttons at the bottom (ranking context)
             (when (= context :ranking)
               [:div.modal-actions
-               ;; Show Score (unrevealed books only)
-               (when (and unrevealed? is-ranked?)
-                 [:button.modal-btn.modal-btn-accent
-                  {:on-click (fn []
-                               (close!)
-                               (reset! state/scorecard-book book-id))}
-                  "Show Score"])
 
                ;; Move to position (ranked books only)
                (when is-ranked?
@@ -414,7 +427,7 @@
                [:button.modal-btn.modal-btn-primary
                 {:on-click (fn []
                              (db/reveal-book! club-id book-id nil))}
-                "Reveal Scores"]])]])))))
+                "Reveal Scores"]])]]])))))
 
 (defn club-detail-view [club-id]
   (let [;; UI-only state (local to this component)
