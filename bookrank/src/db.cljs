@@ -172,13 +172,22 @@
         (.catch (fn [err] (js/console.error "[db] fetch-books error:" err))))))
 
 (defn reveal-book!
-  "Reveal a book's scores (admin only). Sets revealed=true on the book doc."
+  "Reveal a book's scores (admin only). Sets revealed=true and revealed_at=now."
   [club-id book-id callback]
   (when-let [db auth/firebase-db]
     (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
-                 (clj->js {:revealed true}))
+                 (clj->js {:revealed true :revealed_at (ts-now)}))
         (.then (fn [] (when callback (callback))))
         (.catch (fn [err] (js/console.error "[db] reveal-book error:" err))))))
+
+(defn update-book-date!
+  "Update the meeting date (revealed_at) for a book. Admin only."
+  [club-id book-id date-str callback]
+  (when-let [db auth/firebase-db]
+    (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
+                 (clj->js {:revealed_at date-str}))
+        (.then (fn [] (when callback (callback))))
+        (.catch (fn [err] (js/console.error "[db] update-book-date error:" err))))))
 
 ;; -- Rankings --
 

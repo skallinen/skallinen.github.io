@@ -35,6 +35,10 @@
 ;; Holds the book ID to display as a full-screen score card, or nil.
 (defonce scorecard-book (r/atom nil))
 
+;; -- Book Detail Modal --
+;; Holds {:book-id "..." :context :ranking|:aggregate :callbacks {...}} or nil.
+(defonce detail-modal (r/atom nil))
+
 ;; -- Firestore Subscriptions --
 ;; Holds unsubscribe functions from .onSnapshot() listeners.
 ;; Must be cleaned up when navigating to a different club.
@@ -61,6 +65,7 @@
   (reset! members [])
   (reset! rankings {})
   (reset! scorecard-book nil)
+  (reset! detail-modal nil)
   (reset! club-loading true))
 
 (defn books-map
