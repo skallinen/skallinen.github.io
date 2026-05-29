@@ -1346,8 +1346,17 @@ body.dark-mode .tab.active {
     border-radius: var(--border-radius);
     color: var(--color-text);
     font-family: var(--font-main);
-    font-size: 0.8rem;
-    padding: 4px 8px;
+    font-size: 1rem;
+    padding: 8px 10px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+select.modal-date-input {
+    -webkit-appearance: menulist;
+    appearance: menulist;
+    min-height: 44px;
+    font-size: 1rem;
 }
 
 .modal-date-input:focus {
