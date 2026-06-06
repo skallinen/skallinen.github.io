@@ -669,48 +669,20 @@
             [reagent.dom :as rdom]))
 
 ;; ═══════════════════════════════════════════════════════════
-;; MODEL COEFFICIENTS: posterior mean and SD
-;; (from M3 NUTS sampling, 4 chains x 2000 draws)
+;; POSTERIOR DRAWS (loaded from posterior_draws.json)
+;; True Bayesian prediction: 500 actual MCMC draws preserving
+;; the full correlation structure between all 31 parameters.
 ;; ═══════════════════════════════════════════════════════════
 
-(def sample-rate (/ 216.0 654.0))
+(def posterior-data (r/atom nil))
+(def sample-rate 0.330275)
 
-;; Each entry is [mean, sd] from the posterior
-(def coeff-alpha    [-1.149 0.447])
-(def coeff-betas
-  {:depth     [0.868 0.160]
-   :daylight  [-1.291 0.258]
-   :autopilot [-0.589 0.229]
-   :speed     [-0.067 0.104]
-   :length    [0.052 0.142]
-   :distance  [0.207 0.141]
-   :wind      [-0.050 0.120]
-   :sea       [-0.159 0.118]})
+;; Load the posterior draws JSON on startup
+(-> (js/fetch "posterior_draws.json")
+    (.then #(.json %))
+    (.then #(reset! posterior-data (js->clj % :keywordize-keys true))))
 
-(def coeff-sailing
-  {"Hove-to"       [-0.004 0.507]
-   "Motoring"      [1.050 0.314]
-   "Motorsailing"  [0.241 0.310]
-   "Sailing"       [0.189 0.319]})
-
-(def coeff-antifoul
-  {"Black"      [0.727 0.253]
-   "Blue"       [0.302 0.272]
-   "Coppercoat" [-0.253 0.315]
-   "Red"        [0.170 0.342]
-   "White"      [0.144 0.337]})
-
-(def coeff-hull
-  {"Dark"        [0.547 0.355]
-   "White/light" [0.774 0.344]})
-
-(def coeff-rudder
-  {"Full skeg"    [0.238 0.301]
-   "Spade"        [0.316 0.271]
-   "Twin rudder"  [0.298 0.297]
-   "Semi skeg"    [0.262 0.316]})
-
-;; Standardization parameters (from metadata.json)
+;; Standardization parameters
 (def std-params
   {:depth    {:mean 1.708 :sd 0.951}
    :distance {:mean 1.355 :sd 1.147}
@@ -726,82 +698,67 @@
 (defn sigmoid [x]
   (/ 1.0 (+ 1.0 (js/Math.exp (- x)))))
 
-;; ═══════════════════════════════════════════════════════════
-;; RANDOM SAMPLING (Box-Muller transform for normal variates)
-;; ═══════════════════════════════════════════════════════════
-
-(defn rand-normal
-  "Sample from Normal(mu, sigma) using Box-Muller."
-  [mu sigma]
-  (let [u1 (js/Math.random)
-        u2 (js/Math.random)
-        z (* (js/Math.sqrt (* -2.0 (js/Math.log u1)))
-             (js/Math.cos (* 2.0 js/Math.PI u2)))]
-    (+ mu (* sigma z))))
-
-(defn sample-coeff [[mu sd]]
-  (rand-normal mu sd))
-
 ;; King & Zeng (2001) intercept correction
 (defn king-zeng-offset [base-rate]
   (- (js/Math.log (/ base-rate (- 1.0 base-rate)))
      (js/Math.log (/ sample-rate (- 1.0 sample-rate)))))
 
-;; Draw one sample from the full posterior and compute P(interaction)
-(defn sample-prediction [params base-rate]
-  (let [logit (+ (sample-coeff coeff-alpha)
-                 (* (sample-coeff (:depth coeff-betas))
-                    (standardize (:depth params) :depth))
-                 (* (sample-coeff (:distance coeff-betas))
-                    (standardize (:distance params) :distance))
-                 (* (sample-coeff (:speed coeff-betas))
-                    (standardize (:speed params) :speed))
-                 (* (sample-coeff (:length coeff-betas))
-                    (standardize (:length params) :length))
-                 (* (sample-coeff (:wind coeff-betas))
-                    (standardize (:wind params) :wind))
-                 (* (sample-coeff (:sea coeff-betas))
-                    (standardize (:sea params) :sea))
-                 (* (sample-coeff (:daylight coeff-betas))
-                    (:daylight params))
-                 (* (sample-coeff (:autopilot coeff-betas))
-                    (:autopilot params))
-                 (sample-coeff (get coeff-sailing (:sailing params) [0 0.5]))
-                 (sample-coeff (get coeff-antifoul (:antifoul params) [0 0.5]))
-                 (sample-coeff (get coeff-hull (:hull params) [0 0.5]))
-                 (sample-coeff (get coeff-rudder (:rudder params) [0 0.3]))
+;; Category name -> index in the draw vector
+;; Layout: [alpha(0), b_depth(1), b_daylight(2), b_autopilot(3), b_speed(4),
+;;          b_length(5), b_distance(6), b_wind(7), b_sea(8),
+;;          s_0..s_4(9-13), a_0..a_7(14-21), h_0..h_2(22-24), r_0..r_5(25-30)]
+
+(def sailing-idx
+  {"Hove-to" 9 "Motoring" 10 "Motorsailing" 11 "Sailing" 12})
+
+(def antifoul-idx
+  {"Black" 14 "Blue" 15 "Coppercoat" 16 "Red" 19 "White" 21})
+
+(def hull-idx
+  {"Dark" 22 "White/light" 24})
+
+(def rudder-idx
+  {"Full skeg" 25 "Semi skeg" 27 "Spade" 28 "Twin rudder" 29})
+
+;; Compute prediction from a single posterior draw
+(defn predict-from-draw [draw params base-rate]
+  (let [logit (+ (nth draw 0)  ;; alpha
+                 (* (nth draw 1) (standardize (:depth params) :depth))
+                 (* (nth draw 2) (:daylight params))
+                 (* (nth draw 3) (:autopilot params))
+                 (* (nth draw 4) (standardize (:speed params) :speed))
+                 (* (nth draw 5) (standardize (:length params) :length))
+                 (* (nth draw 6) (standardize (:distance params) :distance))
+                 (* (nth draw 7) (standardize (:wind params) :wind))
+                 (* (nth draw 8) (standardize (:sea params) :sea))
+                 (nth draw (get sailing-idx (:sailing params) 11))
+                 (nth draw (get antifoul-idx (:antifoul params) 15))
+                 (nth draw (get hull-idx (:hull params) 24))
+                 (nth draw (get rudder-idx (:rudder params) 28))
                  (king-zeng-offset base-rate))]
     (sigmoid logit)))
 
-;; Draw N samples and return sorted predictions
-(def n-mc-samples 500)
-
+;; Run all 500 posterior draws and return sorted predictions
 (defn mc-predictions [params base-rate]
-  (let [samples (repeatedly n-mc-samples #(sample-prediction params base-rate))]
-    (sort samples)))
+  (if-let [data @posterior-data]
+    (let [draws (:draws data)
+          preds (mapv #(predict-from-draw % params base-rate) draws)]
+      (sort preds))
+    ;; Fallback if JSON not loaded yet
+    [0.02]))
 
 (defn percentile [sorted-samples p]
   (let [idx (min (dec (count sorted-samples))
                  (max 0 (js/Math.floor (* p (count sorted-samples)))))]
     (nth sorted-samples idx)))
 
-;; Point estimate using posterior means (for the bar chart position)
+;; Point estimate using the mean of all draws (for reference scenario)
 (defn predict-p-mean [params base-rate]
-  (let [logit (+ (first coeff-alpha)
-                 (* (first (:depth coeff-betas)) (standardize (:depth params) :depth))
-                 (* (first (:distance coeff-betas)) (standardize (:distance params) :distance))
-                 (* (first (:speed coeff-betas)) (standardize (:speed params) :speed))
-                 (* (first (:length coeff-betas)) (standardize (:length params) :length))
-                 (* (first (:wind coeff-betas)) (standardize (:wind params) :wind))
-                 (* (first (:sea coeff-betas)) (standardize (:sea params) :sea))
-                 (* (first (:daylight coeff-betas)) (:daylight params))
-                 (* (first (:autopilot coeff-betas)) (:autopilot params))
-                 (first (get coeff-sailing (:sailing params) [0 0.5]))
-                 (first (get coeff-antifoul (:antifoul params) [0 0.5]))
-                 (first (get coeff-hull (:hull params) [0 0.5]))
-                 (first (get coeff-rudder (:rudder params) [0 0.3]))
-                 (king-zeng-offset base-rate))]
-    (sigmoid logit)))
+  (if-let [data @posterior-data]
+    (let [draws (:draws data)
+          preds (mapv #(predict-from-draw % params base-rate) draws)]
+      (/ (reduce + preds) (count preds)))
+    base-rate))
 
 ;; ═══════════════════════════════════════════════════════════
 ;; INTERACTIVE CALCULATOR
