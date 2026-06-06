@@ -839,13 +839,19 @@
 (defn calculator-component []
   (let [params @state
         base-rate (/ (:base-rate params) 100.0)
-        ;; Point estimate (fast, for bar position)
-        p-mean (predict-p-mean params base-rate)
         ;; Monte Carlo: 500 draws from the posterior
         sorted-preds (mc-predictions params base-rate)
         p-median (percentile sorted-preds 0.50)
         p-lo (percentile sorted-preds 0.055)
         p-hi (percentile sorted-preds 0.945)
+        ;; Reference scenario: average values (all standardized to 0)
+        ref-params {:depth 1.708 :distance 1.355 :speed 1.939
+                    :length 1.683 :wind 0.994 :sea 0.511
+                    :daylight 1 :autopilot 1
+                    :sailing "Motorsailing" :antifoul "Blue"
+                    :hull "White/light" :rudder "Spade"}
+        p-ref (predict-p-mean ref-params base-rate)
+        risk-mult (if (> p-ref 0.001) (/ p-median p-ref) 1)
         fmt (fn [p] (if (< p 0.01)
                       (str (.toFixed (* p 100) 1) "%")
                       (str (js/Math.round (* p 100)) "%")))
@@ -854,7 +860,7 @@
         bar-med (min (* p-median 100) 100)]
     [:div
      [:h3 "Risk Calculator"]
-     [:p.calc-desc "Select your boat and passage conditions. The Fermi base rate slider corrects for selection bias. Uncertainty is computed from 500 Monte Carlo draws from the posterior."]
+     [:p.calc-desc "Select your boat and passage conditions. This assumes you are transiting during orca season (roughly May to November, peaking July to September). Outside this window, interactions are very rare regardless of other factors."]
 
      ;; Base rate slider
      [:div.base-rate-section
@@ -894,66 +900,65 @@
       [select-field "Sea state" :sea
        [[0 "Calm"] [1 "Moderate"] [2 "Rough"]]]]
 
-     ;; Result with uncertainty
+     ;; Result: relative risk multiplier (robust) + absolute estimate
      [:div.result-box
-      [:div.result-number {:style {:color (bar-color p-median)}}
-       (fmt p-median)]
-      [:div.result-label "estimated probability of interaction"]
-      [:div {:style {:font-family "JetBrains Mono, monospace"
-                     :font-size "0.85em"
-                     :color "#666"
-                     :margin-top "4px"}}
-       (str "89% credible interval: " (fmt p-lo) " to " (fmt p-hi))]
+      ;; Relative risk - the most trustworthy number
+      [:div {:style {:display "flex" :align-items "baseline" :justify-content "center" :gap "8px"}}
+       [:div {:style {:font-family "JetBrains Mono, monospace"
+                      :font-size "2.8em" :font-weight "700"
+                      :color (bar-color p-median)}}
+        (str (.toFixed risk-mult 1) "\u00D7")]
+       [:div {:style {:font-family "Inter, sans-serif"
+                      :font-size "0.9em" :color "#666"}}
+        "relative to a typical transit"]]
 
-      ;; "1 in N" framing
-      (when (> p-median 0)
-        (let [one-in (js/Math.round (/ 1.0 p-median))]
-          (when (> one-in 1)
-            [:div {:style {:font-family "Inter, sans-serif"
-                           :font-size "0.85em"
-                           :color "#555"
-                           :margin-top "6px"}}
-             (str "Roughly 1 in " one-in " transits with this profile")])))
+      [:div {:style {:font-family "Inter, sans-serif"
+                     :font-size "0.78em" :color "#999"
+                     :text-align "center" :margin-top "4px"}}
+       (str "Reference: motorsailing, blue antifoul, average depth/distance, daytime, autopilot on")]
+
+      ;; Absolute estimate
+      [:div {:style {:margin-top "16px" :padding-top "16px" :border-top "1px solid #eee"
+                     :text-align "center"}}
+       [:div {:style {:font-family "JetBrains Mono, monospace"
+                      :font-size "1.6em" :font-weight "600"
+                      :color (bar-color p-median)}}
+        (fmt p-median)]
+       [:div {:style {:font-family "Inter, sans-serif"
+                      :font-size "0.8em" :color "#888"}}
+        "absolute estimate (less certain)"]
+       [:div {:style {:font-family "JetBrains Mono, monospace"
+                      :font-size "0.8em"
+                      :color "#999"
+                      :margin-top "4px"}}
+        (str "89% CI: " (fmt p-lo) " to " (fmt p-hi))]
+
+       ;; "1 in N" framing
+       (when (and (> p-median 0) (> (js/Math.round (/ 1.0 p-median)) 1))
+         [:div {:style {:font-family "Inter, sans-serif"
+                        :font-size "0.8em"
+                        :color "#888"
+                        :margin-top "4px"}}
+          (str "Roughly 1 in " (js/Math.round (/ 1.0 p-median)) " transits with this profile")])]
 
       ;; Estimated total transits from Fermi
       (let [interactions-per-year 200
-            total-transits (js/Math.round (/ interactions-per-year base-rate))
-            expected-interactions (js/Math.round (* total-transits p-median))]
+            total-transits (js/Math.round (/ interactions-per-year base-rate))]
         [:div {:style {:font-family "Inter, sans-serif"
-                       :font-size "0.78em"
-                       :color "#888"
-                       :margin-top "8px"
+                       :font-size "0.75em"
+                       :color "#aaa"
+                       :margin-top "10px"
                        :padding-top "8px"
-                       :border-top "1px solid #eee"}}
+                       :border-top "1px solid #eee"
+                       :text-align "center"}}
          (str "At a " (.toFixed (* base-rate 100) 1) "% base rate, roughly "
-              (.toLocaleString total-transits) " yacht transits/year pass through orca waters "
-              "(~200 reported interactions \u00F7 " (.toFixed (* base-rate 100) 1) "%).")])
+              (.toLocaleString total-transits) " yacht transits/year pass through orca waters.")])
 
-      ;; Uncertainty bar
-      [:div.result-bar-outer {:style {:margin-top "12px" :position "relative"}}
-       ;; CI band (light)
-       [:div {:style {:position "absolute"
-                      :left (str bar-lo "%")
-                      :width (str (- bar-hi bar-lo) "%")
-                      :height "100%"
-                      :background (bar-color p-median)
-                      :opacity "0.2"
-                      :border-radius "6px"}}]
-       ;; Median marker (dark)
-       [:div {:style {:position "absolute"
-                      :left (str (max 0 (- bar-med 0.8)) "%")
-                      :width "4px"
-                      :height "100%"
-                      :background (bar-color p-median)
-                      :border-radius "2px"}}]]
-
-      ;; Caveat + extrapolation warning
-      [:div.result-caveat {:style {:margin-top "16px"}}
-       (str "Corrected for selection bias (King & Zeng, 2001). "
-            "Uncertainty reflects 500 draws from the posterior. "
-            "Stacking many risk factors into a single scenario pushes the model into combinations "
-            "that are rare in the training data, so extreme predictions carry extra uncertainty "
-            "beyond what the credible interval shows.")]]]))
+      ;; Caveat
+      [:div.result-caveat {:style {:margin-top "12px"}}
+       (str "The relative multiplier compares your scenario to a typical transit and is robust to base rate uncertainty. "
+            "The absolute percentage depends on the Fermi estimate and is less certain. "
+            "When many risk factors are stacked together, the model extrapolates beyond combinations common in the training data.")]]]))
 
 ;; ═══════════════════════════════════════════════════════════
 ;; EFFECTS CHART (SVG bar chart)
