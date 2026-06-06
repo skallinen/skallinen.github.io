@@ -905,7 +905,31 @@
                      :margin-top "4px"}}
        (str "89% credible interval: " (fmt p-lo) " to " (fmt p-hi))]
 
-      ;; Uncertainty bar: light band = CI, dark bar = median
+      ;; "1 in N" framing
+      (when (> p-median 0)
+        (let [one-in (js/Math.round (/ 1.0 p-median))]
+          (when (> one-in 1)
+            [:div {:style {:font-family "Inter, sans-serif"
+                           :font-size "0.85em"
+                           :color "#555"
+                           :margin-top "6px"}}
+             (str "Roughly 1 in " one-in " transits with this profile")])))
+
+      ;; Estimated total transits from Fermi
+      (let [interactions-per-year 200
+            total-transits (js/Math.round (/ interactions-per-year base-rate))
+            expected-interactions (js/Math.round (* total-transits p-median))]
+        [:div {:style {:font-family "Inter, sans-serif"
+                       :font-size "0.78em"
+                       :color "#888"
+                       :margin-top "8px"
+                       :padding-top "8px"
+                       :border-top "1px solid #eee"}}
+         (str "At a " (.toFixed (* base-rate 100) 1) "% base rate, roughly "
+              (.toLocaleString total-transits) " yacht transits/year pass through orca waters "
+              "(~200 reported interactions \u00F7 " (.toFixed (* base-rate 100) 1) "%).")])
+
+      ;; Uncertainty bar
       [:div.result-bar-outer {:style {:margin-top "12px" :position "relative"}}
        ;; CI band (light)
        [:div {:style {:position "absolute"
@@ -923,10 +947,13 @@
                       :background (bar-color p-median)
                       :border-radius "2px"}}]]
 
+      ;; Caveat + extrapolation warning
       [:div.result-caveat {:style {:margin-top "16px"}}
-       (str "Corrected for selection bias (King & Zeng, 2001) with a "
-            (.toFixed (* base-rate 100) 1)
-            "% base rate. Uncertainty reflects 500 draws from the posterior distribution of all 18 coefficients simultaneously.")]]]))
+       (str "Corrected for selection bias (King & Zeng, 2001). "
+            "Uncertainty reflects 500 draws from the posterior. "
+            "Stacking many risk factors into a single scenario pushes the model into combinations "
+            "that are rare in the training data, so extreme predictions carry extra uncertainty "
+            "beyond what the credible interval shows.")]]]))
 
 ;; ═══════════════════════════════════════════════════════════
 ;; EFFECTS CHART (SVG bar chart)
