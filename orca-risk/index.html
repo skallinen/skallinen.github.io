@@ -915,50 +915,55 @@
       [:div {:style {:font-family "Inter, sans-serif"
                      :font-size "0.78em" :color "#999"
                      :text-align "center" :margin-top "4px"}}
-       (str "Reference: motorsailing, blue antifoul, average depth/distance, daytime, autopilot on")]
+       "Reference: motorsailing, blue antifoul, average depth/distance, daytime, autopilot on"]
 
-      ;; Absolute estimate
+      ;; Saturation warning for extreme combinations
+      (when (> risk-mult 5)
+        [:div {:style {:font-family "Inter, sans-serif"
+                       :font-size "0.78em"
+                       :color "#c0392b"
+                       :text-align "center"
+                       :margin-top "10px"
+                       :padding "8px 12px"
+                       :background "#fef2f2"
+                       :border-radius "6px"}}
+         (str "This stacks " (js/Math.round risk-mult) " risk factors into one scenario. "
+              "The model assumes each factor multiplies the odds independently, "
+              "but in practice the effects likely saturate. "
+              "Treat the multiplier as directional (this is a high-risk combination) "
+              "rather than literal.")])
+
+      ;; Absolute estimate (secondary)
       [:div {:style {:margin-top "16px" :padding-top "16px" :border-top "1px solid #eee"
                      :text-align "center"}}
        [:div {:style {:font-family "JetBrains Mono, monospace"
-                      :font-size "1.6em" :font-weight "600"
-                      :color (bar-color p-median)}}
+                      :font-size "1.3em" :font-weight "600"
+                      :color "#999"}}
         (fmt p-median)]
        [:div {:style {:font-family "Inter, sans-serif"
-                      :font-size "0.8em" :color "#888"}}
-        "absolute estimate (less certain)"]
+                      :font-size "0.78em" :color "#bbb"}}
+        (str "absolute estimate " (if (> risk-mult 5) "(unreliable at this level)" "(less certain)"))]
        [:div {:style {:font-family "JetBrains Mono, monospace"
-                      :font-size "0.8em"
-                      :color "#999"
-                      :margin-top "4px"}}
-        (str "89% CI: " (fmt p-lo) " to " (fmt p-hi))]
-
-       ;; "1 in N" framing
-       (when (and (> p-median 0) (> (js/Math.round (/ 1.0 p-median)) 1))
-         [:div {:style {:font-family "Inter, sans-serif"
-                        :font-size "0.8em"
-                        :color "#888"
-                        :margin-top "4px"}}
-          (str "Roughly 1 in " (js/Math.round (/ 1.0 p-median)) " transits with this profile")])]
+                      :font-size "0.75em" :color "#ccc" :margin-top "4px"}}
+        (str "89% CI: " (fmt p-lo) " to " (fmt p-hi))]]
 
       ;; Estimated total transits from Fermi
       (let [interactions-per-year 200
             total-transits (js/Math.round (/ interactions-per-year base-rate))]
         [:div {:style {:font-family "Inter, sans-serif"
-                       :font-size "0.75em"
-                       :color "#aaa"
-                       :margin-top "10px"
-                       :padding-top "8px"
-                       :border-top "1px solid #eee"
-                       :text-align "center"}}
+                       :font-size "0.75em" :color "#aaa"
+                       :margin-top "10px" :padding-top "8px"
+                       :border-top "1px solid #eee" :text-align "center"}}
          (str "At a " (.toFixed (* base-rate 100) 1) "% base rate, roughly "
               (.toLocaleString total-transits) " yacht transits/year pass through orca waters.")])
 
       ;; Caveat
       [:div.result-caveat {:style {:margin-top "12px"}}
-       (str "The relative multiplier compares your scenario to a typical transit and is robust to base rate uncertainty. "
-            "The absolute percentage depends on the Fermi estimate and is less certain. "
-            "When many risk factors are stacked together, the model extrapolates beyond combinations common in the training data.")]]]))
+       (str "The relative multiplier is the most robust output. It tells you how your scenario "
+            "compares to a typical transit and does not depend on the base rate assumption. "
+            "The absolute percentage requires both the Fermi estimate and the assumption that "
+            "risk factors combine multiplicatively, which likely overstates the probability "
+            "for extreme combinations.")]]]))
 
 ;; ═══════════════════════════════════════════════════════════
 ;; EFFECTS CHART (SVG bar chart)
