@@ -510,27 +510,45 @@
 
 <p>We fitted five progressively more complex models, adding predictors in stages. All five converged cleanly with no sampling problems. The primary model (M3) includes vessel characteristics, activity state, and environmental conditions.</p>
 
-<p>Five factors had coefficients whose 89% credible intervals did not cross zero. In plain language: the data provides strong evidence that these factors are associated with interaction risk, even after accounting for everything else in the model.</p>
+<p>Four factors had coefficients whose 89% credible intervals did not cross zero. In plain language: the data provides strong evidence that these factors are associated with interaction risk, even after accounting for everything else in the model.</p>
 
 <div id="chart-effects" class="chart-container"></div>
 
+<h3>The variable we had to drop: time of day</h3>
+
+<p><strong>Time of day</strong> initially appeared to be the strongest predictor. Under our first encoding, night passages showed an 85% interaction rate versus 26% for daytime. The model estimated night was 7.8 times riskier. But the finding did not survive scrutiny.</p>
+
+<p>The root problem is that the two groups record time differently. Incident reports capture a single moment: "Day," "Night," "Dawn," or "Dusk." Uneventful passage reports record the full span of the transit, often covering multiple periods: "Dawn, Day, Dusk, Night" for a passage lasting 24 hours or more. There is no way to directly compare a point-in-time with a time-span.</p>
+
+<p>We tested four different encodings to see how sensitive the result was:</p>
+
+<table>
+  <thead>
+    <tr><th>Encoding</th><th class="num">Night n</th><th class="num">Night incidents</th><th class="num">Night rate</th><th class="num">Day n</th><th class="num">Day incidents</th><th class="num">Day rate</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>A</strong>: Multi-period passages → day</td><td class="num">76</td><td class="num">65</td><td class="num"><strong>85.5%</strong></td><td class="num">578</td><td class="num">151</td><td class="num">26.1%</td></tr>
+    <tr><td><strong>B</strong>: Any mention of "Night" → night</td><td class="num">142</td><td class="num">30</td><td class="num">21.1%</td><td class="num">512</td><td class="num">186</td><td class="num"><strong>36.3%</strong></td></tr>
+    <tr><td><strong>C</strong>: Split into exposure windows (dawn→day, dusk→night)</td><td class="num">177</td><td class="num">48</td><td class="num">27.1%</td><td class="num">598</td><td class="num">168</td><td class="num">28.1%</td></tr>
+    <tr><td><strong>D</strong>: Split into exposure windows (dawn→night, dusk→day)</td><td class="num">202</td><td class="num">47</td><td class="num">23.3%</td><td class="num">601</td><td class="num">169</td><td class="num">28.1%</td></tr>
+  </tbody>
+</table>
+
+<p>Encoding A makes night look extremely dangerous. Encoding B makes day look riskier. Encodings C and D, which split multi-period passages into separate day and night exposure windows, show no meaningful difference at all (27% vs 28%). When we fitted the full Bayesian model under encodings A and B, the night coefficient flipped sign entirely: +7.8x under A, -6x (i.e. protective) under B.</p>
+
+<p>As a further check, we used the actual timestamps in the data (incidents have a recorded time; uneventful passages have start and end times) and computed whether each moment fell in daylight or darkness using solar position calculations. The self-reported time-of-day agreed with the solar calculation 81% of the time for incidents, validating the timestamps. But for uneventful passages, 53% of passages reported as "day-only" actually included night hours according to the solar calculation, confirming that the self-reported field is unreliable for this group.</p>
+
+<p>We dropped time of day from the final model. The remaining coefficients barely changed, confirming that the night variable was not confounding the other findings.</p>
+
 <h3>The strong effects</h3>
 
-<p><strong>Time of day</strong> initially appeared to be the strongest predictor, with night passages showing an 85% interaction rate versus 26% for daytime. But this finding does not survive a closer look at how the data is encoded.</p>
+<p><strong>Water depth</strong> is the strongest effect. Interactions are concentrated in deeper water (200m+), consistent with orcas feeding over the continental shelf edge. Each standard deviation increase in depth category corresponds to a 2.6x increase in odds. Note that "depth" here likely proxies for location: certain areas happen to be both deep and on the orca migration route.</p>
 
-<p>The problem: incident reports record a single moment ("Day" or "Night"), but uneventful passage reports often span multiple time periods ("Dawn, Day, Dusk, Night" for a passage lasting 24 hours). Our initial processing classified these multi-period passages as daytime. That leaves only 11 uneventful night passages in the entire dataset, making night look extremely dangerous.</p>
+<p><strong>Autopilot on</strong> is associated with roughly a third of the odds (OR 0.33). This is the strongest protective factor. The MBA study actually found autopilot increased risk. Our model disagrees. This may be a confound: skippers who use autopilot might be further offshore or following established routes that happen to be less exposed.</p>
 
-<p>When we re-encode the data so that any passage mentioning "Night" counts as a night passage, 107 uneventful reports shift from day to night. The result: the night effect completely reverses. Under the original encoding, the model estimates night is 7.8 times riskier. Under the alternative encoding, night is 6 times safer. The finding is entirely dependent on an arbitrary encoding choice.</p>
+<p><strong>Motoring</strong> carries 1.9 times the odds of an interaction compared to motorsailing or sailing. The MBA (Marine Biological Association) published a similar finding in 2024, noting that motors produce underwater noise at frequencies orcas can hear.<sup class="footnote-ref">2</sup></p>
 
-<p>The honest conclusion: this dataset cannot tell us whether night sailing is safer or riskier. The way time of day was recorded differs between the two groups in a way that makes any comparison unreliable. We keep the time-of-day selector in the calculator below for transparency, but treat any night/day difference with deep scepticism.</p>
-
-<p><strong>Water depth</strong> is the second strongest. Interactions are concentrated in deeper water (200m+), consistent with orcas feeding over the continental shelf edge. Each standard deviation increase in depth category corresponds to a 2.3x increase in odds. Note that "depth" here likely proxies for location: certain areas happen to be both deep and on the orca migration route.</p>
-
-<p><strong>Motoring</strong> carries 2.8 times the odds of an interaction compared to motorsailing or sailing. The MBA (Marine Biological Association) published a similar finding in 2024, noting that motors produce underwater noise at frequencies orcas can hear.<sup class="footnote-ref">2</sup></p>
-
-<p><strong>Black antifoul paint</strong> is associated with double the odds of interaction compared to the average. The contrast with Coppercoat is striking: black antifoul carries 2.7 times the odds of Coppercoat, with 99.9% posterior certainty. The mechanism is unclear. It could be visual (orcas seeing a dark underwater surface), acoustic (different paint textures producing different hydrodynamic noise), or simply a confound we have not identified.</p>
-
-<p><strong>Autopilot on</strong> is associated with roughly half the odds. This is counterintuitive. You might expect a fixed rudder path to attract orcas. The MBA study actually found autopilot increased risk. Our model disagrees. This may be a confound: skippers who use autopilot might be further offshore or following established routes that happen to be less exposed.</p>
+<p><strong>Black antifoul paint</strong> is associated with 1.5 times the odds of interaction compared to the average. The contrast with Coppercoat is striking: black antifoul carries 2.6 times the odds of Coppercoat, with 99.9% posterior certainty. The mechanism is unclear. It could be visual (orcas seeing a dark underwater surface), acoustic (different paint textures producing different hydrodynamic noise), or simply a confound we have not identified.</p>
 
 <div id="chart-antifoul" class="chart-container"></div>
 
@@ -671,7 +689,7 @@
 ;; ═══════════════════════════════════════════════════════════
 ;; POSTERIOR DRAWS (loaded from posterior_draws.json)
 ;; True Bayesian prediction: 500 actual MCMC draws preserving
-;; the full correlation structure between all 31 parameters.
+;; the full correlation structure between all 30 parameters.
 ;; ═══════════════════════════════════════════════════════════
 
 (def posterior-data (r/atom nil))
@@ -704,37 +722,36 @@
      (js/Math.log (/ sample-rate (- 1.0 sample-rate)))))
 
 ;; Category name -> index in the draw vector
-;; Layout: [alpha(0), b_depth(1), b_daylight(2), b_autopilot(3), b_speed(4),
-;;          b_length(5), b_distance(6), b_wind(7), b_sea(8),
-;;          s_0..s_4(9-13), a_0..a_7(14-21), h_0..h_2(22-24), r_0..r_5(25-30)]
+;; Layout: [alpha(0), b_depth(1), b_autopilot(2), b_speed(3),
+;;          b_length(4), b_distance(5), b_wind(6), b_sea(7),
+;;          s_0..s_4(8-12), a_0..a_7(13-20), h_0..h_2(21-23), r_0..r_5(24-29)]
 
 (def sailing-idx
-  {"Hove-to" 9 "Motoring" 10 "Motorsailing" 11 "Sailing" 12})
+  {"Hove-to" 8 "Motoring" 9 "Motorsailing" 10 "Sailing" 11})
 
 (def antifoul-idx
-  {"Black" 14 "Blue" 15 "Coppercoat" 16 "Red" 19 "White" 21})
+  {"Black" 13 "Blue" 14 "Coppercoat" 15 "Red" 18 "White" 20})
 
 (def hull-idx
-  {"Dark" 22 "White/light" 24})
+  {"Dark" 21 "White/light" 23})
 
 (def rudder-idx
-  {"Full skeg" 25 "Semi skeg" 27 "Spade" 28 "Twin rudder" 29})
+  {"Full skeg" 24 "Semi skeg" 26 "Spade" 27 "Twin rudder" 28})
 
 ;; Compute prediction from a single posterior draw
 (defn predict-from-draw [draw params base-rate]
   (let [logit (+ (nth draw 0)  ;; alpha
                  (* (nth draw 1) (standardize (:depth params) :depth))
-                 (* (nth draw 2) (:daylight params))
-                 (* (nth draw 3) (:autopilot params))
-                 (* (nth draw 4) (standardize (:speed params) :speed))
-                 (* (nth draw 5) (standardize (:length params) :length))
-                 (* (nth draw 6) (standardize (:distance params) :distance))
-                 (* (nth draw 7) (standardize (:wind params) :wind))
-                 (* (nth draw 8) (standardize (:sea params) :sea))
-                 (nth draw (get sailing-idx (:sailing params) 11))
-                 (nth draw (get antifoul-idx (:antifoul params) 15))
-                 (nth draw (get hull-idx (:hull params) 24))
-                 (nth draw (get rudder-idx (:rudder params) 28))
+                 (* (nth draw 2) (:autopilot params))
+                 (* (nth draw 3) (standardize (:speed params) :speed))
+                 (* (nth draw 4) (standardize (:length params) :length))
+                 (* (nth draw 5) (standardize (:distance params) :distance))
+                 (* (nth draw 6) (standardize (:wind params) :wind))
+                 (* (nth draw 7) (standardize (:sea params) :sea))
+                 (nth draw (get sailing-idx (:sailing params) 10))
+                 (nth draw (get antifoul-idx (:antifoul params) 14))
+                 (nth draw (get hull-idx (:hull params) 23))
+                 (nth draw (get rudder-idx (:rudder params) 27))
                  (king-zeng-offset base-rate))]
     (sigmoid logit)))
 
@@ -765,7 +782,7 @@
 ;; ═══════════════════════════════════════════════════════════
 
 (def state (r/atom {:depth 2 :distance 2 :speed 2 :length 1
-                    :wind 1 :sea 0 :daylight 1 :autopilot 1
+                    :wind 1 :sea 0 :autopilot 1
                     :sailing "Motorsailing" :antifoul "Blue"
                     :hull "White/light" :rudder "Spade"
                     :base-rate 2.5}))
@@ -804,7 +821,7 @@
         ;; Reference scenario: average values (all standardized to 0)
         ref-params {:depth 1.708 :distance 1.355 :speed 1.939
                     :length 1.683 :wind 0.994 :sea 0.511
-                    :daylight 1 :autopilot 1
+                    :autopilot 1
                     :sailing "Motorsailing" :antifoul "Blue"
                     :hull "White/light" :rudder "Spade"}
         p-ref (predict-p-mean ref-params base-rate)
@@ -848,8 +865,7 @@
        [[0 "0 - 2 kts"] [1 "3 - 4 kts"] [2 "5 - 7 kts"] [3 "8 - 11 kts"]]]
       [select-field "Wind (Beaufort)" :wind
        [[0 "F0-2"] [1 "F3-4"] [2 "F5-6"] [3 "F7+"]]]
-      [select-field "Time of day" :daylight
-       [[1 "Daylight"] [0 "Night"]]]
+
       [select-field "Autopilot" :autopilot
        [[1 "On"] [0 "Off"]]]
       [select-field "Boat length" :length
@@ -872,7 +888,7 @@
       [:div {:style {:font-family "Inter, sans-serif"
                      :font-size "0.78em" :color "#999"
                      :text-align "center" :margin-top "4px"}}
-       "Reference: motorsailing, blue antifoul, average depth/distance, daytime, autopilot on"]
+       "Reference: motorsailing, blue antifoul, average depth/distance, autopilot on"]
 
       ;; Saturation warning for extreme combinations
       (when (> risk-mult 5)
@@ -927,16 +943,15 @@
 ;; ═══════════════════════════════════════════════════════════
 
 (def effects-data
-  [{:name "Night (vs day) ⚠" :coeff 2.057  :or 7.83  :dir :maybe  :ci-lo 1.54  :ci-hi 2.60}
-   {:name "Motoring"         :coeff 1.037  :or 2.82  :dir :risk   :ci-lo 0.55  :ci-hi 1.53}
-   {:name "Depth (per SD)"   :coeff 0.835  :or 2.30  :dir :risk   :ci-lo 0.59  :ci-hi 1.10}
-   {:name "Black antifoul"   :coeff 0.711  :or 2.04  :dir :risk   :ci-lo 0.32  :ci-hi 1.11}
-   {:name "Autopilot ON"     :coeff -0.628 :or 0.53  :dir :prot   :ci-lo -1.00 :ci-hi -0.26}
-   {:name "Distance (per SD)":coeff 0.207  :or 1.23  :dir :maybe  :ci-lo -0.02 :ci-hi 0.44}
-   {:name "Sea state (per SD)" :coeff -0.159 :or 0.85 :dir :maybe :ci-lo -0.35 :ci-hi 0.03}
-   {:name "Speed (per SD)"   :coeff -0.056 :or 0.95  :dir :none   :ci-lo -0.22 :ci-hi 0.11}
-   {:name "Boat length"      :coeff 0.038  :or 1.04  :dir :none   :ci-lo -0.13 :ci-hi 0.21}
-   {:name "Wind (per SD)"    :coeff -0.050 :or 0.95  :dir :none   :ci-lo -0.24 :ci-hi 0.14}])
+  [{:name "Autopilot ON"     :coeff -1.110 :or 0.33  :dir :prot   :ci-lo -1.54 :ci-hi -0.73}
+   {:name "Depth (per SD)"   :coeff 0.953  :or 2.59  :dir :risk   :ci-lo 0.71  :ci-hi 1.22}
+   {:name "Motoring"         :coeff 0.638  :or 1.89  :dir :risk   :ci-lo 0.17  :ci-hi 1.12}
+   {:name "Black antifoul"   :coeff 0.436  :or 1.55  :dir :risk   :ci-lo 0.06  :ci-hi 0.82}
+   {:name "Distance (per SD)":coeff 0.185  :or 1.20  :dir :maybe  :ci-lo -0.04 :ci-hi 0.41}
+   {:name "Sea state (per SD)" :coeff -0.169 :or 0.84 :dir :maybe :ci-lo -0.35 :ci-hi 0.02}
+   {:name "Boat length"      :coeff 0.077  :or 1.08  :dir :none   :ci-lo -0.08 :ci-hi 0.25}
+   {:name "Wind (per SD)"    :coeff -0.063 :or 0.94  :dir :none   :ci-lo -0.27 :ci-hi 0.13}
+   {:name "Speed (per SD)"   :coeff -0.009 :or 0.99  :dir :none   :ci-lo -0.18 :ci-hi 0.16}])
 
 (defn effects-chart []
   (let [chart-w 660
