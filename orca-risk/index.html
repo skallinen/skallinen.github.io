@@ -541,6 +541,22 @@
 
 <p>This makes some intuitive sense. Orcas are visual predators. They may be more active, or more likely to notice and approach a boat, during daylight hours. Alternatively, it could reflect differences in sailing patterns: night passages may follow different routes or be further offshore.</p>
 
+<p>A natural follow-up: do the other risk factors behave differently at night? If orcas rely on vision to spot boats, the visual contrast of black antifoul might matter less in darkness. We extended the Poisson rate model to cross-tabulate time of day with antifoul colour and sailing mode, computing separate incident rates per yacht-hour for each combination:</p>
+
+<table>
+  <thead>
+    <tr><th>Factor</th><th class="num">Effect during day</th><th class="num">Effect at night</th><th class="num">Interaction ratio</th><th>Interpretation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Black antifoul (vs other)</td><td class="num">2.1&times; (89% CI: 1.6 to 2.6)</td><td class="num">2.4&times; (89% CI: 1.5 to 3.5)</td><td class="num">1.2&times; (89% CI: 0.7 to 1.8)</td><td>Same effect day and night</td></tr>
+    <tr><td>Motoring (vs other)</td><td class="num">4.1&times; (89% CI: 3.1 to 5.3)</td><td class="num">5.5&times; (89% CI: 3.2 to 8.5)</td><td class="num">1.4&times; (89% CI: 0.8 to 2.2)</td><td>Same effect day and night</td></tr>
+  </tbody>
+</table>
+
+<p>The interaction ratios are close to 1.0 and both credible intervals comfortably span it. Black antifoul doubles the incident rate regardless of whether it is day or night. If the mechanism were purely visual, we might expect the effect to weaken in darkness. The fact that it does not suggests either the mechanism is not visual, or orcas detect boats through other senses (acoustics, hydrodynamics) where colour still correlates with some relevant property.</p>
+
+<p>Because these effects are stable across time of day, the calculator below applies the day/night rate ratio as a uniform scaling factor on top of the logistic regression. This is valid precisely because the interaction terms are negligible.</p>
+
 <p>We dropped time of day from the logistic regression model because the binary day/night variable cannot be reliably encoded for both groups simultaneously. The exposure-based analysis above is a separate and cleaner calculation. The remaining model coefficients barely changed when we removed it, confirming it was not confounding the other findings.</p>
 
 <h3>The strong effects</h3>
