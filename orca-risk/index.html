@@ -418,11 +418,11 @@
 
 <p>The core logic is simple. We have two piles of reports. In one pile, an orca showed up. In the other, it did not. Each report records a dozen or so details about the boat and conditions. If a variable's distribution looks different between the two piles, that variable might be associated with interactions.</p>
 
-<p>For example, take time of day. Among the 76 reports where the passage was at night, 86% resulted in an interaction. Among the 578 daytime reports, only 26% did. That is a large distributional difference. It suggests time of day matters.</p>
+<p>For example, take antifoul colour. Among boats with black antifoul, 45% had an interaction. Among Coppercoat boats, only 17% did. That is a large distributional difference. It suggests antifoul colour matters.</p>
 
 <p>Contrast that with speed. Both groups cluster around 5 to 7 knots. The distributions are nearly identical. Speed does not seem to distinguish the groups.</p>
 
-<p>The tricky part is that these variables are correlated with each other. Boats motoring at night might also be in shallower water. Is the night effect real, or is it just a proxy for depth? A simple comparison of one variable at a time cannot disentangle this. We need a model that considers all variables simultaneously.</p>
+<p>The tricky part is that these variables are correlated with each other. Black-antifoul boats might also be in deeper water. Is the antifoul effect real, or is it just a proxy for location? A simple comparison of one variable at a time cannot disentangle this. We need a model that considers all variables simultaneously.</p>
 
 <h2>A One-Paragraph Explanation of What the Model Does</h2>
 
@@ -516,11 +516,13 @@
 
 <h3>The strong effects</h3>
 
-<p><strong>Time of day</strong> is the single strongest predictor. Night passages had an 85.5% interaction rate in the raw data, versus 26.1% for daytime. The model's coefficient translates to 3.6 times higher odds at night after controlling for depth and distance. This is a large effect.</p>
+<p><strong>Time of day</strong> initially appeared to be the strongest predictor, with night passages showing an 85% interaction rate versus 26% for daytime. But this finding does not survive a closer look at how the data is encoded.</p>
 
-<p>Two important caveats about this finding. First, the GTOA reports that 78% of interactions happen in daylight. That sounds like it contradicts a night risk, but it reflects the fact that most sailing happens during the day. More passages in daylight means more interactions in daylight, even if the per-passage risk is higher at night.</p>
+<p>The problem: incident reports record a single moment ("Day" or "Night"), but uneventful passage reports often span multiple time periods ("Dawn, Day, Dusk, Night" for a passage lasting 24 hours). Our initial processing classified these multi-period passages as daytime. That leaves only 11 uneventful night passages in the entire dataset, making night look extremely dangerous.</p>
 
-<p>Second, and more important: the raw data codes time of day differently for the two groups. Incident reports record a single moment ("Day" or "Night"). Uneventful passage reports often span multiple periods ("Dawn, Day, Dusk, Night" for a passage lasting 24 hours or more). Our processing classified these multi-period passages as daytime, which leaves only 11 uneventful night passages in the dataset. If those long passages were counted as including night, the night uneventful count would be much higher and the effect size would shrink. The direction of the night effect is likely real, but the magnitude (85.5% vs 26.1%) is overstated by the encoding.</p>
+<p>When we re-encode the data so that any passage mentioning "Night" counts as a night passage, 107 uneventful reports shift from day to night. The result: the night effect completely reverses. Under the original encoding, the model estimates night is 7.8 times riskier. Under the alternative encoding, night is 6 times safer. The finding is entirely dependent on an arbitrary encoding choice.</p>
+
+<p>The honest conclusion: this dataset cannot tell us whether night sailing is safer or riskier. The way time of day was recorded differs between the two groups in a way that makes any comparison unreliable. We keep the time-of-day selector in the calculator below for transparency, but treat any night/day difference with deep scepticism.</p>
 
 <p><strong>Water depth</strong> is the second strongest. Interactions are concentrated in deeper water (200m+), consistent with orcas feeding over the continental shelf edge. Each standard deviation increase in depth category corresponds to a 2.3x increase in odds. Note that "depth" here likely proxies for location: certain areas happen to be both deep and on the orca migration route.</p>
 
@@ -603,17 +605,17 @@
 
 <table>
   <thead>
-    <tr><th>Prior assumption</th><th class="num">Base rate</th><th class="num">Depth effect</th><th class="num">Daylight effect</th><th class="num">Motoring effect</th></tr>
+    <tr><th>Prior assumption</th><th class="num">Base rate</th><th class="num">Depth effect</th><th class="num">Motoring effect</th><th class="num">Black antifoul</th></tr>
   </thead>
   <tbody>
-    <tr><td>Conservative</td><td class="num">~1%</td><td class="num">+0.84 ***</td><td class="num">-1.22 ***</td><td class="num">+1.14 ***</td></tr>
-    <tr><td>Central (our default)</td><td class="num">~3%</td><td class="num">+0.84 ***</td><td class="num">-1.29 ***</td><td class="num">+1.04 ***</td></tr>
-    <tr><td>Aggressive</td><td class="num">~5%</td><td class="num">+0.83 ***</td><td class="num">-1.34 ***</td><td class="num">+0.98 ***</td></tr>
-    <tr><td>Flat (no prior info)</td><td class="num">uninformative</td><td class="num">+0.82 ***</td><td class="num">-1.67 ***</td><td class="num">+0.58 ***</td></tr>
+    <tr><td>Conservative</td><td class="num">~1%</td><td class="num">+0.84 ***</td><td class="num">+1.14 ***</td><td class="num">+0.71 ***</td></tr>
+    <tr><td>Central (our default)</td><td class="num">~3%</td><td class="num">+0.84 ***</td><td class="num">+1.04 ***</td><td class="num">+0.73 ***</td></tr>
+    <tr><td>Aggressive</td><td class="num">~5%</td><td class="num">+0.83 ***</td><td class="num">+0.98 ***</td><td class="num">+0.72 ***</td></tr>
+    <tr><td>Flat (no prior info)</td><td class="num">uninformative</td><td class="num">+0.82 ***</td><td class="num">+0.58 ***</td><td class="num">+0.68 ***</td></tr>
   </tbody>
 </table>
 
-<p>The depth coefficient barely moves. The daylight and motoring effects shift somewhat, but all remain statistically credible (marked ***) across every prior, including the completely uninformative one. The black-versus-Coppercoat antifoul contrast is 99.9% certain under all four priors.</p>
+<p>The depth coefficient barely moves. The motoring and antifoul effects shift somewhat, but all remain statistically credible (marked ***) across every prior, including the completely uninformative one.</p>
 
 <p>The conclusion: the relative effects are robust. Our weak Fermi estimate affects the absolute risk predictions (the numbers the calculator shows) but not the directional findings about which factors increase or decrease risk.</p>
 
@@ -622,8 +624,6 @@
 <h2>What This Means for a Skipper</h2>
 
 <p>Based on the posterior evidence, if you are transiting orca-affected waters:</p>
-
-<p><strong>Transit in daylight.</strong> This is the single most actionable factor. Night passages have 3.6 times the odds of an interaction. Plan your passage timing accordingly.</p>
 
 <p><strong>Sail if you can.</strong> Motoring carries 2.8 times the odds of sailing or motorsailing. If conditions allow, turn off the engine.</p>
 
@@ -639,7 +639,7 @@
 
 <p>With 654 observations and 18 predictors, we are not swimming in data. Some categories (green antifoul, hove-to) have fewer than 20 observations. The model appropriately expresses large uncertainty for these sparse categories.</p>
 
-<p>Despite these limitations, five independent factors (daylight, depth, motoring, antifoul, autopilot) all showed credible effects that survived multiple-variable adjustment, prior sensitivity testing, and convergence diagnostics. That is more than most analyses of this phenomenon have found.</p>
+<p>Despite these limitations, four independent factors (depth, motoring, antifoul, autopilot) showed credible effects that survived multiple-variable adjustment, prior sensitivity testing, and convergence diagnostics. A fifth factor (time of day) appeared strong but turned out to be an artifact of how the data was recorded. That kind of finding, where a careful check overturns an initial result, is arguably the most useful contribution of a structured analysis.</p>
 
 <hr>
 
@@ -927,7 +927,7 @@
 ;; ═══════════════════════════════════════════════════════════
 
 (def effects-data
-  [{:name "Night (vs day)"   :coeff 1.291  :or 3.63  :dir :risk   :ci-lo 0.88  :ci-hi 1.70}
+  [{:name "Night (vs day) ⚠" :coeff 2.057  :or 7.83  :dir :maybe  :ci-lo 1.54  :ci-hi 2.60}
    {:name "Motoring"         :coeff 1.037  :or 2.82  :dir :risk   :ci-lo 0.55  :ci-hi 1.53}
    {:name "Depth (per SD)"   :coeff 0.835  :or 2.30  :dir :risk   :ci-lo 0.59  :ci-hi 1.10}
    {:name "Black antifoul"   :coeff 0.711  :or 2.04  :dir :risk   :ci-lo 0.32  :ci-hi 1.11}
