@@ -514,31 +514,34 @@
 
 <div id="chart-effects" class="chart-container"></div>
 
-<h3>The variable we had to drop: time of day</h3>
+<h3>The variable we had to rethink: time of day</h3>
 
 <p><strong>Time of day</strong> initially appeared to be the strongest predictor. Under our first encoding, night passages showed an 85% interaction rate versus 26% for daytime. The model estimated night was 7.8 times riskier. But the finding did not survive scrutiny.</p>
 
-<p>The root problem is that the two groups record time differently. Incident reports capture a single moment: "Day," "Night," "Dawn," or "Dusk." Uneventful passage reports record the full span of the transit, often covering multiple periods: "Dawn, Day, Dusk, Night" for a passage lasting 24 hours or more. There is no way to directly compare a point-in-time with a time-span.</p>
+<p>The core problem is that the two groups measure time differently. Incident reports capture a single moment: the skipper records "Day" or "Night" when the interaction happened. Uneventful passage reports record a duration: the skipper enters a start time and end time, which might span 8 hours of daylight sailing or 30 hours covering day and night. This means we know <em>when interactions happen</em> but not <em>when the boats that had interactions were actually in the water</em>. And we know <em>when uneventful boats were in the water</em> but cannot assign them to a single time period.</p>
 
-<p>We tested four different encodings to see how sensitive the result was:</p>
+<p>Different encodings of this ambiguous variable produce opposite conclusions:</p>
 
 <table>
   <thead>
     <tr><th>Encoding</th><th class="num">Night n</th><th class="num">Night incidents</th><th class="num">Night rate</th><th class="num">Day n</th><th class="num">Day incidents</th><th class="num">Day rate</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>A</strong>: Multi-period passages → day</td><td class="num">76</td><td class="num">65</td><td class="num"><strong>85.5%</strong></td><td class="num">578</td><td class="num">151</td><td class="num">26.1%</td></tr>
-    <tr><td><strong>B</strong>: Any mention of "Night" → night</td><td class="num">142</td><td class="num">30</td><td class="num">21.1%</td><td class="num">512</td><td class="num">186</td><td class="num"><strong>36.3%</strong></td></tr>
-    <tr><td><strong>C</strong>: Split into exposure windows (dawn→day, dusk→night)</td><td class="num">177</td><td class="num">48</td><td class="num">27.1%</td><td class="num">598</td><td class="num">168</td><td class="num">28.1%</td></tr>
-    <tr><td><strong>D</strong>: Split into exposure windows (dawn→night, dusk→day)</td><td class="num">202</td><td class="num">47</td><td class="num">23.3%</td><td class="num">601</td><td class="num">169</td><td class="num">28.1%</td></tr>
+    <tr><td><strong>A</strong>: Multi-period passages &rarr; day</td><td class="num">76</td><td class="num">65</td><td class="num"><strong>85.5%</strong></td><td class="num">578</td><td class="num">151</td><td class="num">26.1%</td></tr>
+    <tr><td><strong>B</strong>: Any mention of "Night" &rarr; night</td><td class="num">142</td><td class="num">30</td><td class="num">21.1%</td><td class="num">512</td><td class="num">186</td><td class="num"><strong>36.3%</strong></td></tr>
+    <tr><td><strong>C</strong>: Split into exposure windows</td><td class="num">177</td><td class="num">48</td><td class="num">27.1%</td><td class="num">598</td><td class="num">168</td><td class="num">28.1%</td></tr>
   </tbody>
 </table>
 
-<p>Encoding A makes night look extremely dangerous. Encoding B makes day look riskier. Encodings C and D, which split multi-period passages into separate day and night exposure windows, show no meaningful difference at all (27% vs 28%). When we fitted the full Bayesian model under encodings A and B, the night coefficient flipped sign entirely: +7.8x under A, -6x (i.e. protective) under B.</p>
+<p>Encoding A says night is extremely dangerous. Encoding B says day is riskier. Encoding C, which splits multi-period passages into separate day and night exposure windows, says there is no difference at all. Fitting the full Bayesian model under A and B produced a night coefficient that flipped sign entirely.</p>
 
-<p>As a further check, we used the actual timestamps in the data (incidents have a recorded time; uneventful passages have start and end times) and computed whether each moment fell in daylight or darkness using solar position calculations. The self-reported time-of-day agreed with the solar calculation 81% of the time for incidents, validating the timestamps. But for uneventful passages, 53% of passages reported as "day-only" actually included night hours according to the solar calculation, confirming that the self-reported field is unreliable for this group.</p>
+<p>But we can do better than these binary encodings. The uneventful passages have actual start and end timestamps, and we can compute how many yacht-hours were spent in daylight versus darkness using solar position calculations. This gives us the <em>exposure distribution</em>: the denominator we need. The incidents have exact timestamps too, so we know when each interaction occurred.</p>
 
-<p>We dropped time of day from the final model. The remaining coefficients barely changed, confirming that the night variable was not confounding the other findings.</p>
+<p>The result: uneventful passages spent 35% of their total yacht-hours in darkness. But only 23% of incidents happened at night. That is significantly fewer than the 35% we would expect if time of day had no effect (p &lt; 0.001, binomial test). The rate ratio is 0.56: roughly <strong>half as many incidents per yacht-hour at night compared to daytime</strong>.</p>
+
+<p>This makes some intuitive sense. Orcas are visual predators. They may be more active, or more likely to notice and approach a boat, during daylight hours. Alternatively, it could reflect differences in sailing patterns: night passages may follow different routes or be further offshore.</p>
+
+<p>We dropped time of day from the logistic regression model because the binary day/night variable cannot be reliably encoded for both groups simultaneously. The exposure-based analysis above is a separate and cleaner calculation. The remaining model coefficients barely changed when we removed it, confirming it was not confounding the other findings.</p>
 
 <h3>The strong effects</h3>
 
