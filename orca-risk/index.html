@@ -537,7 +537,7 @@
 
 <p>But we can do better than these binary encodings. The uneventful passages have actual start and end timestamps, and we can compute how many yacht-hours were spent in daylight versus darkness using solar position calculations. This gives us the <em>exposure distribution</em>: the denominator we need. The incidents have exact timestamps too, so we know when each interaction occurred.</p>
 
-<p>The result: uneventful passages spent 35% of their total yacht-hours in darkness. But only 23% of incidents happened at night. That is significantly fewer than the 35% we would expect if time of day had no effect (p &lt; 0.001, binomial test). The rate ratio is 0.56: roughly <strong>half as many incidents per yacht-hour at night compared to daytime</strong>.</p>
+<p>The result: uneventful passages spent 35% of their total yacht-hours in darkness. But only 23% of incidents happened at night. We fitted a Bayesian Poisson rate model to quantify this: the incident rate is 11.8 per 1,000 yacht-hours at night versus 20.9 during the day. The posterior rate ratio is <strong>0.56 (89% CI: 0.43 to 0.72)</strong>, meaning roughly half as many incidents per yacht-hour at night compared to daytime, with 100% posterior certainty that night is safer. The result is insensitive to the prior.</p>
 
 <p>This makes some intuitive sense. Orcas are visual predators. They may be more active, or more likely to notice and approach a boat, during daylight hours. Alternatively, it could reflect differences in sailing patterns: night passages may follow different routes or be further offshore.</p>
 
