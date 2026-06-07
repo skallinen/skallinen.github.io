@@ -561,9 +561,9 @@
 
 <h3>The strong effects</h3>
 
-<p><strong>Water depth</strong> is the strongest effect. Interactions are concentrated in deeper water (200m+), consistent with orcas feeding over the continental shelf edge. Each standard deviation increase in depth category corresponds to a 2.6x increase in odds. Note that "depth" here likely proxies for location: certain areas happen to be both deep and on the orca migration route.</p>
+<p><strong>Autopilot off</strong> is the single strongest predictor: turning off the autopilot is associated with 3.0 times the odds of interaction (or equivalently, autopilot on cuts the odds to a third). The MBA study actually found autopilot increased risk. Our model disagrees. This may be a confound: skippers who use autopilot might be further offshore or following established routes that happen to be less exposed.</p>
 
-<p><strong>Autopilot on</strong> is associated with roughly a third of the odds (OR 0.33). This is the strongest protective factor. The MBA study actually found autopilot increased risk. Our model disagrees. This may be a confound: skippers who use autopilot might be further offshore or following established routes that happen to be less exposed.</p>
+<p><strong>Water depth</strong> is the second strongest. Interactions are concentrated in deeper water (200m+), consistent with orcas feeding over the continental shelf edge. Each standard deviation increase in depth category corresponds to a 2.6x increase in odds. Note that "depth" here likely proxies for location: certain areas happen to be both deep and on the orca migration route.</p>
 
 <p><strong>Motoring</strong> carries 1.9 times the odds of an interaction compared to motorsailing or sailing. The MBA (Marine Biological Association) published a similar finding in 2024, noting that motors produce underwater noise at frequencies orcas can hear.<sup class="footnote-ref">2</sup></p>
 
@@ -974,7 +974,7 @@
 ;; ═══════════════════════════════════════════════════════════
 
 (def effects-data
-  [{:name "Autopilot ON"     :coeff -1.110 :or 0.33  :dir :prot   :ci-lo -1.54 :ci-hi -0.73}
+  [{:name "Autopilot OFF"    :coeff 1.110  :or 3.03  :dir :risk   :ci-lo 0.73  :ci-hi 1.54}
    {:name "Depth (per SD)"   :coeff 0.953  :or 2.59  :dir :risk   :ci-lo 0.71  :ci-hi 1.22}
    {:name "Motoring"         :coeff 0.638  :or 1.89  :dir :risk   :ci-lo 0.17  :ci-hi 1.12}
    {:name "Black antifoul"   :coeff 0.436  :or 1.55  :dir :risk   :ci-lo 0.06  :ci-hi 0.82}
