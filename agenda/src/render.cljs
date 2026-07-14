@@ -133,7 +133,7 @@
 (defn- cell-mark [m colors]
   (let [cx (+ (day-x (:day m)) 9)
         cy (/ ROW-H 2)]
-    [:g
+    [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
      (mark-glyph m colors cx cy)
      (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))
 
@@ -143,7 +143,7 @@
   (let [tx  (+ GUT GRID 14)
         ty  (+ 8 (* i 12))
         dx  (+ (day-x (:day m)) (/ DAY 2))]
-    [:g
+    [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
      (diamond dx 4 3 (if (:recurring m)
                        {:fill "#fff" :stroke (get colors (:person m) "#333") :stroke-width 1.1}
                        {:fill (get colors (:person m) "#333")}))
@@ -244,7 +244,7 @@
        ^{:key (str "em" (:id m))}
        (let [cx (+ (day-x (:day m)) 9)
              cy 9]
-         [:g
+         [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
           (mark-glyph m colors cx cy)
           (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))
      ;; swimlanes: every period, full label, nothing suppressed

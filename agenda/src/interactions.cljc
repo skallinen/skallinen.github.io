@@ -62,3 +62,10 @@
   "A person chip (visible text = the person's name)."
   [person-name]
   {:text person-name})
+
+(defn day-mark
+  "A day mark's glyph+label group in a week row (in-cell or margin
+   callout) — SVG text has no reliable text-locator semantics, so the
+   group carries an accessible label."
+  [label]
+  {:label (str "day mark " label)})
