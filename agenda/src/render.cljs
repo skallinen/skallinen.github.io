@@ -156,19 +156,25 @@
      (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))
 
 (defn- callout
-  "Margin label + leader line to its (busy) day. Marks whisper (4.3)."
+  "Margin label + leader line to its (busy) day. Each leader runs at
+   ITS label's height and elbows up to the day marker, so several
+   callouts in one week stay visually distinct. Marks whisper (4.3)."
   [m i colors]
   (let [tx  (+ GUT GRID 14)
         ty  (+ 8 (* i 12))
-        dx  (+ (day-x (:day m)) (/ DAY 2))]
+        dx  (+ (day-x (:day m)) (/ DAY 2))
+        d   (str "M" (- tx 6) " " ty
+                 " H" dx
+                 " V" 7.5)]
     [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
+     [:path {:d d :stroke "#fff" :stroke-width 3
+             :fill "none" :stroke-linejoin "round"}]
+     [:path {:d d :stroke "#333" :stroke-width 0.9
+             :fill "none" :stroke-linejoin "round"}]
+     ;; the day marker sits where the elbow lands
      (diamond dx 4 3 (if (:recurring m)
                        {:fill "#fff" :stroke (get colors (:person m) "#333") :stroke-width 1.1}
                        {:fill (get colors (:person m) "#333")}))
-     [:path {:d (str "M" (+ dx 4) " " (min ty 5) " H" (- tx 8))
-             :stroke "#fff" :stroke-width 3 :fill "none"}]
-     [:path {:d (str "M" (+ dx 4) " " (min ty 5) " H" (- tx 8))
-             :stroke "#333" :stroke-width 0.8 :fill "none"}]
      (mark-glyph m colors (- tx 4) ty)
      (label-text (+ tx 4) (+ ty (* FONT 0.36)) :start (:label m))]))
 

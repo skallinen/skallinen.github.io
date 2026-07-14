@@ -80,7 +80,9 @@
      :bands      bands
      :labels     labels
      :cell-marks (vec (map #(assoc % :day (mark-day %)) cell-marks))
-     :callouts   (vec (map #(assoc % :day (mark-day %)) callouts))
+     ;; sorted by day so stacked margin labels read left-to-right and
+     ;; their leader lines never cross
+     :callouts   (vec (sort-by :date-ed (map #(assoc % :day (mark-day %)) callouts)))
      :busy-days  busy-days
      :periods    wps}))
 

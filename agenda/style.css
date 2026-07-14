@@ -213,7 +213,7 @@ html, body {
   background: var(--linen);
   padding: 3px 0 1px;
 }
-.week-row-svg { display: block; width: 100%; height: auto; }
+.week-row-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .week-row-wrap { position: relative; }
 .week-row-wrap.today-week { outline: 2px solid var(--orange); outline-offset: -1px; }
 
