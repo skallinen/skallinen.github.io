@@ -197,14 +197,15 @@
      (fn [{:keys [format body] :as result}]
        (if result
          (let [events (case format
-                        :gcal (domain/gcal-json->events body)
+                        :nager (domain/nager-json->events body)
+                        :gcal  (domain/gcal-json->events body)
                         (domain/parse-ics body))
                items  (domain/ics-events->items events id)]
            (swap! state/sub-events assoc id (assoc items :status :ok)))
          (swap! state/sub-events assoc id {:status :error}))))))
 
 (defonce _ics-watcher
-  (add-watch state/subscriptions :ics-fetch
+  (add-watch state/cal-subs :ics-fetch
              (fn [_ _ _ subs] (doseq [s subs] (fetch-sub! s)))))
 
 (defonce show-calendars (r/atom false))
@@ -224,7 +225,7 @@
               [:p {:style {:font-size "0.75rem" :opacity 0.6}}
                "Single all-day events become day marks; multi-day events become periods. Read-only, refreshed daily."]
               (doall
-               (for [s @state/subscriptions]
+               (for [s @state/cal-subs]
                  (let [ev (get @state/sub-events (:id s))]
                    [:div {:key (:id s)
                           :style {:display "flex" :gap "8px" :align-items "center"}}
@@ -251,11 +252,11 @@
                                     :placeholder "e.g. Suomen juhlapyhät"
                                     :on-change #(reset! new-name (-> % .-target .-value))}]]
                [:div.form-group
-                [:label.form-label "ICS URL"]
+                [:label.form-label "URL"]
                 [:input.form-input {:type "text" :value @new-url
                                     :aria-label (:label interactions/calendar-url-field)
-                                    :placeholder "https://calendar.google.com/calendar/ical/…/basic.ics"
-                                    :style {:min-width "260px"}
+                                    :placeholder "https://date.nager.at/api/v3/PublicHolidays/2026/FI"
+                                    :style {:min-width "280px"}
                                     :on-change #(reset! new-url (-> % .-target .-value))}]]
                [:button.btn.btn-primary
                 {:disabled (or (str/blank? @new-name) (str/blank? @new-url))
@@ -536,7 +537,7 @@
   (state/add-subscription! (db/subscribe-coll! aid "periods" state/periods))
   (state/add-subscription! (db/subscribe-coll! aid "marks" state/marks))
   (state/add-subscription! (db/subscribe-coll! aid "anchors" state/anchors))
-  (state/add-subscription! (db/subscribe-coll! aid "subscriptions" state/subscriptions))
+  (state/add-subscription! (db/subscribe-coll! aid "subscriptions" state/cal-subs))
   (state/add-subscription! (db/subscribe-notes! aid state/notes))
   (js/setTimeout
    (fn []

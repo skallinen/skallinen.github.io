@@ -153,6 +153,13 @@
                                             "body" body})))))
     (catch js/Error _ nil)))
 
+(defn nager-country
+  "Country code from a Nager.Date url like
+   https://date.nager.at/api/v3/PublicHolidays/2026/FI (year ignored —
+   we fetch a range of years)."
+  [url]
+  (second (re-find #"date\.nager\.at/api/v3/PublicHolidays/\d+/(\w+)" url)))
+
 (defn google-calendar-id
   "Extract the calendar id from a Google ical URL (or accept a bare
    id like fi.finnish#holiday@group.v.calendar.google.com)."
@@ -181,28 +188,44 @@
             (fail [err]
               (js/console.error "[db] fetch-calendar error:" url err)
               (callback nil))]
-      (if-let [cal-id (google-calendar-id url)]
-        (let [now  (js/Date.)
-              year (.getFullYear now)
-              api  (str "https://www.googleapis.com/calendar/v3/calendars/"
-                        (js/encodeURIComponent cal-id)
-                        "/events?key=" (:apiKey config/firebase-config)
-                        "&singleEvents=true&maxResults=2500"
-                        "&timeMin=" (- year 4) "-01-01T00:00:00Z"
-                        "&timeMax=" (+ year 2) "-01-01T00:00:00Z")]
-          (-> (js/fetch api)
-              (.then ok-text)
-              (.then #(done :gcal %))
+      (if-let [cc (nager-country url)]
+        ;; Nager.Date: keyless + CORS-open; per-year endpoint, so fetch
+        ;; the same year range the view can reach and merge
+        (let [year  (.getFullYear (js/Date.))
+              years (range (- year 4) (+ year 2))
+              fetches (map (fn [y]
+                             (-> (js/fetch (str "https://date.nager.at/api/v3/PublicHolidays/" y "/" cc))
+                                 (.then ok-text)
+                                 (.catch (fn [_] "[]"))))
+                           years)]
+          (-> (js/Promise.all (into-array fetches))
+              (.then (fn [bodies]
+                       (let [merged (apply concat
+                                           (map #(js->clj (js/JSON.parse %)) bodies))]
+                         (done :nager (js/JSON.stringify (clj->js merged))))))
               (.catch fail)))
-        (-> (js/fetch url)
-            (.then ok-text)
-            (.then #(done :ics %))
-            (.catch (fn [_]
-                      (-> (js/fetch (str "https://api.allorigins.win/raw?url="
-                                         (js/encodeURIComponent url)))
-                          (.then ok-text)
-                          (.then #(done :ics %))
-                          (.catch fail)))))))))
+        (if-let [cal-id (google-calendar-id url)]
+          (let [now  (js/Date.)
+                year (.getFullYear now)
+                api  (str "https://www.googleapis.com/calendar/v3/calendars/"
+                          (js/encodeURIComponent cal-id)
+                          "/events?key=" (:apiKey config/firebase-config)
+                          "&singleEvents=true&maxResults=2500"
+                          "&timeMin=" (- year 4) "-01-01T00:00:00Z"
+                          "&timeMax=" (+ year 2) "-01-01T00:00:00Z")]
+            (-> (js/fetch api)
+                (.then ok-text)
+                (.then #(done :gcal %))
+                (.catch fail)))
+          (-> (js/fetch url)
+              (.then ok-text)
+              (.then #(done :ics %))
+              (.catch (fn [_]
+                        (-> (js/fetch (str "https://api.allorigins.win/raw?url="
+                                           (js/encodeURIComponent url)))
+                            (.then ok-text)
+                            (.then #(done :ics %))
+                            (.catch fail))))))))))
 
 ;; -- Real-time subscriptions (each returns an unsubscribe fn) --
 

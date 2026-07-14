@@ -211,6 +211,19 @@
             :else (recur (rest ls) cur out)))
         out))))
 
+(defn nager-json->events
+  "Nager.Date public-holidays JSON (string) -> event shape. Keyless,
+   CORS-open — the zero-setup holiday source. All single-day. Pure."
+  [json-text]
+  (let [items (js->clj (js/JSON.parse json-text) :keywordize-keys true)]
+    (vec (for [i items
+               :let [d (:date i)]
+               :when d]
+           (let [ed (date-str->ed d)]
+             {:summary (or (:localName i) (:name i))
+              :start-ed ed
+              :end-ed ed})))))
+
 (defn gcal-json->events
   "Google Calendar API v3 events JSON (string) -> the same event shape
    as parse-ics. All-day end.date is exclusive; timed events collapse

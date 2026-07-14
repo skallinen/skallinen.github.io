@@ -21,7 +21,7 @@
 (defonce marks   (r/atom []))   ;; one-off day marks
 (defonce anchors (r/atom []))   ;; recurring -> derived marks per year
 (defonce notes   (r/atom {}))   ;; {week-key -> text}
-(defonce subscriptions (r/atom []))  ;; calendar feeds: {name, url}
+(defonce cal-subs (r/atom []))       ;; calendar feeds: {name, url}
 (defonce sub-events (r/atom {}))     ;; {sub-id -> {:status .. :marks [..] :periods [..]}}
 (defonce agenda-loading (r/atom true))
 
@@ -52,7 +52,7 @@
   (reset! marks [])
   (reset! anchors [])
   (reset! notes {})
-  (reset! subscriptions [])
+  (reset! cal-subs [])
   (reset! sub-events {})
   (reset! expanded-week nil)
   (reset! history-quarters 0)
