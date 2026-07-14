@@ -155,28 +155,61 @@
      (mark-glyph m colors cx cy)
      (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))
 
+(defn- day-dot
+  "Neutral origin dot on the day: dark core + white ring, visible on
+   ANY band color (a person-colored glyph can vanish on its own color)."
+  [x]
+  [:circle {:cx x :cy 4.5 :r 2.2
+            :fill "#26221c" :stroke "#fff" :stroke-width 1.2}])
+
+(defn- dot-x
+  "X of a mark's origin dot; same-day marks sit side by side."
+  [m day-slots]
+  (let [[k n] (get day-slots (:id m) [0 1])]
+    (+ (day-x (:day m)) (/ DAY 2)
+       (- (* k 6.5) (/ (* (dec n) 6.5) 2)))))
+
 (defn- callout
-  "Margin label + leader line to its (busy) day. Each leader runs at
-   ITS label's height and elbows up to the day marker, so several
+  "Margin label + leader to its (busy) day. The COLORED diamond lives
+   only in the margin; the day end is a neutral dot. Each leader runs
+   at its label's height and elbows up to its own dot, so several
    callouts in one week stay visually distinct. Marks whisper (4.3)."
-  [m i colors]
+  [m i colors day-slots]
   (let [tx  (+ GUT GRID 14)
         ty  (+ 8 (* i 12))
-        dx  (+ (day-x (:day m)) (/ DAY 2))
+        dx  (dot-x m day-slots)
         d   (str "M" (- tx 6) " " ty
                  " H" dx
-                 " V" 7.5)]
+                 " V" 7)]
     [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
      [:path {:d d :stroke "#fff" :stroke-width 3
              :fill "none" :stroke-linejoin "round"}]
      [:path {:d d :stroke "#333" :stroke-width 0.9
              :fill "none" :stroke-linejoin "round"}]
-     ;; the day marker sits where the elbow lands
-     (diamond dx 4 3 (if (:recurring m)
-                       {:fill "#fff" :stroke (get colors (:person m) "#333") :stroke-width 1.1}
-                       {:fill (get colors (:person m) "#333")}))
+     (day-dot dx)
      (mark-glyph m colors (- tx 4) ty)
      (label-text (+ tx 4) (+ ty (* FONT 0.36)) :start (:label m))]))
+
+(defn- extra-marker
+  "Origin dot only (no label) for marks beyond the margin's two lanes."
+  [m colors day-slots]
+  [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))
+       :style {:pointer-events "none"}}
+   (day-dot (dot-x m day-slots))])
+
+(defn- more-marks-pill
+  "+N aggregator in the second margin lane; opens the expanded week,
+   where every mark is shown on its day."
+  [n week]
+  (let [tx (+ GUT GRID 14)
+        ty 20
+        ix (interactions/more-marks n)]
+    [:g {:role (:role ix)
+         :aria-label (:name ix)
+         :on-click #(reset! state/expanded-week (:key week))
+         :style {:cursor "pointer"}}
+     (diamond (- tx 4) ty 3 {:fill "#333"})
+     (label-text (+ tx 4) (+ ty (* FONT 0.36)) :start (str "+" n " more"))]))
 
 ;; -- Drag-to-paint plumbing (R6) --
 
@@ -231,7 +264,18 @@
    the caller decides whether that means edit-existing or create-new."
   [plan colors on-paint]
   (let [week   (:week plan)
-        usable (- ROW-H (* 2 PAD))]
+        usable (- ROW-H (* 2 PAD))
+        ;; a uniform row holds TWO labeled margin lanes (R13/R14);
+        ;; beyond that: markers stay on their days, labels aggregate
+        ;; into a +N pill that opens the expanded week
+        callouts (:callouts plan)
+        labeled  (if (> (count callouts) 2) (take 1 callouts) callouts)
+        extra    (drop (count labeled) callouts)
+        ;; same-day marks get side-by-side origin dots: id -> [k n]
+        day-slots (into {}
+                        (mapcat (fn [[_ ms]]
+                                  (map-indexed (fn [k m] [(:id m) [k (count ms)]]) ms))
+                                (group-by :day callouts)))]
     [:svg.week-row-svg {:viewBox (str "0 0 " W " " ROW-H)
                         :style {:margin-bottom "1px"}}
      [row-chrome week ROW-H false]
@@ -247,9 +291,14 @@
      (for [m (:cell-marks plan)]
        ^{:key (str "m" (:id m))}
        [cell-mark m colors])
-     (for [[i m] (map-indexed vector (:callouts plan))]
+     (for [[i m] (map-indexed vector labeled)]
        ^{:key (str "c" (:id m))}
-       [callout m i colors])
+       [callout m i colors day-slots])
+     (for [m extra]
+       ^{:key (str "x" (:id m))}
+       [extra-marker m colors day-slots])
+     (when (seq extra)
+       [more-marks-pill (count extra) week])
      [today-tick week]
      ;; paint overlay: owns ALL pointer events in the row
      (for [d (range 7)]
@@ -267,17 +316,24 @@
   [eplan colors on-edit]
   (let [week   (:week eplan)
         lanes  (:lanes eplan)
-        marksr (seq (:marks eplan))
-        marks-h (if marksr 16 0)
+        marks  (:marks eplan)
+        ;; same-day marks stack vertically (dynamic height is the
+        ;; expanded week's privilege)
+        mark-level (into {}
+                         (mapcat (fn [[_ ms]]
+                                   (map-indexed (fn [k m] [(:id m) k]) ms))
+                                 (group-by :day marks)))
+        stack   (if (seq marks) (inc (apply max 0 (vals mark-level))) 0)
+        marks-h (* 15 stack)
         h      (max ROW-H (+ 6 marks-h (* (count lanes) LANE-H)))]
     [:svg.week-row-svg {:viewBox (str "0 0 " W " " h)
                         :style {:margin-bottom "1px"}}
      [row-chrome week h true]
      ;; marks always on their days (they come home from the margin)
-     (for [m (:marks eplan)]
+     (for [m marks]
        ^{:key (str "em" (:id m))}
        (let [cx (+ (day-x (:day m)) 9)
-             cy 9]
+             cy (+ 9 (* 13 (get mark-level (:id m) 0)))]
          [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
           (mark-glyph m colors cx cy)
           (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))

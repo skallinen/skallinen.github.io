@@ -90,3 +90,9 @@
    group carries an accessible label."
   [label]
   {:label (str "day mark " label)})
+
+(defn more-marks
+  "The +N aggregator pill shown when a week has more margin callouts
+   than the two lanes a uniform row can hold; opens the expanded week."
+  [n]
+  {:role "button" :name (str "+" n " more day marks")})
