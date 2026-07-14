@@ -51,6 +51,7 @@
         [:div
          [:div.section-header
           [:div
+           [:div.section-label "family yearplanner"]
            [:h2.section-title "Your Agendas"]
            [:p.section-subtitle "Create a family agenda or join one with an invite code."]]
           [:div {:style {:display "flex" :gap "8px"}}
@@ -560,6 +561,7 @@
     [:div
      [:div.section-header
       [:div
+       [:div.section-label "family yearplanner"]
        [:h2.section-title (or (:name @state/agenda) "…")]
        [:p.section-subtitle
         "Paint days to add a period. Click a period to edit. Chevron opens a week."]]
@@ -578,7 +580,7 @@
      [persons-bar aid]
      (if @state/agenda-loading
        [:div.loading "Loading agenda…"]
-       [year-view aid])
+       [:div.year-card [year-view aid]])
      [day-chooser-modal]
      [calendars-modal aid]
      [editor-modal aid]]))

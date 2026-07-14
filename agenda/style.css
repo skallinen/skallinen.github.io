@@ -54,7 +54,7 @@ html, body {
 }
 .app-title {
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   letter-spacing: -0.02em;
   cursor: pointer;
 }
@@ -65,8 +65,10 @@ html, body {
 /* -- Buttons -- */
 .btn {
   font-family: var(--font);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   padding: 7px 14px;
   border: 1.5px solid var(--black);
   background: var(--white);
@@ -78,7 +80,7 @@ html, body {
 .btn:active { transform: translateY(0); }
 .btn-primary { background: var(--black); color: var(--white); }
 .btn-accent { background: var(--orange); border-color: var(--orange); color: var(--white); }
-.btn-small { font-size: 0.72rem; padding: 5px 10px; }
+.btn-small { font-size: 0.62rem; padding: 5px 10px; }
 .btn-ghost { border-color: transparent; background: transparent; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
@@ -92,7 +94,7 @@ html, body {
   text-align: center;
   gap: 14px;
 }
-.login-title { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; }
+.login-title { font-size: clamp(2.6rem, 6vw, 3.6rem); font-weight: 800; letter-spacing: -0.02em; }
 .login-subtitle { max-width: 420px; opacity: 0.6; line-height: 1.45; }
 .google-btn {
   display: inline-flex;
@@ -108,6 +110,19 @@ html, body {
   margin-top: 10px;
 }
 
+/* -- Section-label chip (design-doc signature) -- */
+.section-label {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.35em 0.7em;
+  background: var(--black);
+  color: #fff;
+  margin-bottom: 0.35rem;
+}
+
 /* -- Sections / cards -- */
 .section-header {
   display: flex;
@@ -116,7 +131,7 @@ html, body {
   gap: 12px;
   margin: 22px 0 12px;
 }
-.section-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; }
+.section-title { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
 .section-subtitle { font-size: 0.8rem; opacity: 0.55; margin-top: 2px; }
 .card {
   background: var(--white);
@@ -204,13 +219,19 @@ html, body {
   white-space: nowrap;
 }
 
-/* -- Year view -- */
-.year-view { margin-top: 8px; }
+/* -- Year view: framed like the design-doc mockups -- */
+.year-card {
+  background: var(--white);
+  border: 1.5px solid var(--black);
+  padding: 10px 14px 12px;
+  margin-top: 10px;
+}
+.year-view { margin-top: 0; }
 .day-header {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--linen);
+  background: var(--white);
   padding: 3px 0 1px;
 }
 .week-row-svg { display: block; width: 100%; height: auto; overflow: visible; }
