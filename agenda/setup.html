@@ -99,12 +99,13 @@ async function runChecks() {
       PASS('read persons');
     } catch (e) { failures++; FAIL('read persons', e); }
 
-    // 7. cleanup
+    // 7. cleanup — planning docs FIRST (deleting the member doc first
+    // would revoke membership and deny the rest), then member, then agenda
     try {
-      await db.doc('agendas/' + aid + '/members/' + user.uid).delete();
       for (var j = 0; j < created.length; j++) {
         await db.doc('agendas/' + aid + '/' + created[j][0] + '/' + created[j][1]).delete();
       }
+      await db.doc('agendas/' + aid + '/members/' + user.uid).delete();
       await db.doc('agendas/' + aid).delete();
       PASS('cleanup (test agenda deleted)');
     } catch (e) { failures++; FAIL('cleanup — DELETE agendas/' + aid + ' MANUALLY', e); }
