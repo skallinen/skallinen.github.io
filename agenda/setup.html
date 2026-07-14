@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html><head><title>Agenda — Firestore Setup Check</title></head>
+<body style="font-family:monospace;padding:20px;background:#111;color:#eee">
+<h2>Agenda — Firestore Setup Check</h2>
+<p style="color:#888">Verifies the <code>agendas/**</code> security rules after you paste
+<code>firestore.rules.txt</code> into the Firebase console. Signs in, then runs a
+create → read → subcollection-write → cleanup cycle against a throwaway agenda.</p>
+<button id="btn" style="padding:12px 24px;cursor:pointer;font-size:16px" onclick="runChecks()">Sign in &amp; Run Checks</button>
+<pre id="log">Ready.</pre>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",authDomain:"book-club-e4916.firebaseapp.com",projectId:"book-club-e4916"});
+var db = firebase.firestore();
+var log = document.getElementById('log');
+function L(msg) { log.textContent += '\n' + msg; }
+function PASS(name) { L('✓ PASS  ' + name); }
+function FAIL(name, err) { L('✗ FAIL  ' + name + '  →  ' + (err && err.message || err)); }
+
+async function runChecks() {
+  log.textContent = '';
+  var user = firebase.auth().currentUser;
+  if (!user) {
+    await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    user = firebase.auth().currentUser;
+  }
+  L('Signed in as: ' + user.email + ' (UID: ' + user.uid + ')');
+  L('Domain: ' + window.location.origin + '\n');
+
+  var aid = null;
+  var failures = 0;
+
+  // 1. create agenda
+  try {
+    var ref = await db.collection('agendas').add({
+      name: 'SETUP-CHECK (safe to delete)',
+      created_by: user.uid,
+      created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      invite_code: 'ZZZZZZ',
+      member_uids: [user.uid]
+    });
+    aid = ref.id;
+    PASS('create agenda (' + aid + ')');
+  } catch (e) { failures++; FAIL('create agenda', e); }
+
+  if (aid) {
+    // 2. member_uids query (the agenda-list read path)
+    try {
+      var snap = await db.collection('agendas')
+        .where('member_uids', 'array-contains', user.uid).get();
+      if (snap.docs.some(function(d){ return d.id === aid; })) PASS('query own agendas by member_uids');
+      else { failures++; FAIL('query own agendas', 'created agenda not in result'); }
+    } catch (e) { failures++; FAIL('query own agendas', e); }
+
+    // 3. invite-code lookup (the join path read)
+    try {
+      var snap2 = await db.collection('agendas')
+        .where('invite_code', '==', 'ZZZZZZ').get();
+      if (!snap2.empty) PASS('invite-code lookup query');
+      else { failures++; FAIL('invite-code lookup', 'no result'); }
+    } catch (e) { failures++; FAIL('invite-code lookup', e); }
+
+    // 4. member doc (own uid)
+    try {
+      await db.doc('agendas/' + aid + '/members/' + user.uid).set({
+        display_name: user.displayName, email: user.email,
+        role: 'admin', joined_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      PASS('write own member doc');
+    } catch (e) { failures++; FAIL('write own member doc', e); }
+
+    // 5. planning subcollections (members-only wildcard rule)
+    var subchecks = [
+      ['persons', {name: 'Test', color: '#7badb6', lane_order: 0}],
+      ['periods', {label: 'test', who: [], start: '2026-01-05', end: '2026-01-08',
+                   status: 'tentative', kind: 'other'}],
+      ['marks',   {date: '2026-01-06', label: 'test mark', person: null}],
+      ['anchors', {month: 6, day: 24, label: 'test anchor', person: null}]
+    ];
+    var created = [];
+    for (var i = 0; i < subchecks.length; i++) {
+      var coll = subchecks[i][0], data = subchecks[i][1];
+      try {
+        var r = await db.collection('agendas/' + aid + '/' + coll).add(data);
+        created.push([coll, r.id]);
+        PASS('write ' + coll);
+      } catch (e) { failures++; FAIL('write ' + coll, e); }
+    }
+    try {
+      await db.doc('agendas/' + aid + '/notes/2026-W02').set({text: 'test note'});
+      created.push(['notes', '2026-W02']);
+      PASS('write notes');
+    } catch (e) { failures++; FAIL('write notes', e); }
+
+    // 6. read a subcollection back
+    try {
+      await db.collection('agendas/' + aid + '/persons').get();
+      PASS('read persons');
+    } catch (e) { failures++; FAIL('read persons', e); }
+
+    // 7. cleanup
+    try {
+      await db.doc('agendas/' + aid + '/members/' + user.uid).delete();
+      for (var j = 0; j < created.length; j++) {
+        await db.doc('agendas/' + aid + '/' + created[j][0] + '/' + created[j][1]).delete();
+      }
+      await db.doc('agendas/' + aid).delete();
+      PASS('cleanup (test agenda deleted)');
+    } catch (e) { failures++; FAIL('cleanup — DELETE agendas/' + aid + ' MANUALLY', e); }
+  }
+
+  L('');
+  L(failures === 0
+    ? '════ ALL CHECKS PASSED — rules are live, the app is good to go ════'
+    : '════ ' + failures + ' FAILURE(S) — paste firestore.rules.txt into the console and re-run ════');
+}
+</script>
+</body></html>

@@ -1,0 +1,55 @@
+// ============================================================
+// Firestore rules for the AGENDA app (agendas/**).
+// PASTE this block into Firebase Console → Firestore → Rules,
+// inside the existing  match /databases/{database}/documents { ... }
+// alongside the bookrank /clubs rules. Rules cannot be changed
+// from a client script — console (or firebase CLI) only.
+//
+// PoC trade-off (same as bookrank): any signed-in user can READ
+// agenda docs — required for the invite-code lookup query.
+// Tighten post-PoC if needed.
+// ============================================================
+
+    match /agendas/{aid} {
+
+      function signedIn() {
+        return request.auth != null;
+      }
+      function member() {
+        return signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/agendas/$(aid)).data.member_uids;
+      }
+
+      // read: needed by the invite-code lookup (query on invite_code)
+      allow read: if signedIn();
+
+      // create: creator must own the doc and be its only member
+      allow create: if signedIn()
+        && request.resource.data.created_by == request.auth.uid
+        && request.resource.data.member_uids == [request.auth.uid];
+
+      // update: members may edit; a NON-member may only add themself
+      // to member_uids (the join-by-invite flow) touching nothing else
+      allow update: if (signedIn()
+                        && request.auth.uid in resource.data.member_uids)
+        || (signedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['member_uids'])
+            && request.resource.data.member_uids.hasAll(resource.data.member_uids)
+            && request.auth.uid in request.resource.data.member_uids);
+
+      // delete: creator only
+      allow delete: if signedIn() && resource.data.created_by == request.auth.uid;
+
+      // members subcollection: you may write your own member doc (join);
+      // existing agenda members may manage all member docs
+      match /members/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && (uid == request.auth.uid || member());
+      }
+
+      // all planning data (persons, periods, marks, anchors, notes):
+      // members only
+      match /{coll}/{doc} {
+        allow read, write: if member();
+      }
+    }

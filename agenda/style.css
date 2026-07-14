@@ -1,0 +1,238 @@
+/* ============================================
+   Agenda — Family Year Planner
+   Design tokens from product-design.html
+   ============================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --white:  #ffffff;
+  --black:  #111111;
+  --rose:   #E3CAC3;
+  --linen:  #EEE7E1;
+  --peach:  #F9EDDD;
+  --orange: #a9431e;
+  --teal:   #7badb6;
+  --cell:   #f1ece7;
+
+  --font: 'Plus Jakarta Sans', Arial, sans-serif;
+  /* R13: one constant, legible font size for all planner text */
+  --planner-font: 13px;
+}
+
+html, body {
+  font-family: var(--font);
+  background: var(--linen);
+  color: var(--black);
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px 64px;
+}
+
+/* -- Header -- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--black);
+}
+.app-title {
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+}
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.user-name { font-size: 0.8rem; opacity: 0.7; }
+.user-avatar { width: 26px; height: 26px; border-radius: 50%; }
+
+/* -- Buttons -- */
+.btn {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 14px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary { background: var(--black); color: var(--white); }
+.btn-accent { background: var(--orange); border-color: var(--orange); color: var(--white); }
+.btn-small { font-size: 0.72rem; padding: 5px 10px; }
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+/* -- Login -- */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  text-align: center;
+  gap: 14px;
+}
+.login-title { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; }
+.login-subtitle { max-width: 420px; opacity: 0.6; line-height: 1.45; }
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  background: var(--white);
+  border: 1.5px solid var(--black);
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+/* -- Sections / cards -- */
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 22px 0 12px;
+}
+.section-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; }
+.section-subtitle { font-size: 0.8rem; opacity: 0.55; margin-top: 2px; }
+.card {
+  background: var(--white);
+  border: 1.5px solid var(--black);
+  padding: 14px;
+}
+.card-title { font-weight: 800; }
+.card-subtitle { font-size: 0.75rem; opacity: 0.55; margin-top: 2px; }
+.agenda-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.agenda-card { cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.agenda-card:hover { background: var(--peach); }
+
+/* -- Forms -- */
+.form-inline { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.form-input, .form-select, .form-textarea {
+  font-family: var(--font);
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  min-width: 160px;
+}
+.form-textarea { width: 100%; min-height: 60px; resize: vertical; }
+
+/* -- Loading / empty -- */
+.loading { padding: 40px 0; text-align: center; opacity: 0.5; }
+.empty-state { padding: 48px 0; text-align: center; }
+.empty-state-icon { font-size: 2rem; margin-bottom: 8px; }
+.empty-state-text { opacity: 0.55; max-width: 380px; margin: 0 auto; line-height: 1.45; }
+
+/* -- Persons bar -- */
+.persons-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  cursor: pointer;
+}
+.person-chip.selected { background: var(--black); color: var(--white); }
+.person-dot { width: 10px; height: 10px; display: inline-block; }
+
+.color-swatch {
+  width: 22px; height: 22px;
+  display: inline-block;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+}
+.color-swatch.selected { border-color: var(--black); transform: scale(1.15); }
+
+/* -- Invite -- */
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+.invite-link {
+  font-family: monospace;
+  font-size: 0.72rem;
+  background: var(--white);
+  border: 1.5px solid var(--black);
+  padding: 5px 8px;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -- Year view -- */
+.year-view { margin-top: 8px; }
+.week-row-svg { display: block; width: 100%; height: auto; }
+.week-row-wrap { position: relative; }
+.week-row-wrap.today-week { outline: 2px solid var(--orange); outline-offset: -1px; }
+
+/* -- Modal (period / mark editor) -- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+.modal {
+  background: var(--white);
+  border: 2px solid var(--black);
+  border-bottom: none;
+  padding: 18px;
+  width: min(560px, 100vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal-title { font-weight: 800; font-size: 1rem; }
+.modal-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.type-toggle { display: flex; gap: 0; }
+.type-toggle .btn { border-right-width: 0; }
+.type-toggle .btn:last-child { border-right-width: 1.5px; }
+.type-toggle .btn.active { background: var(--black); color: var(--white); }
+
+/* -- Week note (expanded week) -- */
+.week-note {
+  margin: 2px 0 8px 36px;
+  display: flex;
+  gap: 8px;
+}
