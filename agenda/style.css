@@ -5,6 +5,16 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Helvetica Neue LT Pro webfont kit (shared with triad-infoanimation) */
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 300 400; font-style: normal;
+  src: url('fonts/36DC52_0_0.woff2') format('woff2'), url('fonts/36DC52_0_0.woff') format('woff'); }
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 500 600; font-style: normal;
+  src: url('fonts/36DC52_1_0.woff2') format('woff2'), url('fonts/36DC52_1_0.woff') format('woff'); }
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 700; font-style: normal;
+  src: url('fonts/36DC52_2_0.woff2') format('woff2'), url('fonts/36DC52_2_0.woff') format('woff'); }
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 800 900; font-style: normal;
+  src: url('fonts/36DC52_3_0.woff2') format('woff2'), url('fonts/36DC52_3_0.woff') format('woff'); }
+
 :root {
   --white:  #ffffff;
   --black:  #111111;
@@ -15,7 +25,7 @@
   --teal:   #7badb6;
   --cell:   #f1ece7;
 
-  --font: 'Plus Jakarta Sans', Arial, sans-serif;
+  --font: 'Helvetica Neue LT Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   /* R13: one constant, legible font size for all planner text */
   --planner-font: 13px;
 }

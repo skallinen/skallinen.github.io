@@ -26,6 +26,10 @@
 
 ;; -- the editor dialog --
 (def editor          {:role "dialog" :name "editor"})
+
+;; -- the day chooser: opens when a clicked day holds several items;
+;;    lists each period/mark (same accessible names as everywhere)
+(def day-chooser {:role "dialog" :name "day items"})
 (def type-period     {:role "button" :name "Period"})
 (def type-mark       {:role "button" :name "Day mark"})
 (def label-field     {:label "Label"})

@@ -204,6 +204,12 @@
            :tentative (domain/tentative? p) :kind (or (:kind p) "other")
            :person nil}))
 
+(defn open-mark-editor! [m]
+  (reset! state/editor
+          {:type :mark :id (:id m) :label (:label m)
+           :who #{} :start-ed (:date-ed m) :end-ed (:date-ed m)
+           :tentative false :kind "other" :person (:person m)}))
+
 (def kinds ["travel" "vacation" "camp" "event" "visit" "other"])
 
 (defn editor-modal [aid]
@@ -287,7 +293,9 @@
          (when (:id ed)
            [:button.btn {:on-click (fn []
                                      (when (js/confirm "Delete?")
-                                       (db/delete-doc! aid "periods" (:id ed) nil)
+                                       (db/delete-doc! aid
+                                                       (if period? "periods" "marks")
+                                                       (:id ed) nil)
                                        (close!)))}
             (:name interactions/delete)])
          [:button.btn {:on-click close!} (:name interactions/cancel)]
@@ -295,23 +303,58 @@
           {:disabled (str/blank? (:label ed))
            :on-click
            (fn []
-             (if period?
-               (let [data {:label  (:label ed)
+             (let [data (if period?
+                          {:label  (:label ed)
                            :who    (vec (:who ed))
                            :start  (domain/ed->date-str (min (:start-ed ed) (:end-ed ed)))
                            :end    (domain/ed->date-str (max (:start-ed ed) (:end-ed ed)))
                            :status (if (:tentative ed) "tentative" "confirmed")
-                           :kind   (:kind ed)}]
-                 (if (:id ed)
-                   (db/update-doc! aid "periods" (:id ed) data nil)
-                   (db/add-doc! aid "periods" data nil)))
-               (db/add-doc! aid "marks"
-                            {:date   (domain/ed->date-str (:start-ed ed))
-                             :label  (:label ed)
-                             :person (:person ed)}
-                            nil))
+                           :kind   (:kind ed)}
+                          {:date   (domain/ed->date-str (:start-ed ed))
+                           :label  (:label ed)
+                           :person (:person ed)})
+                   coll (if period? "periods" "marks")]
+               (if (:id ed)
+                 (db/update-doc! aid coll (:id ed) data nil)
+                 (db/add-doc! aid coll data nil)))
              (close!))}
           (:name interactions/save)]]]])))
+
+;; -- Day chooser: several items share the clicked day (design 4.5) --
+
+(defn day-chooser-modal []
+  (when-let [{:keys [ed periods marks]} @state/day-chooser]
+    (let [close! #(reset! state/day-chooser nil)]
+      [:div.modal-overlay {:on-click close!}
+       [:div.modal {:on-click #(.stopPropagation %)
+                    :role (:role interactions/day-chooser)
+                    :aria-label (:name interactions/day-chooser)}
+        [:div.modal-title (str "On " (domain/ed->date-str ed))]
+        [:div {:style {:display "flex" :flex-direction "column" :gap "6px"}}
+         (doall
+          (for [p periods]
+            (let [ix (interactions/edit-period (:label p))]
+              [:button.btn {:key (:id p)
+                            :aria-label (:name ix)
+                            :style {:text-align "left"}
+                            :on-click (fn [] (close!) (open-period-editor! p))}
+               (str (:label p)
+                    (when (domain/tentative? p) "?")
+                    "  ·  " (:start p) " → " (:end p))])))
+         (doall
+          (for [m marks]
+            (let [ix (interactions/day-mark (:label m))]
+              [:button.btn {:key (:id m)
+                            :aria-label (:label ix)
+                            :style {:text-align "left"}
+                            :on-click (fn [] (close!) (open-mark-editor! m))}
+               (str "◆ " (:label m))])))
+         [:button.btn.btn-primary
+          {:aria-label (:name interactions/new-item)
+           :on-click (fn [] (close!) (open-new-editor! ed ed))}
+          "+ New on this day"]]
+        [:div.modal-actions
+         [:button.btn {:on-click close!} (:name interactions/cancel)]]]])))
 
 ;; -- Week note (inside expanded week) --
 
@@ -344,16 +387,24 @@
         colors   (state/person-color-map)
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
-        ;; a zero-length paint is a click: edit the day's top period if
-        ;; one exists, otherwise start a new item on that day
+        ;; a zero-length paint is a click: route by what the day holds —
+        ;; nothing -> new; one item -> its editor; several -> the chooser
         on-paint (fn [a b]
-                   (if-let [p (and (= a b)
-                                   (->> periods
-                                        (filter #(domain/active-on? % a))
-                                        (sort-by (juxt :start-ed :id))
-                                        first))]
-                     (open-period-editor! p)
-                     (open-new-editor! a b)))
+                   (if (not= a b)
+                     (open-new-editor! a b)
+                     (let [dps (->> periods
+                                    (filter #(domain/active-on? % a))
+                                    (sort-by (juxt :start-ed :id))
+                                    vec)
+                           dms (->> one-offs
+                                    (filterv #(= (:date-ed %) a)))
+                           n   (+ (count dps) (count dms))]
+                       (cond
+                         (zero? n)                            (open-new-editor! a b)
+                         (and (= n 1) (seq dps))              (open-period-editor! (first dps))
+                         (= n 1)                              (open-mark-editor! (first dms))
+                         :else (reset! state/day-chooser
+                                       {:ed a :periods dps :marks dms})))))
         on-edit  open-period-editor!
         today-key (domain/week-key today)]
     [:div.year-view
@@ -424,4 +475,5 @@
      (if @state/agenda-loading
        [:div.loading "Loading agenda…"]
        [year-view aid])
+     [day-chooser-modal]
      [editor-modal aid]]))
