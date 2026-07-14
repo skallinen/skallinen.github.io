@@ -61,6 +61,10 @@
 ;; one more quarter per press
 (def show-previous {:role "button" :name "Show previous"})
 
+;; the future horizon (rolling year, or latest data) extends one
+;; quarter per press
+(def show-next {:role "button" :name "Show next"})
+
 ;; -- calendar subscriptions --
 (def calendars          {:role "button" :name "Calendars"})
 (def calendars-dialog   {:role "dialog" :name "calendars"})

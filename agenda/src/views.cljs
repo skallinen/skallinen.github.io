@@ -470,7 +470,8 @@
         ;; today by default — "Show previous" reveals a quarter at a time
         data-eds (concat (map :start-ed periods) (map :date-ed one-offs))
         from     (- (domain/week-start today) (* 91 @state/history-quarters))
-        to       (apply max (+ today (* 52 7)) data-eds)
+        to       (+ (apply max (+ today (* 52 7)) data-eds)
+                    (* 91 @state/future-quarters))
         weeks    (domain/weeks-range from to)
         n-pers   (count @state/persons)
         colors   (state/person-color-map)
@@ -525,7 +526,13 @@
               [week-note aid wkey]]
              [render/week-row
               (layout/week-plan week periods marks n-pers)
-              colors on-paint])])))]))
+              colors on-paint])])))
+     [:div {:style {:display "flex" :justify-content "center" :margin "6px 0 2px"}}
+      [:button.btn.btn-small.btn-ghost
+       {:aria-label (:name interactions/show-next)
+        :style {:opacity 0.6}
+        :on-click #(swap! state/future-quarters inc)}
+       "↓ next quarter"]]]))
 
 ;; -- Agenda page --
 
