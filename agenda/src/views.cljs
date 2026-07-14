@@ -2,6 +2,7 @@
   (:require [reagent.core :as r]
             [clojure.string :as str]
             [config]
+            [interactions]
             [domain]
             [layout]
             [router]
@@ -62,6 +63,7 @@
              [:div.form-group
               [:label.form-label "Invite Code"]
               [:input.form-input {:type "text" :value @invite-code
+                                  :aria-label (:label interactions/invite-code-field)
                                   :placeholder "e.g. ABC123" :max-length 6
                                   :style {:text-transform "uppercase" :letter-spacing "0.15em"}
                                   :on-change #(reset! invite-code (-> % .-target .-value))}]]
@@ -83,6 +85,7 @@
              [:div.form-group
               [:label.form-label "Agenda Name"]
               [:input.form-input {:type "text" :value @agenda-name
+                                  :aria-label (:label interactions/agenda-name-field)
                                   :placeholder "e.g. Familjen"
                                   :on-change #(reset! agenda-name (-> % .-target .-value))}]]
              [:button.btn.btn-primary
@@ -134,7 +137,8 @@
          (if @adding
            [:span {:style {:display "inline-flex" :gap "6px" :align-items "center"}}
             [:input.form-input {:type "text" :value @new-name
-                                :placeholder "Name" :aria-label "Person name"
+                                :placeholder "Name"
+                                :aria-label (:label interactions/person-name-field)
                                 :style {:min-width "100px"}
                                 :on-change #(reset! new-name (-> % .-target .-value))}]
             (doall
@@ -157,9 +161,10 @@
                                          nil)
                             (reset! new-name "")
                             (reset! adding false)))}
-             "Add"]
+             (:name interactions/confirm-person)]
             [:button.btn.btn-small {:on-click #(reset! adding false)} "×"]]
-           [:button.btn.btn-small {:on-click #(reset! adding true)} "+ Person"])]))))
+           [:button.btn.btn-small {:on-click #(reset! adding true)}
+            (:name interactions/add-person)])]))))
 
 ;; -- Invite row (owner shares link) --
 
@@ -208,8 +213,8 @@
           set-field! (fn [k v] (swap! state/editor assoc k v))]
       [:div.modal-overlay {:on-click close!}
        [:div.modal {:on-click #(.stopPropagation %)
-                    :role "dialog"
-                    :aria-label "editor"}
+                    :role (:role interactions/editor)
+                    :aria-label (:name interactions/editor)}
         [:div.modal-title (cond
                             (:id ed) "Edit"
                             period?  "New period"
@@ -218,19 +223,23 @@
         (when-not (:id ed)
           [:div.type-toggle
            [:button.btn.btn-small {:class (when period? "active")
-                                   :on-click #(set-field! :type :period)} "Period"]
+                                   :on-click #(set-field! :type :period)}
+            (:name interactions/type-period)]
            [:button.btn.btn-small {:class (when-not period? "active")
-                                   :on-click #(set-field! :type :mark)} "Day mark"]])
+                                   :on-click #(set-field! :type :mark)}
+            (:name interactions/type-mark)]])
         [:div.modal-row
          [:div.form-group
           [:label.form-label "Label"]
           [:input.form-input {:type "text" :value (:label ed) :auto-focus true
-                              :aria-label "Label"
+                              :aria-label (:label interactions/label-field)
                               :on-change #(set-field! :label (-> % .-target .-value))}]]
          [:div.form-group
           [:label.form-label (if period? "Start" "Date")]
           [:input.form-input {:type "date"
-                              :aria-label (if period? "Start" "Date")
+                              :aria-label (:label (if period?
+                                                    interactions/start-field
+                                                    interactions/date-field))
                               :value (domain/ed->date-str (:start-ed ed))
                               :on-change #(set-field! :start-ed
                                                       (domain/date-str->ed (-> % .-target .-value)))}]]
@@ -238,7 +247,7 @@
            [:div.form-group
             [:label.form-label "End"]
             [:input.form-input {:type "date"
-                                :aria-label "End"
+                                :aria-label (:label interactions/end-field)
                                 :value (domain/ed->date-str (:end-ed ed))
                                 :on-change #(set-field! :end-ed
                                                         (domain/date-str->ed (-> % .-target .-value)))}]])]
@@ -266,22 +275,22 @@
             [:label.form-label "Kind"]
             [:select.form-select
              {:value (:kind ed)
-              :aria-label "Kind"
+              :aria-label (:label interactions/kind-field)
               :on-change #(set-field! :kind (-> % .-target .-value))}
              (for [k kinds] ^{:key k} [:option {:value k} k])]]
            [:label {:style {:display "flex" :gap "6px" :align-items "center"
                             :font-size "0.8rem" :font-weight 700}}
             [:input {:type "checkbox" :checked (:tentative ed)
                      :on-change #(set-field! :tentative (-> % .-target .-checked))}]
-            "tentative?"]])
+            (:label interactions/tentative-field)]])
         [:div.modal-actions
          (when (:id ed)
            [:button.btn {:on-click (fn []
                                      (when (js/confirm "Delete?")
                                        (db/delete-doc! aid "periods" (:id ed) nil)
                                        (close!)))}
-            "Delete"])
-         [:button.btn {:on-click close!} "Cancel"]
+            (:name interactions/delete)])
+         [:button.btn {:on-click close!} (:name interactions/cancel)]
          [:button.btn.btn-accent
           {:disabled (str/blank? (:label ed))
            :on-click
@@ -302,7 +311,7 @@
                              :person (:person ed)}
                             nil))
              (close!))}
-          "Save"]]]])))
+          (:name interactions/save)]]]])))
 
 ;; -- Week note (inside expanded week) --
 
@@ -312,12 +321,12 @@
       [:div.week-note
        [:input.form-input {:type "text" :value @text
                            :placeholder "Week note…"
-                           :aria-label "Week note"
+                           :aria-label (:label interactions/week-note-field)
                            :style {:flex 1}
                            :on-change #(reset! text (-> % .-target .-value))}]
        [:button.btn.btn-small
         {:on-click #(db/save-note! aid wkey @text nil)}
-        "Save note"]])))
+        (:name interactions/save-note)]])))
 
 ;; -- The year view --
 
@@ -397,7 +406,14 @@
        [:h2.section-title (or (:name @state/agenda) "…")]
        [:p.section-subtitle
         "Paint days to add a period. Click a period to edit. Chevron opens a week."]]
-      [invite-row]]
+      [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
+       [invite-row]
+       ;; explicit creation affordance: works on busy days too, where a
+       ;; click would open the existing period instead
+       [:button.btn.btn-small.btn-primary
+        {:aria-label (:name interactions/new-item)
+         :on-click #(let [t (domain/today-ed)] (open-new-editor! t t))}
+        "+ New"]]]
      [persons-bar aid]
      (if @state/agenda-loading
        [:div.loading "Loading agenda…"]

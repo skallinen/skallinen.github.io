@@ -1,7 +1,8 @@
 (ns render
   (:require [domain]
             [layout]
-            [state]))
+            [state]
+            [interactions]))
 
 ;; =============================================
 ;; Render plan -> SVG hiccup.
@@ -66,11 +67,12 @@
              :text-anchor "middle" :font-size 9.5 :font-weight 800
              :fill "#000" :opacity 0.45}
       wk]
-     [:g {:on-click #(swap! state/expanded-week
-                            (fn [cur] (when (not= cur (:key week)) (:key week))))
-          :role "button"
-          :aria-label (str "toggle week " (:key week))
-          :style {:cursor "pointer"}}
+     [:g (let [ix (interactions/toggle-week (:key week))]
+           {:on-click #(swap! state/expanded-week
+                              (fn [cur] (when (not= cur (:key week)) (:key week))))
+            :role (:role ix)
+            :aria-label (:name ix)
+            :style {:cursor "pointer"}})
       [:rect {:x 22 :y 4 :width 14 :height 18 :fill "transparent"}]
       [:path {:d (if expanded? "M25 11 l4 4 4 -4" "M27 9 l4 4 -4 4")
               :stroke "#000" :stroke-width 1.5 :fill "none" :opacity 0.4}]]
@@ -256,11 +258,12 @@
              k   (count cs)
              bh  (- LANE-H 3)
              tnt (domain/tentative? period)]
-         [:g {:opacity (if tnt 0.5 1)
-              :on-click #(on-edit period)
-              :role "button"
-              :aria-label (str "edit period " (:label period))
-              :style {:cursor "pointer"}}
+         [:g (let [ix (interactions/edit-period (:label period))]
+               {:opacity (if tnt 0.5 1)
+                :on-click #(on-edit period)
+                :role (:role ix)
+                :aria-label (:name ix)
+                :style {:cursor "pointer"}})
           (for [[i c] (map-indexed vector cs)]
             ^{:key i}
             [:rect {:x x0 :width (- x1 x0)

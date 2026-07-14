@@ -1,0 +1,5 @@
+;; Makes the app source consumable as a :local/root dependency by the
+;; e2e project (family-agenda/e2e), so the e2e robot reads the SAME
+;; interactions.cljc affordance registry the production UI renders.
+;; Static hosting ignores this file.
+{:paths ["src"]}
