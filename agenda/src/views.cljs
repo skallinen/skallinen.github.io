@@ -185,6 +185,90 @@
                          (js/setTimeout #(reset! copied false) 1500))}
             (if @copied "Copied!" "Copy")]])))))
 
+;; -- Calendar subscriptions (design: derived like Anchors, read-only) --
+
+(defn- fetch-sub!
+  "Fetch + parse one subscription into derived marks/periods."
+  [{:keys [id url]}]
+  (when-not (contains? @state/sub-events id)
+    (swap! state/sub-events assoc id {:status :loading})
+    (db/fetch-calendar!
+     url
+     (fn [{:keys [format body] :as result}]
+       (if result
+         (let [events (case format
+                        :gcal (domain/gcal-json->events body)
+                        (domain/parse-ics body))
+               items  (domain/ics-events->items events id)]
+           (swap! state/sub-events assoc id (assoc items :status :ok)))
+         (swap! state/sub-events assoc id {:status :error}))))))
+
+(defonce _ics-watcher
+  (add-watch state/subscriptions :ics-fetch
+             (fn [_ _ _ subs] (doseq [s subs] (fetch-sub! s)))))
+
+(defonce show-calendars (r/atom false))
+
+(defn calendars-modal [aid]
+  (when @show-calendars
+    (let [new-name (r/atom "")
+          new-url  (r/atom "")]
+      (fn [aid]
+        (when @show-calendars
+          (let [close! #(reset! show-calendars false)]
+            [:div.modal-overlay {:on-click close!}
+             [:div.modal {:on-click #(.stopPropagation %)
+                          :role (:role interactions/calendars-dialog)
+                          :aria-label (:name interactions/calendars-dialog)}
+              [:div.modal-title "Subscribed calendars"]
+              [:p {:style {:font-size "0.75rem" :opacity 0.6}}
+               "Single all-day events become day marks; multi-day events become periods. Read-only, refreshed daily."]
+              (doall
+               (for [s @state/subscriptions]
+                 (let [ev (get @state/sub-events (:id s))]
+                   [:div {:key (:id s)
+                          :style {:display "flex" :gap "8px" :align-items "center"}}
+                    [:span {:style {:font-weight 700}} (:name s)]
+                    [:span {:style {:font-size "0.7rem" :opacity 0.5}}
+                     (case (:status ev)
+                       :ok      (str (count (:marks ev)) " days, "
+                                     (count (:periods ev)) " periods")
+                       :loading "loading…"
+                       :error   "fetch failed"
+                       "")]
+                    [:span {:style {:flex 1}}]
+                    [:button.btn.btn-small
+                     {:aria-label (:name (interactions/remove-calendar (:name s)))
+                      :on-click (fn []
+                                  (swap! state/sub-events dissoc (:id s))
+                                  (db/delete-doc! aid "subscriptions" (:id s) nil))}
+                     "×"]])))
+              [:div.modal-row
+               [:div.form-group
+                [:label.form-label "Name"]
+                [:input.form-input {:type "text" :value @new-name
+                                    :aria-label (:label interactions/calendar-name-field)
+                                    :placeholder "e.g. Suomen juhlapyhät"
+                                    :on-change #(reset! new-name (-> % .-target .-value))}]]
+               [:div.form-group
+                [:label.form-label "ICS URL"]
+                [:input.form-input {:type "text" :value @new-url
+                                    :aria-label (:label interactions/calendar-url-field)
+                                    :placeholder "https://calendar.google.com/calendar/ical/…/basic.ics"
+                                    :style {:min-width "260px"}
+                                    :on-change #(reset! new-url (-> % .-target .-value))}]]
+               [:button.btn.btn-primary
+                {:disabled (or (str/blank? @new-name) (str/blank? @new-url))
+                 :on-click (fn []
+                             (db/add-doc! aid "subscriptions"
+                                          {:name @new-name :url (str/trim @new-url)}
+                                          nil)
+                             (reset! new-name "")
+                             (reset! new-url ""))}
+                (:name interactions/add-calendar)]]
+              [:div.modal-actions
+               [:button.btn {:on-click close!} (:name interactions/cancel)]]]]))))))
+
 ;; -- Period / mark editor modal --
 ;; state/editor: {:type :period|:mark  :id nil-or-existing
 ;;                :label "" :who #{} :start-ed .. :end-ed ..
@@ -375,8 +459,12 @@
 
 (defn year-view [aid]
   (let [today    (domain/today-ed)
-        periods  (mapv domain/enrich-period @state/periods)
-        one-offs (mapv domain/enrich-mark @state/marks)
+        own-periods (mapv domain/enrich-period @state/periods)
+        ;; subscribed calendars: derived, read-only, merged for display
+        sub-data (vals @state/sub-events)
+        periods  (into own-periods (mapcat :periods sub-data))
+        one-offs (into (mapv domain/enrich-mark @state/marks)
+                       (mapcat :marks sub-data))
         ;; history is part of the product (Principle 8) but hidden until
         ;; today by default — "Show previous" reveals a quarter at a time
         data-eds (concat (map :start-ed periods) (map :date-ed one-offs))
@@ -388,15 +476,18 @@
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
         ;; a zero-length paint is a click: route by what the day holds —
-        ;; nothing -> new; one item -> its editor; several -> the chooser
+        ;; nothing -> new; one item -> its editor; several -> the chooser.
+        ;; Subscribed (derived) items are read-only and not selectable.
         on-paint (fn [a b]
                    (if (not= a b)
                      (open-new-editor! a b)
                      (let [dps (->> periods
+                                    (remove :subscription)
                                     (filter #(domain/active-on? % a))
                                     (sort-by (juxt :start-ed :id))
                                     vec)
                            dms (->> one-offs
+                                    (remove :subscription)
                                     (filterv #(= (:date-ed %) a)))
                            n   (+ (count dps) (count dms))]
                        (cond
@@ -405,7 +496,7 @@
                          (= n 1)                              (open-mark-editor! (first dms))
                          :else (reset! state/day-chooser
                                        {:ed a :periods dps :marks dms})))))
-        on-edit  open-period-editor!
+        on-edit  (fn [p] (when-not (:subscription p) (open-period-editor! p)))
         today-key (domain/week-key today)]
     [:div.year-view
      ;; cancel a drag that ends outside any row
@@ -445,6 +536,7 @@
   (state/add-subscription! (db/subscribe-coll! aid "periods" state/periods))
   (state/add-subscription! (db/subscribe-coll! aid "marks" state/marks))
   (state/add-subscription! (db/subscribe-coll! aid "anchors" state/anchors))
+  (state/add-subscription! (db/subscribe-coll! aid "subscriptions" state/subscriptions))
   (state/add-subscription! (db/subscribe-notes! aid state/notes))
   (js/setTimeout
    (fn []
@@ -465,6 +557,10 @@
         "Paint days to add a period. Click a period to edit. Chevron opens a week."]]
       [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
        [invite-row]
+       [:button.btn.btn-small
+        {:aria-label (:name interactions/calendars)
+         :on-click #(reset! show-calendars true)}
+        "Calendars"]
        ;; explicit creation affordance: works on busy days too, where a
        ;; click would open the existing period instead
        [:button.btn.btn-small.btn-primary
@@ -476,4 +572,5 @@
        [:div.loading "Loading agenda…"]
        [year-view aid])
      [day-chooser-modal]
+     [calendars-modal aid]
      [editor-modal aid]]))

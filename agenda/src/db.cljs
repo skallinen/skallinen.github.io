@@ -1,5 +1,6 @@
 (ns db
   (:require [clojure.string :as str]
+            [config]
             [auth]))
 
 ;; =============================================
@@ -123,6 +124,85 @@
               (clj->js {:text text :updated_at (ts-now)}))
         (.then (fn [] (when callback (callback))))
         (.catch (fn [err] (js/console.error "[db] save-note error:" err))))))
+
+;; -- iCalendar feed fetching (not Firestore, but IO lives here) --
+;; localStorage cache (24h) + CORS-proxy fallback: Google's ICS
+;; endpoints send no CORS headers, so a direct fetch fails in-browser.
+
+(def ^:private ics-cache-key "agenda-ics-cache")
+(def ^:private ics-ttl-ms (* 24 60 60 1000))
+
+(defn- ics-cache-get
+  "Returns {:format kw :body text} or nil."
+  [url]
+  (try
+    (let [cache (js->clj (js/JSON.parse (or (.getItem js/localStorage ics-cache-key) "{}")))
+          entry (get cache url)]
+      (when (and entry (< (- (js/Date.now) (get entry "t")) ics-ttl-ms))
+        {:format (keyword (get entry "format" "ics"))
+         :body   (get entry "body")}))
+    (catch js/Error _ nil)))
+
+(defn- ics-cache-put! [url {:keys [format body]}]
+  (try
+    (let [cache (js->clj (js/JSON.parse (or (.getItem js/localStorage ics-cache-key) "{}")))]
+      (.setItem js/localStorage ics-cache-key
+                (js/JSON.stringify
+                 (clj->js (assoc cache url {"t" (js/Date.now)
+                                            "format" (name format)
+                                            "body" body})))))
+    (catch js/Error _ nil)))
+
+(defn google-calendar-id
+  "Extract the calendar id from a Google ical URL (or accept a bare
+   id like fi.finnish#holiday@group.v.calendar.google.com)."
+  [url]
+  (or (when-let [[_ id] (re-find #"calendar/ical/([^/]+)/" url)]
+        (js/decodeURIComponent id))
+      (when (re-find #"@group\.v\.calendar\.google\.com$|@gmail\.com$" url)
+        url)))
+
+(defn fetch-calendar!
+  "Fetch calendar data for a subscription url. Callback gets
+   {:format :gcal|:ics :body text} or nil.
+   - Google calendars go through the Calendar API v3 (proper CORS;
+     requires the Calendar API to be enabled for the project key).
+   - Other ICS urls: direct fetch (works when the host sends CORS),
+     then the allorigins proxy as a flaky last resort."
+  [url callback]
+  (if-let [cached (ics-cache-get url)]
+    (callback cached)
+    (letfn [(ok-text [resp]
+              (if (.-ok resp) (.text resp) (throw (js/Error. "http error"))))
+            (done [fmt body]
+              (let [result {:format fmt :body body}]
+                (ics-cache-put! url result)
+                (callback result)))
+            (fail [err]
+              (js/console.error "[db] fetch-calendar error:" url err)
+              (callback nil))]
+      (if-let [cal-id (google-calendar-id url)]
+        (let [now  (js/Date.)
+              year (.getFullYear now)
+              api  (str "https://www.googleapis.com/calendar/v3/calendars/"
+                        (js/encodeURIComponent cal-id)
+                        "/events?key=" (:apiKey config/firebase-config)
+                        "&singleEvents=true&maxResults=2500"
+                        "&timeMin=" (- year 4) "-01-01T00:00:00Z"
+                        "&timeMax=" (+ year 2) "-01-01T00:00:00Z")]
+          (-> (js/fetch api)
+              (.then ok-text)
+              (.then #(done :gcal %))
+              (.catch fail)))
+        (-> (js/fetch url)
+            (.then ok-text)
+            (.then #(done :ics %))
+            (.catch (fn [_]
+                      (-> (js/fetch (str "https://api.allorigins.win/raw?url="
+                                         (js/encodeURIComponent url)))
+                          (.then ok-text)
+                          (.then #(done :ics %))
+                          (.catch fail)))))))))
 
 ;; -- Real-time subscriptions (each returns an unsubscribe fn) --
 

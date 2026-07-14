@@ -61,6 +61,14 @@
 ;; one more quarter per press
 (def show-previous {:role "button" :name "Show previous"})
 
+;; -- calendar subscriptions --
+(def calendars          {:role "button" :name "Calendars"})
+(def calendars-dialog   {:role "dialog" :name "calendars"})
+(def calendar-name-field {:label "Calendar name"})
+(def calendar-url-field  {:label "ICS URL"})
+(def add-calendar        {:role "button" :name "Add calendar"})
+(defn remove-calendar [nm] {:role "button" :name (str "remove calendar " nm)})
+
 ;; -- persons --
 (defn color-swatch
   "Palette swatch, addressed by its color NAME (teal, rust, ...)."

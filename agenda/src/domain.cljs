@@ -141,6 +141,122 @@
           :when (<= from-ed (:date-ed m) to-ed)]
       m)))
 
+;; -- iCalendar (subscribed feeds -> derived marks & periods) --
+;; Minimal ICS: unfold lines, walk VEVENTs, read DTSTART/DTEND/SUMMARY.
+;; All-day DTEND is EXCLUSIVE per RFC 5545. RRULE is not expanded
+;; (holiday feeds enumerate their events). Pure — tier 1.
+
+(defn- ics-unescape [s]
+  (-> s
+      (str/replace #"\\n" " ")
+      (str/replace #"\\([,;\\])" "$1")))
+
+(defn- ics-date->ed
+  "\"20260620\" or \"20260620T120000Z\" -> epoch day (date part)."
+  [v]
+  (when (and v (re-matches #"\d{8}(T.*)?" v))
+    (let [y (js/parseInt (subs v 0 4) 10)
+          m (js/parseInt (subs v 4 6) 10)
+          d (js/parseInt (subs v 6 8) 10)]
+      (js/Math.round (/ (js/Date.UTC y (dec m) d) 86400000)))))
+
+(defn parse-ics
+  "ICS text -> [{:summary s :start-ed n :end-ed n} ...] (end inclusive)."
+  [text]
+  (let [unfolded (-> text
+                     (str/replace #"\r\n[ \t]" "")
+                     (str/replace #"\n[ \t]" ""))
+        lines    (str/split-lines unfolded)]
+    (loop [ls lines, cur nil, out []]
+      (if-let [line (first ls)]
+        (let [line (str/trim line)]
+          (cond
+            (= line "BEGIN:VEVENT")
+            (recur (rest ls) {} out)
+
+            (= line "END:VEVENT")
+            (recur (rest ls) nil
+                   (if-let [start (:start cur)]
+                     (let [date-end? (:date-end? cur)
+                           end-raw   (or (:end cur) start)
+                           ;; DATE-valued DTEND is exclusive; timed DTEND
+                           ;; (or none) already lands on the last day
+                           end (if (and date-end? (> end-raw start))
+                                 (dec end-raw)
+                                 end-raw)]
+                       (if (:summary cur)
+                         (conj out {:summary (:summary cur)
+                                    :start-ed start
+                                    :end-ed (max start end)})
+                         out))
+                     out))
+
+            (and cur (str/starts-with? line "DTSTART"))
+            (recur (rest ls)
+                   (assoc cur :start (ics-date->ed (second (str/split line #":" 2))))
+                   out)
+
+            (and cur (str/starts-with? line "DTEND"))
+            (let [v (second (str/split line #":" 2))]
+              (recur (rest ls)
+                     (assoc cur :end (ics-date->ed v)
+                            :date-end? (not (str/includes? (or v "") "T")))
+                     out))
+
+            (and cur (str/starts-with? line "SUMMARY"))
+            (recur (rest ls)
+                   (assoc cur :summary (ics-unescape (second (str/split line #":" 2))))
+                   out)
+
+            :else (recur (rest ls) cur out)))
+        out))))
+
+(defn gcal-json->events
+  "Google Calendar API v3 events JSON (string) -> the same event shape
+   as parse-ics. All-day end.date is exclusive; timed events collapse
+   to their start date. Pure."
+  [json-text]
+  (let [data (js->clj (js/JSON.parse json-text) :keywordize-keys true)]
+    (vec
+     (for [item (:items data)
+           :let [summary (:summary item)
+                 sd (get-in item [:start :date])
+                 sdt (get-in item [:start :dateTime])
+                 ed (get-in item [:end :date])
+                 start (cond sd  (date-str->ed sd)
+                             sdt (date-str->ed (subs sdt 0 10))
+                             :else nil)
+                 end (cond ed  (dec (date-str->ed ed))   ;; exclusive
+                           :else start)]
+           :when (and summary start)]
+       {:summary summary
+        :start-ed start
+        :end-ed (max start (or end start))}))))
+
+(defn ics-events->items
+  "Split parsed events: single all-day -> day marks (hollow, like
+   recurring), multi-day -> periods. Derived, read-only, never stored."
+  [events sub-id]
+  (let [{singles true multis false}
+        (group-by #(= (:start-ed %) (:end-ed %)) events)]
+    {:marks   (vec (map-indexed
+                    (fn [i e] {:id (str "sub-" sub-id "-m" i)
+                               :label (:summary e)
+                               :date-ed (:start-ed e)
+                               :recurring true
+                               :subscription sub-id})
+                    singles))
+     :periods (vec (map-indexed
+                    (fn [i e] {:id (str "sub-" sub-id "-p" i)
+                               :label (:summary e)
+                               :start-ed (:start-ed e)
+                               :end-ed (:end-ed e)
+                               :who []
+                               :status "confirmed"
+                               :kind "calendar"
+                               :subscription sub-id})
+                    multis))}))
+
 ;; -- Presence (post-PoC surface, seeded here) --
 
 (def away-kinds #{"travel" "camp"})

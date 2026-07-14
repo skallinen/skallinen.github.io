@@ -119,6 +119,9 @@ service cloud.firestore {
       match /notes/{docId} {
         allow read, write: if request.auth != null && (isAgendaMember(agendaId) || isSuperuser());
       }
+      match /subscriptions/{docId} {
+        allow read, write: if request.auth != null && (isAgendaMember(agendaId) || isSuperuser());
+      }
     }
   }
 }
