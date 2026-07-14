@@ -208,6 +208,10 @@
          :aria-label (:name ix)
          :on-click #(reset! state/expanded-week (:key week))
          :style {:cursor "pointer"}}
+     ;; hit area: labels are pointer-events none, so the group needs
+     ;; a painted (transparent) rect to be reliably clickable
+     [:rect {:x (- tx 10) :y (- ty 7) :width (- W tx -6) :height 14
+             :fill "transparent"}]
      (diamond (- tx 4) ty 3 {:fill "#333"})
      (label-text (+ tx 4) (+ ty (* FONT 0.36)) :start (str "+" n " more"))]))
 
