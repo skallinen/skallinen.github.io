@@ -36,31 +36,39 @@
                 attrs)])
 
 (defn- label-text
-  "One constant font size (R13). Warm dark ink at the medium cut with a
-   soft linen-toned halo — enough contrast to read over any band color
-   without the harsh black-on-white outline look."
-  [x y anchor text & [{:keys [fill] :or {fill "#26221c"}}]]
-  [:text {:x x :y y
-          :text-anchor (name anchor)
-          :font-size FONT
-          :font-weight 600
-          :fill fill
-          :stroke "rgba(238,231,225,0.85)"
-          :stroke-width 2
-          :paint-order "stroke"
-          :stroke-linejoin "round"
-          :style {:pointer-events "none"}}
-   text])
+  "One constant font size (R13), one flat ink per label — black or
+   white chosen by contrast with the color underneath (domain/band-ink).
+   Thin (medium cut), no halo; white ink gets a hairline dark edge so
+   overflow onto the light background stays readable."
+  [x y anchor text & [{:keys [fill] :or {fill "#1a1a1a"}}]]
+  (let [white? (= fill "#ffffff")]
+    [:text (cond-> {:x x :y y
+                    :text-anchor (name anchor)
+                    :font-size FONT
+                    :font-weight 500
+                    :fill fill
+                    :style {:pointer-events "none"}}
+             white? (assoc :stroke "rgba(38,34,28,0.55)"
+                           :stroke-width 1.4
+                           :paint-order "stroke"
+                           :stroke-linejoin "round"))
+     text]))
 
 (defn- row-chrome
-  "Background, weekend tint, hairlines, week number, chevron, month label."
+  "Background, weekend tint, today column, hairlines, week number,
+   chevron, month label."
   [week h expanded?]
-  (let [wk (:weeknum week)]
+  (let [wk (:weeknum week)
+        today-idx (.indexOf (:days week) (domain/today-ed))]
     [:g
      [:rect {:x GUT :y 0 :width GRID :height h
              :fill (if expanded? "#f8f4ef" "#f1ece7")}]
      [:rect {:x (day-x 5) :y 0 :width (* 2 DAY) :height h
              :fill "rgba(0,0,0,0.045)"}]
+     ;; today: a soft column tint (the tick is drawn late, over bands)
+     (when (>= today-idx 0)
+       [:rect {:x (day-x today-idx) :y 0 :width DAY :height h
+               :fill "rgba(169,67,30,0.10)"}])
      (for [d (range 1 7)]
        ^{:key d}
        [:line {:x1 (day-x d) :y1 0 :x2 (day-x d) :y2 h
@@ -115,17 +123,24 @@
                :fill "none" :stroke "#fff"
                :stroke-width 1.2 :stroke-dasharray "4 3"}])]))
 
-(defn- band-label [{:keys [day period align]} bands usable]
+(defn- period-ink
+  "Black or white for a label on this period's band."
+  [period colors]
+  (domain/band-ink (mapv #(get colors % "#999999") (:who period))
+                   (if (domain/tentative? period) 0.45 1)))
+
+(defn- band-label [{:keys [day period align]} bands colors usable]
   (let [band (some #(when (and (= (:day %) day)
                                (= (:id (:period %)) (:id period))) %)
                    bands)
         y0   (+ PAD (* (:y0 band 0) usable))
         y1   (+ PAD (* (:y1 band 1) usable))
         ymid (+ (/ (+ y0 y1) 2) (* FONT 0.36))
+        ink  (period-ink period colors)
         txt  (str (:label period) (when (domain/tentative? period) "?"))]
     (if (= align :end)
-      (label-text (- (day-x (inc day)) 3) ymid :end txt)
-      (label-text (+ (day-x day) 3) ymid :start txt))))
+      (label-text (- (day-x (inc day)) 3) ymid :end txt {:fill ink})
+      (label-text (+ (day-x day) 3) ymid :start txt {:fill ink}))))
 
 (defn- mark-glyph [m colors cx cy]
   (let [c (if (:person m) (get colors (:person m) "#333") "#333")]
@@ -181,6 +196,15 @@
                              (reset! state/drag nil)
                              (on-paint a b)))}]))
 
+(defn- today-tick
+  "Drawn late so it stays visible over fully painted days."
+  [week]
+  (let [idx (.indexOf (:days week) (domain/today-ed))]
+    (when (>= idx 0)
+      [:rect {:x (day-x idx) :y 0 :width DAY :height 2.5
+              :fill "#a9431e"
+              :style {:pointer-events "none"}}])))
+
 (defn- drag-highlight [week h]
   (when-let [[a b] (drag-range)]
     (let [d0 (first (:days week))
@@ -212,7 +236,7 @@
      ;; labels (one per cell, both ends)
      (for [l (:labels plan)]
        ^{:key (str "l" (:day l) (name (:align l)))}
-       [band-label l (:bands plan) usable])
+       [band-label l (:bands plan) colors usable])
      ;; day marks
      (for [m (:cell-marks plan)]
        ^{:key (str "m" (:id m))}
@@ -220,6 +244,7 @@
      (for [[i m] (map-indexed vector (:callouts plan))]
        ^{:key (str "c" (:id m))}
        [callout m i colors])
+     [today-tick week]
      ;; paint overlay: owns ALL pointer events in the row
      (for [d (range 7)]
        ^{:key (str "ov" d)}
@@ -278,4 +303,23 @@
                     :fill "none" :stroke "#fff"
                     :stroke-width 1.2 :stroke-dasharray "4 3"}])
           (label-text (+ x0 4) (+ y (/ bh 2) (* FONT 0.36)) :start
-                      (str (:label period) (when tnt "?")))]))]))
+                      (str (:label period) (when tnt "?"))
+                      {:fill (period-ink period colors)})]))
+     [today-tick week]]))
+
+;; -- Frozen weekday header (sticks while the year scrolls) --
+
+(defn day-header
+  "Sticky column header; today's weekday is highlighted."
+  []
+  (let [dow (domain/day-of-week (domain/today-ed))]
+    [:div.day-header
+     [:svg.week-row-svg {:viewBox (str "0 0 " W " 15")}
+      (for [[i nm] (map-indexed vector ["MO" "TU" "WE" "TH" "FR" "SA" "SU"])]
+        ^{:key nm}
+        [:text {:x (+ (day-x i) (/ DAY 2)) :y 11
+                :text-anchor "middle"
+                :font-size 9 :font-weight 700 :letter-spacing 1
+                :fill (if (= i dow) "#a9431e" "#000")
+                :opacity (if (= i dow) 0.95 0.4)}
+         nm])]]))

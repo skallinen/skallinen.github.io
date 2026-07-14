@@ -508,6 +508,7 @@
         :style {:opacity 0.6}
         :on-click #(swap! state/history-quarters inc)}
        "↑ previous quarter"]]
+     [render/day-header]
      (doall
       (for [week weeks]
         (let [wkey (:key week)

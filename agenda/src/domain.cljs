@@ -141,6 +141,31 @@
           :when (<= from-ed (:date-ed m) to-ed)]
       m)))
 
+;; -- Label ink: black or white by contrast with the band color --
+
+(defn- hex->rgb [hex]
+  [(js/parseInt (subs hex 1 3) 16)
+   (js/parseInt (subs hex 3 5) 16)
+   (js/parseInt (subs hex 5 7) 16)])
+
+(defn- luminance
+  "Perceived luminance 0..1 (YIQ weights)."
+  [hex]
+  (let [[r g b] (hex->rgb hex)]
+    (/ (+ (* 0.299 r) (* 0.587 g) (* 0.114 b)) 255)))
+
+(def ^:private cell-bg-luminance 0.929) ;; linen day cell #f1ece7
+
+(defn band-ink
+  "Ink color for a label sitting on a band of the given participant
+   colors: black on light, white on dark. alpha < 1 (tentative bands)
+   blends with the cell background before deciding."
+  [hexes alpha]
+  (let [hexes (if (seq hexes) hexes ["#999999"])
+        lum   (/ (reduce + (map luminance hexes)) (count hexes))
+        eff   (+ (* alpha lum) (* (- 1 alpha) cell-bg-luminance))]
+    (if (> eff 0.6) "#1a1a1a" "#ffffff")))
+
 ;; -- iCalendar (subscribed feeds -> derived marks & periods) --
 ;; Minimal ICS: unfold lines, walk VEVENTs, read DTSTART/DTEND/SUMMARY.
 ;; All-day DTEND is EXCLUSIVE per RFC 5545. RRULE is not expanded
