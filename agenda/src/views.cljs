@@ -474,7 +474,7 @@
         to       (+ (apply max (+ today (* 52 7)) data-eds)
                     (* 91 @state/future-quarters))
         weeks    (domain/weeks-range from to)
-        n-pers   (count @state/persons)
+        lane-ids (mapv :id (state/persons-sorted))
         colors   (state/person-color-map)
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
@@ -526,7 +526,7 @@
                colors on-edit]
               [week-note aid wkey]]
              [render/week-row
-              (layout/week-plan week periods marks n-pers)
+              (layout/week-plan week periods marks lane-ids)
               colors on-paint])])))
      [:div {:style {:display "flex" :justify-content "center" :margin "6px 0 2px"}}
       [:button.btn.btn-small.btn-ghost

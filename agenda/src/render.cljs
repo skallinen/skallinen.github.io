@@ -17,16 +17,16 @@
 
 (println "[render] loaded")
 
-(def GUT 36)
-(def DAY 90)
-(def GRID (* 7 DAY))
-(def MARGIN 124)
-(def W (+ GUT GRID MARGIN))
-(def ROW-H 26)
-(def PAD 1.5)
+;; geometry lives in the pure layout tier — the renderer draws plans
+(def GUT layout/GUT)
+(def DAY layout/DAY)
+(def GRID layout/GRID)
+(def MARGIN layout/MARGIN)
+(def W layout/W)
+(def ROW-H layout/ROW-H)
 (def FONT 10.5)
 
-(defn day-x [d] (+ GUT (* d DAY)))
+(def day-x layout/day-x)
 
 (defn- diamond [cx cy r attrs]
   [:path (merge {:d (str "M" cx " " (- cy r)
@@ -94,53 +94,41 @@
                :fill "#000" :opacity 0.4 :letter-spacing 0.5}
         ml])]))
 
-(defn- band-rects
-  "One band = one period on one day. Participants stripe WITHIN the band
-   (one period = one thickness). Tentative renders as pattern, not color."
-  [{:keys [day period y0 y1]} colors usable]
-  (let [x   (day-x day)
-        by0 (+ PAD (* y0 usable))
-        by1 (+ PAD (* y1 usable))
-        h   (- by1 by0)
-        who (:who period)
-        cs  (if (seq who) (mapv #(get colors % "#999") who) ["#999"])
-        k   (count cs)
-        tnt (domain/tentative? period)
-        stripe-h (/ h k)]
-    ;; visual only — the day overlay owns all pointer events; a zero-length
-    ;; drag (click) on a busy day opens the top period's editor (see views)
-    [:g {:opacity (if tnt 0.45 1)
-         :style {:pointer-events "none"}}
-     (for [[i c] (map-indexed vector cs)]
-       ^{:key i}
-       [:rect {:x x :width DAY
-               :y (+ by0 (* i stripe-h))
-               :height (- stripe-h (if (< i (dec k)) 0.6 0))
-               :fill c}])
-     (when tnt
-       [:rect {:x (+ x 0.75) :width (- DAY 1.5)
-               :y (+ by0 0.75) :height (- h 1.5)
-               :fill "none" :stroke "#fff"
-               :stroke-width 1.2 :stroke-dasharray "4 3"}])]))
+(defn- stream-stroke
+  "One period as a thin rounded stroke in its owner's fixed slot
+   (streams design, 4.2). Visual only — the day overlay owns pointer
+   events."
+  [{:keys [period person x x1 y h]} colors]
+  (let [tnt (domain/tentative? period)]
+    [:rect (cond-> {:x x :y y :width (- x1 x) :height h :rx 1.4
+                    :fill (get colors person "#999")
+                    :opacity (if tnt 0.5 1)
+                    :style {:pointer-events "none"}}
+             tnt (assoc :stroke-dasharray "4 3"))]))
+
+(defn- guest-stroke
+  "No-person periods whisper: one thin muted lane at the row bottom."
+  [{:keys [period x x1 y h]}]
+  [:rect {:x x :y y :width (- x1 x) :height h :rx 0.9
+          :fill "#9a958e"
+          :opacity (if (domain/tentative? period) 0.35 0.5)
+          :style {:pointer-events "none"}}])
+
+(defn- label-plate
+  "A placed label on its cell-toned plate — drawn last, nothing
+   overprints it."
+  [{:keys [x y w text muted?]}]
+  [:g {:style {:pointer-events "none"}}
+   [:rect {:x (- x 2) :y (- y 8.5) :width w :height 11 :rx 2
+           :fill "#f1ece7" :opacity 0.92}]
+   (label-text (+ x 2) y :start text
+               {:fill (if muted? "rgba(0,0,0,0.45)" "#1a1a1a")})])
 
 (defn- period-ink
-  "Black or white for a label on this period's band."
+  "Black or white for a label on this period's band (expanded week)."
   [period colors]
   (domain/band-ink (mapv #(get colors % "#999999") (:who period))
                    (if (domain/tentative? period) 0.45 1)))
-
-(defn- band-label [{:keys [day period align]} bands colors usable]
-  (let [band (some #(when (and (= (:day %) day)
-                               (= (:id (:period %)) (:id period))) %)
-                   bands)
-        y0   (+ PAD (* (:y0 band 0) usable))
-        y1   (+ PAD (* (:y1 band 1) usable))
-        ymid (+ (/ (+ y0 y1) 2) (* FONT 0.36))
-        ink  (period-ink period colors)
-        txt  (str (:label period) (when (domain/tentative? period) "?"))]
-    (if (= align :end)
-      (label-text (- (day-x (inc day)) 3) ymid :end txt {:fill ink})
-      (label-text (+ (day-x day) 3) ymid :start txt {:fill ink}))))
 
 (defn- mark-glyph [m colors cx cy]
   (let [c (if (:person m) (get colors (:person m) "#333") "#333")]
@@ -268,7 +256,6 @@
    the caller decides whether that means edit-existing or create-new."
   [plan colors on-paint]
   (let [week   (:week plan)
-        usable (- ROW-H (* 2 PAD))
         ;; a uniform row holds TWO labeled margin lanes (R13/R14);
         ;; beyond that: markers stay on their days, labels aggregate
         ;; into a +N pill that opens the expanded week
@@ -283,14 +270,13 @@
     [:svg.week-row-svg {:viewBox (str "0 0 " W " " ROW-H)
                         :style {:margin-bottom "1px"}}
      [row-chrome week ROW-H false]
-     ;; bands (conditional fill)
-     (for [b (:bands plan)]
-       ^{:key (str (:id (:period b)) "-" (:day b))}
-       [band-rects b colors usable])
-     ;; labels (one per cell, both ends)
-     (for [l (:labels plan)]
-       ^{:key (str "l" (:day l) (name (:align l)))}
-       [band-label l (:bands plan) colors usable])
+     ;; streams: fixed person slots (subdividing) + the guest whisper lane
+     (for [s (:strokes plan)]
+       ^{:key (str (:id (:period s)) "-" (:person s))}
+       [stream-stroke s colors])
+     (for [g (:guests plan)]
+       ^{:key (str "g" (:id (:period g)))}
+       [guest-stroke g])
      ;; day marks
      (for [m (:cell-marks plan)]
        ^{:key (str "m" (:id m))}
@@ -304,6 +290,10 @@
      (when (seq extra)
        [more-marks-pill (count extra) week])
      [today-tick week]
+     ;; labels last, on plates — nothing overprints them
+     (for [[i l] (map-indexed vector (:labels plan))]
+       ^{:key (str "lp" i)}
+       [label-plate l])
      ;; paint overlay: owns ALL pointer events in the row
      (for [d (range 7)]
        ^{:key (str "ov" d)}
