@@ -52,6 +52,11 @@
 (def week-note-field {:label "Week note"})
 (def save-note       {:role "button" :name "Save note"})
 
+;; history is hidden until today by default (R9/R10 tension resolved:
+;; the archive exists but doesn't cost scroll distance); this reveals
+;; one more quarter per press
+(def show-previous {:role "button" :name "Show previous"})
+
 ;; -- persons --
 (defn color-swatch
   "Palette swatch, addressed by its color NAME (teal, rust, ...)."

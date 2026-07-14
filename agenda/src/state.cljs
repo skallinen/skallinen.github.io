@@ -25,6 +25,7 @@
 
 ;; -- View state --
 (defonce expanded-week (r/atom nil))   ;; week-key or nil; ONE at a time (R14 exception)
+(defonce history-quarters (r/atom 0))  ;; quarters of past revealed (0 = start at today)
 (defonce editor (r/atom nil))          ;; nil or editor modal map, see views
 (defonce drag (r/atom nil))            ;; nil or {:anchor-ed .. :ed ..} while painting
 
@@ -49,6 +50,7 @@
   (reset! anchors [])
   (reset! notes {})
   (reset! expanded-week nil)
+  (reset! history-quarters 0)
   (reset! editor nil)
   (reset! drag nil)
   (reset! agenda-loading true))

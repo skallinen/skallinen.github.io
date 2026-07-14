@@ -334,10 +334,10 @@
   (let [today    (domain/today-ed)
         periods  (mapv domain/enrich-period @state/periods)
         one-offs (mapv domain/enrich-mark @state/marks)
-        ;; history is part of the product (Principle 8): the view reaches
-        ;; back to the earliest data, and 4 weeks back at minimum
+        ;; history is part of the product (Principle 8) but hidden until
+        ;; today by default — "Show previous" reveals a quarter at a time
         data-eds (concat (map :start-ed periods) (map :date-ed one-offs))
-        from     (apply min (- (domain/week-start today) (* 4 7)) data-eds)
+        from     (- (domain/week-start today) (* 91 @state/history-quarters))
         to       (apply max (+ today (* 52 7)) data-eds)
         weeks    (domain/weeks-range from to)
         n-pers   (count @state/persons)
@@ -360,6 +360,12 @@
      ;; cancel a drag that ends outside any row
      {:on-mouse-up #(reset! state/drag nil)
       :on-mouse-leave #(reset! state/drag nil)}
+     [:div {:style {:display "flex" :justify-content "center" :margin "2px 0 6px"}}
+      [:button.btn.btn-small.btn-ghost
+       {:aria-label (:name interactions/show-previous)
+        :style {:opacity 0.6}
+        :on-click #(swap! state/history-quarters inc)}
+       "↑ previous quarter"]]
      (doall
       (for [week weeks]
         (let [wkey (:key week)
