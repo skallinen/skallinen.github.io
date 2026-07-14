@@ -36,16 +36,19 @@
                 attrs)])
 
 (defn- label-text
-  "One constant font size; white halo for legibility over fills (R13)."
-  [x y anchor text & [{:keys [fill] :or {fill "#111"}}]]
+  "One constant font size (R13). Warm dark ink at the medium cut with a
+   soft linen-toned halo — enough contrast to read over any band color
+   without the harsh black-on-white outline look."
+  [x y anchor text & [{:keys [fill] :or {fill "#26221c"}}]]
   [:text {:x x :y y
           :text-anchor (name anchor)
           :font-size FONT
-          :font-weight 700
+          :font-weight 600
           :fill fill
-          :stroke "#fff"
-          :stroke-width 2.5
+          :stroke "rgba(238,231,225,0.85)"
+          :stroke-width 2
           :paint-order "stroke"
+          :stroke-linejoin "round"
           :style {:pointer-events "none"}}
    text])
 

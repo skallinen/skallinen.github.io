@@ -476,9 +476,11 @@
         colors   (state/person-color-map)
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
-        ;; a zero-length paint is a click: route by what the day holds —
-        ;; nothing -> new; one item -> its editor; several -> the chooser.
-        ;; Subscribed (derived) items are read-only and not selectable.
+        ;; a zero-length paint is a click: an EMPTY day goes straight to
+        ;; the new-item editor; an occupied day always opens the chooser
+        ;; (which lists each item AND offers "+ New on this day" — the
+        ;; only reliable way to add on a busy day). Subscribed (derived)
+        ;; items are read-only and not selectable.
         on-paint (fn [a b]
                    (if (not= a b)
                      (open-new-editor! a b)
@@ -489,14 +491,11 @@
                                     vec)
                            dms (->> one-offs
                                     (remove :subscription)
-                                    (filterv #(= (:date-ed %) a)))
-                           n   (+ (count dps) (count dms))]
-                       (cond
-                         (zero? n)                            (open-new-editor! a b)
-                         (and (= n 1) (seq dps))              (open-period-editor! (first dps))
-                         (= n 1)                              (open-mark-editor! (first dms))
-                         :else (reset! state/day-chooser
-                                       {:ed a :periods dps :marks dms})))))
+                                    (filterv #(= (:date-ed %) a)))]
+                       (if (and (empty? dps) (empty? dms))
+                         (open-new-editor! a b)
+                         (reset! state/day-chooser
+                                 {:ed a :periods dps :marks dms})))))
         on-edit  (fn [p] (when-not (:subscription p) (open-period-editor! p)))
         today-key (domain/week-key today)]
     [:div.year-view
