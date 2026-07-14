@@ -118,7 +118,7 @@
 (defn persons-bar [aid]
   (let [adding    (r/atom false)
         new-name  (r/atom "")
-        new-color (r/atom (first config/person-colors))]
+        new-color (r/atom (:hex (first config/person-colors)))]
     (fn [aid]
       (let [persons (state/persons-sorted)]
         [:div.persons-bar
@@ -134,15 +134,19 @@
          (if @adding
            [:span {:style {:display "inline-flex" :gap "6px" :align-items "center"}}
             [:input.form-input {:type "text" :value @new-name
-                                :placeholder "Name" :style {:min-width "100px"}
+                                :placeholder "Name" :aria-label "Person name"
+                                :style {:min-width "100px"}
                                 :on-change #(reset! new-name (-> % .-target .-value))}]
             (doall
-             (for [c config/person-colors]
+             (for [{:keys [name hex]} config/person-colors]
                [:span.color-swatch
-                {:key c
-                 :class (when (= c @new-color) "selected")
-                 :style {:background c}
-                 :on-click #(reset! new-color c)}]))
+                {:key hex
+                 :class (when (= hex @new-color) "selected")
+                 :title name
+                 :aria-label name
+                 :role "button"
+                 :style {:background hex}
+                 :on-click #(reset! new-color hex)}]))
             [:button.btn.btn-small.btn-primary
              {:on-click (fn []
                           (when (seq @new-name)
@@ -203,7 +207,9 @@
           period? (= :period (:type ed))
           set-field! (fn [k v] (swap! state/editor assoc k v))]
       [:div.modal-overlay {:on-click close!}
-       [:div.modal {:on-click #(.stopPropagation %)}
+       [:div.modal {:on-click #(.stopPropagation %)
+                    :role "dialog"
+                    :aria-label "editor"}
         [:div.modal-title (cond
                             (:id ed) "Edit"
                             period?  "New period"
@@ -219,10 +225,12 @@
          [:div.form-group
           [:label.form-label "Label"]
           [:input.form-input {:type "text" :value (:label ed) :auto-focus true
+                              :aria-label "Label"
                               :on-change #(set-field! :label (-> % .-target .-value))}]]
          [:div.form-group
           [:label.form-label (if period? "Start" "Date")]
           [:input.form-input {:type "date"
+                              :aria-label (if period? "Start" "Date")
                               :value (domain/ed->date-str (:start-ed ed))
                               :on-change #(set-field! :start-ed
                                                       (domain/date-str->ed (-> % .-target .-value)))}]]
@@ -230,6 +238,7 @@
            [:div.form-group
             [:label.form-label "End"]
             [:input.form-input {:type "date"
+                                :aria-label "End"
                                 :value (domain/ed->date-str (:end-ed ed))
                                 :on-change #(set-field! :end-ed
                                                         (domain/date-str->ed (-> % .-target .-value)))}]])]
@@ -257,6 +266,7 @@
             [:label.form-label "Kind"]
             [:select.form-select
              {:value (:kind ed)
+              :aria-label "Kind"
               :on-change #(set-field! :kind (-> % .-target .-value))}
              (for [k kinds] ^{:key k} [:option {:value k} k])]]
            [:label {:style {:display "flex" :gap "6px" :align-items "center"
@@ -302,6 +312,7 @@
       [:div.week-note
        [:input.form-input {:type "text" :value @text
                            :placeholder "Week note…"
+                           :aria-label "Week note"
                            :style {:flex 1}
                            :on-change #(reset! text (-> % .-target .-value))}]
        [:button.btn.btn-small
@@ -312,16 +323,28 @@
 
 (defn year-view [aid]
   (let [today    (domain/today-ed)
-        from     (- (domain/week-start today) (* 4 7))
-        to       (+ today (* 52 7))
-        weeks    (domain/weeks-range from to)
         periods  (mapv domain/enrich-period @state/periods)
+        one-offs (mapv domain/enrich-mark @state/marks)
+        ;; history is part of the product (Principle 8): the view reaches
+        ;; back to the earliest data, and 4 weeks back at minimum
+        data-eds (concat (map :start-ed periods) (map :date-ed one-offs))
+        from     (apply min (- (domain/week-start today) (* 4 7)) data-eds)
+        to       (apply max (+ today (* 52 7)) data-eds)
+        weeks    (domain/weeks-range from to)
         n-pers   (count @state/persons)
         colors   (state/person-color-map)
-        one-offs (mapv domain/enrich-mark @state/marks)
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
-        on-paint (fn [a b] (open-new-editor! a b))
+        ;; a zero-length paint is a click: edit the day's top period if
+        ;; one exists, otherwise start a new item on that day
+        on-paint (fn [a b]
+                   (if-let [p (and (= a b)
+                                   (->> periods
+                                        (filter #(domain/active-on? % a))
+                                        (sort-by (juxt :start-ed :id))
+                                        first))]
+                     (open-period-editor! p)
+                     (open-new-editor! a b)))
         on-edit  open-period-editor!
         today-key (domain/week-key today)]
     [:div.year-view
@@ -340,11 +363,11 @@
              [:<>
               [render/expanded-week-row
                (layout/expanded-plan week periods marks)
-               colors on-paint on-edit]
+               colors on-edit]
               [week-note aid wkey]]
              [render/week-row
               (layout/week-plan week periods marks n-pers)
-              colors on-paint on-edit])])))]))
+              colors on-paint])])))]))
 
 ;; -- Agenda page --
 

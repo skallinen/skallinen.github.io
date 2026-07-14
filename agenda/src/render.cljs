@@ -68,6 +68,8 @@
       wk]
      [:g {:on-click #(swap! state/expanded-week
                             (fn [cur] (when (not= cur (:key week)) (:key week))))
+          :role "button"
+          :aria-label (str "toggle week " (:key week))
           :style {:cursor "pointer"}}
       [:rect {:x 22 :y 4 :width 14 :height 18 :fill "transparent"}]
       [:path {:d (if expanded? "M25 11 l4 4 4 -4" "M27 9 l4 4 -4 4")
@@ -92,7 +94,10 @@
         k   (count cs)
         tnt (domain/tentative? period)
         stripe-h (/ h k)]
-    [:g {:opacity (if tnt 0.45 1)}
+    ;; visual only — the day overlay owns all pointer events; a zero-length
+    ;; drag (click) on a busy day opens the top period's editor (see views)
+    [:g {:opacity (if tnt 0.45 1)
+         :style {:pointer-events "none"}}
      (for [[i c] (map-indexed vector cs)]
        ^{:key i}
        [:rect {:x x :width DAY
@@ -186,8 +191,10 @@
 ;; -- Collapsed week row --
 
 (defn week-row
-  "One uniform-height week row (R14). plan from layout/week-plan."
-  [plan colors on-paint on-edit]
+  "One uniform-height week row (R14). plan from layout/week-plan.
+   on-paint receives [start-ed end-ed]; a zero-length paint is a click —
+   the caller decides whether that means edit-existing or create-new."
+  [plan colors on-paint]
   (let [week   (:week plan)
         usable (- ROW-H (* 2 PAD))]
     [:svg.week-row-svg {:viewBox (str "0 0 " W " " ROW-H)
@@ -196,9 +203,7 @@
      ;; bands (conditional fill)
      (for [b (:bands plan)]
        ^{:key (str (:id (:period b)) "-" (:day b))}
-       [:g {:on-click #(on-edit (:period b))
-            :style {:cursor "pointer"}}
-        [band-rects b colors usable]])
+       [band-rects b colors usable])
      ;; labels (one per cell, both ends)
      (for [l (:labels plan)]
        ^{:key (str "l" (:day l) (name (:align l)))}
@@ -210,9 +215,7 @@
      (for [[i m] (map-indexed vector (:callouts plan))]
        ^{:key (str "c" (:id m))}
        [callout m i colors])
-     ;; paint overlay on free space (under nothing — on top, but bands
-     ;; have their own click handlers rendered earlier; overlay covers
-     ;; empty regions and drag continues across it)
+     ;; paint overlay: owns ALL pointer events in the row
      (for [d (range 7)]
        ^{:key (str "ov" d)}
        [day-overlay week d ROW-H on-paint])
@@ -223,7 +226,9 @@
 (def LANE-H 17)
 
 (defn expanded-week-row
-  [eplan colors on-paint on-edit]
+  "Expanded week (4.7): swimlanes are directly clickable (no paint
+   overlay here — collapse the week to paint new periods)."
+  [eplan colors on-edit]
   (let [week   (:week eplan)
         lanes  (:lanes eplan)
         marksr (seq (:marks eplan))
@@ -253,6 +258,8 @@
              tnt (domain/tentative? period)]
          [:g {:opacity (if tnt 0.5 1)
               :on-click #(on-edit period)
+              :role "button"
+              :aria-label (str "edit period " (:label period))
               :style {:cursor "pointer"}}
           (for [[i c] (map-indexed vector cs)]
             ^{:key i}
@@ -265,9 +272,4 @@
                     :fill "none" :stroke "#fff"
                     :stroke-width 1.2 :stroke-dasharray "4 3"}])
           (label-text (+ x0 4) (+ y (/ bh 2) (* FONT 0.36)) :start
-                      (str (:label period) (when tnt "?")))]))
-     ;; paint overlay + drag highlight also inside the expanded week
-     (for [d (range 7)]
-       ^{:key (str "eov" d)}
-       [day-overlay week d h on-paint])
-     [drag-highlight week h]]))
+                      (str (:label period) (when tnt "?")))]))]))

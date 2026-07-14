@@ -16,15 +16,16 @@
    :measurementId     "G-TDF93TXWH1"})
 
 ;; Person color palette (design doc tokens + extensions).
-;; One person <-> one color, forever (R3).
+;; One person <-> one color, forever (R3). Colors have NAMES so a
+;; user (or an e2e robot acting as one) can pick "teal" by name.
 (def person-colors
-  ["#7badb6"   ; teal
-   "#a9431e"   ; orange
-   "#c9a227"   ; gold
-   "#6b8f71"   ; green
-   "#8d6a9f"   ; plum
-   "#4a6fa5"   ; blue
-   "#b05c74"   ; raspberry
-   "#7a7265"]) ; stone
+  [{:name "teal"      :hex "#7badb6"}
+   {:name "rust"      :hex "#a9431e"}
+   {:name "gold"      :hex "#c9a227"}
+   {:name "green"     :hex "#6b8f71"}
+   {:name "plum"      :hex "#8d6a9f"}
+   {:name "blue"      :hex "#4a6fa5"}
+   {:name "raspberry" :hex "#b05c74"}
+   {:name "stone"     :hex "#7a7265"}])
 
 (println "[config] loaded")
