@@ -332,7 +332,10 @@
              cy (+ 9 (* 13 (get mark-level (:id m) 0)))]
          [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
           (mark-glyph m colors cx cy)
-          (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))
+          (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start
+                      (str (:label m)
+                           (when (seq (:comment m))
+                             (str "  ·  " (:comment m)))))]))
      ;; swimlanes: every period, full label, nothing suppressed
      (for [{:keys [lane period day0 day1 starts? ends?]} lanes]
        ^{:key (str "lane" (:id period))}
@@ -360,8 +363,12 @@
             [:rect {:x x0 :y y :width (- x1 x0) :height bh
                     :fill "none" :stroke "#fff"
                     :stroke-width 1.2 :stroke-dasharray "4 3"}])
+          ;; the expanded week is the zoom: full label AND the comment,
+          ;; nothing suppressed (4.7)
           (label-text (+ x0 4) (+ y (/ bh 2) (* FONT 0.36)) :start
-                      (str (:label period) (when tnt "?"))
+                      (str (:label period) (when tnt "?")
+                           (when (seq (:comment period))
+                             (str "  ·  " (:comment period))))
                       {:fill (period-ink period colors)})]))
      [today-tick week]]))
 

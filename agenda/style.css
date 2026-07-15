@@ -203,6 +203,32 @@ html, body {
 }
 .color-swatch.selected { border-color: var(--black); transform: scale(1.15); }
 
+/* -- Header actions: desktop shows everything inline; mobile folds
+      the secondary actions (invite copy, calendars) behind ☰ -- */
+.header-menu {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.desktop-actions { display: flex; gap: 8px; align-items: center; }
+.mobile-only { display: none; }
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  padding: 10px;
+  background: var(--white);
+  border: 1.5px solid var(--black);
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+}
+.menu-pop .btn { text-align: left; }
+
 /* -- Invite -- */
 .invite-row {
   display: flex;
@@ -271,6 +297,17 @@ html, body {
 .type-toggle .btn:last-child { border-right-width: 1.5px; }
 .type-toggle .btn.active { background: var(--black); color: var(--white); }
 
+/* comment line inside a chooser row: quiet, never uppercase */
+.item-comment {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.6;
+  margin-top: 3px;
+}
+
 /* -- Week note (expanded week) -- */
 .week-note {
   margin: 2px 0 8px 36px;
@@ -297,8 +334,12 @@ html, body {
     margin: 14px 0 10px;
   }
   .section-title { font-size: 1.35rem; }
-  .invite-row { flex-wrap: wrap; }
-  .invite-link { max-width: 58vw; }
+
+  /* header actions: only [+ New][☰]; secondary actions live in the
+     ☰ dropdown, and the raw invite URL never renders on a phone */
+  .desktop-actions { display: none; }
+  .mobile-only { display: inline-flex; }
+  .header-menu { align-self: flex-end; }
 
   /* bigger tap targets */
   .btn { padding: 9px 12px; }

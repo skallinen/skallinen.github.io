@@ -190,24 +190,33 @@
            [:button.btn.btn-small {:on-click #(reset! adding true)}
             (:name interactions/add-person)])]))))
 
-;; -- Invite row (owner shares link) --
+;; -- Invite (owner shares link) --
+;; The URL itself is desktop furniture; the ACTION is copying. On
+;; mobile only the copy button survives (inside the ☰ menu).
 
-(defn invite-row []
+(defn- invite-link []
+  (when-let [a @state/agenda]
+    (str (.-origin js/window.location)
+         (.-pathname js/window.location)
+         "#/join/" (:invite_code a))))
+
+(defn copy-invite-btn []
   (let [copied (r/atom false)]
     (fn []
-      (when-let [a @state/agenda]
-        (let [link (str (.-origin js/window.location)
-                        (.-pathname js/window.location)
-                        "#/join/" (:invite_code a))]
-          [:div.invite-row
-           [:span {:style {:font-weight 700}} "Invite:"]
-           [:span.invite-link link]
-           [:button.btn.btn-small
-            {:on-click (fn []
-                         (.writeText (.-clipboard js/navigator) link)
-                         (reset! copied true)
-                         (js/setTimeout #(reset! copied false) 1500))}
-            (if @copied "Copied!" "Copy")]])))))
+      [:button.btn.btn-small
+       {:aria-label (:name interactions/copy-invite)
+        :on-click (fn []
+                    (when-let [link (invite-link)]
+                      (.writeText (.-clipboard js/navigator) link)
+                      (reset! copied true)
+                      (js/setTimeout #(reset! copied false) 1500)))}
+       (if @copied "Copied!" "Copy invite")])))
+
+(defn invite-row []
+  (when-let [link (invite-link)]
+    [:div.invite-row
+     [:span.invite-link {:title "Invite link"} link]
+     [copy-invite-btn]]))
 
 ;; -- Calendar subscriptions (design: derived like Anchors, read-only) --
 
@@ -233,6 +242,7 @@
              (fn [_ _ _ subs] (doseq [s subs] (fetch-sub! s)))))
 
 (defonce show-calendars (r/atom false))
+(defonce show-menu      (r/atom false))   ;; mobile ☰ dropdown
 
 (defn calendars-modal [aid]
   (when @show-calendars
@@ -303,7 +313,8 @@
   (reset! state/editor
           {:type :period :id nil :label ""
            :who #{} :start-ed start-ed :end-ed end-ed
-           :tentative false :kind "other" :person nil}))
+           :tentative false :kind "other" :person nil
+           :comment ""}))
 
 (defn open-period-editor! [p]
   (reset! state/editor
@@ -311,13 +322,15 @@
            :who (set (:who p))
            :start-ed (:start-ed p) :end-ed (:end-ed p)
            :tentative (domain/tentative? p) :kind (or (:kind p) "other")
-           :person nil}))
+           :person nil
+           :comment (or (:comment p) "")}))
 
 (defn open-mark-editor! [m]
   (reset! state/editor
           {:type :mark :id (:id m) :label (:label m)
            :who #{} :start-ed (:date-ed m) :end-ed (:date-ed m)
-           :tentative false :kind "other" :person (:person m)}))
+           :tentative false :kind "other" :person (:person m)
+           :comment (or (:comment m) "")}))
 
 (def kinds ["travel" "vacation" "camp" "event" "visit" "other"])
 
@@ -398,6 +411,16 @@
             [:input {:type "checkbox" :checked (:tentative ed)
                      :on-change #(set-field! :tentative (-> % .-target .-checked))}]
             (:label interactions/tentative-field)]])
+        ;; free-text detail ("flight leaves 13:30") — editor + chooser
+        ;; only, never the overview (R2: the grid stays quiet)
+        [:div.form-group
+         [:label.form-label "Comment"]
+         [:textarea.form-textarea
+          {:value (:comment ed)
+           :aria-label (:label interactions/comment-field)
+           :placeholder "e.g. flight leaves 13:30"
+           :rows 2
+           :on-change #(set-field! :comment (-> % .-target .-value))}]]
         [:div.modal-actions
          (when (:id ed)
            [:button.btn {:on-click (fn []
@@ -418,10 +441,12 @@
                            :start  (domain/ed->date-str (min (:start-ed ed) (:end-ed ed)))
                            :end    (domain/ed->date-str (max (:start-ed ed) (:end-ed ed)))
                            :status (if (:tentative ed) "tentative" "confirmed")
-                           :kind   (:kind ed)}
+                           :kind   (:kind ed)
+                           :comment (:comment ed)}
                           {:date   (domain/ed->date-str (:start-ed ed))
                            :label  (:label ed)
-                           :person (:person ed)})
+                           :person (:person ed)
+                           :comment (:comment ed)})
                    coll (if period? "periods" "marks")]
                (if (:id ed)
                  (db/update-doc! aid coll (:id ed) data nil)
@@ -467,7 +492,9 @@
                (str (:label p)
                     (when (domain/tentative? p) "?")
                     "  ·  " (:start p) " → " (:end p))
-               (when (all-hidden? p) "  (hidden)")])))
+               (when (all-hidden? p) "  (hidden)")
+               (when (seq (:comment p))
+                 [:span.item-comment (:comment p)])])))
          (doall
           (for [m marks]
             (let [ix (interactions/day-mark (:label m))
@@ -479,7 +506,9 @@
                             :on-click (fn [] (close!) (open-mark-editor! m))}
                (when (:person m) (dot (:person m)))
                (str "◆ " (:label m))
-               (when m-hidden? "  (hidden)")])))
+               (when m-hidden? "  (hidden)")
+               (when (seq (:comment m))
+                 [:span.item-comment (:comment m)])])))
          [:button.btn.btn-primary
           {:aria-label (:name interactions/new-item)
            :on-click (fn [] (close!) (open-new-editor! ed ed))}
@@ -623,18 +652,34 @@
        [:h2.section-title (or (:name @state/agenda) "…")]
        [:p.section-subtitle
         "Paint days to add a period. Click a period to edit. Chevron opens a week."]]
-      [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
-       [invite-row]
-       [:button.btn.btn-small
-        {:aria-label (:name interactions/calendars)
-         :on-click #(reset! show-calendars true)}
-        "Calendars"]
+      ;; semantic order: sharing/settings (secondary) → primary action.
+      ;; Mobile folds the secondary pair behind ☰ so the header stays
+      ;; two buttons wide; "+ New" is always the last, rightmost thing.
+      [:div.header-menu
+       [:div.desktop-actions
+        [invite-row]
+        [:button.btn.btn-small
+         {:aria-label (:name interactions/calendars)
+          :on-click #(reset! show-calendars true)}
+         "Calendars"]]
        ;; explicit creation affordance: works on busy days too, where a
        ;; click would open the existing period instead
        [:button.btn.btn-small.btn-primary
         {:aria-label (:name interactions/new-item)
          :on-click #(let [t (domain/today-ed)] (open-new-editor! t t))}
-        "+ New"]]]
+        "+ New"]
+       [:button.btn.btn-small.mobile-only
+        {:aria-label (:name interactions/menu)
+         :aria-expanded (str @show-menu)
+         :on-click #(swap! show-menu not)}
+        "☰"]
+       (when @show-menu
+         [:div.menu-pop {:on-click #(js/setTimeout (fn [] (reset! show-menu false)) 100)}
+          [copy-invite-btn]
+          [:button.btn.btn-small
+           {:aria-label (:name interactions/calendars)
+            :on-click #(reset! show-calendars true)}
+           "Calendars"]])]]
      [persons-bar aid]
      (if @state/agenda-loading
        [:div.loading "Loading agenda…"]

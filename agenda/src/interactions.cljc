@@ -16,6 +16,10 @@
 
 ;; -- top-level affordances --
 (def new-item          {:role "button" :name "New item"})
+;; mobile collapses secondary header actions behind one button; the
+;; invite URL itself never renders on a phone — copying is the action
+(def menu              {:role "button" :name "Menu"})
+(def copy-invite       {:role "button" :name "Copy invite"})
 (def add-person        {:role "button" :name "+ Person"})
 (def confirm-person    {:role "button" :name "Add"})
 (def person-name-field {:label "Person name"})
@@ -38,6 +42,9 @@
 (def date-field      {:label "Date"})
 (def kind-field      {:label "Kind"})
 (def tentative-field {:label "tentative?"})
+;; free-text detail on a period or day mark ("flight leaves 13:30") —
+;; lives in the editor and the chooser rows, never in the overview
+(def comment-field   {:label "Comment"})
 (def save            {:role "button" :name "Save"})
 (def cancel          {:role "button" :name "Cancel"})
 (def delete          {:role "button" :name "Delete"})
