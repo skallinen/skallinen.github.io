@@ -29,6 +29,8 @@
 (defonce expanded-week (r/atom nil))   ;; week-key or nil; ONE at a time (R14 exception)
 (defonce history-quarters (r/atom 0))  ;; quarters of past revealed (0 = start at today)
 (defonce future-quarters (r/atom 0))   ;; quarters beyond the rolling year
+(defonce hidden-persons (r/atom #{}))  ;; pids (or :others) toggled off; streams
+                                       ;; of the visible redistribute the space
 (defonce editor (r/atom nil))          ;; nil or editor modal map, see views
 (defonce day-chooser (r/atom nil))     ;; nil or {:ed day :periods [..] :marks [..]}
 (defonce drag (r/atom nil))            ;; nil or {:anchor-ed .. :ed ..} while painting
@@ -58,6 +60,7 @@
   (reset! expanded-week nil)
   (reset! history-quarters 0)
   (reset! future-quarters 0)
+  (reset! hidden-persons #{})
   (reset! editor nil)
   (reset! day-chooser nil)
   (reset! drag nil)

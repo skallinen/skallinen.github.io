@@ -86,7 +86,9 @@
         wps      (vec (lane-sorted (filter in-week? periods)))
         n-lanes  (max (count lane-ids) 1)
         slot-h   (/ SLOT-AREA n-lanes)
-        zone-h   (min (- slot-h 1.0) 4.6)
+        ;; uncapped: fewer visible persons -> thicker streams, up to a
+        ;; near-painted row when only one person is shown
+        zone-h   (max (- slot-h 1.0) 1.2)
         slot-y   (into {} (map-indexed (fn [i pid] [pid (+ SLOT-TOP (* i slot-h))])
                                        lane-ids))
         x0-of    (fn [p] (if (>= (:start-ed p) d0) (+ (day-x (- (:start-ed p) d0)) 1) GUT))

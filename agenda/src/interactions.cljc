@@ -84,6 +84,17 @@
   [person-name]
   {:text person-name})
 
+(defn toggle-person
+  "A person chip in the persons bar acts as a visibility toggle; the
+   remaining visible streams thicken to fill the freed space."
+  [person-name]
+  {:role "button" :name (str "toggle " person-name)})
+
+(defn remove-person
+  "The small × inside a person chip."
+  [person-name]
+  {:role "button" :name (str "remove person " person-name)})
+
 (defn day-mark
   "A day mark's glyph+label group in a week row (in-cell or margin
    callout) — SVG text has no reliable text-locator semantics, so the

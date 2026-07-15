@@ -124,17 +124,38 @@
         new-name  (r/atom "")
         new-color (r/atom (:hex (first config/person-colors)))]
     (fn [aid]
-      (let [persons (state/persons-sorted)]
+      (let [persons (state/persons-sorted)
+            hidden  @state/hidden-persons
+            flip!   (fn [k] (swap! state/hidden-persons
+                                   #(if (% k) (disj % k) (conj % k))))]
         [:div.persons-bar
          (doall
           (for [p persons]
             [:span.person-chip
              {:key (:id p)
-              :title "Click to remove"
-              :on-click #(when (js/confirm (str "Remove " (:name p) "?"))
-                           (db/delete-doc! aid "persons" (:id p) nil))}
+              :class (when (hidden (:id p)) "off")
+              :role "button"
+              :aria-label (:name (interactions/toggle-person (:name p)))
+              :title "Click to hide/show"
+              :on-click #(flip! (:id p))}
              [:span.person-dot {:style {:background (:color p)}}]
-             (:name p)]))
+             (:name p)
+             [:span.chip-x
+              {:role "button"
+               :aria-label (:name (interactions/remove-person (:name p)))
+               :on-click (fn [e]
+                           (.stopPropagation e)
+                           (when (js/confirm (str "Remove " (:name p) "?"))
+                             (db/delete-doc! aid "persons" (:id p) nil)))}
+              "×"]]))
+         [:span.person-chip
+          {:class (when (hidden :others) "off")
+           :role "button"
+           :aria-label (:name (interactions/toggle-person "others"))
+           :title "Guests, logistics, subscribed feeds"
+           :on-click #(flip! :others)}
+          [:span.person-dot {:style {:background "#9a958e"}}]
+          "Others"]
          (if @adding
            [:span {:style {:display "inline-flex" :gap "6px" :align-items "center"}}
             [:input.form-input {:type "text" :value @new-name
@@ -474,7 +495,13 @@
         to       (+ (apply max (+ today (* 52 7)) data-eds)
                     (* 91 @state/future-quarters))
         weeks    (domain/weeks-range from to)
-        lane-ids (mapv :id (state/persons-sorted))
+        ;; visibility toggles: hidden persons free their slot, the
+        ;; remaining visible streams redistribute the row's space
+        hidden   @state/hidden-persons
+        lane-ids (into [] (comp (map :id) (remove hidden))
+                       (state/persons-sorted))
+        periods  (cond->> periods
+                   (hidden :others) (filterv #(seq (:who %))))
         colors   (state/person-color-map)
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
