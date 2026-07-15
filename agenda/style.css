@@ -277,3 +277,40 @@ html, body {
   display: flex;
   gap: 8px;
 }
+
+/* ============================================
+   Mobile (≤700px): reflow the chrome; the grid
+   keeps a legible minimum width and pans
+   horizontally inside the year card (R13 —
+   labels must never shrink into illegibility).
+   ============================================ */
+@media (max-width: 700px) {
+  .app-container { padding: 0 10px 40px; }
+  .app-header { flex-wrap: wrap; gap: 6px; padding: 10px 0; }
+  .app-title { font-size: 1.15rem; }
+  .user-name { display: none; }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 14px 0 10px;
+  }
+  .section-title { font-size: 1.35rem; }
+  .invite-row { flex-wrap: wrap; }
+  .invite-link { max-width: 58vw; }
+
+  /* bigger tap targets */
+  .btn { padding: 9px 12px; }
+  .btn-small { padding: 8px 10px; font-size: 0.6rem; }
+  .person-chip { padding: 6px 10px; }
+  .color-swatch { width: 28px; height: 28px; }
+
+  /* the grid pans; note: the weekday header stops being sticky inside
+     a scroll container — acceptable v1 trade for legible labels */
+  .year-card { padding: 8px 6px 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .year-view { min-width: 680px; }
+
+  .modal { padding: 14px; gap: 10px; }
+  .modal-overlay { padding: 12px; }
+}
