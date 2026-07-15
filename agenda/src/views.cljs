@@ -136,6 +136,7 @@
               :class (when (hidden (:id p)) "off")
               :role "button"
               :aria-label (:name (interactions/toggle-person (:name p)))
+              :aria-pressed (str (not (hidden (:id p))))
               :title "Click to hide/show"
               :on-click #(flip! (:id p))}
              [:span.person-dot {:style {:background (:color p)}}]
@@ -152,6 +153,7 @@
           {:class (when (hidden :others) "off")
            :role "button"
            :aria-label (:name (interactions/toggle-person "others"))
+           :aria-pressed (str (not (hidden :others)))
            :title "Guests, logistics, subscribed feeds"
            :on-click #(flip! :others)}
           [:span.person-dot {:style {:background "#9a958e"}}]
@@ -431,7 +433,20 @@
 
 (defn day-chooser-modal []
   (when-let [{:keys [ed periods marks]} @state/day-chooser]
-    (let [close! #(reset! state/day-chooser nil)]
+    (let [close! #(reset! state/day-chooser nil)
+          colors (state/person-color-map)
+          hidden @state/hidden-persons
+          dot    (fn [pid]
+                   [:span.person-dot
+                    {:key pid
+                     :style {:background (get colors pid "#9a958e")
+                             :opacity (if (hidden pid) 0.3 1)
+                             :margin-right "5px"
+                             :width "9px" :height "9px"}}])
+          all-hidden? (fn [p]
+                        (if (seq (:who p))
+                          (every? hidden (:who p))
+                          (hidden :others)))]
       [:div.modal-overlay {:on-click close!}
        [:div.modal {:on-click #(.stopPropagation %)
                     :role (:role interactions/day-chooser)
@@ -443,19 +458,28 @@
             (let [ix (interactions/edit-period (:label p))]
               [:button.btn {:key (:id p)
                             :aria-label (:name ix)
-                            :style {:text-align "left"}
+                            :style {:text-align "left"
+                                    :opacity (if (all-hidden? p) 0.45 1)}
                             :on-click (fn [] (close!) (open-period-editor! p))}
+               (if (seq (:who p))
+                 (map dot (:who p))
+                 (dot nil))
                (str (:label p)
                     (when (domain/tentative? p) "?")
-                    "  ·  " (:start p) " → " (:end p))])))
+                    "  ·  " (:start p) " → " (:end p))
+               (when (all-hidden? p) "  (hidden)")])))
          (doall
           (for [m marks]
-            (let [ix (interactions/day-mark (:label m))]
+            (let [ix (interactions/day-mark (:label m))
+                  m-hidden? (and (:person m) (hidden (:person m)))]
               [:button.btn {:key (:id m)
                             :aria-label (:label ix)
-                            :style {:text-align "left"}
+                            :style {:text-align "left"
+                                    :opacity (if m-hidden? 0.45 1)}
                             :on-click (fn [] (close!) (open-mark-editor! m))}
-               (str "◆ " (:label m))])))
+               (when (:person m) (dot (:person m)))
+               (str "◆ " (:label m))
+               (when m-hidden? "  (hidden)")])))
          [:button.btn.btn-primary
           {:aria-label (:name interactions/new-item)
            :on-click (fn [] (close!) (open-new-editor! ed ed))}
@@ -496,15 +520,22 @@
                     (* 91 @state/future-quarters))
         weeks    (domain/weeks-range from to)
         ;; visibility toggles: hidden persons free their slot, the
-        ;; remaining visible streams redistribute the row's space
+        ;; remaining visible streams redistribute the row's space.
+        ;; NOTE: `periods`/`marks` stay UNfiltered (the chooser and the
+        ;; expanded week always show the truth); only the collapsed
+        ;; rendering uses the vis-* variants.
         hidden   @state/hidden-persons
         lane-ids (into [] (comp (map :id) (remove hidden))
                        (state/persons-sorted))
-        periods  (cond->> periods
-                   (hidden :others) (filterv #(seq (:who %))))
         colors   (state/person-color-map)
         derived  (domain/anchors->marks @state/anchors from to)
         marks    (into one-offs derived)
+        vis-periods (cond->> periods
+                      (hidden :others) (filterv #(seq (:who %))))
+        vis-marks (filterv (fn [m]
+                             (and (not (hidden (:person m)))
+                                  (not (and (:subscription m) (hidden :others)))))
+                           marks)
         ;; a zero-length paint is a click: an EMPTY day goes straight to
         ;; the new-item editor; an occupied day always opens the chooser
         ;; (which lists each item AND offers "+ New on this day" — the
@@ -553,7 +584,7 @@
                colors on-edit]
               [week-note aid wkey]]
              [render/week-row
-              (layout/week-plan week periods marks lane-ids)
+              (layout/week-plan week vis-periods vis-marks lane-ids)
               colors on-paint])])))
      [:div {:style {:display "flex" :justify-content "center" :margin "6px 0 2px"}}
       [:button.btn.btn-small.btn-ghost

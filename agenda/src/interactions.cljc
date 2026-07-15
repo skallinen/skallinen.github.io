@@ -102,6 +102,12 @@
   [label]
   {:label (str "day mark " label)})
 
+(defn stream-label
+  "A period's label plate in the collapsed streams view — disappears
+   together with its stream when the owner is toggled hidden."
+  [text]
+  {:label (str "stream label " text)})
+
 (defn more-marks
   "The +N aggregator pill shown when a week has more margin callouts
    than the two lanes a uniform row can hold; opens the expanded week."

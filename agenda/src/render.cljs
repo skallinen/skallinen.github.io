@@ -118,7 +118,9 @@
   "A placed label on its cell-toned plate — drawn last, nothing
    overprints it."
   [{:keys [x y w text muted?]}]
-  [:g {:style {:pointer-events "none"}}
+  [:g {:role "img"
+       :aria-label (:label (interactions/stream-label text))
+       :style {:pointer-events "none"}}
    [:rect {:x (- x 2) :y (- y 8.5) :width w :height 11 :rx 2
            :fill "#f1ece7" :opacity 0.92}]
    (label-text (+ x 2) y :start text
