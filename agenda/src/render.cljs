@@ -278,14 +278,16 @@
                         (mapcat (fn [[_ ms]]
                                   (map-indexed (fn [k m] [(:id m) [k (count ms)]]) ms))
                                 (group-by :day callouts)))
-        ;; hover hint per day cell: everything active on it, one per line
+        ;; hover hint per day cell: the cell's date first (the grid shows
+        ;; no dates — hover is the dates-on-demand surface, 4.1), then
+        ;; everything active on it, one per line
         day-hint (fn [d]
                    (let [ed (nth (:days week) d)
                          ps (filter #(domain/active-on? % ed) (:periods plan))
                          ms (filter #(= (:day %) d)
                                     (concat (:cell-marks plan) callouts))
                          hs (keep :hint (concat ps ms))]
-                     (when (seq hs) (str/join "\n" hs))))]
+                     (str/join "\n" (cons (domain/ed->date-str ed) hs))))]
     [:svg.week-row-svg {:viewBox (str "0 0 " W " " ROW-H)
                         :style {:margin-bottom "1px"}}
      [row-chrome week ROW-H false]
