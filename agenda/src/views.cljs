@@ -538,7 +538,10 @@
         own-periods (mapv domain/enrich-period @state/periods)
         ;; subscribed calendars: derived, read-only, merged for display
         sub-data (vals @state/sub-events)
-        periods  (into own-periods (mapcat :periods sub-data))
+        names    (into {} (map (juxt :id :name)) @state/persons)
+        ;; hover hints (slice 11): computed once here, read by every surface
+        periods  (mapv #(assoc % :hint (domain/period-hint % names))
+                       (into own-periods (mapcat :periods sub-data)))
         one-offs (into (mapv domain/enrich-mark @state/marks)
                        (mapcat :marks sub-data))
         ;; history is part of the product (Principle 8) but hidden until
@@ -558,7 +561,8 @@
                        (state/persons-sorted))
         colors   (state/person-color-map)
         derived  (domain/anchors->marks @state/anchors from to)
-        marks    (into one-offs derived)
+        marks    (mapv #(assoc % :hint (domain/mark-hint % names))
+                       (into one-offs derived))
         vis-periods (cond->> periods
                       (hidden :others) (filterv #(seq (:who %))))
         vis-marks (filterv (fn [m]

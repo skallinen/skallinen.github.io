@@ -1,5 +1,6 @@
 (ns render
-  (:require [domain]
+  (:require [clojure.string :as str]
+            [domain]
             [layout]
             [state]
             [interactions]))
@@ -172,6 +173,7 @@
                  " H" dx
                  " V" 7)]
     [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
+     (when (:hint m) [:title (:hint m)])
      [:path {:d d :stroke "#fff" :stroke-width 3
              :fill "none" :stroke-linejoin "round"}]
      [:path {:d d :stroke "#333" :stroke-width 0.9
@@ -189,15 +191,19 @@
 
 (defn- more-marks-pill
   "+N aggregator in the second margin lane; opens the expanded week,
-   where every mark is shown on its day."
-  [n week]
-  (let [tx (+ GUT GRID 14)
+   where every mark is shown on its day. Hovering it states the marks
+   it swallowed (slice 11)."
+  [extra week]
+  (let [n  (count extra)
+        tx (+ GUT GRID 14)
         ty 20
-        ix (interactions/more-marks n)]
+        ix (interactions/more-marks n)
+        hint (when-let [hs (seq (keep :hint extra))] (str/join "\n" hs))]
     [:g {:role (:role ix)
          :aria-label (:name ix)
          :on-click #(reset! state/expanded-week (:key week))
          :style {:cursor "pointer"}}
+     (when hint [:title hint])
      ;; hit area: labels are pointer-events none, so the group needs
      ;; a painted (transparent) rect to be reliably clickable
      [:rect {:x (- tx 10) :y (- ty 7) :width (- W tx -6) :height 14
@@ -212,8 +218,10 @@
     [(min anchor-ed ed) (max anchor-ed ed)]))
 
 (defn- day-overlay
-  "Transparent per-day rect: mouse handlers for paint gesture + open editor."
-  [week d h on-paint]
+  "Transparent per-day rect: mouse handlers for paint gesture + open
+   editor. Owns the pointer in the collapsed row, so it also carries the
+   day's aggregated hover hint (slice 11)."
+  [week d h on-paint hint]
   (let [ed (nth (:days week) d)]
     [:rect {:x (day-x d) :y 0 :width DAY :height h
             :fill "transparent"
@@ -227,7 +235,8 @@
             :on-mouse-up (fn [_]
                            (when-let [[a b] (drag-range)]
                              (reset! state/drag nil)
-                             (on-paint a b)))}]))
+                             (on-paint a b)))}
+     (when hint [:title hint])]))
 
 (defn- today-tick
   "Drawn late so it stays visible over fully painted days."
@@ -268,7 +277,15 @@
         day-slots (into {}
                         (mapcat (fn [[_ ms]]
                                   (map-indexed (fn [k m] [(:id m) [k (count ms)]]) ms))
-                                (group-by :day callouts)))]
+                                (group-by :day callouts)))
+        ;; hover hint per day cell: everything active on it, one per line
+        day-hint (fn [d]
+                   (let [ed (nth (:days week) d)
+                         ps (filter #(domain/active-on? % ed) (:periods plan))
+                         ms (filter #(= (:day %) d)
+                                    (concat (:cell-marks plan) callouts))
+                         hs (keep :hint (concat ps ms))]
+                     (when (seq hs) (str/join "\n" hs))))]
     [:svg.week-row-svg {:viewBox (str "0 0 " W " " ROW-H)
                         :style {:margin-bottom "1px"}}
      [row-chrome week ROW-H false]
@@ -290,7 +307,7 @@
        ^{:key (str "x" (:id m))}
        [extra-marker m colors day-slots])
      (when (seq extra)
-       [more-marks-pill (count extra) week])
+       [more-marks-pill extra week])
      [today-tick week]
      ;; labels last, on plates — nothing overprints them
      (for [[i l] (map-indexed vector (:labels plan))]
@@ -299,7 +316,7 @@
      ;; paint overlay: owns ALL pointer events in the row
      (for [d (range 7)]
        ^{:key (str "ov" d)}
-       [day-overlay week d ROW-H on-paint])
+       [day-overlay week d ROW-H on-paint (day-hint d)])
      [drag-highlight week ROW-H]]))
 
 ;; -- Expanded week (4.7): dynamic height, one swimlane per period --
@@ -331,6 +348,7 @@
        (let [cx (+ (day-x (:day m)) 9)
              cy (+ 9 (* 13 (get mark-level (:id m) 0)))]
          [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
+          (when (:hint m) [:title (:hint m)])
           (mark-glyph m colors cx cy)
           (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start
                       (str (:label m)
@@ -353,6 +371,7 @@
                 :role (:role ix)
                 :aria-label (:name ix)
                 :style {:cursor "pointer"}})
+          (when (:hint period) [:title (:hint period)])
           (for [[i c] (map-indexed vector cs)]
             ^{:key i}
             [:rect {:x x0 :width (- x1 x0)

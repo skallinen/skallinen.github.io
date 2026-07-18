@@ -105,6 +105,27 @@
 
 (defn tentative? [p] (= "tentative" (:status p)))
 
+;; -- Hover hints (design slice 11): one pure formatter per item kind,
+;;    shared by every surface so the wording cannot drift. Plain text
+;;    for the platform's native tooltip; comment on its own line. --
+
+(defn period-hint [p names]
+  (str (:label p)
+       (when (tentative? p) " (tentative)")
+       "  ·  " (or (:start p) (ed->date-str (:start-ed p)))
+       " → "   (or (:end p) (ed->date-str (:end-ed p)))
+       (let [who (seq (keep names (:who p)))]
+         (when who (str "  ·  " (str/join ", " who))))
+       (when (and (:kind p) (not= "other" (:kind p)))
+         (str "  ·  " (:kind p)))
+       (when (seq (:comment p)) (str "\n" (:comment p)))))
+
+(defn mark-hint [m names]
+  (str (:label m)
+       "  ·  " (or (:date m) (ed->date-str (:date-ed m)))
+       (when-let [n (names (:person m))] (str "  ·  " n))
+       (when (seq (:comment m)) (str "\n" (:comment m)))))
+
 (defn period-rank
   "Label priority (design 4.5): whole-family first, then bigger groups,
    confirmed before tentative, earlier start first. Lower sorts first."
