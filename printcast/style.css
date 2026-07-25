@@ -1,0 +1,184 @@
+/* ============================================
+   Printcast — walking skeleton
+   Swiss/Helvetica, linen & black (agenda palette)
+   ============================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Helvetica Neue LT Pro webfont kit (shared with agenda) */
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 300 400; font-style: normal;
+  src: url('fonts/36DC52_0_0.woff2') format('woff2'), url('fonts/36DC52_0_0.woff') format('woff'); }
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 500 600; font-style: normal;
+  src: url('fonts/36DC52_1_0.woff2') format('woff2'), url('fonts/36DC52_1_0.woff') format('woff'); }
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 700; font-style: normal;
+  src: url('fonts/36DC52_2_0.woff2') format('woff2'), url('fonts/36DC52_2_0.woff') format('woff'); }
+@font-face { font-family: 'Helvetica Neue LT Pro'; font-weight: 800 900; font-style: normal;
+  src: url('fonts/36DC52_3_0.woff2') format('woff2'), url('fonts/36DC52_3_0.woff') format('woff'); }
+
+:root {
+  --white:  #ffffff;
+  --black:  #111111;
+  --linen:  #EEE7E1;
+  --orange: #a9431e;
+
+  --font: 'Helvetica Neue LT Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+html, body {
+  font-family: var(--font);
+  background: var(--linen);
+  color: var(--black);
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 110px; /* room for the fixed player bar */
+}
+
+/* -- Header -- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--black);
+}
+.app-title {
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.settings-toggle { font-size: 1.4rem; line-height: 1; padding: 4px 8px; }
+
+/* -- Buttons -- */
+.btn {
+  font-family: var(--font);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 8px 16px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary { background: var(--black); color: var(--white); }
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+/* -- Section label chip -- */
+.section-label {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.35em 0.7em;
+  border: 1.5px solid var(--black);
+  margin-bottom: 12px;
+}
+
+section { margin-bottom: 32px; }
+
+/* -- Capture box -- */
+.capture-title,
+.capture-text,
+.settings-input {
+  display: block;
+  width: 100%;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  padding: 9px 11px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  margin-bottom: 10px;
+}
+.capture-text { resize: vertical; line-height: 1.45; }
+.capture-title:focus, .capture-text:focus, .settings-input:focus {
+  outline: 2px solid var(--orange);
+  outline-offset: -1px;
+}
+
+/* -- Queue & library lists -- */
+.queue-list, .library-list { list-style: none; }
+.queue-item, .library-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1.5px solid var(--black);
+}
+.queue-list .queue-item:first-child,
+.library-list .library-item:first-child { border-top: 1.5px solid var(--black); }
+.item-title { font-weight: 600; }
+.item-meta { display: flex; gap: 12px; flex-shrink: 0; }
+.item-kind, .item-duration {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+.status-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 0.3em 0.65em;
+  border: 1.5px solid var(--black);
+  white-space: nowrap;
+}
+.status-in-progress { background: var(--orange); border-color: var(--orange); color: var(--white); }
+.status-played { background: var(--black); color: var(--white); }
+
+.empty-state { opacity: 0.55; font-size: 0.85rem; }
+
+/* -- Player bar -- */
+.player {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  background: var(--white);
+  border: 2px solid var(--black);
+  border-bottom: none;
+}
+.player-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player[data-state="idle"] .player-title { opacity: 0.45; font-weight: 400; }
+.player-btn { min-width: 96px; flex-shrink: 0; }
+
+/* -- Settings -- */
+.settings { border: 1.5px solid var(--black); background: var(--white); padding: 16px; }
+.settings-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 5px;
+}
+.settings-actions { display: flex; gap: 10px; margin-top: 4px; }
+.settings-note { font-size: 0.75rem; opacity: 0.6; margin-top: 10px; }
+
+/* -- Mobile -- */
+@media (max-width: 700px) {
+  .queue-item, .library-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .player { padding: 12px; }
+  .player-btn { min-width: 84px; }
+  .app-container { padding-bottom: 96px; }
+}
