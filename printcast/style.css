@@ -108,6 +108,18 @@ section { margin-bottom: 32px; }
 }
 
 /* -- Queue & library lists -- */
+.queue-header { display: flex; align-items: baseline; gap: 12px; }
+.queue-total {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  opacity: 0.65;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.btn-small { font-size: 0.6rem; padding: 5px 9px; }
+.btn-icon { min-width: 30px; padding: 5px 6px; text-transform: none; }
 .queue-list, .library-list { list-style: none; }
 .queue-item, .library-item {
   display: flex;
@@ -119,8 +131,19 @@ section { margin-bottom: 32px; }
 }
 .queue-list .queue-item:first-child,
 .library-list .library-item:first-child { border-top: 1.5px solid var(--black); }
-.item-title { font-weight: 600; }
+.item-title { font-weight: 600; flex: 1; min-width: 0; }
 .item-meta { display: flex; gap: 12px; flex-shrink: 0; }
+.item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 0.9rem;
+  opacity: 0.5;
+  align-self: center;
+  touch-action: none;
+}
+.sortable-chosen { background: var(--white); }
+.sortable-ghost { opacity: 0.35; }
 .item-kind, .item-duration {
   font-size: 0.62rem;
   font-weight: 700;
@@ -158,7 +181,15 @@ section { margin-bottom: 32px; }
   border: 2px solid var(--black);
   border-bottom: none;
 }
+.player-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .player-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-position {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
 .player[data-state="idle"] .player-title { opacity: 0.45; font-weight: 400; }
 .player-btn { min-width: 96px; flex-shrink: 0; }
 
@@ -178,6 +209,7 @@ section { margin-bottom: 32px; }
 /* -- Mobile -- */
 @media (max-width: 700px) {
   .queue-item, .library-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .drag-handle { align-self: flex-start; }
   .player { padding: 12px; }
   .player-btn { min-width: 84px; }
   .app-container { padding-bottom: 96px; }

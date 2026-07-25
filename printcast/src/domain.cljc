@@ -45,6 +45,16 @@
        (remove str/blank?)
        vec))
 
+(defn elapsed-seconds
+  "Seconds of speech already heard: the words in the consumed chunks
+   (position = index of the next chunk to speak) at the speaking speed.
+   The docs give `position` the duration domain type; slice 01 records the
+   sentence-chunk index, so seconds are estimated at the same 150 wpm as
+   `estimate-duration` (decision in 02-queue-management/decisions.md)."
+  [text position]
+  (let [heard-words (reduce + (map word-count (take position (chunks text))))]
+    (js/Math.round (* 60 (/ heard-words words-per-minute)))))
+
 ;; ---------------------------------------------------------------------------
 ;; Deciders — narrative strings match the statechart transitions (§4.3)
 ;; ---------------------------------------------------------------------------
@@ -116,6 +126,42 @@
     (refuse "the item is already queued")
     (accept {:kind "item-queued" :item-id item-id :queued-at at})))
 
+;; playback/queue — "queue-item-next @ empty|holding [not already queued] → holding, emits [item-queued-next]"
+(defmethod decide "queue-item-next"
+  [state {:keys [item-id at]}]
+  (if (some #{item-id} (:queue state))
+    (refuse "the item is already queued")
+    (accept {:kind "item-queued-next" :item-id item-id :queued-at at})))
+
+;; playback/queue — "reorder-queue @ holding [the given order lists exactly the queued items] → holding, emits [queue-reordered]"
+(defmethod decide "reorder-queue"
+  [state {:keys [order at]}]
+  (cond
+    (empty? (:queue state))
+    (refuse "the queue is empty")
+
+    (not= (frequencies order) (frequencies (:queue state)))
+    (refuse "the order does not list exactly the queued items")
+
+    :else
+    (accept {:kind "queue-reordered" :order (vec order) :at at})))
+
+;; playback/queue — "remove-from-queue @ holding → holding|empty, emits [item-removed-from-queue]"
+;; (two statechart branches, one rule: the cardinality guard only decides
+;; whether the queue empties)
+(defmethod decide "remove-from-queue"
+  [state {:keys [item-id at]}]
+  (if (some #{item-id} (:queue state))
+    (accept {:kind "item-removed-from-queue" :item-id item-id :at at})
+    (refuse "the item is not queued")))
+
+;; playback/queue — "clear-queue @ holding → empty, emits [queue-cleared]"
+(defmethod decide "clear-queue"
+  [state {:keys [at]}]
+  (if (seq (:queue state))
+    (accept {:kind "queue-cleared" :at at})
+    (refuse "the queue is already empty")))
+
 ;; playback/queue — "take-next @ holding → holding|empty, emits [item-dequeued]"
 (defmethod decide "take-next"
   [state {:keys [at]}]
@@ -159,6 +205,16 @@
                :position (:position player) :at at})
       (refuse "the player is not paused"))))
 
+;; playback/player — "record-position @ playing → playing, emits [position-changed]"
+;; (periodic self-transition: the speech process's chunk-boundary callback)
+(defmethod decide "record-position"
+  [state {:keys [position at]}]
+  (let [player (:player state)]
+    (if (= "playing" (:state player))
+      (accept {:kind "position-changed" :item-id (:item-id player)
+               :position position :at at})
+      (refuse "the player is not playing"))))
+
 ;; playback/player — "finish-item @ playing → idle, emits [item-finished]"
 (defmethod decide "finish-item"
   [state {:keys [at]}]
@@ -199,6 +255,18 @@
 (defmethod evolve "item-queued" [state {:keys [item-id]}]
   (update state :queue conj item-id))
 
+(defmethod evolve "item-queued-next" [state {:keys [item-id]}]
+  (update state :queue (fn [q] (into [item-id] q))))
+
+(defmethod evolve "queue-reordered" [state {:keys [order]}]
+  (assoc state :queue (vec order)))
+
+(defmethod evolve "item-removed-from-queue" [state {:keys [item-id]}]
+  (update state :queue (fn [q] (vec (remove #{item-id} q)))))
+
+(defmethod evolve "queue-cleared" [state _event]
+  (assoc state :queue []))
+
 (defmethod evolve "item-dequeued" [state {:keys [item-id]}]
   (update state :queue (fn [q] (vec (remove #{item-id} q)))))
 
@@ -210,6 +278,11 @@
 
 (defmethod evolve "playback-resumed" [state {:keys [position]}]
   (update state :player assoc :state "playing" :position position))
+
+(defmethod evolve "position-changed" [state {:keys [item-id position]}]
+  (cond-> (assoc-in state [:items item-id :position] position)
+    (= item-id (get-in state [:player :item-id]))
+    (assoc-in [:player :position] position)))
 
 (defmethod evolve "item-finished" [state _event]
   (assoc state :player {:state "idle" :item-id nil :position 0}))
@@ -252,9 +325,12 @@
       [{:kind "mark-in-progress" :item-id (:item-id event)}]
       [])
 
-    ;; auto-mark-played
+    ;; auto-mark-played + continuous playback: while the queue still holds
+    ;; items, take-next follows — whose item-dequeued triggers play via the
+    ;; play-from-queue policy above (docs/contexts/playback/index.md)
     "item-finished"
-    [{:kind "mark-played" :item-id (:item-id event)}]
+    (cond-> [{:kind "mark-played" :item-id (:item-id event)}]
+      (seq (:queue state)) (conj {:kind "take-next"}))
 
     []))
 

@@ -13,13 +13,17 @@
 (declare dispatch!)
 
 (defn- start-speech!
-  "Effect: speak the item's sentence chunks from the given chunk index."
+  "Effect: speak the item's sentence chunks from the given chunk index.
+   Each chunk boundary is the periodic progress process (ticket 06): it
+   dispatches record-position so positions survive across sessions."
   [item-id position]
   (let [content (get-in @state/app-state [:items item-id :content])
         chunks (domain/chunks (or content ""))]
     (reset! state/speech-position position)
     (speech/speak! chunks position
-                   {:on-chunk #(reset! state/speech-position %)
+                   {:on-chunk (fn [i]
+                                (reset! state/speech-position i)
+                                (dispatch! {:kind "record-position" :position i}))
                     :on-done #(dispatch! {:kind "finish-item"})})))
 
 (defn- run-effects!
@@ -34,7 +38,8 @@
 
 (defn- with-defaults
   "x-default fields (random-uuid, now) and edge enrichment: pause carries the
-   live speech chunk index (record-position arrives in 02-queue-management)."
+   live speech chunk index (mid-chunk pauses can sit ahead of the last
+   recorded position)."
   [intent]
   (cond-> (assoc intent :at (now-iso))
     (and (= "capture-text" (:kind intent)) (nil? (:ingest-id intent)))

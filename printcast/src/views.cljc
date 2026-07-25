@@ -11,12 +11,24 @@
    :kind (:item-kind item)
    :duration-estimate (:duration-estimate item)})
 
+(defn- remaining-seconds
+  "What is left to hear of an item: its estimate minus the seconds already
+   heard (estimated from the consumed chunks — since 02-queue-management)."
+  [item]
+  (max 0 (- (:duration-estimate item)
+            (domain/elapsed-seconds (or (:content item) "")
+                                    (or (:position item) 0)))))
+
 (defn queue-view
-  "docs/contexts/playback/read-models/queue-view.md — the queue in play order.
+  "docs/contexts/playback/read-models/queue-view.md — the queue in play order,
+   with the total remaining listening time (since 02-queue-management).
    Answers the `up-next` query."
   [state]
-  {:items (mapv (fn [item-id] (display-item (get-in state [:items item-id])))
-                (:queue state))})
+  (let [queued (mapv #(get-in state [:items %]) (:queue state))]
+    {:items (mapv (fn [item]
+                    (assoc (display-item item) :position (or (:position item) 0)))
+                  queued)
+     :total-remaining (reduce + 0 (map remaining-seconds queued))}))
 
 (defn item-list
   "docs/contexts/library/read-models/item-list.md — every library item with
@@ -28,7 +40,7 @@
                        (assoc (display-item item)
                               :status (:status item)
                               :starred false
-                              :position 0
+                              :position (or (:position item) 0)
                               :added-at (:added-at item)))))})
 
 (defn player-view
@@ -43,6 +55,13 @@
   "Estimated listening time for display: minutes, rounded up."
   [seconds]
   (str (max 1 (js/Math.ceil (/ seconds 60))) " min"))
+
+(defn format-position
+  "Elapsed listening time for display: m:ss."
+  [seconds]
+  (let [m (quot seconds 60)
+        s (mod seconds 60)]
+    (str m ":" (when (< s 10) "0") s)))
 
 (def status-label
   {"new" "new" "in-progress" "in progress" "played" "played" "archived" "archived"})
