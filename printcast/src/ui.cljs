@@ -180,6 +180,51 @@
             [:span {:class (str "status-badge status-" (:status item))}
              (views/status-label (:status item))]]])])]))
 
+;; Skip intervals: pinned defaults (30 s forward / 15 s back) — per plan.md
+;; spec notes there is no configuring intent anywhere in the contexts.
+(def ^:private skip-forward-seconds 30)
+(def ^:private skip-back-seconds 15)
+
+(def ^:private speed-choices [0.5 0.75 1 1.25 1.5 2 2.5 3])
+
+(defn- speed-label [speed]
+  (str speed "x"))
+
+(defn- player-progress
+  "Elapsed m:ss · interactive seek bar · total m:ss. The bar works in seconds;
+   the domain position is the chunk index, so the seconds→chunk conversion
+   happens here at the edge (ticket 01)."
+  [content duration elapsed]
+  [:div.player-progress
+   [:span.player-position (views/format-position elapsed)]
+   [:input.progress-bar
+    {:type "range" :aria-label "Progress"
+     :min 0 :max duration :step 1 :value elapsed
+     :on-change #(dispatch/dispatch!
+                  {:kind "seek"
+                   :position (domain/chunk-at
+                              (or content "")
+                              (js/parseInt (.. % -target -value) 10))})}]
+   [:span.player-duration (views/format-position duration)]])
+
+(defn- skip-button [direction seconds enabled?]
+  [:button.btn.btn-small.btn-icon
+   {:aria-label (str "Skip " direction " " seconds " seconds")
+    :disabled (not enabled?)
+    :on-click #(dispatch/dispatch! {:kind "skip" :direction direction
+                                    :seconds seconds})}
+   (str (if (= "back" direction) "−" "+") seconds "s")])
+
+(defn- speed-select [speed]
+  [:select.speed-select
+   {:aria-label "Speed" :value (str speed)
+    :on-change #(dispatch/dispatch!
+                 {:kind "set-speed"
+                  :speed (js/parseFloat (.. % -target -value))})}
+   (for [s speed-choices]
+     ^{:key s}
+     [:option {:value (str s)} (speed-label s)])])
+
 (defn player-bar []
   (let [pv (views/player-view @state/app-state)
         player-state (:state pv)
@@ -187,23 +232,31 @@
         ;; (e.g. paused, incl. after a reload when the runtime atom is fresh)
         position (if (= "playing" player-state)
                    @state/speech-position
-                   (:position pv))]
-    [:div.player {:data-state player-state :data-position position}
-     [:span.player-info
-      [:span.player-title (or (get-in pv [:item :title]) "Nothing playing")]
-      (when-let [item-id (get-in pv [:item :item-id])]
-        (let [content (get-in @state/app-state [:items item-id :content])]
-          [:span.player-position
-           (views/format-position
-            (domain/elapsed-seconds (or content "") position))]))]
-     [:button.btn.btn-primary.player-btn
-      {:on-click dispatch/press-play!
-       :disabled (and (= "idle" player-state)
-                      (empty? (:queue @state/app-state)))}
-      (case player-state
-        "idle" "Play"
-        "playing" "Pause"
-        "paused" "Resume")]]))
+                   (:position pv))
+        speed (:speed pv)
+        item-id (get-in pv [:item :item-id])
+        content (when item-id (get-in @state/app-state [:items item-id :content]))
+        duration (when item-id (get-in pv [:item :duration-estimate]))
+        elapsed (when item-id (domain/elapsed-seconds (or content "") position))]
+    [:div.player {:data-state player-state :data-position position
+                  :data-speed (str speed)}
+     (when item-id
+       [player-progress content duration elapsed])
+     [:div.player-row
+      [:span.player-info
+       [:span.player-title (or (get-in pv [:item :title]) "Nothing playing")]]
+      [:span.player-controls
+       [skip-button "back" skip-back-seconds (some? item-id)]
+       [:button.btn.btn-primary.player-btn
+        {:on-click dispatch/press-play!
+         :disabled (and (= "idle" player-state)
+                        (empty? (:queue @state/app-state)))}
+        (case player-state
+          "idle" "Play"
+          "playing" "Pause"
+          "paused" "Resume")]
+       [skip-button "forward" skip-forward-seconds (some? item-id)]
+       [speed-select speed]]]]))
 
 (defn settings-panel []
   (let [k (r/atom (or (store/elevenlabs-key) ""))

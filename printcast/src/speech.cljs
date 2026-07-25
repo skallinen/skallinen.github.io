@@ -4,9 +4,14 @@
 ;; provider selected when window.__printcastTestSpeech is set before load
 ;; (the e2e suite stubs audible speech; see ticket 06).
 ;;
-;; Interface: (speak! chunks from-chunk {:on-chunk (fn [i]) :on-done (fn [])})
+;; Interface: (speak! chunks from-chunk {:on-chunk (fn [i]) :on-done (fn [])
+;;                                       :rate 1.0})
 ;;            (stop!)  (speaking?)  (fetch-voices! api-key)
 ;; A generation counter invalidates stale async callbacks after stop!.
+;; :rate (since 04-player-controls) is the playback speed: the built-in
+;; provider sets the utterance rate (utterances are per-chunk, so re-speaking
+;; recreates them at the new rate), ElevenLabs sets the audio element's
+;; playbackRate, and the fake provider records it in the speech log.
 (ns speech
   (:require [state]
             [store]))
@@ -33,19 +38,21 @@
 
 ;; -- fake provider (test hook) ----------------------------------------------
 
+;; chunkMs is re-read before scheduling each chunk, so a test may adjust it
+;; mid-run (e.g. raise it to freeze position drift before asserting).
 (defn- fake-speak! [gen chunks from {:keys [on-chunk on-done]}]
-  (let [delay (or (some-> (test-config) .-chunkMs) 50)]
-    (letfn [(step [i]
-              (when (= gen @generation)
-                (if (>= i (count chunks))
-                  (on-done)
-                  (do (on-chunk i)
-                      (js/setTimeout #(step (inc i)) delay)))))]
-      (step from))))
+  (letfn [(step [i]
+            (when (= gen @generation)
+              (if (>= i (count chunks))
+                (on-done)
+                (do (on-chunk i)
+                    (js/setTimeout #(step (inc i))
+                                   (or (some-> (test-config) .-chunkMs) 50))))))]
+    (step from)))
 
 ;; -- built-in provider (window.speechSynthesis) -----------------------------
 
-(defn- builtin-speak! [gen chunks from {:keys [on-chunk on-done]}]
+(defn- builtin-speak! [gen chunks from {:keys [on-chunk on-done rate]}]
   (let [synth (.-speechSynthesis js/window)]
     (letfn [(step [i]
               (when (= gen @generation)
@@ -53,6 +60,7 @@
                   (on-done)
                   (let [u (js/SpeechSynthesisUtterance. (nth chunks i))]
                     (on-chunk i)
+                    (set! (.-rate u) (or rate 1))
                     (set! (.-onend u)
                           (fn [_] (when (= gen @generation) (step (inc i)))))
                     (.speak synth u)))))]
@@ -63,7 +71,7 @@
 ;; one request per chunk, played via an audio element
 ;; (docs/research/clipper-and-elevenlabs.md).
 
-(defn- elevenlabs-speak! [gen chunks from {:keys [on-chunk on-done] :as opts} api-key voice-id]
+(defn- elevenlabs-speak! [gen chunks from {:keys [on-chunk on-done rate] :as opts} api-key voice-id]
   (letfn [(step [i]
             (when (= gen @generation)
               (if (>= i (count chunks))
@@ -85,6 +93,7 @@
                                (let [url (js/URL.createObjectURL blob)
                                      audio (js/Audio. url)]
                                  (reset! current-audio audio)
+                                 (set! (.-playbackRate audio) (or rate 1))
                                  (on-chunk i)
                                  (set! (.-onended audio)
                                        (fn [_]
@@ -104,7 +113,8 @@
         opts (update opts :on-done
                      (fn [f] (fn [] (reset! active false) (f))))]
     (reset! active true)
-    (speech-log! {:op "speak" :fromChunk from-chunk :chunks chunks})
+    (speech-log! {:op "speak" :fromChunk from-chunk :chunks chunks
+                  :rate (or (:rate opts) 1)})
     (cond
       (test-config)
       (fake-speak! gen chunks from-chunk opts)

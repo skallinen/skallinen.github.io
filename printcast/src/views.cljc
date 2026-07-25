@@ -71,8 +71,8 @@
   "docs/contexts/playback/read-models/player-view.md — what the player is
    doing right now. Answers the `now-playing` query."
   [state]
-  (let [{player-state :state :keys [item-id position]} (:player state)]
-    (cond-> {:state player-state :position position}
+  (let [{player-state :state :keys [item-id position speed]} (:player state)]
+    (cond-> {:state player-state :position position :speed (or speed 1)}
       item-id (assoc :item (display-item (get-in state [:items item-id]))))))
 
 (defn format-duration

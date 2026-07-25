@@ -13,7 +13,7 @@
   {:ingests {}                                   ; ingest-id → {:state … + capture info}
    :items   {}                                   ; item-id → item (+ :status)
    :queue   []                                   ; item-ids, play order
-   :player  {:state "idle" :item-id nil :position 0}})
+   :player  {:state "idle" :item-id nil :position 0 :speed 1}})
 
 (defn- ingest-state [state ingest-id]
   (get-in state [:ingests ingest-id :state]))
@@ -87,6 +87,23 @@
   [text position]
   (let [heard-words (reduce + (map word-count (take position (chunks text))))]
     (js/Math.round (* 60 (/ heard-words words-per-minute)))))
+
+(defn chunk-at
+  "The chunk index speaking at `seconds` into the text — the inverse of
+   `elapsed-seconds`, at the same 150 wpm estimate. Clamps to
+   [0, chunk count]; the chunk count itself means the end of the item
+   (since 04-player-controls: the seconds↔chunk mapping behind seek/skip)."
+  [text seconds]
+  (let [cs (chunks text)
+        n (count cs)]
+    (loop [i 0 words-heard 0]
+      (if (>= i n)
+        n
+        (let [words-through (+ words-heard (word-count (nth cs i)))
+              chunk-end-secs (* 60 (/ words-through words-per-minute))]
+          (if (< seconds chunk-end-secs)
+            i
+            (recur (inc i) words-through)))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Deciders — narrative strings match the statechart transitions (§4.3)
@@ -316,6 +333,58 @@
                :position position :at at})
       (refuse "the player is not playing"))))
 
+;; playback/player — "seek @ playing → playing / @ paused → paused
+;; [the position is within the item's duration], emits [position-changed]"
+;; The position unit is the sentence-chunk index (slice-01 decision); the
+;; seconds↔chunk conversion happens at the edge via chunk-at.
+(defmethod decide "seek"
+  [state {:keys [position at]}]
+  (let [{player-state :state :keys [item-id]} (:player state)]
+    (cond
+      (not (contains? #{"playing" "paused"} player-state))
+      (refuse "the player has no current item")
+
+      (or (nil? position) (neg? position)
+          (> position (count (chunks (or (get-in state [:items item-id :content]) "")))))
+      (refuse "the position is not within the item's duration")
+
+      :else
+      (accept {:kind "position-changed" :item-id item-id :position position :at at}))))
+
+;; playback/player — "skip @ playing → playing / @ paused → paused,
+;; emits [position-changed]" — the resulting position clamps to the item's
+;; bounds; clamping at the end does not finish the item (plan.md spec notes).
+(defmethod decide "skip"
+  [state {:keys [direction seconds at]}]
+  (let [{player-state :state :keys [item-id position]} (:player state)]
+    (cond
+      (not (contains? #{"playing" "paused"} player-state))
+      (refuse "the player has no current item")
+
+      (not (contains? #{"forward" "back"} direction))
+      (refuse (str "unknown skip direction: " direction))
+
+      (or (nil? seconds) (not (pos? seconds)))
+      (refuse "the skip interval must be positive")
+
+      :else
+      (let [content (or (get-in state [:items item-id :content]) "")
+            elapsed (elapsed-seconds content position)
+            target (if (= "forward" direction)
+                     (+ elapsed seconds)
+                     (- elapsed seconds))]
+        (accept {:kind "position-changed" :item-id item-id
+                 :position (chunk-at content target) :at at})))))
+
+;; playback/player — "set-speed @ idle|playing|paused → same state,
+;; emits [speed-changed]" — no statechart guard; the only refusal is a speed
+;; outside the schema's 0.5–3.0 range (fail loud at the point of misuse).
+(defmethod decide "set-speed"
+  [_state {:keys [speed at]}]
+  (if (and (number? speed) (<= 0.5 speed 3.0))
+    (accept {:kind "speed-changed" :speed speed :at at})
+    (refuse "the speed must be between 0.5x and 3x")))
+
 ;; playback/player — "finish-item @ playing → idle, emits [item-finished]"
 (defmethod decide "finish-item"
   [state {:keys [at]}]
@@ -394,8 +463,11 @@
 (defmethod evolve "item-dequeued" [state {:keys [item-id]}]
   (update state :queue (fn [q] (vec (remove #{item-id} q)))))
 
+;; The speed is a global player setting, so playback-started and
+;; item-finished update the player in place rather than replacing it.
 (defmethod evolve "playback-started" [state {:keys [item-id position]}]
-  (assoc state :player {:state "playing" :item-id item-id :position (or position 0)}))
+  (update state :player assoc
+          :state "playing" :item-id item-id :position (or position 0)))
 
 (defmethod evolve "playback-paused" [state {:keys [position]}]
   (update state :player assoc :state "paused" :position position))
@@ -408,8 +480,16 @@
     (= item-id (get-in state [:player :item-id]))
     (assoc-in [:player :position] position)))
 
-(defmethod evolve "item-finished" [state _event]
-  (assoc state :player {:state "idle" :item-id nil :position 0}))
+(defmethod evolve "speed-changed" [state {:keys [speed]}]
+  (assoc-in state [:player :speed] speed))
+
+;; A finished item's recorded position resets so replaying it starts from the
+;; beginning — otherwise resume-on-play (since 04-player-controls) would pick
+;; up a played item at its end (decision in 04-player-controls/decisions.md).
+(defmethod evolve "item-finished" [state {:keys [item-id]}]
+  (-> state
+      (assoc-in [:items item-id :position] 0)
+      (update :player assoc :state "idle" :item-id nil :position 0)))
 
 (defn fold
   "Replay: left-fold events over state through the evolvers only (§4.2)."
@@ -440,9 +520,13 @@
                    (:items event)))
       [])
 
-    ;; play-from-queue: the dequeued item starts playing
+    ;; play-from-queue: the dequeued item starts playing — since
+    ;; 04-player-controls at its last recorded position (resume; the play
+    ;; intent doc: "the supplied position is the item's last recorded
+    ;; position"), 0 for a never-played item
     "item-dequeued"
-    [{:kind "play" :item-id (:item-id event) :position 0}]
+    [{:kind "play" :item-id (:item-id event)
+      :position (or (get-in state [:items (:item-id event) :position]) 0)}]
 
     ;; progress-tracking: the item's first playback-started marks it in progress
     "playback-started"

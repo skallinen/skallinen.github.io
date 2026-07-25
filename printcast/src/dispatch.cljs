@@ -22,10 +22,22 @@
         chunks (domain/chunks (or content ""))]
     (reset! state/speech-position position)
     (speech/speak! chunks position
-                   {:on-chunk (fn [i]
+                   {:rate (get-in @state/app-state [:player :speed] 1)
+                    :on-chunk (fn [i]
                                 (reset! state/speech-position i)
                                 (dispatch! {:kind "record-position" :position i}))
                     :on-done #(dispatch! {:kind "finish-item"})})))
+
+(defn- restart-speech!
+  "Re-speak the current item from the given chunk (seek/skip while playing,
+   or a speed change: utterances are recreated at the new rate). Only when
+   speech is actually running — paused/idle positions are picked up by the
+   next playback-started/-resumed."
+  [position]
+  (let [{player-state :state :keys [item-id]} (:player @state/app-state)]
+    (when (and (= "playing" player-state) (speech/speaking?))
+      (speech/stop!)
+      (start-speech! item-id position))))
 
 (defn- run-effects!
   "Side effects at the edges; business logic stays in the deciders (§9)."
@@ -35,6 +47,14 @@
     "playback-resumed" (start-speech! (:item-id event) (:position event))
     "playback-paused"  (speech/stop!)
     "item-finished"    (speech/stop!)
+    ;; seek/skip while playing move the live speech; record-position events
+    ;; never restart because on-chunk updates the live chunk index first
+    "position-changed" (when (and (= (:item-id event)
+                                     (get-in @state/app-state [:player :item-id]))
+                                  (not= (:position event) @state/speech-position))
+                         (restart-speech! (:position event)))
+    ;; a speed change takes effect from the current position
+    "speed-changed"    (restart-speech! @state/speech-position)
     ;; fetch execution (docs/contexts/ingestion policy, edge process):
     ;; a captured or retried URL enters the fetch
     "url-captured"     (fetcher/begin! (:ingest-id event) (:url event) dispatch!)

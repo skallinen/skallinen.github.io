@@ -1,6 +1,7 @@
 ;; Hand-authored contract, mirroring docs/contexts/** (WAY-OF-WORKING §5:
 ;; any mismatch between this file and the docs is a bug in this file).
-;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles.
+;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles
+;; + 04-player-controls.
 ;; Kinds are kebab-case (§11).
 ;;
 ;; Message shape: one flat map per intent/event with :kind as the message
@@ -32,7 +33,10 @@
    "pause"             :playback/player
    "resume"            :playback/player
    "finish-item"       :playback/player
-   "record-position"   :playback/player})
+   "record-position"   :playback/player
+   "seek"              :playback/player
+   "skip"              :playback/player
+   "set-speed"         :playback/player})
 
 (def events
   "event kind → authority (docs/contexts/<ctx>/authorities/<auth>/events/<kind>.md)"
@@ -56,7 +60,8 @@
    "playback-paused"         :playback/player
    "playback-resumed"        :playback/player
    "item-finished"           :playback/player
-   "position-changed"        :playback/player})
+   "position-changed"        :playback/player
+   "speed-changed"           :playback/player})
 
 (def item-kinds #{"podcast-episode" "web-article" "pasted-text" "document"})
 
