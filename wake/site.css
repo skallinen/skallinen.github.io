@@ -1,0 +1,154 @@
+/* Content pages (log, blog, wiki) — shares the map's ivory + Helvetica look */
+
+:root {
+  --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --ink: #333333;
+  --paper: #FFFFF0;
+  --accent: #dc143c;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+.site-nav {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #FFFFF0, #F5F0DC);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+}
+
+.site-nav a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-nav a:hover {
+  color: var(--accent);
+}
+
+.private-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--accent);
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+}
+
+main {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  line-height: 1.6;
+}
+
+main h1 {
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
+}
+
+main h2 {
+  font-size: 1.25rem;
+  margin-top: 2rem;
+  border-bottom: 1px solid #E5E0CC;
+  padding-bottom: 0.25rem;
+}
+
+.page-date {
+  color: #8a8570;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-list {
+  list-style: none;
+  padding: 0;
+}
+
+.page-list li {
+  margin: 0.5rem 0;
+}
+
+.page-list .date {
+  color: #8a8570;
+  font-size: 0.9rem;
+  margin-right: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--ink);
+  text-decoration-color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+.missing-link {
+  color: #8a8570;
+  border-bottom: 1px dashed #8a8570;
+  cursor: help;
+}
+
+.map-link {
+  display: inline-block;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+main img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 3px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  margin: 0.5rem 0;
+}
+
+/* Tables (spec sheets) */
+main table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.95rem;
+}
+
+main table td, main table th {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #E5E0CC;
+  vertical-align: top;
+  text-align: left;
+}
+
+main table td:first-child {
+  white-space: nowrap;
+}
+
+main table thead:has(th:empty) {
+  display: none;
+}
+
+main hr {
+  border: none;
+  border-top: 1px solid #E5E0CC;
+  margin: 2.5rem 0;
+}
+
+/* Live AIS map embed */
+.ais-map {
+  width: 100%;
+  border: none;
+  border-radius: 3px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  margin: 0.5rem 0;
+}

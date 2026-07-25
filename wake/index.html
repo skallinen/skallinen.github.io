@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yonder Map - Reagent App</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <!-- App container -->
+    <div id="app"></div>
+
+    <!-- Load React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Load Leaflet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    
+    <!-- Load Scittle -->
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.reagent.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.7.23/dist/scittle.promesa.js"></script>
+
+    <!-- Load ClojureScript App -->
+    <script type="application/x-scittle" src="src/yonder/core.cljs"></script>
+</body>
+</html>

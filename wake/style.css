@@ -1,0 +1,389 @@
+/* PATTERN 1: EXPLICIT HEIGHT CHAIN - Most Reliable Approach */
+
+:root {
+  --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* Step 1: Set height chain from html > body */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font) !important;
+  background-color: #FFFFF0;
+}
+
+/* Step 2: App container takes full viewport height */
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Step 3: Fixed height for header and dev-info */
+.header {
+  flex: 0 0 auto; /* Don't grow/shrink */
+  background: linear-gradient(135deg, #FFFFF0, #F5F0DC);
+  color: #333333;
+  padding: 1rem 2rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800 !important;
+}
+
+.dev-info {
+  flex: 0 0 auto; /* Don't grow/shrink */
+  background: #2a2a2a;
+  color: #00ff00;
+  padding: 0.5rem 2rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #444;
+}
+
+/* Step 4: Map container takes remaining space */
+.map-container {
+  flex: 1; /* Grow to fill remaining space */
+  min-height: 300px; /* Safety: minimum height on very small screens */
+  position: relative; /* For absolute positioning fallback if needed */
+}
+
+/* Step 5: Map fills available screen space */
+#map {
+  height: calc(100vh - 140px); /* Full viewport minus estimated header+dev-info height */
+  width: 100%;
+}
+
+/* Responsive breakpoints for mobile */
+@media (max-width: 768px) {
+  .header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .header h1 {
+    font-size: 1.4rem;
+  }
+  
+  .dev-info {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  #map {
+    height: calc(100vh - 120px); /* Smaller headers on tablet */
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0.5rem 1rem;
+  }
+  
+  .header h1 {
+    font-size: 1.2rem;
+  }
+  
+  .dev-info {
+    padding: 0.25rem 1rem;
+    font-size: 0.75rem;
+  }
+  
+  #map {
+    height: calc(100vh - 100px); /* Even smaller headers on mobile */
+  }
+}
+
+/* Font consistency across components */
+body,
+.leaflet-container,
+.marine-popup,
+.header,
+.legend,
+.control-group label,
+.coordinates,
+.status {
+  font-family: var(--font) !important;
+}
+
+/* Professional marine chart styling */
+.leaflet-container {
+  background-color: #ffffff;
+}
+
+/* Custom Layer Control Styles */
+.custom-layer-control {
+  min-width: 40px;
+  position: relative;
+}
+
+/* Hamburger button - completely flat */
+.custom-layer-control .hamburger {
+  background: none;
+  border: none;
+  color: #333;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  display: block;
+  position: relative;
+  z-index: 10;
+}
+
+.custom-layer-control .hamburger:hover {
+  color: #000;
+}
+
+/* When expanded, position hamburger in top-right corner of panel */
+.custom-layer-control:has(.layer-content:not(.hidden)) .hamburger {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 10px;
+}
+
+/* Layer content panel */
+.custom-layer-control .layer-content {
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+  padding: 10px;
+  padding-right: 35px; /* Make room for hamburger on the right */
+  margin-top: 40px; /* Space for standalone hamburger when collapsed */
+  width: max-content; /* Let content determine width */
+  min-width: 150px; /* Minimum width for dropdown */
+}
+
+/* Adjust margin when expanded */
+.custom-layer-control:has(.layer-content:not(.hidden)) .layer-content {
+  margin-top: 0;
+}
+
+.custom-layer-control .layer-content.hidden {
+  display: none;
+}
+
+/* Base layer dropdown */
+.custom-layer-control .base-layer-select {
+  width: 100%;
+  padding: 5px 6px;
+  margin-bottom: 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: white;
+  font-size: 0.85rem;
+  color: #333;
+  cursor: pointer;
+}
+
+.custom-layer-control .base-layer-select:hover {
+  border-color: #bbb;
+}
+
+.custom-layer-control .base-layer-select:focus {
+  outline: none;
+  border-color: #444;
+  box-shadow: 0 0 0 2px rgba(68, 68, 68, 0.1);
+}
+
+/* Layer sections */
+.custom-layer-control .layer-section-title {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 4px;
+}
+
+.custom-layer-control .layer-section-title:not(:first-child) {
+  margin-top: 12px; /* Space between sections */
+}
+
+/* Layer options */
+.custom-layer-control .layer-option {
+  display: block;
+  margin: 4px 0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: background-color 0.2s ease;
+}
+
+.custom-layer-control .layer-option:hover {
+  background-color: #f5f5f5;
+  border-radius: 2px;
+}
+
+.custom-layer-control input[type="radio"],
+.custom-layer-control input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: #444;
+}
+
+.custom-layer-control span {
+  vertical-align: top;
+  line-height: 1.2;
+}
+
+/* Marine symbols for harbor markers */
+.marine-symbol {
+  text-align: center;
+  line-height: 1;
+  font-size: 14px;
+  background: rgba(255,255,255,0.9) !important;
+  border: 1px solid #333 !important;
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.buoy-red {
+  color: #cc0000;
+  font-weight: bold;
+}
+
+.buoy-green {
+  color: #009900;
+  font-weight: bold;
+}
+
+.lighthouse {
+  color: #ff6600;
+  font-size: 16px;
+}
+
+.port-symbol {
+  color: #000080;
+  font-size: 14px;
+}
+
+/* Marine popups */
+.leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 6px;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+}
+
+.marine-popup {
+  min-width: 200px;
+}
+
+.marine-popup h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1e3a5f;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.3rem;
+}
+
+.marine-popup p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+/* Track marker styles */
+.square-marker {
+  font-size: 16px;
+  color: #000;
+  line-height: 1;
+}
+
+.custom-square-icon .square-marker {
+  width: 12px;
+  height: 12px;
+  background-color: #000;
+  border: 2px solid white;
+  box-sizing: border-box;
+}
+
+.csv-track-marker {
+  width: 8px;
+  height: 8px;
+  background-color: #444444;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+/* Track control section styling */
+.tracks-container {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.empty-tracks-message {
+  font-style: italic;
+  color: #666;
+  font-size: 0.8rem;
+  padding: 4px 0;
+}
+
+/* Track option with zoom icon */
+.track-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zoom-to-track {
+  margin-left: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.zoom-to-track:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Header nav to the content site (log/blog/wiki) */
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.header-nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.header-nav a {
+  color: #333333;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.header-nav a:hover {
+  color: #dc143c;
+}
+
+/* Log link in track rows */
+.log-link {
+  margin-left: auto;
+  margin-right: 6px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.log-link:hover {
+  opacity: 1;
+}
+
+/* Direction chevrons on the overview */
+.track-arrow-icon {
+  background: transparent;
+  border: none;
+}
+
+.track-arrow {
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+}
