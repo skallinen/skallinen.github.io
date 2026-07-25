@@ -10,10 +10,13 @@
             [contract]))
 
 (def init-state
-  {:ingests {}                                   ; ingest-id → statechart state
+  {:ingests {}                                   ; ingest-id → {:state … + capture info}
    :items   {}                                   ; item-id → item (+ :status)
    :queue   []                                   ; item-ids, play order
    :player  {:state "idle" :item-id nil :position 0}})
+
+(defn- ingest-state [state ingest-id]
+  (get-in state [:ingests ingest-id :state]))
 
 ;; ---------------------------------------------------------------------------
 ;; Text helpers (plan "Assorted": duration estimate, title from first line,
@@ -44,6 +47,36 @@
   (->> (str/split (str/trim text) #"(?<=[.!?])\s+")
        (remove str/blank?)
        vec))
+
+(def min-readable-words
+  "Fewer words than this is boilerplate scraps, not an article
+   (03-web-articles failure taxonomy: \"no readable content found\")."
+  25)
+
+(defn readable-text?
+  "Did extraction yield enough text to be worth reading aloud?"
+  [text]
+  (>= (word-count (or text "")) min-readable-words))
+
+(defn normalize-whitespace
+  "Collapse extraction whitespace runs (indentation, newlines) to single
+   spaces so speech chunks and duration estimates see clean prose."
+  [s]
+  (str/replace (str/trim (str s)) #"\s+" " "))
+
+(defn article-draft
+  "The complete-ingest item draft for an extracted web article
+   (docs/contexts/ingestion/.../intents/complete-ingest.md)."
+  [title text url excerpt]
+  (let [content (normalize-whitespace text)
+        origin (cond-> nil
+                 url (assoc :url url)
+                 (not (str/blank? (str excerpt))) (assoc :excerpt (normalize-whitespace excerpt)))]
+    (cond-> {:title (normalize-whitespace title)
+             :kind "web-article"
+             :content content
+             :duration-estimate (estimate-duration content)}
+      origin (assoc :origin origin))))
 
 (defn elapsed-seconds
   "Seconds of speech already heard: the words in the consumed chunks
@@ -89,9 +122,76 @@
                         :duration-estimate (estimate-duration text)}]
                :channel channel' :completed-at at}))))
 
+;; ingestion/ingest — "capture-url @ none → requested, emits [url-captured]"
+(defmethod decide "capture-url"
+  [state {:keys [ingest-id url channel at]}]
+  (cond
+    (some? (get-in state [:ingests ingest-id]))
+    (refuse "ingest already exists")
+
+    (str/blank? (str url))
+    (refuse "the URL is empty")
+
+    :else
+    (accept {:kind "url-captured" :ingest-id ingest-id :url url
+             :channel (or channel "in-app") :captured-at at})))
+
+;; ingestion/ingest — "start-fetch @ requested → fetching, emits [fetch-started]"
+(defmethod decide "start-fetch"
+  [state {:keys [ingest-id at]}]
+  (if (= "requested" (ingest-state state ingest-id))
+    (accept {:kind "fetch-started" :ingest-id ingest-id :started-at at})
+    (refuse "the ingest is not requested")))
+
+;; ingestion/ingest — "complete-ingest @ fetching [readable content was
+;; extracted into at least one item draft] → ready, emits [ingest-completed]"
+;; The ingest's channel rides on the event so the slice-01 item-creation +
+;; auto-queue policies fire for direct captures.
+(defmethod decide "complete-ingest"
+  [state {:keys [ingest-id items at]}]
+  (let [channel (get-in state [:ingests ingest-id :channel])]
+    (cond
+      (not= "fetching" (ingest-state state ingest-id))
+      (refuse "the ingest is not fetching")
+
+      (not (some #(not (str/blank? (str (:content %)))) items))
+      (refuse "no readable content was extracted into an item draft")
+
+      :else
+      (accept (cond-> {:kind "ingest-completed" :ingest-id ingest-id
+                       :items (vec items) :completed-at at}
+                channel (assoc :channel channel))))))
+
+;; ingestion/ingest — "fail-ingest @ fetching → failed, emits [ingest-failed]"
+(defmethod decide "fail-ingest"
+  [state {:keys [ingest-id reason at]}]
+  (cond
+    (not= "fetching" (ingest-state state ingest-id))
+    (refuse "the ingest is not fetching")
+
+    (str/blank? (str reason))
+    (refuse "a failure reason is required")
+
+    :else
+    (accept {:kind "ingest-failed" :ingest-id ingest-id :reason reason :failed-at at})))
+
+;; ingestion/ingest — "retry-ingest @ failed → requested, emits [ingest-retried]"
+(defmethod decide "retry-ingest"
+  [state {:keys [ingest-id at]}]
+  (if (= "failed" (ingest-state state ingest-id))
+    (accept {:kind "ingest-retried" :ingest-id ingest-id :retried-at at})
+    (refuse "the ingest has not failed")))
+
+;; ingestion/ingest — "discard-ingest @ failed → discarded, emits [ingest-discarded]"
+(defmethod decide "discard-ingest"
+  [state {:keys [ingest-id at]}]
+  (if (= "failed" (ingest-state state ingest-id))
+    (accept {:kind "ingest-discarded" :ingest-id ingest-id :discarded-at at})
+    (refuse "the ingest has not failed")))
+
 ;; library/item — "add-item @ none → new, emits [item-added]"
 (defmethod decide "add-item"
-  [state {:keys [item-id title item-kind content duration-estimate at]}]
+  [state {:keys [item-id title item-kind origin content duration-estimate at]}]
   (cond
     (some? (get-in state [:items item-id]))
     (refuse "item already exists")
@@ -100,9 +200,10 @@
     (refuse (str "unknown item kind: " item-kind))
 
     :else
-    (accept {:kind "item-added" :item-id item-id :title title
-             :item-kind item-kind :content content
-             :duration-estimate duration-estimate :added-at at})))
+    (accept (cond-> {:kind "item-added" :item-id item-id :title title
+                     :item-kind item-kind :content content
+                     :duration-estimate duration-estimate :added-at at}
+              origin (assoc :origin origin)))))
 
 ;; library/item — "mark-in-progress @ new → in-progress, emits [item-marked-in-progress]"
 (defmethod decide "mark-in-progress"
@@ -233,18 +334,41 @@
 
 (defmethod evolve :default [state _event] state)
 
-(defmethod evolve "text-captured" [state {:keys [ingest-id]}]
-  (assoc-in state [:ingests ingest-id] "capturing"))
+(defmethod evolve "text-captured"
+  [state {:keys [ingest-id title channel captured-at]}]
+  (assoc-in state [:ingests ingest-id]
+            {:ingest-id ingest-id :state "requested" :capture-kind "text"
+             :display-name title :channel channel :captured-at captured-at}))
+
+(defmethod evolve "url-captured"
+  [state {:keys [ingest-id url channel captured-at]}]
+  (assoc-in state [:ingests ingest-id]
+            {:ingest-id ingest-id :state "requested" :capture-kind "url"
+             :display-name url :url url :channel channel :captured-at captured-at}))
+
+(defmethod evolve "fetch-started" [state {:keys [ingest-id]}]
+  (assoc-in state [:ingests ingest-id :state] "fetching"))
 
 (defmethod evolve "ingest-completed" [state {:keys [ingest-id]}]
-  (assoc-in state [:ingests ingest-id] "ready"))
+  (assoc-in state [:ingests ingest-id :state] "ready"))
+
+(defmethod evolve "ingest-failed" [state {:keys [ingest-id reason]}]
+  (update-in state [:ingests ingest-id] assoc :state "failed" :reason reason))
+
+(defmethod evolve "ingest-retried" [state {:keys [ingest-id]}]
+  (update-in state [:ingests ingest-id]
+             (fn [g] (-> g (assoc :state "requested") (dissoc :reason)))))
+
+(defmethod evolve "ingest-discarded" [state {:keys [ingest-id]}]
+  (assoc-in state [:ingests ingest-id :state] "discarded"))
 
 (defmethod evolve "item-added"
-  [state {:keys [item-id title item-kind content duration-estimate added-at]}]
+  [state {:keys [item-id title item-kind origin content duration-estimate added-at]}]
   (assoc-in state [:items item-id]
-            {:item-id item-id :title title :item-kind item-kind
-             :content content :duration-estimate duration-estimate
-             :added-at added-at :status "new"}))
+            (cond-> {:item-id item-id :title title :item-kind item-kind
+                     :content content :duration-estimate duration-estimate
+                     :added-at added-at :status "new"}
+              origin (assoc :origin origin))))
 
 (defmethod evolve "item-marked-in-progress" [state {:keys [item-id]}]
   (assoc-in state [:items item-id :status] "in-progress"))
@@ -307,10 +431,11 @@
     (if (:channel event)
       (vec (mapcat (fn [draft]
                      (let [item-id (new-id)]
-                       [{:kind "add-item" :item-id item-id
-                         :title (:title draft) :item-kind (:kind draft)
-                         :content (:content draft)
-                         :duration-estimate (:duration-estimate draft)}
+                       [(cond-> {:kind "add-item" :item-id item-id
+                                 :title (:title draft) :item-kind (:kind draft)
+                                 :content (:content draft)
+                                 :duration-estimate (:duration-estimate draft)}
+                          (:origin draft) (assoc :origin (:origin draft)))
                         {:kind "queue-item" :item-id item-id}]))
                    (:items event)))
       [])

@@ -43,6 +43,30 @@
                               :position (or (:position item) 0)
                               :added-at (:added-at item)))))})
 
+(def ^:private live-ingest-states #{"requested" "fetching" "failed"})
+
+(defn active-ingests
+  "docs/contexts/ingestion/read-models/active-ingests.md — every ingest that
+   is not yet done, oldest first; completed and discarded ingests drop out
+   (since 03-web-articles)."
+  [state]
+  {:ingests (->> (vals (:ingests state))
+                 (filter #(contains? live-ingest-states (:state %)))
+                 (sort-by :captured-at)
+                 (mapv (fn [g]
+                         (cond-> (select-keys g [:ingest-id :capture-kind
+                                                 :display-name :state :captured-at])
+                           (:reason g) (assoc :reason (:reason g))))))})
+
+(defn ingest-status
+  "docs/contexts/ingestion/read-models/ingest-status.md — the state of one
+   ingest, answered from the active-ingests projection. Answers the
+   `ingest-status` query."
+  [state ingest-id]
+  (->> (:ingests (active-ingests state))
+       (filter #(= ingest-id (:ingest-id %)))
+       first))
+
 (defn player-view
   "docs/contexts/playback/read-models/player-view.md — what the player is
    doing right now. Answers the `now-playing` query."

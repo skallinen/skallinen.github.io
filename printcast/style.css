@@ -102,9 +102,63 @@ section { margin-bottom: 32px; }
   margin-bottom: 10px;
 }
 .capture-text { resize: vertical; line-height: 1.45; }
-.capture-title:focus, .capture-text:focus, .settings-input:focus {
+.capture-url-row { display: flex; gap: 10px; margin-top: 14px; }
+.capture-url {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  padding: 9px 11px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  min-width: 0;
+}
+.capture-title:focus, .capture-text:focus, .capture-url:focus, .settings-input:focus {
   outline: 2px solid var(--orange);
   outline-offset: -1px;
+}
+
+/* -- Active ingests (slice 03: capture progress + retry) -- */
+.ingest-list { list-style: none; }
+.ingest-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1.5px solid var(--black);
+}
+.ingest-list .ingest-item:first-child { border-top: 1.5px solid var(--black); }
+.ingest-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ingest-meta { display: flex; align-items: baseline; gap: 10px; flex-shrink: 0; }
+.ingest-state {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 0.3em 0.65em;
+  border: 1.5px solid var(--black);
+  white-space: nowrap;
+}
+.ingest-item[data-state="fetching"] .ingest-state { background: var(--black); color: var(--white); }
+.ingest-item[data-state="failed"] .ingest-state {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: var(--white);
+}
+.ingest-reason {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  opacity: 0.65;
+  white-space: nowrap;
 }
 
 /* -- Queue & library lists -- */
@@ -209,6 +263,8 @@ section { margin-bottom: 32px; }
 /* -- Mobile -- */
 @media (max-width: 700px) {
   .queue-item, .library-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ingest-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ingest-name { white-space: normal; word-break: break-all; }
   .drag-handle { align-self: flex-start; }
   .player { padding: 12px; }
   .player-btn { min-width: 84px; }

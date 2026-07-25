@@ -1,6 +1,7 @@
 ;; Hand-authored contract, mirroring docs/contexts/** (WAY-OF-WORKING §5:
 ;; any mismatch between this file and the docs is a bug in this file).
-;; Slices 01-walking-skeleton + 02-queue-management. Kinds are kebab-case (§11).
+;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles.
+;; Kinds are kebab-case (§11).
 ;;
 ;; Message shape: one flat map per intent/event with :kind as the message
 ;; envelope. Because the library item's own `kind` field (pasted-text | …)
@@ -12,6 +13,12 @@
 (def intents
   "intent kind → authority (docs/contexts/<ctx>/authorities/<auth>/intents/<kind>.md)"
   {"capture-text"     :ingestion/ingest
+   "capture-url"      :ingestion/ingest
+   "start-fetch"      :ingestion/ingest
+   "complete-ingest"  :ingestion/ingest
+   "fail-ingest"      :ingestion/ingest
+   "retry-ingest"     :ingestion/ingest
+   "discard-ingest"   :ingestion/ingest
    "add-item"         :library/item
    "mark-in-progress" :library/item
    "mark-played"      :library/item
@@ -30,7 +37,12 @@
 (def events
   "event kind → authority (docs/contexts/<ctx>/authorities/<auth>/events/<kind>.md)"
   {"text-captured"           :ingestion/ingest
+   "url-captured"            :ingestion/ingest
+   "fetch-started"           :ingestion/ingest
    "ingest-completed"        :ingestion/ingest
+   "ingest-failed"           :ingestion/ingest
+   "ingest-retried"          :ingestion/ingest
+   "ingest-discarded"        :ingestion/ingest
    "item-added"              :library/item
    "item-marked-in-progress" :library/item
    "item-marked-played"      :library/item

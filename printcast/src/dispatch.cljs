@@ -5,7 +5,8 @@
   (:require [domain]
             [state]
             [store]
-            [speech]))
+            [speech]
+            [fetcher]))
 
 (defn- now-iso [] (.toISOString (js/Date.)))
 (defn- new-id [] (str (random-uuid)))
@@ -34,6 +35,13 @@
     "playback-resumed" (start-speech! (:item-id event) (:position event))
     "playback-paused"  (speech/stop!)
     "item-finished"    (speech/stop!)
+    ;; fetch execution (docs/contexts/ingestion policy, edge process):
+    ;; a captured or retried URL enters the fetch
+    "url-captured"     (fetcher/begin! (:ingest-id event) (:url event) dispatch!)
+    "ingest-retried"   (fetcher/begin! (:ingest-id event)
+                                       (get-in @state/app-state
+                                               [:ingests (:ingest-id event) :url])
+                                       dispatch!)
     nil))
 
 (defn- with-defaults
@@ -42,7 +50,8 @@
    recorded position)."
   [intent]
   (cond-> (assoc intent :at (now-iso))
-    (and (= "capture-text" (:kind intent)) (nil? (:ingest-id intent)))
+    (and (contains? #{"capture-text" "capture-url"} (:kind intent))
+         (nil? (:ingest-id intent)))
     (assoc :ingest-id (new-id))
 
     (and (= "pause" (:kind intent)) (speech/speaking?))

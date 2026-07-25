@@ -12,6 +12,7 @@
 
 (defonce ^:private draft-title (r/atom ""))
 (defonce ^:private draft-text (r/atom ""))
+(defonce ^:private draft-url (r/atom ""))
 
 (defn- add-to-queue! []
   (let [text @draft-text
@@ -21,6 +22,12 @@
                             (not (str/blank? title)) (assoc :title title)))
       (reset! draft-title "")
       (reset! draft-text ""))))
+
+(defn- add-url! []
+  (let [url (str/trim @draft-url)]
+    (when-not (str/blank? url)
+      (dispatch/dispatch! {:kind "capture-url" :url url})
+      (reset! draft-url ""))))
 
 (defn capture-box []
   [:section.capture
@@ -33,7 +40,42 @@
     {:aria-label "Text to read" :placeholder "Paste text to read aloud…" :rows 5
      :value @draft-text
      :on-change #(reset! draft-text (.. % -target -value))}]
-   [:button.btn.btn-primary {:on-click add-to-queue!} "Add to queue"]])
+   [:button.btn.btn-primary {:on-click add-to-queue!} "Add to queue"]
+   [:div.capture-url-row
+    [:input.capture-url
+     {:type "url" :aria-label "Article URL"
+      :placeholder "https://… — or add a web page to read"
+      :value @draft-url
+      :on-change #(reset! draft-url (.. % -target -value))
+      :on-key-down #(when (= "Enter" (.-key %)) (add-url!))}]
+    [:button.btn {:on-click add-url!} "Add URL"]]])
+
+;; -- Active ingests (slice 03: the capture progress + retry UI) --------------
+
+(defn active-ingests-section []
+  (let [{:keys [ingests]} (views/active-ingests @state/app-state)]
+    (when (seq ingests)
+      [:section.active-ingests
+       [:h2.section-label "Adding"]
+       [:ul.ingest-list
+        (doall
+         (for [{:keys [ingest-id display-name reason] lifecycle :state} ingests]
+           ^{:key ingest-id}
+           [:li.ingest-item {:data-state lifecycle}
+            [:span.ingest-name display-name]
+            [:span.ingest-meta
+             [:span.ingest-state lifecycle]
+             (when reason [:span.ingest-reason reason])]
+            (when (= "failed" lifecycle)
+              [:span.item-actions
+               [:button.btn.btn-small
+                {:on-click #(dispatch/dispatch! {:kind "retry-ingest"
+                                                 :ingest-id ingest-id})}
+                "Retry"]
+               [:button.btn.btn-small
+                {:on-click #(dispatch/dispatch! {:kind "discard-ingest"
+                                                 :ingest-id ingest-id})}
+                "Dismiss"]])]))]])))
 
 ;; -- Queue reordering (ticket 02) -------------------------------------------
 ;; SortableJS 1.15.6 as a CDN global (bookrank pattern): drag by the handle;
@@ -206,6 +248,7 @@
    [header]
    (when @state/settings-open? [settings-panel])
    [capture-box]
+   [active-ingests-section]
    [queue-section]
    [library-section]
    [player-bar]])
