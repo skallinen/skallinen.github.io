@@ -204,34 +204,124 @@
               "✕"]]]))])]))
 
 (defn- library-row
-  "One library/episode row: title, kind + duration meta, queue affordances,
-   status badge (shared by the home library and the source page, ticket 03)."
+  "One library/episode row (shared by the home library and the source page):
+   title (+ star), kind + duration meta (+ elapsed progress when in
+   progress), queue affordances, lifecycle actions (slice 06 ticket 04),
+   status badge. Archived rows offer Unarchive only — an archived item is
+   out of active use."
   [item]
-  [:li.library-item
-   [:span.item-title (:title item)]
-   [:span.item-meta
-    [:span.item-kind (views/kind-label (:kind item))]
-    [:span.item-duration (views/format-duration (:duration-estimate item))]]
-   [:span.item-actions
-    ;; the already-queued guard (not the presentation) protects the
-    ;; queue — refused intents change nothing (ticket 01)
-    [:button.btn.btn-small
-     {:on-click #(dispatch/dispatch! {:kind "queue-item-next"
-                                      :item-id (:item-id item)})}
-     "Play next"]
-    [:button.btn.btn-small
-     {:on-click #(dispatch/dispatch! {:kind "queue-item"
-                                      :item-id (:item-id item)})}
-     "Play last"]
-    [:span {:class (str "status-badge status-" (:status item))}
-     (views/status-label (:status item))]]])
+  (let [{:keys [item-id title kind duration-estimate status starred position]} item
+        action (fn [label intent-kind & [attrs]]
+                 [:button.btn.btn-small
+                  (assoc attrs :on-click
+                         #(dispatch/dispatch! {:kind intent-kind :item-id item-id}))
+                  label])]
+    [:li.library-item {:data-status status}
+     [:span.item-heading
+      [:span.item-title title]
+      (when starred [:span.item-star {:title "Starred"} "★"])]
+     [:span.item-meta
+      [:span.item-kind (views/kind-label kind)]
+      [:span.item-duration (views/format-duration duration-estimate)]
+      (when (= "in-progress" status)
+        [:span.item-progress
+         (views/format-position
+          (domain/item-elapsed-seconds (get-in @state/app-state [:items item-id])
+                                       position))])]
+     [:span.item-actions
+      (if (= "archived" status)
+        (action "Unarchive" "unarchive-item")
+        [:<>
+         ;; the deciders' guards (already queued, already starred) — not the
+         ;; presentation — protect the domain: refused intents change nothing
+         ;; (the slice-02 convention)
+         (action "☆" "star-item" {:aria-label "Star" :class "btn-icon"})
+         (when starred
+           (action "★" "unstar-item" {:aria-label "Unstar" :class "btn-icon"}))
+         (action "Play next" "queue-item-next")
+         (action "Play last" "queue-item")
+         (when (contains? #{"new" "in-progress"} status)
+           (action "Mark played" "mark-played"))
+         (when (contains? #{"played" "in-progress"} status)
+           (action "Mark unplayed" "mark-unplayed"))
+         (action "Archive" "archive-item")])
+      [:span {:class (str "status-badge status-" status)}
+       (views/status-label status)]]]))
+
+;; -- Library view (slice 06: filters, sorts, archived + starred views) -------
+;; The filter/sort selection is view state (query input), not domain events:
+;; local atoms feeding views/library-items.
+
+(defonce ^:private library-status-filter (r/atom ""))
+(defonce ^:private library-kind-filter (r/atom ""))
+(defonce ^:private library-source-filter (r/atom ""))
+(defonce ^:private library-starred-only? (r/atom false))
+(defonce ^:private library-sort-key (r/atom "added-newest-first"))
+
+(def ^:private status-choices
+  [["new" "Unplayed"] ["in-progress" "In progress"]
+   ["played" "Played"] ["archived" "Archived"]])
+
+(def ^:private kind-choices
+  [["pasted-text" "pasted text"] ["web-article" "web article"]
+   ["podcast-episode" "podcast episode"] ["document" "document"]])
+
+(def ^:private sort-choices
+  [["added-newest-first" "Newest first"] ["added-oldest-first" "Oldest first"]
+   ["duration-shortest-first" "Shortest first"]
+   ["duration-longest-first" "Longest first"]])
+
+(defn- library-select [aria-label value-atom all-label choices]
+  [:select.library-select
+   {:aria-label aria-label :value @value-atom
+    :on-change #(reset! value-atom (.. % -target -value))}
+   (when all-label [:option {:value ""} all-label])
+   (for [[value label] choices]
+     ^{:key value}
+     [:option {:value value} label])])
+
+(defn- library-controls []
+  (let [{:keys [sources]} (views/source-list @state/app-state)]
+    [:div.library-controls
+     [library-select "Filter by status" library-status-filter "All statuses" status-choices]
+     [library-select "Filter by kind" library-kind-filter "All kinds" kind-choices]
+     (when (seq sources)
+       [library-select "Filter by source" library-source-filter "All sources"
+        (mapv (fn [{:keys [source-id title feed-url]}]
+                [source-id (or title feed-url)])
+              sources)])
+     [:label.library-starred-toggle
+      [:input {:type "checkbox" :aria-label "Starred only"
+               :checked @library-starred-only?
+               :on-change #(reset! library-starred-only? (.. % -target -checked))}]
+      "★ only"]
+     [library-select "Sort by" library-sort-key nil sort-choices]]))
+
+(defn- library-query
+  "The library-items query input from the current control selection
+   (docs/contexts/library/read-models/library-items.md)."
+  []
+  {:filter (cond-> {}
+             (not (str/blank? @library-status-filter))
+             (assoc :status @library-status-filter)
+
+             (not (str/blank? @library-kind-filter))
+             (assoc :kind @library-kind-filter)
+
+             (not (str/blank? @library-source-filter))
+             (assoc :source-id @library-source-filter)
+
+             @library-starred-only?
+             (assoc :starred true))
+   :sort @library-sort-key})
 
 (defn library-section []
-  (let [{:keys [items]} (views/item-list @state/app-state)]
+  (let [{:keys [items]} (views/library-items @state/app-state (library-query))]
     [:section.library
      [:h2.section-label "Library"]
+     [library-controls]
      (if (empty? items)
-       [:p.empty-state "Nothing captured yet."]
+       [:p.empty-state "Nothing here — paste something above, or relax the filters."]
        [:ul.library-list
         (for [item items]
           ^{:key (:item-id item)}

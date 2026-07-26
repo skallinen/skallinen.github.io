@@ -32,18 +32,53 @@
 
 (defn item-list
   "docs/contexts/library/read-models/item-list.md — every library item with
-   its lifecycle status, in added order. Answers the `library-items` query."
+   its lifecycle status and starred flag, in added order (the base
+   projection; the `library-items` query below applies filter + sort)."
   [state]
   {:items (->> (vals (:items state))
                (sort-by :added-at)
                (mapv (fn [item]
                        (cond-> (assoc (display-item item)
                                       :status (:status item)
-                                      :starred false
+                                      :starred (boolean (:starred item))
                                       :position (or (:position item) 0)
                                       :added-at (:added-at item))
                          (:origin item) (assoc :origin (:origin item))
                          (:published-at item) (assoc :published-at (:published-at item))))))})
+
+(defn- library-row-visible?
+  "The library-items filter block (all clauses AND together). Without a
+   status filter archived items stay out of view — archived means \"out of
+   active views\" (item-archived.md; decision in 06-library/decisions.md)."
+  [row {:keys [status kind starred source-id]}]
+  (and (if status
+         (= status (:status row))
+         (not= "archived" (:status row)))
+       (or (nil? kind) (= kind (:kind row)))
+       (or (nil? starred) (= starred (:starred row)))
+       (or (nil? source-id) (= source-id (get-in row [:origin :source-id])))))
+
+(defn- descending [a b] (compare b a))
+
+(def ^:private library-sorters
+  "sort enum → [key-fn comparator]; sort-by is stable, so same-added-at rows
+   (one feed dispatch) keep their feed order."
+  {"added-newest-first"      [:added-at descending]
+   "added-oldest-first"      [:added-at compare]
+   "duration-shortest-first" [:duration-estimate compare]
+   "duration-longest-first"  [:duration-estimate descending]})
+
+(defn library-items
+  "docs/contexts/library/read-models/library-items.md — the query: item-list
+   rows, optionally filtered (status | kind | starred | source-id) and
+   sorted (default added-newest-first). Since 06-library."
+  ([state] (library-items state nil))
+  ([state {row-filter :filter sort-key :sort}]
+   (let [[key-fn cmp] (get library-sorters (or sort-key "added-newest-first"))]
+     {:items (->> (:items (item-list state))
+                  (filter #(library-row-visible? % row-filter))
+                  (sort-by key-fn cmp)
+                  vec)})))
 
 (defn source-list
   "docs/contexts/library/read-models/source-list.md — followed sources with
@@ -102,7 +137,9 @@
     (str m ":" (when (< s 10) "0") s)))
 
 (def status-label
-  {"new" "new" "in-progress" "in progress" "played" "played" "archived" "archived"})
+  "Display labels; the domain status `new` reads \"unplayed\" in the UI
+   (the spec's word — decision in 06-library/decisions.md)."
+  {"new" "unplayed" "in-progress" "in progress" "played" "played" "archived" "archived"})
 
 (def kind-label
   {"pasted-text" "pasted text"

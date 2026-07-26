@@ -329,13 +329,68 @@
     (accept {:kind "item-marked-in-progress" :item-id item-id :at at})
     (refuse "only a new item can be marked in progress")))
 
-;; library/item — "mark-played @ in-progress → played, emits [item-marked-played]"
-;; (the manual mark-played @ new arrives in 06-library)
+;; library/item — "mark-played @ in-progress → played" (auto, since 01) and
+;; "@ new → played" (the user's manual mark, since 06-library), emits
+;; [item-marked-played]
 (defmethod decide "mark-played"
   [state {:keys [item-id at]}]
-  (if (= "in-progress" (get-in state [:items item-id :status]))
+  (if (contains? #{"new" "in-progress"} (get-in state [:items item-id :status]))
     (accept {:kind "item-marked-played" :item-id item-id :at at})
-    (refuse "only an in-progress item can be marked played")))
+    (refuse "only a new or in-progress item can be marked played")))
+
+;; library/item — "mark-unplayed @ played|in-progress → new, emits
+;; [item-marked-unplayed]" (since 06-library)
+(defmethod decide "mark-unplayed"
+  [state {:keys [item-id at]}]
+  (if (contains? #{"played" "in-progress"} (get-in state [:items item-id :status]))
+    (accept {:kind "item-marked-unplayed" :item-id item-id :at at})
+    (refuse "only a played or in-progress item can be marked unplayed")))
+
+;; library/item — "archive-item @ new|in-progress|played → archived, emits
+;; [item-archived]" (since 06-library)
+(defmethod decide "archive-item"
+  [state {:keys [item-id at]}]
+  (if (contains? #{"new" "in-progress" "played"} (get-in state [:items item-id :status]))
+    (accept {:kind "item-archived" :item-id item-id :at at})
+    (refuse "only an active item can be archived")))
+
+;; library/item — "unarchive-item @ archived → new, emits [item-unarchived]"
+;; (since 06-library; prior play history stays in the event stream)
+(defmethod decide "unarchive-item"
+  [state {:keys [item-id at]}]
+  (if (= "archived" (get-in state [:items item-id :status]))
+    (accept {:kind "item-unarchived" :item-id item-id :at at})
+    (refuse "only an archived item can be unarchived")))
+
+;; library/item — "star-item @ new|in-progress|played → same state, emits
+;; [item-starred], guard: the item is not already starred" (since 06-library)
+(defmethod decide "star-item"
+  [state {:keys [item-id at]}]
+  (let [item (get-in state [:items item-id])]
+    (cond
+      (not (contains? #{"new" "in-progress" "played"} (:status item)))
+      (refuse "only an active item can be starred")
+
+      (:starred item)
+      (refuse "the item is already starred")
+
+      :else
+      (accept {:kind "item-starred" :item-id item-id :at at}))))
+
+;; library/item — "unstar-item @ new|in-progress|played → same state, emits
+;; [item-unstarred], guard: the item is starred" (since 06-library)
+(defmethod decide "unstar-item"
+  [state {:keys [item-id at]}]
+  (let [item (get-in state [:items item-id])]
+    (cond
+      (not (contains? #{"new" "in-progress" "played"} (:status item)))
+      (refuse "only an active item can be unstarred")
+
+      (not (:starred item))
+      (refuse "the item is not starred")
+
+      :else
+      (accept {:kind "item-unstarred" :item-id item-id :at at}))))
 
 ;; library/source — "subscribe-source @ none → active, emits [source-subscribed]"
 (defmethod decide "subscribe-source"
@@ -606,6 +661,26 @@
 
 (defmethod evolve "item-marked-played" [state {:keys [item-id]}]
   (assoc-in state [:items item-id :status] "played"))
+
+;; Returning to `new` (mark-unplayed, unarchive) also resets the recorded
+;; position: `new` means "plays from the beginning" — the slice-04
+;; item-finished precedent (decision in 06-library/decisions.md).
+(defmethod evolve "item-marked-unplayed" [state {:keys [item-id]}]
+  (update-in state [:items item-id] assoc :status "new" :position 0))
+
+;; Archiving keeps metadata, starred flag, and position — only the status
+;; moves; history stays in the stream.
+(defmethod evolve "item-archived" [state {:keys [item-id]}]
+  (assoc-in state [:items item-id :status] "archived"))
+
+(defmethod evolve "item-unarchived" [state {:keys [item-id]}]
+  (update-in state [:items item-id] assoc :status "new" :position 0))
+
+(defmethod evolve "item-starred" [state {:keys [item-id]}]
+  (assoc-in state [:items item-id :starred] true))
+
+(defmethod evolve "item-unstarred" [state {:keys [item-id]}]
+  (assoc-in state [:items item-id :starred] false))
 
 (defmethod evolve "item-queued" [state {:keys [item-id]}]
   (update state :queue conj item-id))

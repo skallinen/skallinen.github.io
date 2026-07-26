@@ -1,7 +1,7 @@
 ;; Hand-authored contract, mirroring docs/contexts/** (WAY-OF-WORKING §5:
 ;; any mismatch between this file and the docs is a bug in this file).
 ;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles
-;; + 04-player-controls + 05-podcast-feeds.
+;; + 04-player-controls + 05-podcast-feeds + 06-library.
 ;; Kinds are kebab-case (§11).
 ;;
 ;; Message shape: one flat map per intent/event with :kind as the message
@@ -24,6 +24,11 @@
    "add-item"         :library/item
    "mark-in-progress" :library/item
    "mark-played"      :library/item
+   "mark-unplayed"    :library/item
+   "archive-item"     :library/item
+   "unarchive-item"   :library/item
+   "star-item"        :library/item
+   "unstar-item"      :library/item
    "subscribe-source"   :library/source
    "refresh-source"     :library/source
    "unsubscribe-source" :library/source
@@ -55,6 +60,11 @@
    "item-added"              :library/item
    "item-marked-in-progress" :library/item
    "item-marked-played"      :library/item
+   "item-marked-unplayed"    :library/item
+   "item-archived"           :library/item
+   "item-unarchived"         :library/item
+   "item-starred"            :library/item
+   "item-unstarred"          :library/item
    "source-subscribed"        :library/source
    "source-refresh-requested" :library/source
    "source-unsubscribed"      :library/source
