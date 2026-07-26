@@ -16,16 +16,27 @@
   ;; reconcile by pausing at the last known position (decision in decisions.md)
   (when (= "playing" (get-in @state/app-state [:player :state]))
     (dispatch/dispatch! {:kind "pause"}))
-  ;; A reload mid-fetch leaves url ingests stuck requested/fetching with no
-  ;; edge process running: re-enter the fetch (decision in decisions.md)
-  (doseq [{:keys [ingest-id url] lifecycle :state} (vals (:ingests @state/app-state))
-          :when url]
-    (case lifecycle
-      "requested" (fetcher/begin! ingest-id url dispatch/dispatch!)
-      "fetching"  (fetcher/resume! ingest-id url dispatch/dispatch!)
-      nil))
+  ;; A reload mid-fetch leaves url/feed ingests stuck requested/fetching with
+  ;; no edge process running: re-enter the fetch (decision in decisions.md)
+  (doseq [{:keys [ingest-id url feed-url source-id] lifecycle :state}
+          (vals (:ingests @state/app-state))]
+    (cond
+      url
+      (case lifecycle
+        "requested" (fetcher/begin! ingest-id url dispatch/dispatch!)
+        "fetching"  (fetcher/resume! ingest-id url dispatch/dispatch!)
+        nil)
+
+      feed-url
+      (case lifecycle
+        "requested" (fetcher/begin-feed! ingest-id feed-url source-id dispatch/dispatch!)
+        "fetching"  (fetcher/resume-feed! ingest-id feed-url source-id dispatch/dispatch!)
+        nil)))
   (when-let [k (store/elevenlabs-key)]
     (speech/fetch-voices! k))
+  ;; hash routing (since 05): the route atom follows the location hash
+  (.addEventListener js/window "hashchange"
+                     (fn [_] (reset! state/route (.-hash js/location))))
   (rdom/render [ui/app] (.getElementById js/document "app")))
 
 (init)

@@ -11,6 +11,7 @@
 (def ^:private el-voice-key "printcast:elevenlabs-voice")
 
 (defonce ^:private cached-log (atom []))
+(defonce ^:private dirty? (atom false))
 
 (defn load-events
   "The full event log, oldest first."
@@ -21,9 +22,23 @@
     (reset! cached-log events)
     events))
 
-(defn append-event! [event]
+(defn append-event!
+  "Add an event to the in-memory log; persisted by the next flush!. (One
+   serialization per dispatched action, not per event — a feed ingest appends
+   ~1000 events and per-event pr-str of the whole log is O(n²); decision in
+   05-podcast-feeds/decisions.md.)"
+  [event]
   (swap! cached-log conj event)
-  (.setItem js/localStorage log-key (pr-str @cached-log)))
+  (reset! dirty? true))
+
+(defn flush!
+  "Persist the event log if it has unpersisted events. Called by the
+   dispatcher when the outermost intent (and all its policy follow-ups) has
+   finished, so persistence stays synchronous per user action."
+  []
+  (when @dirty?
+    (reset! dirty? false)
+    (.setItem js/localStorage log-key (pr-str @cached-log))))
 
 (defn elevenlabs-key []
   (let [k (.getItem js/localStorage el-key-key)]

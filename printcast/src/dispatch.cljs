@@ -6,6 +6,7 @@
             [state]
             [store]
             [speech]
+            [audio]
             [fetcher]))
 
 (defn- now-iso [] (.toISOString (js/Date.)))
@@ -28,6 +29,38 @@
                                 (dispatch! {:kind "record-position" :position i}))
                     :on-done #(dispatch! {:kind "finish-item"})})))
 
+(def ^:private record-position-every-seconds
+  "Recordings dispatch record-position at most this often (event-volume
+   decision, ticket 04) — speech records per chunk instead."
+  5)
+
+(defonce ^:private last-recorded-second (atom 0))
+
+(defn- start-audio!
+  "Effect: play the item's recording from the given second. timeupdate keeps
+   the live seconds atom current and records the position every ~5 s;
+   'ended' finishes the item into the continuous-playback policy."
+  [item-id position]
+  (reset! state/audio-seconds position)
+  (reset! last-recorded-second position)
+  (audio/play! (get-in @state/app-state [:items item-id :recording-url]) position
+               {:rate (get-in @state/app-state [:player :speed] 1)
+                :on-position (fn [secs]
+                               (reset! state/audio-seconds secs)
+                               (when (>= (- secs @last-recorded-second)
+                                         record-position-every-seconds)
+                                 (reset! last-recorded-second secs)
+                                 (dispatch! {:kind "record-position" :position secs})))
+                :on-done #(dispatch! {:kind "finish-item"})}))
+
+(defn- start-playback!
+  "Route the started/resumed item to its edge: recordings to the audio
+   element, everything else to speech."
+  [item-id position]
+  (if (domain/recording? (get-in @state/app-state [:items item-id]))
+    (start-audio! item-id position)
+    (start-speech! item-id position)))
+
 (defn- restart-speech!
   "Re-speak the current item from the given chunk (seek/skip while playing,
    or a speed change: utterances are recreated at the new rate). Only when
@@ -43,56 +76,83 @@
   "Side effects at the edges; business logic stays in the deciders (§9)."
   [event]
   (case (:kind event)
-    "playback-started" (start-speech! (:item-id event) (:position event))
-    "playback-resumed" (start-speech! (:item-id event) (:position event))
-    "playback-paused"  (speech/stop!)
-    "item-finished"    (speech/stop!)
-    ;; seek/skip while playing move the live speech; record-position events
-    ;; never restart because on-chunk updates the live chunk index first
-    "position-changed" (when (and (= (:item-id event)
-                                     (get-in @state/app-state [:player :item-id]))
-                                  (not= (:position event) @state/speech-position))
-                         (restart-speech! (:position event)))
-    ;; a speed change takes effect from the current position
-    "speed-changed"    (restart-speech! @state/speech-position)
+    "playback-started" (start-playback! (:item-id event) (:position event))
+    "playback-resumed" (start-playback! (:item-id event) (:position event))
+    "playback-paused"  (do (speech/stop!) (audio/stop!))
+    "item-finished"    (do (speech/stop!) (audio/stop!))
+    ;; seek/skip while playing move the live playback (a seek on the audio
+    ;; element, a re-speak from the chunk for text); record-position events
+    ;; never seek/restart because the edge updates the live position first
+    "position-changed" (when (= (:item-id event)
+                                (get-in @state/app-state [:player :item-id]))
+                         (if (domain/recording?
+                              (get-in @state/app-state [:items (:item-id event)]))
+                           (when (and (audio/playing?)
+                                      (not= (:position event) @state/audio-seconds))
+                             (reset! state/audio-seconds (:position event))
+                             (audio/seek! (:position event)))
+                           (when (not= (:position event) @state/speech-position)
+                             (restart-speech! (:position event)))))
+    ;; a speed change takes effect from the current position: live on the
+    ;; audio element, a re-speak at the new rate for speech
+    "speed-changed"    (if (audio/playing?)
+                         (audio/set-rate! (:speed event))
+                         (restart-speech! @state/speech-position))
     ;; fetch execution (docs/contexts/ingestion policy, edge process):
-    ;; a captured or retried URL enters the fetch
+    ;; a captured or retried URL/feed enters the fetch
     "url-captured"     (fetcher/begin! (:ingest-id event) (:url event) dispatch!)
-    "ingest-retried"   (fetcher/begin! (:ingest-id event)
-                                       (get-in @state/app-state
-                                               [:ingests (:ingest-id event) :url])
-                                       dispatch!)
+    "feed-captured"    (fetcher/begin-feed! (:ingest-id event) (:feed-url event)
+                                            (:source-id event) dispatch!)
+    "ingest-retried"   (let [g (get-in @state/app-state [:ingests (:ingest-id event)])]
+                         (if (:feed-url g)
+                           (fetcher/begin-feed! (:ingest-id event) (:feed-url g)
+                                                (:source-id g) dispatch!)
+                           (fetcher/begin! (:ingest-id event) (:url g) dispatch!)))
     nil))
 
 (defn- with-defaults
   "x-default fields (random-uuid, now) and edge enrichment: pause carries the
-   live speech chunk index (mid-chunk pauses can sit ahead of the last
-   recorded position)."
+   live position (speech chunk index, or the recording's current second)."
   [intent]
   (cond-> (assoc intent :at (now-iso))
-    (and (contains? #{"capture-text" "capture-url"} (:kind intent))
+    (and (contains? #{"capture-text" "capture-url" "capture-feed"} (:kind intent))
          (nil? (:ingest-id intent)))
     (assoc :ingest-id (new-id))
 
+    (and (= "subscribe-source" (:kind intent)) (nil? (:source-id intent)))
+    (assoc :source-id (new-id))
+
     (and (= "pause" (:kind intent)) (speech/speaking?))
-    (assoc :position @state/speech-position)))
+    (assoc :position @state/speech-position)
+
+    (and (= "pause" (:kind intent)) (audio/playing?))
+    (assoc :position (audio/position-seconds))))
+
+(defonce ^:private dispatch-depth (atom 0))
 
 (defn dispatch!
   "Run an intent against the current state; on acceptance append its events to
-   the localStorage log, fold them into the app state, run effects, then any
-   policy follow-up intents. Refusals change nothing."
+   the event log, fold them into the app state, run effects, then any policy
+   follow-up intents. The log is persisted once per outermost dispatch (a
+   feed ingest cascades into ~1000 follow-ups; per-event persistence is
+   O(n²) — decisions.md). Refusals change nothing."
   [intent]
-  (let [intent (with-defaults intent)
-        result (domain/decide @state/app-state intent)]
-    (if-not (:ok? result)
-      (js/console.warn "[dispatch] refused" (:kind intent) "—" (:reason result))
-      (doseq [event (:events result)]
-        (swap! state/app-state domain/evolve event)
-        (store/append-event! event)
-        (run-effects! event)
-        (doseq [follow-up (domain/policies @state/app-state event new-id)]
-          (dispatch! follow-up))))
-    result))
+  (swap! dispatch-depth inc)
+  (try
+    (let [intent (with-defaults intent)
+          result (domain/decide @state/app-state intent)]
+      (if-not (:ok? result)
+        (js/console.warn "[dispatch] refused" (:kind intent) "—" (:reason result))
+        (doseq [event (:events result)]
+          (swap! state/app-state domain/evolve event)
+          (store/append-event! event)
+          (run-effects! event)
+          (doseq [follow-up (domain/policies @state/app-state event new-id)]
+            (dispatch! follow-up))))
+      result)
+    (finally
+      (when (zero? (swap! dispatch-depth dec))
+        (store/flush!)))))
 
 (defn press-play!
   "The player button: idle → play-from-queue policy (take-next → play);

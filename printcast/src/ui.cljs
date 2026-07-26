@@ -50,6 +50,54 @@
       :on-key-down #(when (= "Enter" (.-key %)) (add-url!))}]
     [:button.btn {:on-click add-url!} "Add URL"]]])
 
+;; -- Sources (slice 05: follow a podcast feed) -------------------------------
+
+(defonce ^:private draft-feed (r/atom ""))
+
+(defn- subscribe! []
+  (let [url (str/trim @draft-feed)]
+    (when-not (str/blank? url)
+      (dispatch/dispatch! {:kind "subscribe-source" :feed-url url})
+      (reset! draft-feed ""))))
+
+(defn- source-actions [source-id]
+  [:span.item-actions
+   [:button.btn.btn-small
+    {:on-click #(dispatch/dispatch! {:kind "refresh-source" :source-id source-id})}
+    "Refresh"]
+   [:button.btn.btn-small
+    {:on-click (fn []
+                 (dispatch/dispatch! {:kind "unsubscribe-source" :source-id source-id})
+                 ;; an unsubscribed source has no page to stay on
+                 (when (str/starts-with? (str @state/route) "#/source/")
+                   (set! (.-hash js/location) "#/")))}
+    "Unsubscribe"]])
+
+(defn sources-section []
+  (let [{:keys [sources]} (views/source-list @state/app-state)]
+    [:section.sources
+     [:h2.section-label "Following"]
+     [:div.subscribe-row
+      [:input.subscribe-input
+       {:type "url" :aria-label "Feed address"
+        :placeholder "https://… — paste a podcast feed to follow"
+        :value @draft-feed
+        :on-change #(reset! draft-feed (.. % -target -value))
+        :on-key-down #(when (= "Enter" (.-key %)) (subscribe!))}]
+      [:button.btn {:on-click subscribe!} "Subscribe"]]
+     (when (seq sources)
+       [:ul.source-list
+        (for [{:keys [source-id feed-url title author artwork-url]} sources]
+          ^{:key source-id}
+          [:li.source-item
+           (when artwork-url
+             [:img.source-artwork {:src artwork-url :alt ""}])
+           [:span.source-info
+            [:a.source-title {:href (str "#/source/" source-id)}
+             (or title feed-url)]
+            (when author [:span.source-author author])]
+           [source-actions source-id]])])]))
+
 ;; -- Active ingests (slice 03: the capture progress + retry UI) --------------
 
 (defn active-ingests-section []
@@ -155,6 +203,29 @@
                                                :item-id (:item-id item)})}
               "✕"]]]))])]))
 
+(defn- library-row
+  "One library/episode row: title, kind + duration meta, queue affordances,
+   status badge (shared by the home library and the source page, ticket 03)."
+  [item]
+  [:li.library-item
+   [:span.item-title (:title item)]
+   [:span.item-meta
+    [:span.item-kind (views/kind-label (:kind item))]
+    [:span.item-duration (views/format-duration (:duration-estimate item))]]
+   [:span.item-actions
+    ;; the already-queued guard (not the presentation) protects the
+    ;; queue — refused intents change nothing (ticket 01)
+    [:button.btn.btn-small
+     {:on-click #(dispatch/dispatch! {:kind "queue-item-next"
+                                      :item-id (:item-id item)})}
+     "Play next"]
+    [:button.btn.btn-small
+     {:on-click #(dispatch/dispatch! {:kind "queue-item"
+                                      :item-id (:item-id item)})}
+     "Play last"]
+    [:span {:class (str "status-badge status-" (:status item))}
+     (views/status-label (:status item))]]])
+
 (defn library-section []
   (let [{:keys [items]} (views/item-list @state/app-state)]
     [:section.library
@@ -164,21 +235,38 @@
        [:ul.library-list
         (for [item items]
           ^{:key (:item-id item)}
-          [:li.library-item
-           [:span.item-title (:title item)]
-           [:span.item-actions
-            ;; the already-queued guard (not the presentation) protects the
-            ;; queue — refused intents change nothing (ticket 01)
-            [:button.btn.btn-small
-             {:on-click #(dispatch/dispatch! {:kind "queue-item-next"
-                                              :item-id (:item-id item)})}
-             "Play next"]
-            [:button.btn.btn-small
-             {:on-click #(dispatch/dispatch! {:kind "queue-item"
-                                              :item-id (:item-id item)})}
-             "Play last"]
-            [:span {:class (str "status-badge status-" (:status item))}
-             (views/status-label (:status item))]]])])]))
+          [library-row item])])]))
+
+;; -- Source page (slice 05 ticket 03: #/source/<id>) -------------------------
+
+(defn source-page [source-id]
+  (let [source (->> (:sources (views/source-list @state/app-state))
+                    (filter #(= source-id (:source-id %)))
+                    first)
+        episodes (->> (:items (views/item-list @state/app-state))
+                      (filter #(= source-id (get-in % [:origin :source-id])))
+                      (sort-by (fn [i] [(or (:published-at i) "") (:added-at i)]))
+                      reverse
+                      vec)]
+    [:section.source-page
+     [:a.back-link {:href "#/"} "‹ Library"]
+     (if (nil? source)
+       [:p.empty-state "This source is no longer followed."]
+       [:div.source-page-header
+        (when (:artwork-url source)
+          [:img.source-artwork-large {:src (:artwork-url source) :alt ""}])
+        [:div.source-page-info
+         [:h2.source-page-title (or (:title source) (:feed-url source))]
+         (when (:author source)
+           [:p.source-page-author (:author source)])
+         [source-actions source-id]]])
+     [:h2.section-label "Episodes"]
+     (if (empty? episodes)
+       [:p.empty-state "No episodes yet — try Refresh."]
+       [:ul.library-list
+        (for [item episodes]
+          ^{:key (:item-id item)}
+          [library-row item])])]))
 
 ;; Skip intervals: pinned defaults (30 s forward / 15 s back) — per plan.md
 ;; spec notes there is no configuring intent anywhere in the contexts.
@@ -192,9 +280,9 @@
 
 (defn- player-progress
   "Elapsed m:ss · interactive seek bar · total m:ss. The bar works in seconds;
-   the domain position is the chunk index, so the seconds→chunk conversion
-   happens here at the edge (ticket 01)."
-  [content duration elapsed]
+   the domain position is the chunk index for text (seconds→chunk conversion
+   at this edge, ticket 01) and seconds for a recording (since 05)."
+  [item duration elapsed]
   [:div.player-progress
    [:span.player-position (views/format-position elapsed)]
    [:input.progress-bar
@@ -202,8 +290,8 @@
      :min 0 :max duration :step 1 :value elapsed
      :on-change #(dispatch/dispatch!
                   {:kind "seek"
-                   :position (domain/chunk-at
-                              (or content "")
+                   :position (domain/position-for-seconds
+                              item
                               (js/parseInt (.. % -target -value) 10))})}]
    [:span.player-duration (views/format-position duration)]])
 
@@ -228,20 +316,23 @@
 (defn player-bar []
   (let [pv (views/player-view @state/app-state)
         player-state (:state pv)
-        ;; live chunk index while speaking; the folded domain position otherwise
-        ;; (e.g. paused, incl. after a reload when the runtime atom is fresh)
+        item-id (get-in pv [:item :item-id])
+        item (when item-id (get-in @state/app-state [:items item-id]))
+        ;; live position while playing (recording seconds or speech chunk
+        ;; index); the folded domain position otherwise (e.g. paused, incl.
+        ;; after a reload when the runtime atoms are fresh)
         position (if (= "playing" player-state)
-                   @state/speech-position
+                   (if (domain/recording? item)
+                     @state/audio-seconds
+                     @state/speech-position)
                    (:position pv))
         speed (:speed pv)
-        item-id (get-in pv [:item :item-id])
-        content (when item-id (get-in @state/app-state [:items item-id :content]))
         duration (when item-id (get-in pv [:item :duration-estimate]))
-        elapsed (when item-id (domain/elapsed-seconds (or content "") position))]
+        elapsed (when item-id (domain/item-elapsed-seconds item position))]
     [:div.player {:data-state player-state :data-position position
                   :data-speed (str speed)}
      (when item-id
-       [player-progress content duration elapsed])
+       [player-progress item duration elapsed])
      [:div.player-row
       [:span.player-info
        [:span.player-title (or (get-in pv [:item :title]) "Nothing playing")]]
@@ -296,14 +387,22 @@
     {:aria-label "Settings" :on-click #(swap! state/settings-open? not)}
     "⚙"]])
 
-(defn app []
-  [:div.app-container
-   [header]
-   (when @state/settings-open? [settings-panel])
+(defn- home []
+  [:<>
    [capture-box]
+   [sources-section]
    [active-ingests-section]
    [queue-section]
-   [library-section]
-   [player-bar]])
+   [library-section]])
+
+(defn app []
+  (let [source-id (second (re-find #"^#/source/(.+)$" (str @state/route)))]
+    [:div.app-container
+     [header]
+     (when @state/settings-open? [settings-panel])
+     (if source-id
+       [source-page source-id]
+       [home])
+     [player-bar]]))
 
 (println "[ui] loaded")

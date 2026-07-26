@@ -12,6 +12,7 @@
 (def init-state
   {:ingests {}                                   ; ingest-id → {:state … + capture info}
    :items   {}                                   ; item-id → item (+ :status)
+   :sources {}                                   ; source-id → source aggregate (since 05)
    :queue   []                                   ; item-ids, play order
    :player  {:state "idle" :item-id nil :position 0 :speed 1}})
 
@@ -106,6 +107,75 @@
             (recur (inc i) words-through)))))))
 
 ;; ---------------------------------------------------------------------------
+;; Recording helpers (since 05-podcast-feeds: an episode's position is seconds
+;; of audio time — the docs' duration domain type directly; text items keep
+;; the standing chunk-index decision)
+;; ---------------------------------------------------------------------------
+
+(defn recording?
+  "Does the item play an audio recording (podcast episode) rather than
+   synthesized speech?"
+  [item]
+  (not (str/blank? (str (:recording-url item)))))
+
+(defn item-elapsed-seconds
+  "Seconds of the item already heard: the position itself for a recording,
+   the consumed-chunk estimate for a text item."
+  [item position]
+  (if (recording? item)
+    (or position 0)
+    (elapsed-seconds (or (:content item) "") (or position 0))))
+
+(defn position-for-seconds
+  "The item position at `seconds` in: clamped seconds for a recording,
+   the chunk index (chunk-at) for a text item."
+  [item seconds]
+  (if (recording? item)
+    (-> seconds (max 0) (min (:duration-estimate item)))
+    (chunk-at (or (:content item) "") seconds)))
+
+(defn parse-itunes-duration
+  "itunes:duration → seconds. Accepts SS, MM:SS, or HH:MM:SS; nil when blank
+   or unparsable."
+  [s]
+  (when-not (str/blank? (str s))
+    (let [parts (mapv #(js/parseInt % 10) (str/split (str/trim (str s)) #":"))]
+      (when (every? #(and (number? %) (not (js/isNaN %))) parts)
+        (case (count parts)
+          1 (nth parts 0)
+          2 (+ (* 60 (nth parts 0)) (nth parts 1))
+          3 (+ (* 3600 (nth parts 0)) (* 60 (nth parts 1)) (nth parts 2))
+          nil)))))
+
+(def max-excerpt-chars
+  "An origin excerpt is a teaser, not the full show notes — real feeds carry
+   multi-KB descriptions per episode, which would bloat every ingest event
+   (found ratifying against a real 1000-episode feed; decisions.md)."
+  280)
+
+(defn excerpt-of
+  "The description normalized and truncated to an excerpt, or nil when blank."
+  [description]
+  (when-not (str/blank? (str description))
+    (let [text (normalize-whitespace description)]
+      (if (> (count text) max-excerpt-chars)
+        (str (subs text 0 max-excerpt-chars) "…")
+        text))))
+
+(defn episode-draft
+  "The complete-ingest item draft for one feed episode
+   (docs/contexts/ingestion/.../intents/complete-ingest.md)."
+  [title recording-url {:keys [duration published-at description source-id]}]
+  (cond-> {:title (normalize-whitespace title)
+           :kind "podcast-episode"
+           :recording-url recording-url
+           :duration-estimate (or duration 0)
+           :origin (cond-> {:source-id source-id}
+                     (excerpt-of description)
+                     (assoc :excerpt (excerpt-of description)))}
+    published-at (assoc :published-at published-at)))
+
+;; ---------------------------------------------------------------------------
 ;; Deciders — narrative strings match the statechart transitions (§4.3)
 ;; ---------------------------------------------------------------------------
 
@@ -153,6 +223,25 @@
     (accept {:kind "url-captured" :ingest-id ingest-id :url url
              :channel (or channel "in-app") :captured-at at})))
 
+;; ingestion/ingest — "capture-feed @ none → requested, emits [feed-captured]"
+;; Issued by the feed-ingest policy on subscription and refresh, never
+;; directly by the user (docs/contexts/ingestion/.../intents/capture-feed.md).
+(defmethod decide "capture-feed"
+  [state {:keys [ingest-id feed-url source-id at]}]
+  (cond
+    (some? (get-in state [:ingests ingest-id]))
+    (refuse "ingest already exists")
+
+    (str/blank? (str feed-url))
+    (refuse "the feed address is empty")
+
+    (str/blank? (str source-id))
+    (refuse "the feed fetch has no library source")
+
+    :else
+    (accept {:kind "feed-captured" :ingest-id ingest-id :feed-url feed-url
+             :source-id source-id :captured-at at})))
+
 ;; ingestion/ingest — "start-fetch @ requested → fetching, emits [fetch-started]"
 (defmethod decide "start-fetch"
   [state {:keys [ingest-id at]}]
@@ -162,22 +251,30 @@
 
 ;; ingestion/ingest — "complete-ingest @ fetching [readable content was
 ;; extracted into at least one item draft] → ready, emits [ingest-completed]"
-;; The ingest's channel rides on the event so the slice-01 item-creation +
-;; auto-queue policies fire for direct captures.
+;; The guard reads the docs' item-draft schema: a draft is playable with
+;; readable *content* or a *recording-url* (since 05-podcast-feeds). The
+;; ingest's channel rides on the event so the slice-01 item-creation +
+;; auto-queue policies fire for direct captures; feed ingests instead carry
+;; the :source metadata block through.
+(defn- playable-draft? [draft]
+  (or (not (str/blank? (str (:content draft))))
+      (not (str/blank? (str (:recording-url draft))))))
+
 (defmethod decide "complete-ingest"
-  [state {:keys [ingest-id items at]}]
+  [state {:keys [ingest-id items source at]}]
   (let [channel (get-in state [:ingests ingest-id :channel])]
     (cond
       (not= "fetching" (ingest-state state ingest-id))
       (refuse "the ingest is not fetching")
 
-      (not (some #(not (str/blank? (str (:content %)))) items))
-      (refuse "no readable content was extracted into an item draft")
+      (not (some playable-draft? items))
+      (refuse "no item draft has readable content or a recording")
 
       :else
       (accept (cond-> {:kind "ingest-completed" :ingest-id ingest-id
                        :items (vec items) :completed-at at}
-                channel (assoc :channel channel))))))
+                channel (assoc :channel channel)
+                source (assoc :source source))))))
 
 ;; ingestion/ingest — "fail-ingest @ fetching → failed, emits [ingest-failed]"
 (defmethod decide "fail-ingest"
@@ -208,7 +305,8 @@
 
 ;; library/item — "add-item @ none → new, emits [item-added]"
 (defmethod decide "add-item"
-  [state {:keys [item-id title item-kind origin content duration-estimate at]}]
+  [state {:keys [item-id title item-kind origin content recording-url
+                 published-at duration-estimate at]}]
   (cond
     (some? (get-in state [:items item-id]))
     (refuse "item already exists")
@@ -220,7 +318,9 @@
     (accept (cond-> {:kind "item-added" :item-id item-id :title title
                      :item-kind item-kind :content content
                      :duration-estimate duration-estimate :added-at at}
-              origin (assoc :origin origin)))))
+              origin (assoc :origin origin)
+              recording-url (assoc :recording-url recording-url)
+              published-at (assoc :published-at published-at)))))
 
 ;; library/item — "mark-in-progress @ new → in-progress, emits [item-marked-in-progress]"
 (defmethod decide "mark-in-progress"
@@ -236,6 +336,35 @@
   (if (= "in-progress" (get-in state [:items item-id :status]))
     (accept {:kind "item-marked-played" :item-id item-id :at at})
     (refuse "only an in-progress item can be marked played")))
+
+;; library/source — "subscribe-source @ none → active, emits [source-subscribed]"
+(defmethod decide "subscribe-source"
+  [state {:keys [source-id feed-url at]}]
+  (cond
+    (some? (get-in state [:sources source-id]))
+    (refuse "source already exists")
+
+    (str/blank? (str feed-url))
+    (refuse "the feed address is empty")
+
+    :else
+    (accept {:kind "source-subscribed" :source-id source-id
+             :feed-url feed-url :subscribed-at at})))
+
+;; library/source — "refresh-source @ active → active, emits [source-refresh-requested]"
+(defmethod decide "refresh-source"
+  [state {:keys [source-id at]}]
+  (if (= "active" (get-in state [:sources source-id :state]))
+    (accept {:kind "source-refresh-requested" :source-id source-id :requested-at at})
+    (refuse "the source is not followed")))
+
+;; library/source — "unsubscribe-source @ active → removed, emits [source-unsubscribed]"
+;; `removed` is terminal; the source's items remain in the library.
+(defmethod decide "unsubscribe-source"
+  [state {:keys [source-id at]}]
+  (if (= "active" (get-in state [:sources source-id :state]))
+    (accept {:kind "source-unsubscribed" :source-id source-id :unsubscribed-at at})
+    (refuse "the source is not followed")))
 
 ;; playback/queue — "queue-item @ empty|holding [not already queued] → holding, emits [item-queued]"
 (defmethod decide "queue-item"
@@ -335,17 +464,21 @@
 
 ;; playback/player — "seek @ playing → playing / @ paused → paused
 ;; [the position is within the item's duration], emits [position-changed]"
-;; The position unit is the sentence-chunk index (slice-01 decision); the
-;; seconds↔chunk conversion happens at the edge via chunk-at.
+;; The position unit is the sentence-chunk index for text items (slice-01
+;; decision; the seconds↔chunk conversion happens at the edge via chunk-at)
+;; and seconds of audio time for recordings (since 05-podcast-feeds).
 (defmethod decide "seek"
   [state {:keys [position at]}]
-  (let [{player-state :state :keys [item-id]} (:player state)]
+  (let [{player-state :state :keys [item-id]} (:player state)
+        item (get-in state [:items item-id])
+        limit (if (recording? item)
+                (:duration-estimate item)
+                (count (chunks (or (:content item) ""))))]
     (cond
       (not (contains? #{"playing" "paused"} player-state))
       (refuse "the player has no current item")
 
-      (or (nil? position) (neg? position)
-          (> position (count (chunks (or (get-in state [:items item-id :content]) "")))))
+      (or (nil? position) (neg? position) (> position limit))
       (refuse "the position is not within the item's duration")
 
       :else
@@ -368,13 +501,13 @@
       (refuse "the skip interval must be positive")
 
       :else
-      (let [content (or (get-in state [:items item-id :content]) "")
-            elapsed (elapsed-seconds content position)
+      (let [item (get-in state [:items item-id])
+            elapsed (item-elapsed-seconds item position)
             target (if (= "forward" direction)
                      (+ elapsed seconds)
                      (- elapsed seconds))]
         (accept {:kind "position-changed" :item-id item-id
-                 :position (chunk-at content target) :at at})))))
+                 :position (position-for-seconds item target) :at at})))))
 
 ;; playback/player — "set-speed @ idle|playing|paused → same state,
 ;; emits [speed-changed]" — no statechart guard; the only refusal is a speed
@@ -415,11 +548,24 @@
             {:ingest-id ingest-id :state "requested" :capture-kind "url"
              :display-name url :url url :channel channel :captured-at captured-at}))
 
+(defmethod evolve "feed-captured"
+  [state {:keys [ingest-id feed-url source-id captured-at]}]
+  (assoc-in state [:ingests ingest-id]
+            {:ingest-id ingest-id :state "requested" :capture-kind "feed"
+             :display-name feed-url :feed-url feed-url :source-id source-id
+             :captured-at captured-at}))
+
 (defmethod evolve "fetch-started" [state {:keys [ingest-id]}]
   (assoc-in state [:ingests ingest-id :state] "fetching"))
 
-(defmethod evolve "ingest-completed" [state {:keys [ingest-id]}]
-  (assoc-in state [:ingests ingest-id :state] "ready"))
+;; A feed ingest's :source block is where the source's display metadata
+;; (title, author, artwork) arrives; the source-list projection reads it off
+;; the source aggregate (docs/contexts/library/authorities/source/index.md).
+(defmethod evolve "ingest-completed" [state {:keys [ingest-id source]}]
+  (cond-> (assoc-in state [:ingests ingest-id :state] "ready")
+    (:source-id source)
+    (update-in [:sources (:source-id source)] merge
+               (select-keys source [:title :author :artwork-url]))))
 
 (defmethod evolve "ingest-failed" [state {:keys [ingest-id reason]}]
   (update-in state [:ingests ingest-id] assoc :state "failed" :reason reason))
@@ -432,12 +578,28 @@
   (assoc-in state [:ingests ingest-id :state] "discarded"))
 
 (defmethod evolve "item-added"
-  [state {:keys [item-id title item-kind origin content duration-estimate added-at]}]
+  [state {:keys [item-id title item-kind origin content recording-url
+                 published-at duration-estimate added-at]}]
   (assoc-in state [:items item-id]
             (cond-> {:item-id item-id :title title :item-kind item-kind
                      :content content :duration-estimate duration-estimate
                      :added-at added-at :status "new"}
-              origin (assoc :origin origin))))
+              origin (assoc :origin origin)
+              recording-url (assoc :recording-url recording-url)
+              published-at (assoc :published-at published-at))))
+
+(defmethod evolve "source-subscribed"
+  [state {:keys [source-id feed-url subscribed-at]}]
+  (assoc-in state [:sources source-id]
+            {:source-id source-id :state "active" :feed-url feed-url
+             :subscribed-at subscribed-at}))
+
+(defmethod evolve "source-refresh-requested"
+  [state {:keys [source-id requested-at]}]
+  (assoc-in state [:sources source-id :refresh-requested-at] requested-at))
+
+(defmethod evolve "source-unsubscribed" [state {:keys [source-id]}]
+  (assoc-in state [:sources source-id :state] "removed"))
 
 (defmethod evolve "item-marked-in-progress" [state {:keys [item-id]}]
   (assoc-in state [:items item-id :status] "in-progress"))
@@ -506,7 +668,10 @@
    event was folded in."
   [state event new-id]
   (case (:kind event)
-    ;; item-creation + auto-queue: direct user captures (channel present)
+    ;; item-creation + auto-queue: direct user captures (channel present) are
+    ;; queued; feed ingests (channel absent — docs/contexts/ingestion) only
+    ;; create items, and only for episodes whose recording is not already a
+    ;; library item (refresh dedupe by enclosure URL)
     "ingest-completed"
     (if (:channel event)
       (vec (mapcat (fn [draft]
@@ -518,7 +683,35 @@
                           (:origin draft) (assoc :origin (:origin draft)))
                         {:kind "queue-item" :item-id item-id}]))
                    (:items event)))
-      [])
+      (let [known (set (keep :recording-url (vals (:items state))))
+            fresh (first
+                   (reduce (fn [[drafts seen] draft]
+                             (let [url (:recording-url draft)]
+                               (if (and url (contains? seen url))
+                                 [drafts seen]
+                                 [(conj drafts draft) (cond-> seen url (conj url))])))
+                           [[] known]
+                           (:items event)))]
+        (mapv (fn [draft]
+                (cond-> {:kind "add-item" :item-id (new-id)
+                         :title (:title draft) :item-kind (:kind draft)
+                         :duration-estimate (:duration-estimate draft)}
+                  (:content draft) (assoc :content (:content draft))
+                  (:recording-url draft) (assoc :recording-url (:recording-url draft))
+                  (:published-at draft) (assoc :published-at (:published-at draft))
+                  (:origin draft) (assoc :origin (:origin draft))))
+              fresh)))
+
+    ;; feed ingest: a followed or refreshed source gets its feed fetched
+    ;; (docs/contexts/ingestion/index.md policy table, since 05-podcast-feeds)
+    "source-subscribed"
+    [{:kind "capture-feed" :ingest-id (new-id)
+      :feed-url (:feed-url event) :source-id (:source-id event)}]
+
+    "source-refresh-requested"
+    [{:kind "capture-feed" :ingest-id (new-id)
+      :feed-url (get-in state [:sources (:source-id event) :feed-url])
+      :source-id (:source-id event)}]
 
     ;; play-from-queue: the dequeued item starts playing — since
     ;; 04-player-controls at its last recorded position (resume; the play

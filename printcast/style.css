@@ -286,9 +286,85 @@ section { margin-bottom: 32px; }
 .settings-actions { display: flex; gap: 10px; margin-top: 4px; }
 .settings-note { font-size: 0.75rem; opacity: 0.6; margin-top: 10px; }
 
+/* -- Sources (slice 05: podcast feeds) -- */
+.subscribe-row { display: flex; gap: 10px; }
+.subscribe-input {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  padding: 9px 11px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  min-width: 0;
+}
+.subscribe-input:focus { outline: 2px solid var(--orange); outline-offset: -1px; }
+.source-list { list-style: none; margin-top: 14px; }
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1.5px solid var(--black);
+}
+.source-list .source-item:first-child { border-top: 1.5px solid var(--black); }
+.source-artwork {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border: 1.5px solid var(--black);
+  flex-shrink: 0;
+}
+.source-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.source-title {
+  font-weight: 600;
+  color: var(--black);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-title:hover { text-decoration: underline; }
+.source-author {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+/* -- Source page (slice 05: #/source/<id>) -- */
+.back-link {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--black);
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+.back-link:hover { text-decoration: underline; }
+.source-page-header { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 28px; }
+.source-artwork-large {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border: 1.5px solid var(--black);
+  flex-shrink: 0;
+}
+.source-page-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.source-page-title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+.source-page-author {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
 /* -- Mobile -- */
 @media (max-width: 700px) {
   .queue-item, .library-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .source-page-header { flex-direction: column; }
   .ingest-item { flex-direction: column; align-items: flex-start; gap: 4px; }
   .ingest-name { white-space: normal; word-break: break-all; }
   .drag-handle { align-self: flex-start; }

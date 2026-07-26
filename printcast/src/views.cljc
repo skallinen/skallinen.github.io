@@ -13,11 +13,11 @@
 
 (defn- remaining-seconds
   "What is left to hear of an item: its estimate minus the seconds already
-   heard (estimated from the consumed chunks — since 02-queue-management)."
+   heard (recorded seconds for a recording, the consumed-chunk estimate for
+   text — since 02-queue-management, recordings since 05-podcast-feeds)."
   [item]
   (max 0 (- (:duration-estimate item)
-            (domain/elapsed-seconds (or (:content item) "")
-                                    (or (:position item) 0)))))
+            (domain/item-elapsed-seconds item (:position item)))))
 
 (defn queue-view
   "docs/contexts/playback/read-models/queue-view.md — the queue in play order,
@@ -37,11 +37,25 @@
   {:items (->> (vals (:items state))
                (sort-by :added-at)
                (mapv (fn [item]
-                       (assoc (display-item item)
-                              :status (:status item)
-                              :starred false
-                              :position (or (:position item) 0)
-                              :added-at (:added-at item)))))})
+                       (cond-> (assoc (display-item item)
+                                      :status (:status item)
+                                      :starred false
+                                      :position (or (:position item) 0)
+                                      :added-at (:added-at item))
+                         (:origin item) (assoc :origin (:origin item))
+                         (:published-at item) (assoc :published-at (:published-at item))))))})
+
+(defn source-list
+  "docs/contexts/library/read-models/source-list.md — followed sources with
+   display metadata (assembled from feed ingests), oldest subscription first;
+   removed sources drop out. Answers the `library-sources` query. Since
+   05-podcast-feeds."
+  [state]
+  {:sources (->> (vals (:sources state))
+                 (filter #(= "active" (:state %)))
+                 (sort-by :subscribed-at)
+                 (mapv #(select-keys % [:source-id :feed-url :title :author
+                                        :artwork-url :subscribed-at])))})
 
 (def ^:private live-ingest-states #{"requested" "fetching" "failed"})
 
