@@ -152,3 +152,18 @@ main hr {
   box-shadow: 0 1px 6px rgba(0,0,0,0.15);
   margin: 0.5rem 0;
 }
+
+/* Video embeds */
+main video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 3px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  margin: 0.5rem 0;
+}
+
+.media-caption {
+  color: #8a8570;
+  font-size: 0.9rem;
+  margin-top: -0.25rem;
+}
