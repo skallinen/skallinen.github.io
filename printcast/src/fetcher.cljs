@@ -24,6 +24,9 @@
 (def nothing-readable "no readable content found")
 (def feed-retrieve-failed "feed could not be retrieved")
 (def no-episodes "no episodes found in the feed")
+(def no-document-text "no readable text was found")
+(def document-unreadable "document could not be read")
+(def document-gone "document is no longer available")
 
 (defn- test-config [] (.-__printcastTestFetch js/window))
 
@@ -75,16 +78,22 @@
          (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
                      :reason retrieve-failed})))))
 
-(defn begin!
-  "Run the fetch for a requested ingest: start-fetch, then the outcome.
-   Deferred a macrotask (or the test hold) so `requested` gets a render."
-  [ingest-id url dispatch!]
+(defn- begin-after-hold!
+  "Enter the fetch for a requested ingest: start-fetch, then run the given
+   retrieval/extraction. Deferred a macrotask (or the test hold) so
+   `requested` gets a render."
+  [ingest-id dispatch! run!]
   (let [hold (or (some-> (test-config) .-holdMs) 0)]
     (js/setTimeout
      (fn []
        (dispatch! {:kind "start-fetch" :ingest-id ingest-id})
-       (run-fetch! ingest-id url dispatch!))
+       (run!))
      hold)))
+
+(defn begin!
+  "Run the fetch for a requested url ingest."
+  [ingest-id url dispatch!]
+  (begin-after-hold! ingest-id dispatch! #(run-fetch! ingest-id url dispatch!)))
 
 (defn resume!
   "Boot reconcile: continue an ingest replayed as already `fetching` —
@@ -205,16 +214,136 @@
 (defn begin-feed!
   "Run the fetch for a requested feed ingest (begin! for feeds)."
   [ingest-id feed-url source-id dispatch!]
-  (let [hold (or (some-> (test-config) .-holdMs) 0)]
-    (js/setTimeout
-     (fn []
-       (dispatch! {:kind "start-fetch" :ingest-id ingest-id})
-       (run-feed-fetch! ingest-id feed-url source-id dispatch!))
-     hold)))
+  (begin-after-hold! ingest-id dispatch!
+                     #(run-feed-fetch! ingest-id feed-url source-id dispatch!)))
 
 (defn resume-feed!
   "Boot reconcile: continue a feed ingest replayed as already `fetching`."
   [ingest-id feed-url source-id dispatch!]
   (run-feed-fetch! ingest-id feed-url source-id dispatch!))
+
+;; ---------------------------------------------------------------------------
+;; Document path (since 07-documents): the captured file's bytes are transient
+;; edge state — stashed here under the ingest's opaque document-ref by the UI
+;; when the file is picked, never persisted, dropped once extraction reports
+;; an outcome. Only the extracted TEXT rides ingest-completed (like articles).
+;; A ref whose bytes are gone (reload) fails with "document is no longer
+;; available"; the retry affordance re-prompts for the file.
+;;
+;; Extraction: pdf.js (pinned legacy/UMD CDN build, main-thread fake worker
+;; via the plain-script window.pdfjsWorker — decisions.md). Per-page text via
+;; getTextContent; metadata Title with the file-name-minus-extension fallback
+;; (domain/document-title); top-level outline entries become {title, position}
+;; draft sections, best-effort only (enabling groundwork for slice 10).
+;; ---------------------------------------------------------------------------
+
+(defonce ^:private document-bytes (atom {}))     ; document-ref → js/ArrayBuffer
+
+(defn stash-document!
+  "Hold a picked file's bytes for the extraction edge under the capture's
+   document-ref (also the retry path: new bytes under the same ref)."
+  [document-ref array-buffer]
+  (swap! document-bytes assoc document-ref array-buffer))
+
+(defn- load-pdf
+  "js/Promise of the pdf.js document proxy (a sync throw — e.g. pdf.js not
+   loaded — becomes a rejection)."
+  [array-buffer]
+  (try
+    (.-promise (js/pdfjsLib.getDocument #js {:data (js/Uint8Array. array-buffer)}))
+    (catch :default e (js/Promise.reject e))))
+
+(defn- page-texts
+  "js/Promise of a vector of per-page extracted text."
+  [pdf]
+  (-> (js/Promise.all
+       (to-array
+        (map (fn [i]
+               (-> (.getPage pdf i)
+                   (.then (fn [page] (.getTextContent page)))
+                   (.then (fn [tc]
+                            (->> (.-items tc)
+                                 (map #(.-str %))
+                                 (remove #(str/blank? (str %)))
+                                 (str/join " "))))))
+             (range 1 (inc (.-numPages pdf))))))
+      (.then vec)))
+
+(defn- metadata-title
+  "js/Promise of the document's embedded Title, or nil."
+  [pdf]
+  (-> (.getMetadata pdf)
+      (.then (fn [md]
+               (let [t (some-> md .-info .-Title)]
+                 (when-not (str/blank? (str t)) t))))
+      (.catch (fn [_] nil))))
+
+(defn- outline-sections
+  "js/Promise of the top-level outline entries as {:title :position} section
+   drafts (position = estimated seconds at the entry's page). Best-effort:
+   any problem — no outline, unresolvable destination — yields []."
+  [pdf pages]
+  (-> (.getOutline pdf)
+      (.then
+       (fn [outline]
+         (if (nil? outline)
+           (js/Promise.resolve #js [])
+           (js/Promise.all
+            (to-array
+             (map (fn [entry]
+                    (-> (let [dest (.-dest entry)]
+                          (if (string? dest) (.getDestination pdf dest)
+                              (js/Promise.resolve dest)))
+                        (.then (fn [dest] (.getPageIndex pdf (aget dest 0))))
+                        (.then (fn [idx]
+                                 {:title (str (.-title entry))
+                                  :position (domain/page-start-seconds pages idx)}))
+                        (.catch (fn [_] nil))))
+                  outline))))))
+      (.then (fn [entries] (vec (remove nil? entries))))
+      (.catch (fn [_] []))))
+
+(defn- run-document-extract!
+  "Extract the stashed bytes, then report the outcome as complete-ingest or
+   fail-ingest. Missing bytes (reload lost the transient stash) fail with
+   document-gone; a parse failure with document-unreadable; a text layer
+   below the readable threshold with no-document-text."
+  [ingest-id document-ref file-name dispatch!]
+  (if-let [buf (get @document-bytes document-ref)]
+    (-> (load-pdf buf)
+        (.then
+         (fn [pdf]
+           (-> (page-texts pdf)
+               (.then
+                (fn [pages]
+                  (let [text (str/join "\n" pages)]
+                    (if (domain/readable-text? text)
+                      (-> (js/Promise.all #js [(metadata-title pdf)
+                                               (outline-sections pdf pages)])
+                          (.then (fn [res]
+                                   (dispatch! {:kind "complete-ingest" :ingest-id ingest-id
+                                               :items [(domain/document-draft
+                                                        (domain/document-title (aget res 0) file-name)
+                                                        file-name text (aget res 1))]}))))
+                      (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
+                                  :reason no-document-text}))))))))
+        (.catch (fn [e]
+                  (js/console.warn "[fetcher] document extraction failed" e)
+                  (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
+                              :reason document-unreadable})))
+        (.finally (fn [] (swap! document-bytes dissoc document-ref))))
+    (dispatch! {:kind "fail-ingest" :ingest-id ingest-id :reason document-gone})))
+
+(defn begin-document!
+  "Run the extraction for a requested document ingest (begin! for files)."
+  [ingest-id document-ref file-name dispatch!]
+  (begin-after-hold! ingest-id dispatch!
+                     #(run-document-extract! ingest-id document-ref file-name dispatch!)))
+
+(defn resume-document!
+  "Boot reconcile: continue a document ingest replayed as already `fetching`
+   — with the transient bytes gone this fails cleanly as document-gone."
+  [ingest-id document-ref file-name dispatch!]
+  (run-document-extract! ingest-id document-ref file-name dispatch!))
 
 (println "[fetcher] loaded")

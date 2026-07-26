@@ -12,6 +12,11 @@
   <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.reagent.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js"></script>
+  <!-- pdf.js pinned legacy/UMD build; loading the worker as a plain script
+       defines window.pdfjsWorker, which pdf.js picks up as a main-thread
+       (fake) worker — no worker setup needed under Scittle -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js"></script>
   <!-- Scittle resolves namespaces by load order: keep these in dependency order -->
   <script type="application/x-scittle" src="src/contract.cljc"></script>
   <script type="application/x-scittle" src="src/domain.cljc"></script>

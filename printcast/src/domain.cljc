@@ -176,6 +176,50 @@
     published-at (assoc :published-at published-at)))
 
 ;; ---------------------------------------------------------------------------
+;; Document helpers (since 07-documents: extraction resolves the item title
+;; from the document's embedded metadata, falling back to the file name minus
+;; its extension — the spec-level decision in docs/plan/07-documents/plan.md)
+;; ---------------------------------------------------------------------------
+
+(defn file-name-sans-extension
+  "The file name without its last extension; a name with no extension (or a
+   bare dotfile) is kept whole."
+  [file-name]
+  (let [n (str file-name)
+        i (str/last-index-of n ".")]
+    (if (and i (pos? i)) (subs n 0 i) n)))
+
+(defn document-title
+  "The document's embedded metadata title, falling back to the file name
+   minus its extension."
+  [metadata-title file-name]
+  (if (str/blank? (str metadata-title))
+    (file-name-sans-extension file-name)
+    (normalize-whitespace metadata-title)))
+
+(defn page-start-seconds
+  "Estimated seconds of speech before the given page begins: the words on
+   the preceding pages at the same 150 wpm as `estimate-duration`. Positions
+   the outline sections (enabling-only groundwork for slice 10 chapters)."
+  [page-texts page-index]
+  (let [words (reduce + 0 (map word-count (take page-index page-texts)))]
+    (js/Math.round (* 60 (/ words words-per-minute)))))
+
+(defn document-draft
+  "The complete-ingest item draft for an extracted document
+   (docs/contexts/ingestion/.../intents/complete-ingest.md). `sections` are
+   the document's outline entries as {title, position}; they stay on the
+   draft only (add-item's sections field is populated from slice 10)."
+  [title file-name text sections]
+  (let [content (normalize-whitespace text)]
+    (cond-> {:title (normalize-whitespace title)
+             :kind "document"
+             :content content
+             :origin {:file-name file-name}
+             :duration-estimate (estimate-duration content)}
+      (seq sections) (assoc :sections (vec sections)))))
+
+;; ---------------------------------------------------------------------------
 ;; Deciders — narrative strings match the statechart transitions (§4.3)
 ;; ---------------------------------------------------------------------------
 
@@ -241,6 +285,26 @@
     :else
     (accept {:kind "feed-captured" :ingest-id ingest-id :feed-url feed-url
              :source-id source-id :captured-at at})))
+
+;; ingestion/ingest — "capture-document @ none → requested, emits [document-captured]"
+;; The document-ref is an opaque reference to the file's bytes, resolvable by
+;; the extraction edge — the bytes themselves never enter the event log.
+(defmethod decide "capture-document"
+  [state {:keys [ingest-id file-name document-ref channel at]}]
+  (cond
+    (some? (get-in state [:ingests ingest-id]))
+    (refuse "ingest already exists")
+
+    (str/blank? (str file-name))
+    (refuse "the document has no file name")
+
+    (str/blank? (str document-ref))
+    (refuse "the document has no content reference")
+
+    :else
+    (accept {:kind "document-captured" :ingest-id ingest-id :file-name file-name
+             :document-ref document-ref :channel (or channel "in-app")
+             :captured-at at})))
 
 ;; ingestion/ingest — "start-fetch @ requested → fetching, emits [fetch-started]"
 (defmethod decide "start-fetch"
@@ -608,6 +672,14 @@
   (assoc-in state [:ingests ingest-id]
             {:ingest-id ingest-id :state "requested" :capture-kind "feed"
              :display-name feed-url :feed-url feed-url :source-id source-id
+             :captured-at captured-at}))
+
+(defmethod evolve "document-captured"
+  [state {:keys [ingest-id file-name document-ref channel captured-at]}]
+  (assoc-in state [:ingests ingest-id]
+            {:ingest-id ingest-id :state "requested" :capture-kind "document"
+             :display-name file-name :file-name file-name
+             :document-ref document-ref :channel channel
              :captured-at captured-at}))
 
 (defmethod evolve "fetch-started" [state {:keys [ingest-id]}]

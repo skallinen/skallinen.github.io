@@ -18,7 +18,8 @@
     (dispatch/dispatch! {:kind "pause"}))
   ;; A reload mid-fetch leaves url/feed ingests stuck requested/fetching with
   ;; no edge process running: re-enter the fetch (decision in decisions.md)
-  (doseq [{:keys [ingest-id url feed-url source-id] lifecycle :state}
+  (doseq [{:keys [ingest-id url feed-url source-id document-ref file-name]
+           lifecycle :state}
           (vals (:ingests @state/app-state))]
     (cond
       url
@@ -31,6 +32,17 @@
       (case lifecycle
         "requested" (fetcher/begin-feed! ingest-id feed-url source-id dispatch/dispatch!)
         "fetching"  (fetcher/resume-feed! ingest-id feed-url source-id dispatch/dispatch!)
+        nil)
+
+      ;; a document's bytes are transient edge state: re-entering extraction
+      ;; after a reload fails cleanly ("document is no longer available"),
+      ;; leaving a failed row whose Retry re-prompts for the file
+      document-ref
+      (case lifecycle
+        "requested" (fetcher/begin-document! ingest-id document-ref file-name
+                                             dispatch/dispatch!)
+        "fetching"  (fetcher/resume-document! ingest-id document-ref file-name
+                                              dispatch/dispatch!)
         nil)))
   (when-let [k (store/elevenlabs-key)]
     (speech/fetch-voices! k))

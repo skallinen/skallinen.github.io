@@ -8,6 +8,7 @@
             [state]
             [store]
             [speech]
+            [fetcher]
             [dispatch]))
 
 (defonce ^:private draft-title (r/atom ""))
@@ -29,6 +30,29 @@
       (dispatch/dispatch! {:kind "capture-url" :url url})
       (reset! draft-url ""))))
 
+(defn- capture-picked-file!
+  "Stash the picked file's bytes for the extraction edge (transient — never
+   in the event log) under the document-ref, then dispatch the intent;
+   `plan-for` returns {:document-ref … :intent …} for the file. The input
+   resets so the same file can be handed over again."
+  [input plan-for]
+  (when-let [file (aget (.-files input) 0)]
+    (-> (.arrayBuffer file)
+        (.then (fn [buf]
+                 (let [{:keys [document-ref intent]} (plan-for file)]
+                   (fetcher/stash-document! document-ref buf)
+                   (dispatch/dispatch! intent))))
+        (.finally (fn [] (set! (.-value input) ""))))))
+
+(defn- add-document! [e]
+  (capture-picked-file!
+   (.-target e)
+   (fn [file]
+     (let [ref (str "mem:" (random-uuid))]
+       {:document-ref ref
+        :intent {:kind "capture-document" :file-name (.-name file)
+                 :document-ref ref}}))))
+
 (defn capture-box []
   [:section.capture
    [:h2.section-label "Add to queue"]
@@ -48,7 +72,12 @@
       :value @draft-url
       :on-change #(reset! draft-url (.. % -target -value))
       :on-key-down #(when (= "Enter" (.-key %)) (add-url!))}]
-    [:button.btn {:on-click add-url!} "Add URL"]]])
+    [:button.btn {:on-click add-url!} "Add URL"]]
+   [:div.capture-file-row
+    [:label.capture-file-label {:for "capture-file"} "… or add a document (PDF)"]
+    [:input#capture-file.capture-file
+     {:type "file" :accept ".pdf,application/pdf" :aria-label "Document file"
+      :on-change add-document!}]]])
 
 ;; -- Sources (slice 05: follow a podcast feed) -------------------------------
 
@@ -100,6 +129,30 @@
 
 ;; -- Active ingests (slice 03: the capture progress + retry UI) --------------
 
+(defn- document-retry-button
+  "Retry for a failed document capture re-opens the file picker: extraction
+   of fixed bytes is deterministic, so a retry only makes sense with the file
+   handed over again — fresh bytes under the ingest's existing document-ref
+   (decisions.md). Cancelling the picker leaves the ingest failed; the
+   capture keeps its original file-name identity whatever the re-picked file
+   is called."
+  [ingest-id]
+  (let [input (r/atom nil)]
+    (fn [ingest-id]
+      [:<>
+       [:input.retry-file
+        {:type "file" :accept ".pdf,application/pdf"
+         :style {:display "none"} :tab-index -1 :aria-hidden "true"
+         :ref #(reset! input %)
+         :on-change (fn [e]
+                      (capture-picked-file!
+                       (.-target e)
+                       (fn [_file]
+                         {:document-ref (get-in @state/app-state
+                                                [:ingests ingest-id :document-ref])
+                          :intent {:kind "retry-ingest" :ingest-id ingest-id}})))}]
+       [:button.btn.btn-small {:on-click #(some-> @input .click)} "Retry"]])))
+
 (defn active-ingests-section []
   (let [{:keys [ingests]} (views/active-ingests @state/app-state)]
     (when (seq ingests)
@@ -107,7 +160,8 @@
        [:h2.section-label "Adding"]
        [:ul.ingest-list
         (doall
-         (for [{:keys [ingest-id display-name reason] lifecycle :state} ingests]
+         (for [{:keys [ingest-id capture-kind display-name reason]
+                lifecycle :state} ingests]
            ^{:key ingest-id}
            [:li.ingest-item {:data-state lifecycle}
             [:span.ingest-name display-name]
@@ -116,10 +170,12 @@
              (when reason [:span.ingest-reason reason])]
             (when (= "failed" lifecycle)
               [:span.item-actions
-               [:button.btn.btn-small
-                {:on-click #(dispatch/dispatch! {:kind "retry-ingest"
-                                                 :ingest-id ingest-id})}
-                "Retry"]
+               (if (= "document" capture-kind)
+                 [document-retry-button ingest-id]
+                 [:button.btn.btn-small
+                  {:on-click #(dispatch/dispatch! {:kind "retry-ingest"
+                                                   :ingest-id ingest-id})}
+                  "Retry"])
                [:button.btn.btn-small
                 {:on-click #(dispatch/dispatch! {:kind "discard-ingest"
                                                  :ingest-id ingest-id})}

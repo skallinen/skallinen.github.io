@@ -1,7 +1,7 @@
 ;; Hand-authored contract, mirroring docs/contexts/** (WAY-OF-WORKING §5:
 ;; any mismatch between this file and the docs is a bug in this file).
 ;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles
-;; + 04-player-controls + 05-podcast-feeds + 06-library.
+;; + 04-player-controls + 05-podcast-feeds + 06-library + 07-documents.
 ;; Kinds are kebab-case (§11).
 ;;
 ;; Message shape: one flat map per intent/event with :kind as the message
@@ -16,6 +16,7 @@
   {"capture-text"     :ingestion/ingest
    "capture-url"      :ingestion/ingest
    "capture-feed"     :ingestion/ingest
+   "capture-document" :ingestion/ingest
    "start-fetch"      :ingestion/ingest
    "complete-ingest"  :ingestion/ingest
    "fail-ingest"      :ingestion/ingest
@@ -52,6 +53,7 @@
   {"text-captured"           :ingestion/ingest
    "url-captured"            :ingestion/ingest
    "feed-captured"           :ingestion/ingest
+   "document-captured"       :ingestion/ingest
    "fetch-started"           :ingestion/ingest
    "ingest-completed"        :ingestion/ingest
    "ingest-failed"           :ingestion/ingest

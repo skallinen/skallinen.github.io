@@ -103,10 +103,20 @@
     "url-captured"     (fetcher/begin! (:ingest-id event) (:url event) dispatch!)
     "feed-captured"    (fetcher/begin-feed! (:ingest-id event) (:feed-url event)
                                             (:source-id event) dispatch!)
+    "document-captured" (fetcher/begin-document! (:ingest-id event)
+                                                 (:document-ref event)
+                                                 (:file-name event) dispatch!)
     "ingest-retried"   (let [g (get-in @state/app-state [:ingests (:ingest-id event)])]
-                         (if (:feed-url g)
+                         (cond
+                           (:feed-url g)
                            (fetcher/begin-feed! (:ingest-id event) (:feed-url g)
                                                 (:source-id g) dispatch!)
+
+                           (:document-ref g)
+                           (fetcher/begin-document! (:ingest-id event) (:document-ref g)
+                                                    (:file-name g) dispatch!)
+
+                           :else
                            (fetcher/begin! (:ingest-id event) (:url g) dispatch!)))
     nil))
 
@@ -115,7 +125,8 @@
    live position (speech chunk index, or the recording's current second)."
   [intent]
   (cond-> (assoc intent :at (now-iso))
-    (and (contains? #{"capture-text" "capture-url" "capture-feed"} (:kind intent))
+    (and (contains? #{"capture-text" "capture-url" "capture-feed" "capture-document"}
+                    (:kind intent))
          (nil? (:ingest-id intent)))
     (assoc :ingest-id (new-id))
 
