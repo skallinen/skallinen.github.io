@@ -220,6 +220,51 @@
       (seq sections) (assoc :sections (vec sections)))))
 
 ;; ---------------------------------------------------------------------------
+;; External capture payload (since 09-capture-extension): the fixed contract
+;; both tracks build to — the external channel navigates to the app with
+;; `#capture=<base64url(UTF-8 JSON)>`, JSON {v:1, kind:"url"|"text", url,
+;; title?, text?}. The mapping payload → intent is pure (string in, intent
+;; map or nil out) and lives here so nbb unit-tests it; delivery, fragment
+;; clearing, and the fail-safe warning are the edge's (main.cljs).
+;; ---------------------------------------------------------------------------
+
+(defn- base64url->utf8
+  "The UTF-8 string behind a base64url payload (- _ alphabet, no padding),
+   or nil when the string is not decodable base64."
+  [s]
+  (try
+    (let [b64 (-> (str s) (str/replace "-" "+") (str/replace "_" "/"))
+          pad (mod (- 4 (mod (count b64) 4)) 4)
+          bin (js/atob (str b64 (apply str (repeat pad "="))))
+          bytes (js/Uint8Array.from bin (fn [ch] (.charCodeAt ch 0)))]
+      (.decode (js/TextDecoder. "utf-8") bytes))
+    (catch :default _ nil)))
+
+(defn capture-intent
+  "The capture intent carried by an external #capture= payload: kind url →
+   capture-url, kind text → capture-text, both with :channel \"external\";
+   nil for anything malformed — bad base64url, bad JSON, non-object JSON,
+   v ≠ 1, unknown kind, missing/blank url or text (fail-safe: the edge
+   warns and ignores). Payload fields with no home in the intent schemas
+   (title on a url capture, url on a text capture) are dropped — the
+   intent schemas are the contract."
+  [payload]
+  (when-let [json (base64url->utf8 payload)]
+    (let [parsed (try (js->clj (js/JSON.parse json)) (catch :default _ nil))
+          {:strs [v kind url title text]} (when (map? parsed) parsed)]
+      (cond
+        (not= 1 v) nil
+
+        (and (= "url" kind) (not (str/blank? (str url))))
+        {:kind "capture-url" :url url :channel "external"}
+
+        (and (= "text" kind) (not (str/blank? (str text))))
+        (cond-> {:kind "capture-text" :text text :channel "external"}
+          (not (str/blank? (str title))) (assoc :title title))
+
+        :else nil))))
+
+;; ---------------------------------------------------------------------------
 ;; Deciders — narrative strings match the statechart transitions (§4.3)
 ;; ---------------------------------------------------------------------------
 
