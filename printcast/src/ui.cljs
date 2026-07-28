@@ -337,7 +337,7 @@
 (defonce ^:private library-kind-filter (r/atom ""))
 (defonce ^:private library-source-filter (r/atom ""))
 (defonce ^:private library-starred-only? (r/atom false))
-(defonce ^:private library-sort-key (r/atom "added-newest-first"))
+(defonce ^:private library-sort-key (r/atom "date-newest-first"))
 
 (def ^:private status-choices
   [["new" "Unplayed"] ["in-progress" "In progress"]
@@ -348,7 +348,10 @@
    ["podcast-episode" "podcast episode"] ["document" "document"]])
 
 (def ^:private sort-choices
-  [["added-newest-first" "Newest first"] ["added-oldest-first" "Oldest first"]
+  "The library-items ordering enum. The labels are unchanged since 06-library
+   — what 11-item-ordering changed is what \"newest\" *means* (the item's own
+   date, not the day it entered the library), not what the reader is offered."
+  [["date-newest-first" "Newest first"] ["date-oldest-first" "Oldest first"]
    ["duration-shortest-first" "Shortest first"]
    ["duration-longest-first" "Longest first"]])
 
@@ -442,11 +445,17 @@
   (let [source (->> (:sources (views/source-list @state/app-state))
                     (filter #(= source-id (:source-id %)))
                     first)
-        episodes (->> (:items (views/item-list @state/app-state))
-                      (filter #(= source-id (get-in % [:origin :source-id])))
-                      (sort-by (fn [i] [(or (:published-at i) "") (:added-at i)]))
-                      reverse
-                      vec)]
+        ;; Newest published first, through the very same ordering the
+        ;; library-items query uses (views/order-library-rows), so this page
+        ;; and the library narrowed to this source cannot give different
+        ;; orders — the slice-11 spec asserts they agree. Membership is still
+        ;; every item-list row of this source, archived ones included: this
+        ;; is the show's own page, and the spec constrains its order, not
+        ;; what it holds (decision in 11-item-ordering/decisions.md).
+        episodes (views/order-library-rows
+                  (filter #(= source-id (get-in % [:origin :source-id]))
+                          (:items (views/item-list @state/app-state)))
+                  "date-newest-first")]
     [:section.source-page
      [:a.back-link {:href "#/"} "‹ Library"]
      (if (nil? source)

@@ -234,11 +234,15 @@
 
 (defn file-name-sans-extension
   "The file name without its last extension; a name with no extension (or a
-   bare dotfile) is kept whole."
+   bare dotfile) is kept whole. Only a suffix that actually looks like an
+   extension counts — a short run starting with a letter — so a dotted
+   identifier (a document address ending in `1706.03762`) keeps all of itself."
   [file-name]
   (let [n (str file-name)
         i (str/last-index-of n ".")]
-    (if (and i (pos? i)) (subs n 0 i) n)))
+    (if (and i (pos? i) (re-matches #"[A-Za-z][A-Za-z0-9]{0,4}" (subs n (inc i))))
+      (subs n 0 i)
+      n)))
 
 (defn document-title
   "The document's embedded metadata title, falling back to the file name
@@ -260,15 +264,146 @@
   "The complete-ingest item draft for an extracted document
    (docs/contexts/ingestion/.../intents/complete-ingest.md). `sections` are
    the document's outline entries as {title, position}; they stay on the
-   draft only (add-item's sections field is populated from slice 10)."
-  [title file-name text sections]
-  (let [content (normalize-whitespace text)]
-    (cond-> {:title (normalize-whitespace title)
-             :kind "document"
-             :content content
-             :origin {:file-name file-name}
-             :duration-estimate (estimate-duration content)}
-      (seq sections) (assoc :sections (vec sections)))))
+   draft only (add-item's sections field is populated from slice 10). The
+   4-arity is a document picked as a file; the 5-arity adds the address a
+   document retrieved by URL came from (both fields are `origin` properties
+   in the complete-ingest schema)."
+  ([title file-name text sections] (document-draft title file-name text sections nil))
+  ([title file-name text sections url]
+   (let [content (normalize-whitespace text)]
+     (cond-> {:title (normalize-whitespace title)
+              :kind "document"
+              :content content
+              :origin (cond-> {:file-name file-name}
+                        (not (str/blank? (str url))) (assoc :url url))
+              :duration-estimate (estimate-duration content)}
+       (seq sections) (assoc :sections (vec sections))))))
+
+;; ---------------------------------------------------------------------------
+;; Retrieval addressing (since the post-release defect fix recorded in
+;; docs/plan/03-web-articles/decisions.md). The *pure* half of the fetch edge:
+;; which relays exist and in what order, how each one's address is built for a
+;; target URL, whether a URL names a document rather than a web page, and how
+;; the reader service's plain-text rendition is turned back into title + prose.
+;; Keeping these here (rather than in fetcher.cljs) is what makes them
+;; unit-testable under nbb — the edge keeps only the I/O.
+;; ---------------------------------------------------------------------------
+
+(def retrieval-relays
+  "Public relays tried, in order, when a page will not answer the app
+   directly. `:query` relays carry the target as one percent-encoded query
+   parameter; `:path` relays take it appended verbatim. `:renders?` marks a
+   relay that can answer with its own rendition of the page as well as with
+   the page's own markup. Order is by measured cost, not by kind: the
+   rendering relay sits ahead of the last pass-through one because it answers
+   in about a second where that one has been observed to take twenty, and
+   asking it for the markup means extraction still does the boilerplate
+   removal (evidence in docs/plan/03-web-articles/decisions.md)."
+  [{:id "corsproxy" :form :query :prefix "https://corsproxy.io/?url="}
+   {:id "reader" :form :path :prefix "https://r.jina.ai/" :renders? true}
+   {:id "allorigins" :form :query :prefix "https://api.allorigins.win/raw?url="}])
+
+(defn relay-url
+  "The address to request for `url` through `relay`. A `:query` relay's target
+   is percent-encoded as a single component — an already-escaped path (a
+   non-ASCII article slug) is escaped again on purpose, so the relay's own
+   single decode restores the target exactly. A `:path` relay's target is
+   appended verbatim, since encoding it would hide the target's own escapes."
+  [relay url]
+  (str (:prefix relay)
+       (if (= :query (:form relay)) (js/encodeURIComponent url) url)))
+
+(defn- url-path
+  "The path portion of a URL — no query, no fragment."
+  [url]
+  (-> (str url) (str/split #"[?#]") first))
+
+(defn pdf-url?
+  "Does this address name a PDF document rather than a web page? Decided on
+   the path's extension; the retrieved content type is the edge's own,
+   stronger check."
+  [url]
+  (str/ends-with? (str/lower-case (url-path url)) ".pdf"))
+
+(defn- url-parts
+  "`url`'s host and path segments: scheme stripped, split on the separator."
+  [url]
+  (-> (url-path url) (str/replace #"^[a-zA-Z]+://" "") (str/split #"/")))
+
+(defn- url-host
+  "The host part of `url`, scheme stripped."
+  [url]
+  (first (url-parts url)))
+
+(defn- url-last-segment
+  "The last path segment of `url` with its escapes decoded — nil when the
+   address carries no path segment to name anything by (the host is not one)."
+  [url]
+  (let [segment (last (remove str/blank? (rest (url-parts url))))
+        decoded (try (js/decodeURIComponent (str segment))
+                     (catch :default _ (str segment)))]
+    (when-not (or (str/blank? decoded) (str/includes? decoded ":"))
+      decoded)))
+
+(defn url-file-name
+  "The name to file a document retrieved from `url` under: the last path
+   segment with its escapes decoded, falling back to the host when the address
+   has no usable segment."
+  [url]
+  (or (url-last-segment url) (url-host url)))
+
+(defn document-title-for-url
+  "The title of a document retrieved from `url` (since 12-documents-by-address):
+   the document's own embedded title, falling back to a name derived from the
+   address. That name is the last path segment minus a suffix that really is a
+   file extension — `blei03a.pdf` is filed as `blei03a`, the dotted identifier
+   `1706.03762` keeps all of itself. When the address has no segment to name it
+   by, the host names it and is kept whole: a top-level domain is not a file
+   extension, so a document at `https://example.org/` is never called
+   `example`."
+  [metadata-title url]
+  (if (str/blank? (str metadata-title))
+    (if-let [segment (url-last-segment url)]
+      (file-name-sans-extension segment)
+      (url-host url))
+    (normalize-whitespace metadata-title)))
+
+(def ^:private reader-content-marker "Markdown Content:")
+
+(defn parse-reader-page
+  "{:title :text} from the reader service's plain-text rendition: a header
+   block of `Label: value` lines (Title, source address, publication time,
+   any warnings) followed by the content marker and the prose. A rendition
+   with no marker is all prose; a blank title is no title."
+  [body]
+  (let [s (str body)
+        i (str/index-of s reader-content-marker)
+        header (if i (subs s 0 i) "")
+        text (str/trim (if i (subs s (+ i (count reader-content-marker))) s))
+        title (some->> (str/split-lines header)
+                       (filter #(str/starts-with? % "Title:"))
+                       first
+                       (#(str/trim (subs % (count "Title:")))))]
+    {:title (when-not (str/blank? (str title)) title)
+     :text text}))
+
+(defn markdown->text
+  "The reader's markup as speakable prose: images dropped, links read as their
+   words and never their addresses, heading/emphasis/quote/list markers
+   stripped. Whitespace is left alone — `article-draft` normalizes it."
+  [md]
+  (-> (str md)
+      (str/replace #"!\[[^\]]*\]\([^)]*\)" "")            ; images
+      (str/replace #"\[([^\]]*)\]\([^)]*\)" "$1")         ; inline links
+      (str/replace #"<https?://[^>\s]*>" "")              ; bare autolinks
+      (str/replace #"(?m)^\s{0,3}#{1,6}\s+" "")           ; headings
+      (str/replace #"(?m)^\s{0,3}>\s?" "")                ; block quotes
+      (str/replace #"(?m)^\s{0,3}[-*+]\s+" "")            ; bullets
+      (str/replace #"(?m)^\s*[-*_]{3,}\s*$" "")           ; rules
+      (str/replace #"\*\*([^*]+)\*\*" "$1")               ; strong
+      (str/replace #"(?<![\w*])\*([^*\n]+)\*(?![\w*])" "$1")
+      (str/replace #"(?<![\w_])_([^_\n]+)_(?![\w_])" "$1")
+      (str/replace #"`+" "")))
 
 ;; ---------------------------------------------------------------------------
 ;; External capture payload (since 09-capture-extension): the fixed contract

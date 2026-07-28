@@ -33,10 +33,15 @@
 (defn item-list
   "docs/contexts/library/read-models/item-list.md — every library item with
    its lifecycle status and starred flag, in added order (the base
-   projection; the `library-items` query below applies filter + sort)."
+   projection; the `library-items` query below applies filter + sort).
+
+   The order is keyed on [added-at item-id], not on added-at alone: item-id
+   is unique, so the key is total and the projection cannot inherit the
+   arbitrary order `(vals …)` gives a map past its array-map size (since
+   11-item-ordering)."
   [state]
   {:items (->> (vals (:items state))
-               (sort-by :added-at)
+               (sort-by (juxt :added-at :item-id))
                (mapv (fn [item]
                        (cond-> (assoc (display-item item)
                                       :status (:status item)
@@ -62,25 +67,55 @@
 
 (defn- descending [a b] (compare b a))
 
+(defn- item-date
+  "An item's own date (item-list.md, \"An item's own date\"): its
+   `published-at` when it has one — an item from a followed source was
+   published before the reader ever met it — and its `added-at` otherwise,
+   for items the reader adds themselves, which have no date earlier than the
+   day they entered the library. `added-at` is on every row, so this is never
+   nil. Since 11-item-ordering."
+  [row]
+  (or (:published-at row) (:added-at row)))
+
+(def ^:private default-library-sort "date-newest-first")
+
 (def ^:private library-sorters
-  "sort enum → [key-fn comparator]; sort-by is stable, so same-added-at rows
-   (one feed dispatch) keep their feed order."
-  {"added-newest-first"      [:added-at descending]
-   "added-oldest-first"      [:added-at compare]
-   "duration-shortest-first" [:duration-estimate compare]
-   "duration-longest-first"  [:duration-estimate descending]})
+  "sort enum → [key-fn comparator] (library-items.md, Ordering). The two date
+   choices order by the item's own date; the two duration choices by the
+   duration estimate, unchanged since 06-library.
+
+   Every key is TOTAL — it ends in :item-id, which is unique per item — so
+   the answer is one and only one order, and cannot depend on the order rows
+   reached the sort or on sort-by being stable. (Slice 06 believed stability
+   kept one dispatch's episodes in feed order; it never did past a handful of
+   items — see 06-library/decisions.md, post-release correction.) Each
+   `-oldest-`/`-longest-` choice is its pair's exact reverse: same key,
+   reversed comparator."
+  {"date-newest-first"       [(juxt item-date :added-at :item-id) descending]
+   "date-oldest-first"       [(juxt item-date :added-at :item-id) compare]
+   "duration-shortest-first" [(juxt :duration-estimate item-date :item-id) compare]
+   "duration-longest-first"  [(juxt :duration-estimate item-date :item-id) descending]})
+
+(defn order-library-rows
+  "Order item-list rows by one of the library-items ordering choices (nil =
+   the default). Public so a source's page can order its episodes with the
+   very same key and comparator the query uses — library-items.md: the source
+   page \"gives the same order as the library filtered to the same source\",
+   and one shared ordering is how that stays true. Since 11-item-ordering."
+  [rows sort-key]
+  (let [[key-fn cmp] (get library-sorters (or sort-key default-library-sort))]
+    (vec (sort-by key-fn cmp rows))))
 
 (defn library-items
   "docs/contexts/library/read-models/library-items.md — the query: item-list
    rows, optionally filtered (status | kind | starred | source-id) and
-   sorted (default added-newest-first). Since 06-library."
+   ordered (default date-newest-first, over the item's own date). Since
+   06-library; the two date choices redefined since 11-item-ordering."
   ([state] (library-items state nil))
   ([state {row-filter :filter sort-key :sort}]
-   (let [[key-fn cmp] (get library-sorters (or sort-key "added-newest-first"))]
-     {:items (->> (:items (item-list state))
-                  (filter #(library-row-visible? % row-filter))
-                  (sort-by key-fn cmp)
-                  vec)})))
+   {:items (-> (->> (:items (item-list state))
+                    (filter #(library-row-visible? % row-filter)))
+               (order-library-rows sort-key))}))
 
 (defn source-list
   "docs/contexts/library/read-models/source-list.md — followed sources with
@@ -90,7 +125,9 @@
   [state]
   {:sources (->> (vals (:sources state))
                  (filter #(= "active" (:state %)))
-                 (sort-by :subscribed-at)
+                 ;; total key (11-item-ordering): sources subscribed in the
+                 ;; same instant are still settled relative to each other
+                 (sort-by (juxt :subscribed-at :source-id))
                  (mapv #(select-keys % [:source-id :feed-url :title :author
                                         :artwork-url :subscribed-at
                                         ;; per-source overrides, when set
@@ -106,7 +143,8 @@
   [state]
   {:ingests (->> (vals (:ingests state))
                  (filter #(contains? live-ingest-states (:state %)))
-                 (sort-by :captured-at)
+                 ;; total key (11-item-ordering), as for every listing here
+                 (sort-by (juxt :captured-at :ingest-id))
                  (mapv (fn [g]
                          (cond-> (select-keys g [:ingest-id :capture-kind
                                                  :display-name :state :captured-at])
@@ -159,7 +197,9 @@
                             :kind (:item-kind item)
                             :last-played-at last-played-at
                             :finished (boolean finished)})))
-                 (sort-by :last-played-at descending)
+                 ;; total key (11-item-ordering): two items last played in
+                 ;; the same instant keep a settled order
+                 (sort-by (juxt :last-played-at :item-id) descending)
                  vec)})
 
 (defn listening-stats

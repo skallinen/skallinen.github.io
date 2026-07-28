@@ -4,14 +4,21 @@
 ;; url-captured / ingest-retried (dispatch! is passed in, like the speech
 ;; callbacks, to keep the namespaces acyclic).
 ;;
-;; Retrieval: direct fetch of the URL first; on CORS/network failure or a
-;; non-OK response, one retry through the corsproxy.io relay (decision +
-;; privacy caveat in docs/plan/03-web-articles/decisions.md). Both failing →
-;; "page could not be retrieved".
+;; Retrieval: an ordered chain of attempts (domain/retrieval-relays, and the
+;; decision + privacy caveat in docs/plan/03-web-articles/decisions.md) —
+;; direct fetch of the URL, then each relay that passes the resource through
+;; untouched, then the reader relay, which returns its own readable rendition.
+;; Extraction is part of each attempt, so a page that relays fine but yields
+;; nothing readable still gets the next attempt's shot at it. Every attempt
+;; failing → "page could not be retrieved"; something retrieved but nothing
+;; readable in any of them → "no readable content found".
 ;;
 ;; Extraction: Mozilla Readability (CDN classic-script global) over a
-;; DOMParser document. A null parse, an extraction error, or too little text
-;; (domain/readable-text?) → "no readable content found".
+;; DOMParser document for HTML; pdf.js for a PDF address or an
+;; application/pdf response (the same extraction the file-input path uses);
+;; the reader relay's rendition taken as prose. A null parse, an extraction
+;; error, or too little text (domain/readable-text?) makes an attempt yield
+;; nothing.
 ;;
 ;; Test hook: window.__printcastTestFetch = {holdMs} delays the start of
 ;; fetching so the momentary `requested` state is observable in e2e; nothing
@@ -30,21 +37,88 @@
 
 (defn- test-config [] (.-__printcastTestFetch js/window))
 
-(defn- relay-url [url]
-  (str "https://corsproxy.io/?url=" (js/encodeURIComponent url)))
+;; ---------------------------------------------------------------------------
+;; Retrieval — the attempt chain
+;; ---------------------------------------------------------------------------
+
+(def ^:private pass-through-relays
+  "Relays that hand back the resource itself; usable for any content type."
+  (vec (remove :renders? domain/retrieval-relays)))
+
+(def ^:private reader-relay
+  "The relay that answers with its own readable rendition of a page."
+  (first (filter :renders? domain/retrieval-relays)))
+
+(defn- ok-response [resp]
+  (if (.-ok resp)
+    resp
+    (throw (js/Error. (str "HTTP " (.-status resp))))))
+
+(defn- first-resolving
+  "js/Promise of the first attempt (a thunk returning a promise) that
+   resolves; rejects once every attempt has failed."
+  [attempts]
+  (reduce (fn [p attempt] (.catch p (fn [_] (attempt))))
+          (js/Promise.reject (js/Error. "no attempt"))
+          attempts))
+
+(defn- pdf-response?
+  "Does this response body hold a PDF — by the address's extension, or by the
+   content type the server actually declared?"
+  [url resp]
+  (or (domain/pdf-url? url)
+      (boolean (some-> (.get (.-headers resp) "content-type")
+                       str/lower-case
+                       (str/includes? "application/pdf")))))
+
+(def ^:private relay-timeout-ms
+  "How long one relay gets before the chain moves on. Bounded so a relay that
+   hangs (observed: twenty seconds and no answer) cannot eat the attempts
+   behind it. The direct fetch is deliberately not capped — a large document
+   coming straight from its own site is allowed to take its time."
+  20000)
+
+(defn- relay-opts
+  "Fetch options for a relay request: bounded, plus any headers given."
+  ([] (relay-opts nil))
+  ([headers]
+   (let [o #js {:signal (js/AbortSignal.timeout relay-timeout-ms)}]
+     (when headers (set! (.-headers o) headers))
+     o)))
+
+(defn- fetch-resource
+  "js/Promise of {:as :html|:bytes :body …} — the resource itself, retrieved
+   directly or relayed untouched."
+  [url address]
+  (-> (if (= address url) (js/fetch address) (js/fetch address (relay-opts)))
+      (.then ok-response)
+      (.then (fn [resp]
+               (if (pdf-response? url resp)
+                 (.then (.arrayBuffer resp) (fn [b] {:as :bytes :body b}))
+                 (.then (.text resp) (fn [t] {:as :html :body t})))))))
+
+(defn- fetch-rendition
+  "js/Promise of the reader relay's rendition: {:as :html} when asked for the
+   page's own markup (so extraction still does the boilerplate removal),
+   {:as :prose} for its readable text — the last resort, and the only one
+   that reaches a page whose markup carries no article at all."
+  [url markup?]
+  (-> (js/fetch (domain/relay-url reader-relay url)
+                (relay-opts (when markup? #js {"x-return-format" "html"})))
+      (.then ok-response)
+      (.then #(.text %))
+      (.then (fn [t] {:as (if markup? :html :prose) :body t}))))
 
 (defn- fetch-text
-  "js/Promise of the response body (HTML page or feed XML): direct fetch,
-   falling back to the relay."
+  "js/Promise of the response body as text (a feed document): direct fetch,
+   then each pass-through relay. The reader relay is not in this chain — it
+   answers with prose, which is not a feed."
   [url]
-  (letfn [(text-or-throw [resp]
-            (if (.-ok resp)
-              (.text resp)
-              (throw (js/Error. (str "HTTP " (.-status resp))))))]
-    (-> (js/fetch url)
-        (.then text-or-throw)
-        (.catch (fn [_] (-> (js/fetch (relay-url url))
-                            (.then text-or-throw)))))))
+  (letfn [(text-at [address]
+            (fn [] (-> (js/fetch address) (.then ok-response) (.then #(.text %)))))]
+    (first-resolving
+     (cons (text-at url)
+           (map #(text-at (domain/relay-url % url)) pass-through-relays)))))
 
 (defn- extract
   "Readable article {:title :text :excerpt} from an HTML string, or nil when
@@ -61,22 +135,175 @@
       (js/console.warn "[fetcher] extraction failed" e)
       nil)))
 
-(defn- run-fetch!
-  "Fetch + extract, then report the outcome as complete-ingest/fail-ingest.
-   Two-arg .then keeps extraction problems from masquerading as retrieval
-   failures."
-  [ingest-id url dispatch!]
-  (-> (fetch-text url)
+;; PDF extraction (pdf.js — pinned legacy/UMD CDN build, main-thread fake
+;; worker via the plain-script window.pdfjsWorker; decisions.md). Shared by
+;; both ways a document reaches printcast: picked as a file (07-documents) and
+;; retrieved from an address (the post-release fix in 03's decisions.md).
+
+(defn- load-pdf
+  "js/Promise of the pdf.js document proxy (a sync throw — e.g. pdf.js not
+   loaded — becomes a rejection)."
+  [array-buffer]
+  (try
+    (.-promise (js/pdfjsLib.getDocument #js {:data (js/Uint8Array. array-buffer)}))
+    (catch :default e (js/Promise.reject e))))
+
+(defn- page-texts
+  "js/Promise of a vector of per-page extracted text."
+  [pdf]
+  (-> (js/Promise.all
+       (to-array
+        (map (fn [i]
+               (-> (.getPage pdf i)
+                   (.then (fn [page] (.getTextContent page)))
+                   (.then (fn [tc]
+                            (->> (.-items tc)
+                                 (map #(.-str %))
+                                 (remove #(str/blank? (str %)))
+                                 (str/join " "))))))
+             (range 1 (inc (.-numPages pdf))))))
+      (.then vec)))
+
+(defn- metadata-title
+  "js/Promise of the document's embedded Title, or nil."
+  [pdf]
+  (-> (.getMetadata pdf)
+      (.then (fn [md]
+               (let [t (some-> md .-info .-Title)]
+                 (when-not (str/blank? (str t)) t))))
+      (.catch (fn [_] nil))))
+
+(defn- outline-sections
+  "js/Promise of the top-level outline entries as {:title :position} section
+   drafts (position = estimated seconds at the entry's page). Best-effort:
+   any problem — no outline, unresolvable destination — yields []."
+  [pdf pages]
+  (-> (.getOutline pdf)
       (.then
-       (fn [html]
-         (if-let [{:keys [title text excerpt]} (extract html url)]
-           (dispatch! {:kind "complete-ingest" :ingest-id ingest-id
-                       :items [(domain/article-draft title text url excerpt)]})
+       (fn [outline]
+         (if (nil? outline)
+           (js/Promise.resolve #js [])
+           (js/Promise.all
+            (to-array
+             (map (fn [entry]
+                    (-> (let [dest (.-dest entry)]
+                          (if (string? dest) (.getDestination pdf dest)
+                              (js/Promise.resolve dest)))
+                        (.then (fn [dest] (.getPageIndex pdf (aget dest 0))))
+                        (.then (fn [idx]
+                                 {:title (str (.-title entry))
+                                  :position (domain/page-start-seconds pages idx)}))
+                        (.catch (fn [_] nil))))
+                  outline))))))
+      (.then (fn [entries] (vec (remove nil? entries))))
+      (.catch (fn [_] []))))
+
+(defn- document-title
+  "The item's title: the document's own embedded title, falling back to a name
+   derived from the address it was retrieved from, or — for a document picked
+   as a file — from the file's name."
+  [metadata-title file-name url]
+  (if url
+    (domain/document-title-for-url metadata-title url)
+    (domain/document-title metadata-title file-name)))
+
+(defn- pdf-draft
+  "js/Promise of the document item draft for PDF bytes — embedded title with
+   the file-name fallback, outline entries as sections, and (when the bytes
+   came from an address) that address on the origin. Resolves nil when the
+   document's text layer is below the readable threshold; rejects when the
+   bytes are not a readable PDF at all."
+  [array-buffer file-name url]
+  (-> (load-pdf array-buffer)
+      (.then
+       (fn [pdf]
+         (-> (page-texts pdf)
+             (.then
+              (fn [pages]
+                (let [text (str/join "\n" pages)]
+                  (when (domain/readable-text? text)
+                    (-> (js/Promise.all #js [(metadata-title pdf)
+                                             (outline-sections pdf pages)])
+                        (.then (fn [res]
+                                 (domain/document-draft
+                                  (document-title (aget res 0) file-name url)
+                                  file-name text (aget res 1) url)))))))))))))
+
+;; ---------------------------------------------------------------------------
+;; URL path (since 03-web-articles): the attempt chain, one draft out
+;; ---------------------------------------------------------------------------
+
+(defn- payload-draft
+  "js/Promise of the item draft for one retrieved payload, or nil when it
+   holds nothing readable. A PDF address yields a document draft — the same
+   kind the file-input path produces — whether its bytes or the reader's
+   rendition of it is what came back."
+  [{:keys [as body]} url]
+  (case as
+    :bytes (pdf-draft body (domain/url-file-name url) url)
+
+    :html (js/Promise.resolve
+           (when-let [{:keys [title text excerpt]} (extract body url)]
+             (domain/article-draft title text url excerpt)))
+
+    :prose (js/Promise.resolve
+            (let [{:keys [title text]} (domain/parse-reader-page body)
+                  prose (domain/markdown->text text)]
+              (when (domain/readable-text? prose)
+                (if (domain/pdf-url? url)
+                  (domain/document-draft (domain/document-title-for-url title url)
+                                         (domain/url-file-name url) prose [] url)
+                  (domain/article-draft (or title url) prose url nil)))))))
+
+(defn- payload-substantial?
+  "Did this attempt actually bring the thing back? An empty body — or a
+   rendition the reader could not fill — is a failed retrieval, not a page
+   that happens to hold no readable content."
+  [{:keys [as body]}]
+  (case as
+    :bytes (pos? (.-byteLength body))
+    :prose (not (str/blank? (:text (domain/parse-reader-page body))))
+    (not (str/blank? (str body)))))
+
+(defn- attempts
+  "The ordered retrieval attempts for `url`, each a thunk of a js/Promise of
+   a payload. `seen!` is called with every payload that actually arrived, so
+   the failure reason can tell 'never reached it' from 'nothing to read'."
+  [url seen!]
+  (letfn [(step [f]
+            (fn []
+              (-> (f)
+                  (.then (fn [payload]
+                           (when (payload-substantial? payload) (seen! payload))
+                           (payload-draft payload url)))
+                  (.then (fn [draft]
+                           (if draft draft (throw (js/Error. "nothing readable"))))))))]
+    (concat
+     [(step #(fetch-resource url url))]
+     ;; the relays in their declared order; the rendering one is asked for the
+     ;; page's own markup here, so extraction still does the boilerplate work
+     (map (fn [relay]
+            (if (:renders? relay)
+              (step #(fetch-rendition url (not (domain/pdf-url? url))))
+              (step #(fetch-resource url (domain/relay-url relay url)))))
+          domain/retrieval-relays)
+     ;; last resort: the rendering relay's readable prose, the only thing that
+     ;; reaches a page whose markup carries no article at all
+     [(step #(fetch-rendition url false))])))
+
+(defn- run-fetch!
+  "Work the attempt chain, then report the outcome as complete-ingest /
+   fail-ingest. The reason distinguishes never having retrieved the page from
+   having retrieved it and found nothing worth reading aloud."
+  [ingest-id url dispatch!]
+  (let [retrieved? (atom false)]
+    (-> (first-resolving (attempts url #(reset! retrieved? true)))
+        (.then
+         (fn [draft]
+           (dispatch! {:kind "complete-ingest" :ingest-id ingest-id :items [draft]}))
+         (fn [_]
            (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
-                       :reason nothing-readable})))
-       (fn [_]
-         (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
-                     :reason retrieve-failed})))))
+                       :reason (if @retrieved? nothing-readable retrieve-failed)}))))))
 
 (defn- begin-after-hold!
   "Enter the fetch for a requested ingest: start-fetch, then run the given
@@ -230,11 +457,8 @@
 ;; A ref whose bytes are gone (reload) fails with "document is no longer
 ;; available"; the retry affordance re-prompts for the file.
 ;;
-;; Extraction: pdf.js (pinned legacy/UMD CDN build, main-thread fake worker
-;; via the plain-script window.pdfjsWorker — decisions.md). Per-page text via
-;; getTextContent; metadata Title with the file-name-minus-extension fallback
-;; (domain/document-title); top-level outline entries become {title, position}
-;; draft sections, best-effort only (enabling groundwork for slice 10).
+;; Extraction is the shared `pdf-draft` above — the same pdf.js path a
+;; document retrieved from an address goes through.
 ;; ---------------------------------------------------------------------------
 
 (defonce ^:private document-bytes (atom {}))     ; document-ref → js/ArrayBuffer
@@ -245,64 +469,6 @@
   [document-ref array-buffer]
   (swap! document-bytes assoc document-ref array-buffer))
 
-(defn- load-pdf
-  "js/Promise of the pdf.js document proxy (a sync throw — e.g. pdf.js not
-   loaded — becomes a rejection)."
-  [array-buffer]
-  (try
-    (.-promise (js/pdfjsLib.getDocument #js {:data (js/Uint8Array. array-buffer)}))
-    (catch :default e (js/Promise.reject e))))
-
-(defn- page-texts
-  "js/Promise of a vector of per-page extracted text."
-  [pdf]
-  (-> (js/Promise.all
-       (to-array
-        (map (fn [i]
-               (-> (.getPage pdf i)
-                   (.then (fn [page] (.getTextContent page)))
-                   (.then (fn [tc]
-                            (->> (.-items tc)
-                                 (map #(.-str %))
-                                 (remove #(str/blank? (str %)))
-                                 (str/join " "))))))
-             (range 1 (inc (.-numPages pdf))))))
-      (.then vec)))
-
-(defn- metadata-title
-  "js/Promise of the document's embedded Title, or nil."
-  [pdf]
-  (-> (.getMetadata pdf)
-      (.then (fn [md]
-               (let [t (some-> md .-info .-Title)]
-                 (when-not (str/blank? (str t)) t))))
-      (.catch (fn [_] nil))))
-
-(defn- outline-sections
-  "js/Promise of the top-level outline entries as {:title :position} section
-   drafts (position = estimated seconds at the entry's page). Best-effort:
-   any problem — no outline, unresolvable destination — yields []."
-  [pdf pages]
-  (-> (.getOutline pdf)
-      (.then
-       (fn [outline]
-         (if (nil? outline)
-           (js/Promise.resolve #js [])
-           (js/Promise.all
-            (to-array
-             (map (fn [entry]
-                    (-> (let [dest (.-dest entry)]
-                          (if (string? dest) (.getDestination pdf dest)
-                              (js/Promise.resolve dest)))
-                        (.then (fn [dest] (.getPageIndex pdf (aget dest 0))))
-                        (.then (fn [idx]
-                                 {:title (str (.-title entry))
-                                  :position (domain/page-start-seconds pages idx)}))
-                        (.catch (fn [_] nil))))
-                  outline))))))
-      (.then (fn [entries] (vec (remove nil? entries))))
-      (.catch (fn [_] []))))
-
 (defn- run-document-extract!
   "Extract the stashed bytes, then report the outcome as complete-ingest or
    fail-ingest. Missing bytes (reload lost the transient stash) fail with
@@ -310,23 +476,13 @@
    below the readable threshold with no-document-text."
   [ingest-id document-ref file-name dispatch!]
   (if-let [buf (get @document-bytes document-ref)]
-    (-> (load-pdf buf)
+    (-> (pdf-draft buf file-name nil)
         (.then
-         (fn [pdf]
-           (-> (page-texts pdf)
-               (.then
-                (fn [pages]
-                  (let [text (str/join "\n" pages)]
-                    (if (domain/readable-text? text)
-                      (-> (js/Promise.all #js [(metadata-title pdf)
-                                               (outline-sections pdf pages)])
-                          (.then (fn [res]
-                                   (dispatch! {:kind "complete-ingest" :ingest-id ingest-id
-                                               :items [(domain/document-draft
-                                                        (domain/document-title (aget res 0) file-name)
-                                                        file-name text (aget res 1))]}))))
-                      (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
-                                  :reason no-document-text}))))))))
+         (fn [draft]
+           (if draft
+             (dispatch! {:kind "complete-ingest" :ingest-id ingest-id :items [draft]})
+             (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
+                         :reason no-document-text}))))
         (.catch (fn [e]
                   (js/console.warn "[fetcher] document extraction failed" e)
                   (dispatch! {:kind "fail-ingest" :ingest-id ingest-id
