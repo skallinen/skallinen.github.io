@@ -52,6 +52,16 @@ html, body {
   letter-spacing: -0.02em;
 }
 .settings-toggle { font-size: 1.4rem; line-height: 1; padding: 4px 8px; }
+.app-nav { display: flex; align-items: center; gap: 14px; }
+.nav-link {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--black);
+  text-decoration: none;
+}
+.nav-link:hover { text-decoration: underline; }
 
 /* -- Buttons -- */
 .btn {
@@ -337,6 +347,68 @@ section { margin-bottom: 32px; }
 .player[data-state="idle"] .player-title { opacity: 0.45; font-weight: 400; }
 .player-btn { min-width: 96px; flex-shrink: 0; }
 
+/* -- Sleep timer (slice 10) -- */
+.sleep-select {
+  font-family: var(--font);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 6px 4px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  cursor: pointer;
+}
+.sleep-remaining {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--orange);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sleep-remaining::before { content: "sleep "; opacity: 0.7; }
+
+/* -- Chapters (slice 10) -- */
+.chapters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1.5px solid var(--black);
+  padding-bottom: 10px;
+}
+.chapters-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.chapters-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.chapter-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+.chapter-link {
+  font-family: var(--font);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 4px 9px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  cursor: pointer;
+}
+.chapter-link:hover { background: var(--linen); }
+.chapter-link.chapter-current { background: var(--black); color: var(--white); }
+
 /* -- Settings -- */
 .settings { border: 1.5px solid var(--black); background: var(--white); padding: 16px; }
 .settings-label {
@@ -434,6 +506,55 @@ section { margin-bottom: 32px; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   opacity: 0.6;
+}
+
+/* -- History & stats pages (slice 10: #/history, #/stats) -- */
+.history-list { list-style: none; }
+.history-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1.5px solid var(--black);
+}
+.history-list .history-item:first-child { border-top: 1.5px solid var(--black); }
+.history-finished {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 0.3em 0.65em;
+  border: 1.5px solid var(--black);
+  background: var(--black);
+  color: var(--white);
+  white-space: nowrap;
+}
+.stats-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.stat {
+  flex: 1;
+  min-width: 150px;
+  border: 1.5px solid var(--black);
+  background: var(--white);
+  padding: 14px 16px;
+}
+.stat-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* -- Mobile -- */

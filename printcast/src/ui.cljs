@@ -473,6 +473,87 @@
 (def ^:private skip-forward-seconds 30)
 (def ^:private skip-back-seconds 15)
 
+;; -- Sleep timer (slice 10 ticket 01) ----------------------------------------
+;; Off / 5 / 15 / 30 min / end of item — the spec's examples; the live
+;; countdown (edge runtime) shows beside the player title.
+
+(def ^:private sleep-choices
+  [["" "Sleep: off"] ["300" "Sleep in 5 min"] ["900" "Sleep in 15 min"]
+   ["1800" "Sleep in 30 min"] ["end-of-item" "Sleep at end of item"]])
+
+(defn- sleep-timer-select [sleep-timer]
+  [:select.sleep-select
+   {:aria-label "Sleep timer"
+    :value (cond
+             (nil? sleep-timer) ""
+             (= "end-of-item" (:mode sleep-timer)) "end-of-item"
+             :else (str (:remaining sleep-timer)))
+    :on-change #(let [v (.. % -target -value)]
+                  (cond
+                    (str/blank? v)
+                    (dispatch/dispatch! {:kind "cancel-sleep-timer"})
+
+                    (= "end-of-item" v)
+                    (dispatch/dispatch! {:kind "set-sleep-timer"
+                                         :mode "end-of-item"})
+
+                    :else
+                    (dispatch/dispatch! {:kind "set-sleep-timer"
+                                         :mode "duration"
+                                         :duration (js/parseInt v 10)})))}
+   (for [[value label] sleep-choices]
+     ^{:key value}
+     [:option {:value value} label])])
+
+(defn- sleep-remaining [sleep-timer]
+  (when sleep-timer
+    [:span.sleep-remaining
+     (if (= "end-of-item" (:mode sleep-timer))
+       "end of item"
+       (views/format-position (max 0 (or @state/sleep-seconds-left
+                                         (:remaining sleep-timer)))))]))
+
+;; -- Chapters (slice 10 ticket 02) -------------------------------------------
+
+(defn- current-section-index
+  "The chapter the elapsed listening falls in: how many chapters have started
+   by now, minus one — clamped at the first, which covers anything before the
+   opening chapter's start. Section starts ascend, so counting stops at the
+   first chapter still ahead."
+  [sections elapsed]
+  (->> sections
+       (take-while #(<= (:position %) elapsed))
+       count
+       dec
+       (max 0)))
+
+(defn- chapters-panel [sections elapsed]
+  (let [current (current-section-index sections elapsed)
+        jump! (fn [i] #(dispatch/dispatch! {:kind "jump-to-chapter"
+                                            :section-index i}))]
+    [:div.chapters
+     [:div.chapters-header
+      [:span.chapters-label "Chapters"]
+      [:span.item-actions
+       ;; the decider's section-at-index guard — not the presentation —
+       ;; protects the ends: next at the last chapter changes nothing
+       ;; (the slice-02 convention)
+       [:button.btn.btn-small
+        {:aria-label "Previous chapter" :on-click (jump! (dec current))}
+        "‹ Prev"]
+       [:button.btn.btn-small
+        {:aria-label "Next chapter" :on-click (jump! (inc current))}
+        "Next ›"]]]
+     [:ol.chapter-list
+      (doall
+       (for [[i {:keys [title]}] (map-indexed vector sections)]
+         ^{:key i}
+         [:li
+          [:button.chapter-link
+           {:class (when (= i current) "chapter-current")
+            :on-click (jump! i)}
+           title]]))]]))
+
 (defn- player-progress
   "Elapsed m:ss · interactive seek bar · total m:ss. The bar works in seconds;
    the domain position is the chunk index for text (seconds→chunk conversion
@@ -526,11 +607,14 @@
         elapsed (when item-id (domain/item-elapsed-seconds item position))]
     [:div.player {:data-state player-state :data-position position
                   :data-speed (str speed)}
+     (when-let [sections (seq (get-in pv [:item :sections]))]
+       [chapters-panel (vec sections) elapsed])
      (when item-id
        [player-progress item duration elapsed])
      [:div.player-row
       [:span.player-info
-       [:span.player-title (or (get-in pv [:item :title]) "Nothing playing")]]
+       [:span.player-title (or (get-in pv [:item :title]) "Nothing playing")]
+       [sleep-remaining (:sleep-timer pv)]]
       [:span.player-controls
        [skip-button "back" skip-back-seconds (some? item-id)]
        [:button.btn.btn-primary.player-btn
@@ -542,7 +626,9 @@
           "playing" "Pause"
           "paused" "Resume")]
        [skip-button "forward" skip-forward-seconds (some? item-id)]
-       [speed-select speed]]]]))
+       [speed-select speed]
+       (when item-id
+         [sleep-timer-select (:sleep-timer pv)])]]]))
 
 (defn settings-panel []
   (let [k (r/atom (or (store/elevenlabs-key) ""))]
@@ -579,12 +665,55 @@
        [:p.settings-note
         "Without a key, the browser's built-in speech synthesis is used."]])))
 
+;; -- History & stats pages (slice 10 ticket 03: #/history, #/stats) ----------
+
+(defn- history-page []
+  (let [{:keys [entries]} (views/listening-history @state/app-state)]
+    [:section.history
+     ;; the back link needs a block of its own — .back-link is inline-block
+     ;; (the slice-05 source page follows it with a block header), and the
+     ;; section label is a boxed inline-block that would otherwise sit
+     ;; alongside it on the same line
+     [:div.page-back [:a.back-link {:href "#/"} "‹ Library"]]
+     [:h2.section-label "History"]
+     (if (empty? entries)
+       [:p.empty-state "Nothing has been played yet."]
+       [:ul.history-list
+        (for [{:keys [item-id title kind finished]} entries]
+          ^{:key item-id}
+          [:li.history-item {:data-finished (str (boolean finished))}
+           [:span.item-title title]
+           [:span.item-meta
+            [:span.item-kind (views/kind-label kind)]
+            (when finished
+              [:span.history-finished "finished"])]])])]))
+
+(defn- stats-page []
+  (let [{:keys [total-listened items-finished time-saved-by-speed]}
+        (views/listening-stats @state/app-state)]
+    [:section.stats
+     [:div.page-back [:a.back-link {:href "#/"} "‹ Library"]]
+     [:h2.section-label "Stats"]
+     [:dl.stats-list
+      [:div.stat
+       [:dt.stat-label "Time listened"]
+       [:dd.stat-value.stat-listened (views/format-minutes total-listened)]]
+      [:div.stat
+       [:dt.stat-label "Items finished"]
+       [:dd.stat-value.stat-finished (str items-finished)]]
+      [:div.stat
+       [:dt.stat-label "Saved by speed"]
+       [:dd.stat-value.stat-saved (views/format-minutes time-saved-by-speed)]]]]))
+
 (defn header []
   [:header.app-header
    [:h1.app-title "Printcast"]
-   [:button.btn.btn-ghost.settings-toggle
-    {:aria-label "Settings" :on-click #(swap! state/settings-open? not)}
-    "⚙"]])
+   [:nav.app-nav
+    [:a.nav-link {:href "#/history"} "History"]
+    [:a.nav-link {:href "#/stats"} "Stats"]
+    [:button.btn.btn-ghost.settings-toggle
+     {:aria-label "Settings" :on-click #(swap! state/settings-open? not)}
+     "⚙"]]])
 
 (defn- home []
   [:<>
@@ -595,13 +724,16 @@
    [library-section]])
 
 (defn app []
-  (let [source-id (second (re-find #"^#/source/(.+)$" (str @state/route)))]
+  (let [route (str @state/route)
+        source-id (second (re-find #"^#/source/(.+)$" route))]
     [:div.app-container
      [header]
      (when @state/settings-open? [settings-panel])
-     (if source-id
-       [source-page source-id]
-       [home])
+     (cond
+       source-id [source-page source-id]
+       (= "#/history" route) [history-page]
+       (= "#/stats" route) [stats-page]
+       :else [home])
      [player-bar]]))
 
 (println "[ui] loaded")

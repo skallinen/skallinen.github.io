@@ -11,5 +11,6 @@
 (defonce settings-open? (r/atom false))
 (defonce elevenlabs-voices (r/atom nil))         ; [{:voice-id .. :name ..}] when fetched
 (defonce platform-voices (r/atom []))            ; enumerated platform speech voices (since 08)
+(defonce sleep-seconds-left (r/atom nil))        ; duration-mode sleep countdown (edge runtime, since 10)
 
 (println "[state] loaded")

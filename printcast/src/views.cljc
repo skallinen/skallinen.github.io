@@ -44,7 +44,9 @@
                                       :position (or (:position item) 0)
                                       :added-at (:added-at item))
                          (:origin item) (assoc :origin (:origin item))
-                         (:published-at item) (assoc :published-at (:published-at item))))))})
+                         (:published-at item) (assoc :published-at (:published-at item))
+                         ;; chapter-like divisions (since 10-sleep-chapters-history)
+                         (:sections item) (assoc :sections (:sections item))))))})
 
 (defn- library-row-visible?
   "The library-items filter block (all clauses AND together). Without a
@@ -124,19 +126,65 @@
    doing right now. Answers the `now-playing` query. :speed is the effective
    one — the playing item's speed when it carries an override, the global
    setting otherwise; :voice-id is always the global default (the effective
-   voice is observable only in the heard speech — plan.md 08 spec notes)."
+   voice is observable only in the heard speech — plan.md 08 spec notes).
+   Since 10-sleep-chapters-history the item carries its :sections and the
+   armed :sleep-timer shows {mode, remaining} — remaining is the armed
+   duration (the live countdown is edge runtime, not folded state)."
   [state]
-  (let [{player-state :state :keys [item-id position speed item-speed voice-id]}
+  (let [{player-state :state :keys [item-id position speed item-speed voice-id
+                                    sleep-timer]}
         (:player state)]
     (cond-> {:state player-state :position position
              :speed (or item-speed speed 1)}
       voice-id (assoc :voice-id voice-id)
-      item-id (assoc :item (display-item (get-in state [:items item-id]))))))
+      item-id (assoc :item (let [item (get-in state [:items item-id])]
+                             (cond-> (display-item item)
+                               (:sections item) (assoc :sections (:sections item)))))
+      sleep-timer (assoc :sleep-timer
+                         (cond-> {:mode (:mode sleep-timer)}
+                           (:duration sleep-timer)
+                           (assoc :remaining (:duration sleep-timer)))))))
+
+(defn listening-history
+  "docs/contexts/playback/read-models/listening-history.md — recently played
+   items, newest first: what was listened to and when, whether finished.
+   Built from the :listens fold joined with the library items (a listen
+   whose item is gone drops out). Since 10-sleep-chapters-history."
+  [state]
+  {:entries (->> (:listens state)
+                 (keep (fn [[item-id {:keys [last-played-at finished]}]]
+                         (when-let [item (get-in state [:items item-id])]
+                           {:item-id item-id
+                            :title (:title item)
+                            :kind (:item-kind item)
+                            :last-played-at last-played-at
+                            :finished (boolean finished)})))
+                 (sort-by :last-played-at descending)
+                 vec)})
+
+(defn listening-stats
+  "docs/contexts/playback/read-models/listening-stats.md — cumulative
+   listening statistics: total time listened (content ÷ speed, seconds),
+   items finished, time saved by playing above 1x, and when listening began.
+   The fold's private :anchor stays out. Since 10-sleep-chapters-history."
+  [state]
+  (let [{:keys [total-listened items-finished time-saved-by-speed
+                first-listened-at]} (:stats state)]
+    (cond-> {:total-listened (or total-listened 0)
+             :items-finished (or items-finished 0)
+             :time-saved-by-speed (or time-saved-by-speed 0)}
+      first-listened-at (assoc :first-listened-at first-listened-at))))
 
 (defn format-duration
   "Estimated listening time for display: minutes, rounded up."
   [seconds]
   (str (max 1 (js/Math.ceil (/ seconds 60))) " min"))
+
+(defn format-minutes
+  "Accumulated listening time for display: whole rounded minutes
+   (the stats page — since 10-sleep-chapters-history)."
+  [seconds]
+  (str (js/Math.round (/ seconds 60)) " min"))
 
 (defn format-position
   "Elapsed listening time for display: m:ss."

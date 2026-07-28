@@ -2,7 +2,7 @@
 ;; any mismatch between this file and the docs is a bug in this file).
 ;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles
 ;; + 04-player-controls + 05-podcast-feeds + 06-library + 07-documents
-;; + 08-voices-and-settings.
+;; + 08-voices-and-settings + 10-sleep-chapters-history.
 ;; Kinds are kebab-case (§11).
 ;;
 ;; Message shape: one flat map per intent/event with :kind as the message
@@ -50,7 +50,11 @@
    "seek"              :playback/player
    "skip"              :playback/player
    "set-speed"         :playback/player
-   "set-voice"         :playback/player})
+   "set-voice"         :playback/player
+   "jump-to-chapter"   :playback/player
+   "set-sleep-timer"   :playback/player
+   "cancel-sleep-timer" :playback/player
+   "expire-sleep-timer" :playback/player})
 
 (def events
   "event kind → authority (docs/contexts/<ctx>/authorities/<auth>/events/<kind>.md)"
@@ -88,7 +92,10 @@
    "item-finished"           :playback/player
    "position-changed"        :playback/player
    "speed-changed"           :playback/player
-   "voice-set"               :playback/player})
+   "voice-set"               :playback/player
+   "sleep-timer-set"         :playback/player
+   "sleep-timer-cancelled"   :playback/player
+   "sleep-timer-expired"     :playback/player})
 
 (def item-kinds #{"podcast-episode" "web-article" "pasted-text" "document"})
 

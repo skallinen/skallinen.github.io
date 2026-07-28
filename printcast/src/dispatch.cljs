@@ -14,6 +14,64 @@
 
 (declare dispatch!)
 
+;; -- Sleep timer (since 10-sleep-chapters-history) ---------------------------
+;; The countdown is an EDGE process — deciders stay pure. It ticks seconds of
+;; *listening* (only while the player is playing) and, elapsed, plays the
+;; sleep-timer-expiry policy: dispatch expire-sleep-timer. The documented
+;; test hook window.__printcastTestClock = {multiplier} scales seconds per
+;; tick so a 15-minute timer elapses in a few seconds; the pause itself is
+;; never faked.
+
+(defonce ^:private sleep-interval (atom nil))
+
+(defn- stop-countdown! []
+  (when-let [t @sleep-interval]
+    (js/clearInterval t)
+    (reset! sleep-interval nil))
+  (reset! state/sleep-seconds-left nil))
+
+(defn- clock-multiplier []
+  (or (some-> (.-__printcastTestClock js/window) .-multiplier) 1))
+
+(defn- start-countdown! [duration]
+  (stop-countdown!)                     ; setting a timer again replaces it
+  (reset! state/sleep-seconds-left duration)
+  (reset! sleep-interval
+          (js/setInterval
+           (fn []
+             (when (= "playing" (get-in @state/app-state [:player :state]))
+               (let [left (swap! state/sleep-seconds-left - (clock-multiplier))]
+                 (when (<= left 0)
+                   (dispatch! {:kind "expire-sleep-timer"})))))
+           1000)))
+
+(defn reconcile-sleep-timer!
+  "Boot reconcile: a duration timer replayed as armed restarts its countdown
+   from the full duration — remaining is edge runtime, not persisted
+   (decision in decisions.md). It ticks only once playback resumes; an
+   end-of-item timer needs no process (the rendition-end routing below
+   reads the folded state)."
+  []
+  (let [{:keys [mode duration]} (get-in @state/app-state [:player :sleep-timer])]
+    (when (= "duration" mode)
+      (start-countdown! duration))))
+
+(defn- rendition-ended!
+  "The speech/recording-completion report (edge policy). Normally it issues
+   finish-item; with an end-of-item sleep timer armed the sleep-timer-expiry
+   policy takes the report instead: expire-sleep-timer while the player is
+   still playing (the statechart transition, pausing at the very end), then
+   mark-played for the item — the auto-mark-played observable without
+   item-finished, so continuous playback never takes the next queued item
+   (ordering left to implementation by plan.md's spec notes; decision in
+   decisions.md)."
+  []
+  (let [{:keys [item-id sleep-timer]} (:player @state/app-state)]
+    (if (= "end-of-item" (:mode sleep-timer))
+      (do (dispatch! {:kind "expire-sleep-timer"})
+          (dispatch! {:kind "mark-played" :item-id item-id}))
+      (dispatch! {:kind "finish-item"}))))
+
 (defn- live-speed
   "The speed the current item plays/speaks at: its effective speed while it
    plays (:item-speed, since 08-voices-and-settings), else the global."
@@ -37,7 +95,7 @@
                     :on-chunk (fn [i]
                                 (reset! state/speech-position i)
                                 (dispatch! {:kind "record-position" :position i}))
-                    :on-done #(dispatch! {:kind "finish-item"})})))
+                    :on-done rendition-ended!})))
 
 (def ^:private record-position-every-seconds
   "Recordings dispatch record-position at most this often (event-volume
@@ -61,7 +119,7 @@
                                          record-position-every-seconds)
                                  (reset! last-recorded-second secs)
                                  (dispatch! {:kind "record-position" :position secs})))
-                :on-done #(dispatch! {:kind "finish-item"})}))
+                :on-done rendition-ended!}))
 
 (defn- start-playback!
   "Route the started/resumed item to its edge: recordings to the audio
@@ -117,6 +175,14 @@
                                     (= (:voice-id event)
                                        (domain/effective-voice @state/app-state item-id)))
                            (restart-speech! @state/speech-position)))
+    ;; the sleep countdown edge process follows the timer's lifecycle: a
+    ;; duration timer (re)starts it (set-again replaces), an end-of-item
+    ;; timer needs none, cancel/expiry stop it (since 10)
+    "sleep-timer-set"  (if (= "duration" (:mode event))
+                         (start-countdown! (:duration event))
+                         (stop-countdown!))
+    "sleep-timer-cancelled" (stop-countdown!)
+    "sleep-timer-expired"   (stop-countdown!)
     ;; fetch execution (docs/contexts/ingestion policy, edge process):
     ;; a captured or retried URL/feed enters the fetch
     "url-captured"     (fetcher/begin! (:ingest-id event) (:url event) dispatch!)
@@ -140,23 +206,27 @@
     nil))
 
 (defn- with-defaults
-  "x-default fields (random-uuid, now) and edge enrichment: pause carries the
-   live position (speech chunk index, or the recording's current second)."
+  "x-default fields (random-uuid, now) and edge enrichment: the intents that
+   stop playback carry the live position (speech chunk index, or the
+   recording's current second)."
   [intent]
-  (cond-> (assoc intent :at (now-iso))
-    (and (contains? #{"capture-text" "capture-url" "capture-feed" "capture-document"}
-                    (:kind intent))
-         (nil? (:ingest-id intent)))
-    (assoc :ingest-id (new-id))
+  (let [;; pause and sleep-timer expiry both stop where the listener is now —
+        ;; elapsed-ness is the edge's to know, the deciders have no clock
+        stops-playback? (contains? #{"pause" "expire-sleep-timer"} (:kind intent))]
+    (cond-> (assoc intent :at (now-iso))
+      (and (contains? #{"capture-text" "capture-url" "capture-feed" "capture-document"}
+                      (:kind intent))
+           (nil? (:ingest-id intent)))
+      (assoc :ingest-id (new-id))
 
-    (and (= "subscribe-source" (:kind intent)) (nil? (:source-id intent)))
-    (assoc :source-id (new-id))
+      (and (= "subscribe-source" (:kind intent)) (nil? (:source-id intent)))
+      (assoc :source-id (new-id))
 
-    (and (= "pause" (:kind intent)) (speech/speaking?))
-    (assoc :position @state/speech-position)
+      (and stops-playback? (speech/speaking?))
+      (assoc :position @state/speech-position)
 
-    (and (= "pause" (:kind intent)) (audio/playing?))
-    (assoc :position (audio/position-seconds))))
+      (and stops-playback? (audio/playing?))
+      (assoc :position (audio/position-seconds)))))
 
 (defonce ^:private dispatch-depth (atom 0))
 

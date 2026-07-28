@@ -14,7 +14,11 @@
    :items   {}                                   ; item-id → item (+ :status)
    :sources {}                                   ; source-id → source aggregate (since 05)
    :queue   []                                   ; item-ids, play order
-   :player  {:state "idle" :item-id nil :position 0 :speed 1}})
+   :player  {:state "idle" :item-id nil :position 0 :speed 1}
+   ;; read-side folds (since 10-sleep-chapters-history): what the listening
+   ;; history / stats projections are built from
+   :listens {}                                   ; item-id → {:last-played-at :finished}
+   :stats   {:total-listened 0 :items-finished 0 :time-saved-by-speed 0}})
 
 (defn- ingest-state [state ingest-id]
   (get-in state [:ingests ingest-id :state]))
@@ -48,6 +52,53 @@
   (->> (str/split (str/trim text) #"(?<=[.!?])\s+")
        (remove str/blank?)
        vec))
+
+;; -- Chapters from headings (since 10-sleep-chapters-history) ---------------
+;; Pasted text's top-level headings are markdown-style `# ` lines (single #);
+;; documents get their sections from the PDF outline at the extraction edge.
+
+(defn strip-heading-markers
+  "The text with its top-level `# ` markers removed, so speech reads a
+   heading's words plainly. Deeper levels (##…) are left untouched."
+  [text]
+  (->> (str/split-lines (str text))
+       (map (fn [line]
+              (if-let [[_ title] (re-matches #"# +(.*)" line)] title line)))
+       (str/join "\n")))
+
+(defn text-sections
+  "The top-level `# ` headings of pasted text as {:title :position} section
+   drafts — position = estimated seconds of the spoken words before the
+   heading (150 wpm over the stripped content), the docs' duration domain
+   type. Empty when the text has no top-level headings."
+  [text]
+  (loop [lines (str/split-lines (str text)), words 0, out []]
+    (if (empty? lines)
+      out
+      (let [line (first lines)
+            [_ title] (re-matches #"# +(.*)" line)]
+        (recur (rest lines)
+               (+ words (word-count (or title line)))
+               (if title
+                 (conj out {:title (str/trim title)
+                            :position (js/Math.round (* 60 (/ words words-per-minute)))})
+                 out))))))
+
+(defn section-start-chunk
+  "The chunk index a section positioned at `seconds` starts at: the first
+   chunk whose exact start (cumulative words at 150 wpm) reaches
+   seconds − 0.5. The half-second tolerance absorbs the rounding of stored
+   section positions, so a jump lands on the chunk beginning the heading's
+   own text (since 10-sleep-chapters-history)."
+  [text seconds]
+  (let [cs (chunks text)
+        n (count cs)]
+    (loop [i 0 words 0]
+      (if (>= i n)
+        (max 0 (dec n))
+        (if (>= (* 60 (/ words words-per-minute)) (- seconds 0.5))
+          i
+          (recur (inc i) (+ words (word-count (nth cs i)))))))))
 
 (def min-readable-words
   "Fewer words than this is boilerplate scraps, not an article
@@ -289,13 +340,19 @@
     (refuse "pasted text is empty")
 
     :else
-    (let [title'   (if (str/blank? (str title)) (derive-title text) title)
+    ;; Top-level `# ` headings become the draft's sections (since
+    ;; 10-sleep-chapters-history); the spoken content is the stripped text so
+    ;; a heading is read plainly. Unheaded text passes through unchanged.
+    (let [sections (text-sections text)
+          content  (if (seq sections) (strip-heading-markers text) text)
+          title'   (if (str/blank? (str title)) (derive-title content) title)
           channel' (or channel "in-app")]
       (accept {:kind "text-captured" :ingest-id ingest-id :title title'
                :text text :channel channel' :captured-at at}
               {:kind "ingest-completed" :ingest-id ingest-id
-               :items [{:title title' :kind "pasted-text" :content text
-                        :duration-estimate (estimate-duration text)}]
+               :items [(cond-> {:title title' :kind "pasted-text" :content content
+                                :duration-estimate (estimate-duration content)}
+                         (seq sections) (assoc :sections sections))]
                :channel channel' :completed-at at}))))
 
 ;; ingestion/ingest — "capture-url @ none → requested, emits [url-captured]"
@@ -413,9 +470,11 @@
     (refuse "the ingest has not failed")))
 
 ;; library/item — "add-item @ none → new, emits [item-added]"
+;; :sections (chapter-like divisions from headings/outline) ride through
+;; since 10-sleep-chapters-history.
 (defmethod decide "add-item"
   [state {:keys [item-id title item-kind origin content recording-url
-                 published-at duration-estimate at]}]
+                 published-at duration-estimate sections at]}]
   (cond
     (some? (get-in state [:items item-id]))
     (refuse "item already exists")
@@ -429,7 +488,8 @@
                      :duration-estimate duration-estimate :added-at at}
               origin (assoc :origin origin)
               recording-url (assoc :recording-url recording-url)
-              published-at (assoc :published-at published-at)))))
+              published-at (assoc :published-at published-at)
+              (seq sections) (assoc :sections (vec sections))))))
 
 ;; library/item — "mark-in-progress @ new → in-progress, emits [item-marked-in-progress]"
 (defmethod decide "mark-in-progress"
@@ -738,9 +798,123 @@
       (accept {:kind "item-finished" :item-id (:item-id player) :finished-at at})
       (refuse "the player is not playing"))))
 
+;; playback/player — "jump-to-chapter @ playing|paused → same state [the item
+;; has a section at the given index], emits [position-changed]" (since
+;; 10-sleep-chapters-history). The target is the section's start in the
+;; item's position unit: seconds (clamped) for a recording, the chunk that
+;; starts the heading's text for a text item.
+(defmethod decide "jump-to-chapter"
+  [state {:keys [section-index at]}]
+  (let [{player-state :state :keys [item-id]} (:player state)
+        item (get-in state [:items item-id])
+        sections (:sections item)]
+    (cond
+      (not (contains? #{"playing" "paused"} player-state))
+      (refuse "the player has no current item")
+
+      (not (and (number? section-index)
+                (<= 0 section-index)
+                (< section-index (count sections))))
+      (refuse "the item has no section at the given index")
+
+      :else
+      (let [{:keys [position]} (nth sections section-index)]
+        (accept {:kind "position-changed" :item-id item-id
+                 :position (if (recording? item)
+                             (-> position (max 0) (min (:duration-estimate item)))
+                             (section-start-chunk (or (:content item) "") position))
+                 :at at})))))
+
+;; playback/player — "set-sleep-timer @ playing|paused → same state, emits
+;; [sleep-timer-set]" (since 10-sleep-chapters-history). No already-set
+;; guard: setting again replaces the previous timer (the intent doc).
+(defmethod decide "set-sleep-timer"
+  [state {:keys [mode duration at]}]
+  (cond
+    (not (contains? #{"playing" "paused"} (get-in state [:player :state])))
+    (refuse "the player has no current item")
+
+    (not (contains? #{"duration" "end-of-item"} mode))
+    (refuse (str "unknown sleep timer mode: " mode))
+
+    (and (= "duration" mode) (not (and (number? duration) (pos? duration))))
+    (refuse "a positive duration is required")
+
+    :else
+    (accept (cond-> {:kind "sleep-timer-set" :mode mode :at at}
+              (= "duration" mode) (assoc :duration duration)))))
+
+;; playback/player — "cancel-sleep-timer @ playing|paused → same state
+;; [a sleep timer is set], emits [sleep-timer-cancelled]"
+(defmethod decide "cancel-sleep-timer"
+  [state {:keys [at]}]
+  (let [player (:player state)]
+    (cond
+      (not (contains? #{"playing" "paused"} (:state player)))
+      (refuse "the player has no current item")
+
+      (nil? (:sleep-timer player))
+      (refuse "no sleep timer is set")
+
+      :else
+      (accept {:kind "sleep-timer-cancelled" :at at}))))
+
+;; playback/player — "expire-sleep-timer @ playing [a sleep timer is set and
+;; has elapsed] → paused, emits [sleep-timer-expired, playback-paused]".
+;; The *elapsed* half of the guard is owned by the edge expiry policy that
+;; issues this intent (the countdown / rendition-end process) — a pure
+;; decider has no clock (decision in decisions.md). The pause position rides
+;; in from the edge like `pause`'s.
+(defmethod decide "expire-sleep-timer"
+  [state {:keys [position at]}]
+  (let [player (:player state)]
+    (cond
+      (not= "playing" (:state player))
+      (refuse "the player is not playing")
+
+      (nil? (:sleep-timer player))
+      (refuse "no sleep timer is set")
+
+      :else
+      (accept {:kind "sleep-timer-expired" :at at}
+              {:kind "playback-paused" :item-id (:item-id player)
+               :position (or position (:position player)) :at at}))))
+
 ;; ---------------------------------------------------------------------------
 ;; Evolvers — pure left-fold, no business logic, cannot fail (§4.2)
 ;; ---------------------------------------------------------------------------
+
+;; Listening-stats accumulation (since 10-sleep-chapters-history): time
+;; listened counts content time ÷ speed — positions, not wall clocks, so a
+;; tab closed mid-play adds nothing. Samples are anchored at play/resume and
+;; folded in at every position-changed, pause, and finish; the surplus of a
+;; segment played above 1x is the time saved.
+
+(defn- live-speed*
+  "The speed the current segment plays at: the item's effective speed while
+   it plays, else the global (the slice-08 convention)."
+  [state]
+  (or (get-in state [:player :item-speed])
+      (get-in state [:player :speed])
+      1))
+
+(defn- anchor-listening
+  "Start a stats segment at the given content position of the current item."
+  [state item-id position]
+  (assoc-in state [:stats :anchor]
+            (item-elapsed-seconds (get-in state [:items item-id]) position)))
+
+(defn- accumulate-listening
+  "Fold the content seconds consumed since the anchor into the stats —
+   content ÷ speed listened, the surplus saved — and re-anchor."
+  [state new-elapsed]
+  (let [anchor (get-in state [:stats :anchor])
+        delta (max 0 (- new-elapsed (or anchor new-elapsed)))
+        listened (/ delta (live-speed* state))]
+    (-> state
+        (update-in [:stats :total-listened] + listened)
+        (update-in [:stats :time-saved-by-speed] + (- delta listened))
+        (assoc-in [:stats :anchor] new-elapsed))))
 
 (defmulti evolve
   "S × E → S'"
@@ -799,14 +973,15 @@
 
 (defmethod evolve "item-added"
   [state {:keys [item-id title item-kind origin content recording-url
-                 published-at duration-estimate added-at]}]
+                 published-at duration-estimate sections added-at]}]
   (assoc-in state [:items item-id]
             (cond-> {:item-id item-id :title title :item-kind item-kind
                      :content content :duration-estimate duration-estimate
                      :added-at added-at :status "new"}
               origin (assoc :origin origin)
               recording-url (assoc :recording-url recording-url)
-              published-at (assoc :published-at published-at))))
+              published-at (assoc :published-at published-at)
+              sections (assoc :sections sections))))
 
 (defmethod evolve "source-subscribed"
   [state {:keys [source-id feed-url subscribed-at]}]
@@ -880,24 +1055,40 @@
 ;; Since 08-voices-and-settings the event's effective :speed folds into
 ;; :item-speed (the speed shown/heard while this item plays); an absent field
 ;; clears any stale one, so pre-08 logs replay unchanged.
-(defmethod evolve "playback-started" [state {:keys [item-id position speed]}]
-  (update state :player
-          (fn [p]
-            (cond-> (assoc p :state "playing" :item-id item-id
-                           :position (or position 0))
-              speed (assoc :item-speed speed)
-              (nil? speed) (dissoc :item-speed)))))
+;; playback-started also opens the listening-history entry (a fresh listen is
+;; unfinished) and anchors the stats segment (since 10-sleep-chapters-history).
+(defmethod evolve "playback-started" [state {:keys [item-id position speed started-at]}]
+  (-> state
+      (update :player
+              (fn [p]
+                (cond-> (assoc p :state "playing" :item-id item-id
+                               :position (or position 0))
+                  speed (assoc :item-speed speed)
+                  (nil? speed) (dissoc :item-speed))))
+      (anchor-listening item-id (or position 0))
+      (update-in [:stats :first-listened-at] (fn [t] (or t started-at)))
+      (update :listens assoc item-id {:last-played-at started-at :finished false})))
 
-(defmethod evolve "playback-paused" [state {:keys [position]}]
-  (update state :player assoc :state "paused" :position position))
+(defmethod evolve "playback-paused" [state {:keys [item-id position]}]
+  (-> state
+      (accumulate-listening
+       (item-elapsed-seconds (get-in state [:items item-id]) position))
+      (update :player assoc :state "paused" :position position)))
 
-(defmethod evolve "playback-resumed" [state {:keys [position]}]
-  (update state :player assoc :state "playing" :position position))
+(defmethod evolve "playback-resumed" [state {:keys [item-id position]}]
+  (-> state
+      (update :player assoc :state "playing" :position position)
+      (anchor-listening item-id position)))
 
 (defmethod evolve "position-changed" [state {:keys [item-id position]}]
-  (cond-> (assoc-in state [:items item-id :position] position)
-    (= item-id (get-in state [:player :item-id]))
-    (assoc-in [:player :position] position)))
+  (let [current? (= item-id (get-in state [:player :item-id]))
+        ;; a moving current item while playing is a listened segment sample
+        state (cond-> state
+                (and current? (= "playing" (get-in state [:player :state])))
+                (accumulate-listening
+                 (item-elapsed-seconds (get-in state [:items item-id]) position)))]
+    (cond-> (assoc-in state [:items item-id :position] position)
+      current? (assoc-in [:player :position] position))))
 
 ;; A live speed change takes over from any per-item override from that moment
 ;; (since 08-voices-and-settings: :item-speed clears).
@@ -913,11 +1104,32 @@
 ;; beginning — otherwise resume-on-play (since 04-player-controls) would pick
 ;; up a played item at its end (decision in 04-player-controls/decisions.md).
 ;; The item's effective speed leaves with it (since 08-voices-and-settings).
-(defmethod evolve "item-finished" [state {:keys [item-id]}]
+;; Since 10-sleep-chapters-history it also closes the stats segment at the
+;; item's full content, counts the finish, and marks the history entry
+;; finished; an armed *duration* sleep timer stays — it spans continuous
+;; playback across items.
+(defmethod evolve "item-finished" [state {:keys [item-id finished-at]}]
   (-> state
+      (accumulate-listening
+       (or (get-in state [:items item-id :duration-estimate]) 0))
+      (update-in [:stats :items-finished] inc)
+      (update :listens assoc item-id {:last-played-at finished-at :finished true})
       (assoc-in [:items item-id :position] 0)
       (update :player (fn [p] (-> p (assoc :state "idle" :item-id nil :position 0)
                                   (dissoc :item-speed))))))
+
+;; The sleep timer on the player aggregate (since 10-sleep-chapters-history):
+;; set replaces, cancel and expiry consume.
+(defmethod evolve "sleep-timer-set" [state {:keys [mode duration]}]
+  (assoc-in state [:player :sleep-timer]
+            (cond-> {:mode mode}
+              duration (assoc :duration duration))))
+
+(defmethod evolve "sleep-timer-cancelled" [state _event]
+  (update state :player dissoc :sleep-timer))
+
+(defmethod evolve "sleep-timer-expired" [state _event]
+  (update state :player dissoc :sleep-timer))
 
 (defn fold
   "Replay: left-fold events over state through the evolvers only (§4.2)."
@@ -971,7 +1183,9 @@
                                  :title (:title draft) :item-kind (:kind draft)
                                  :content (:content draft)
                                  :duration-estimate (:duration-estimate draft)}
-                          (:origin draft) (assoc :origin (:origin draft)))
+                          (:origin draft) (assoc :origin (:origin draft))
+                          ;; sections ride onto the item (since 10)
+                          (:sections draft) (assoc :sections (:sections draft)))
                         {:kind "queue-item" :item-id item-id}]))
                    (:items event)))
       (let [known (set (keep :recording-url (vals (:items state))))
@@ -990,7 +1204,8 @@
                   (:content draft) (assoc :content (:content draft))
                   (:recording-url draft) (assoc :recording-url (:recording-url draft))
                   (:published-at draft) (assoc :published-at (:published-at draft))
-                  (:origin draft) (assoc :origin (:origin draft))))
+                  (:origin draft) (assoc :origin (:origin draft))
+                  (:sections draft) (assoc :sections (:sections draft))))
               fresh)))
 
     ;; feed ingest: a followed or refreshed source gets its feed fetched

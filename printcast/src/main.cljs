@@ -42,6 +42,9 @@
   ;; reconcile by pausing at the last known position (decision in decisions.md)
   (when (= "playing" (get-in @state/app-state [:player :state]))
     (dispatch/dispatch! {:kind "pause"}))
+  ;; A reload with an armed duration sleep timer restarts its countdown from
+  ;; the full duration (edge runtime — since 10-sleep-chapters-history)
+  (dispatch/reconcile-sleep-timer!)
   ;; A reload mid-fetch leaves url/feed ingests stuck requested/fetching with
   ;; no edge process running: re-enter the fetch (decision in decisions.md)
   (doseq [{:keys [ingest-id url feed-url source-id document-ref file-name]
