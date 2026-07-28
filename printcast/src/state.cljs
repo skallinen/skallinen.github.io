@@ -10,5 +10,6 @@
 (defonce route (r/atom (.-hash js/location)))    ; current hash route (since 05)
 (defonce settings-open? (r/atom false))
 (defonce elevenlabs-voices (r/atom nil))         ; [{:voice-id .. :name ..}] when fetched
+(defonce platform-voices (r/atom []))            ; enumerated platform speech voices (since 08)
 
 (println "[state] loaded")

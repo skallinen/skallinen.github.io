@@ -1,7 +1,8 @@
 ;; Hand-authored contract, mirroring docs/contexts/** (WAY-OF-WORKING §5:
 ;; any mismatch between this file and the docs is a bug in this file).
 ;; Slices 01-walking-skeleton + 02-queue-management + 03-web-articles
-;; + 04-player-controls + 05-podcast-feeds + 06-library + 07-documents.
+;; + 04-player-controls + 05-podcast-feeds + 06-library + 07-documents
+;; + 08-voices-and-settings.
 ;; Kinds are kebab-case (§11).
 ;;
 ;; Message shape: one flat map per intent/event with :kind as the message
@@ -33,6 +34,8 @@
    "subscribe-source"   :library/source
    "refresh-source"     :library/source
    "unsubscribe-source" :library/source
+   "set-source-voice"   :library/source
+   "set-source-speed"   :library/source
    "queue-item"        :playback/queue
    "queue-item-next"   :playback/queue
    "take-next"         :playback/queue
@@ -46,7 +49,8 @@
    "record-position"   :playback/player
    "seek"              :playback/player
    "skip"              :playback/player
-   "set-speed"         :playback/player})
+   "set-speed"         :playback/player
+   "set-voice"         :playback/player})
 
 (def events
   "event kind → authority (docs/contexts/<ctx>/authorities/<auth>/events/<kind>.md)"
@@ -70,6 +74,8 @@
    "source-subscribed"        :library/source
    "source-refresh-requested" :library/source
    "source-unsubscribed"      :library/source
+   "source-voice-set"         :library/source
+   "source-speed-set"         :library/source
    "item-queued"             :playback/queue
    "item-queued-next"        :playback/queue
    "item-dequeued"           :playback/queue
@@ -81,7 +87,8 @@
    "playback-resumed"        :playback/player
    "item-finished"           :playback/player
    "position-changed"        :playback/player
-   "speed-changed"           :playback/player})
+   "speed-changed"           :playback/player
+   "voice-set"               :playback/player})
 
 (def item-kinds #{"podcast-episode" "web-article" "pasted-text" "document"})
 

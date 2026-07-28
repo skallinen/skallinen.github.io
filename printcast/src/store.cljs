@@ -44,16 +44,17 @@
   (let [k (.getItem js/localStorage el-key-key)]
     (when-not (str/blank? k) k)))
 
-(defn elevenlabs-voice []
+(defn elevenlabs-voice
+  "The slice-01 edge-config voice — superseded by the domain default voice
+   (since 08-voices-and-settings) but still read as the fallback for speech
+   with no resolved voice, so an existing saved choice keeps working."
+  []
   (let [v (.getItem js/localStorage el-voice-key)]
     (when-not (str/blank? v) v)))
 
-(defn save-elevenlabs! [api-key voice-id]
+(defn save-elevenlabs-key! [api-key]
   (if (str/blank? api-key)
     (.removeItem js/localStorage el-key-key)
-    (.setItem js/localStorage el-key-key api-key))
-  (if (str/blank? voice-id)
-    (.removeItem js/localStorage el-voice-key)
-    (.setItem js/localStorage el-voice-key voice-id)))
+    (.setItem js/localStorage el-key-key api-key)))
 
 (println "[store] loaded")

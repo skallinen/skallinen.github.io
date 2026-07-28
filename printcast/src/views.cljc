@@ -90,7 +90,10 @@
                  (filter #(= "active" (:state %)))
                  (sort-by :subscribed-at)
                  (mapv #(select-keys % [:source-id :feed-url :title :author
-                                        :artwork-url :subscribed-at])))})
+                                        :artwork-url :subscribed-at
+                                        ;; per-source overrides, when set
+                                        ;; (since 08-voices-and-settings)
+                                        :voice-id :speed])))})
 
 (def ^:private live-ingest-states #{"requested" "fetching" "failed"})
 
@@ -118,10 +121,16 @@
 
 (defn player-view
   "docs/contexts/playback/read-models/player-view.md — what the player is
-   doing right now. Answers the `now-playing` query."
+   doing right now. Answers the `now-playing` query. :speed is the effective
+   one — the playing item's speed when it carries an override, the global
+   setting otherwise; :voice-id is always the global default (the effective
+   voice is observable only in the heard speech — plan.md 08 spec notes)."
   [state]
-  (let [{player-state :state :keys [item-id position speed]} (:player state)]
-    (cond-> {:state player-state :position position :speed (or speed 1)}
+  (let [{player-state :state :keys [item-id position speed item-speed voice-id]}
+        (:player state)]
+    (cond-> {:state player-state :position position
+             :speed (or item-speed speed 1)}
+      voice-id (assoc :voice-id voice-id)
       item-id (assoc :item (display-item (get-in state [:items item-id]))))))
 
 (defn format-duration

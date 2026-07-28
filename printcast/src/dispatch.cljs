@@ -14,16 +14,26 @@
 
 (declare dispatch!)
 
+(defn- live-speed
+  "The speed the current item plays/speaks at: its effective speed while it
+   plays (:item-speed, since 08-voices-and-settings), else the global."
+  []
+  (let [{:keys [item-speed speed]} (:player @state/app-state)]
+    (or item-speed speed 1)))
+
 (defn- start-speech!
   "Effect: speak the item's sentence chunks from the given chunk index.
    Each chunk boundary is the periodic progress process (ticket 06): it
-   dispatches record-position so positions survive across sessions."
+   dispatches record-position so positions survive across sessions.
+   The effective voice and the live speed are recomputed from the folded
+   state at every (re)start (since 08-voices-and-settings)."
   [item-id position]
   (let [content (get-in @state/app-state [:items item-id :content])
         chunks (domain/chunks (or content ""))]
     (reset! state/speech-position position)
     (speech/speak! chunks position
-                   {:rate (get-in @state/app-state [:player :speed] 1)
+                   {:rate (live-speed)
+                    :voice (domain/effective-voice @state/app-state item-id)
                     :on-chunk (fn [i]
                                 (reset! state/speech-position i)
                                 (dispatch! {:kind "record-position" :position i}))
@@ -44,7 +54,7 @@
   (reset! state/audio-seconds position)
   (reset! last-recorded-second position)
   (audio/play! (get-in @state/app-state [:items item-id :recording-url]) position
-               {:rate (get-in @state/app-state [:player :speed] 1)
+               {:rate (live-speed)
                 :on-position (fn [secs]
                                (reset! state/audio-seconds secs)
                                (when (>= (- secs @last-recorded-second)
@@ -98,6 +108,15 @@
     "speed-changed"    (if (audio/playing?)
                          (audio/set-rate! (:speed event))
                          (restart-speech! @state/speech-position))
+    ;; a default-voice change takes effect from the current position — but
+    ;; only when it can alter the heard voice: speech must be running and the
+    ;; new default must be what the current item resolves to (a recording, or
+    ;; a source whose override wins, restarts nothing — ticket 01)
+    "voice-set"        (let [item-id (get-in @state/app-state [:player :item-id])]
+                         (when (and item-id
+                                    (= (:voice-id event)
+                                       (domain/effective-voice @state/app-state item-id)))
+                           (restart-speech! @state/speech-position)))
     ;; fetch execution (docs/contexts/ingestion policy, edge process):
     ;; a captured or retried URL/feed enters the fetch
     "url-captured"     (fetcher/begin! (:ingest-id event) (:url event) dispatch!)

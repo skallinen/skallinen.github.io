@@ -485,6 +485,39 @@
     (accept {:kind "source-unsubscribed" :source-id source-id :unsubscribed-at at})
     (refuse "the source is not followed")))
 
+;; library/source — "set-source-voice @ active → active, emits [source-voice-set]"
+;; (since 08-voices-and-settings). An *empty* voice-id is accepted — v1's way
+;; of clearing the override (the intent doc); a missing one is refused (the
+;; schema requires the field — fail loud at the point of misuse).
+(defmethod decide "set-source-voice"
+  [state {:keys [source-id voice-id at]}]
+  (cond
+    (not= "active" (get-in state [:sources source-id :state]))
+    (refuse "the source is not followed")
+
+    (not (string? voice-id))
+    (refuse "a voice is required")
+
+    :else
+    (accept {:kind "source-voice-set" :source-id source-id
+             :voice-id voice-id :at at})))
+
+;; library/source — "set-source-speed @ active → active, emits [source-speed-set]"
+;; (since 08-voices-and-settings). v1 always sets a value (clearing deferred);
+;; the range refusal is the set-speed convention.
+(defmethod decide "set-source-speed"
+  [state {:keys [source-id speed at]}]
+  (cond
+    (not= "active" (get-in state [:sources source-id :state]))
+    (refuse "the source is not followed")
+
+    (not (and (number? speed) (<= 0.5 speed 3.0)))
+    (refuse "the speed must be between 0.5x and 3x")
+
+    :else
+    (accept {:kind "source-speed-set" :source-id source-id
+             :speed speed :at at})))
+
 ;; playback/queue — "queue-item @ empty|holding [not already queued] → holding, emits [item-queued]"
 (defmethod decide "queue-item"
   [state {:keys [item-id at]}]
@@ -536,8 +569,11 @@
     (refuse "the queue is empty")))
 
 ;; playback/player — "play @ idle [item has speakable content or a recording] → playing, emits [playback-started]"
+;; Since 08-voices-and-settings the intent may carry the effective :voice-id /
+;; :speed (resolved by the play-from-queue policy); they pass through onto
+;; playback-started when present.
 (defmethod decide "play"
-  [state {:keys [item-id position at]}]
+  [state {:keys [item-id position voice-id speed at]}]
   (let [item (get-in state [:items item-id])]
     (cond
       (not= "idle" (get-in state [:player :state]))
@@ -548,8 +584,10 @@
       (refuse "the item has no speakable content and no recording")
 
       :else
-      (accept {:kind "playback-started" :item-id item-id
-               :position (or position 0) :started-at at}))))
+      (accept (cond-> {:kind "playback-started" :item-id item-id
+                       :position (or position 0) :started-at at}
+                voice-id (assoc :voice-id voice-id)
+                speed (assoc :speed speed))))))
 
 ;; playback/player — "pause @ playing → paused, emits [playback-paused]"
 ;; The current speech chunk index comes from the edge with the intent
@@ -636,6 +674,16 @@
   (if (and (number? speed) (<= 0.5 speed 3.0))
     (accept {:kind "speed-changed" :speed speed :at at})
     (refuse "the speed must be between 0.5x and 3x")))
+
+;; playback/player — "set-voice @ idle|playing|paused → same state,
+;; emits [voice-set]" (since 08-voices-and-settings) — a self-transition in
+;; every player state; the only refusal is a blank voice-id (the set-speed
+;; convention: fail loud at the point of misuse).
+(defmethod decide "set-voice"
+  [_state {:keys [voice-id at]}]
+  (if (str/blank? (str voice-id))
+    (refuse "a voice is required")
+    (accept {:kind "voice-set" :voice-id voice-id :at at})))
 
 ;; playback/player — "finish-item @ playing → idle, emits [item-finished]"
 (defmethod decide "finish-item"
@@ -728,6 +776,16 @@
 (defmethod evolve "source-unsubscribed" [state {:keys [source-id]}]
   (assoc-in state [:sources source-id :state] "removed"))
 
+;; Per-source overrides (since 08-voices-and-settings): an empty voice-id
+;; clears the override — cleared override = absent field (the intent doc).
+(defmethod evolve "source-voice-set" [state {:keys [source-id voice-id]}]
+  (if (str/blank? (str voice-id))
+    (update-in state [:sources source-id] dissoc :voice-id)
+    (assoc-in state [:sources source-id :voice-id] voice-id)))
+
+(defmethod evolve "source-speed-set" [state {:keys [source-id speed]}]
+  (assoc-in state [:sources source-id :speed] speed))
+
 (defmethod evolve "item-marked-in-progress" [state {:keys [item-id]}]
   (assoc-in state [:items item-id :status] "in-progress"))
 
@@ -774,9 +832,16 @@
 
 ;; The speed is a global player setting, so playback-started and
 ;; item-finished update the player in place rather than replacing it.
-(defmethod evolve "playback-started" [state {:keys [item-id position]}]
-  (update state :player assoc
-          :state "playing" :item-id item-id :position (or position 0)))
+;; Since 08-voices-and-settings the event's effective :speed folds into
+;; :item-speed (the speed shown/heard while this item plays); an absent field
+;; clears any stale one, so pre-08 logs replay unchanged.
+(defmethod evolve "playback-started" [state {:keys [item-id position speed]}]
+  (update state :player
+          (fn [p]
+            (cond-> (assoc p :state "playing" :item-id item-id
+                           :position (or position 0))
+              speed (assoc :item-speed speed)
+              (nil? speed) (dissoc :item-speed)))))
 
 (defmethod evolve "playback-paused" [state {:keys [position]}]
   (update state :player assoc :state "paused" :position position))
@@ -789,21 +854,55 @@
     (= item-id (get-in state [:player :item-id]))
     (assoc-in [:player :position] position)))
 
+;; A live speed change takes over from any per-item override from that moment
+;; (since 08-voices-and-settings: :item-speed clears).
 (defmethod evolve "speed-changed" [state {:keys [speed]}]
-  (assoc-in state [:player :speed] speed))
+  (update state :player (fn [p] (-> p (assoc :speed speed) (dissoc :item-speed)))))
+
+;; The global default voice — a player setting like :speed
+;; (since 08-voices-and-settings).
+(defmethod evolve "voice-set" [state {:keys [voice-id]}]
+  (assoc-in state [:player :voice-id] voice-id))
 
 ;; A finished item's recorded position resets so replaying it starts from the
 ;; beginning — otherwise resume-on-play (since 04-player-controls) would pick
 ;; up a played item at its end (decision in 04-player-controls/decisions.md).
+;; The item's effective speed leaves with it (since 08-voices-and-settings).
 (defmethod evolve "item-finished" [state {:keys [item-id]}]
   (-> state
       (assoc-in [:items item-id :position] 0)
-      (update :player assoc :state "idle" :item-id nil :position 0)))
+      (update :player (fn [p] (-> p (assoc :state "idle" :item-id nil :position 0)
+                                  (dissoc :item-speed))))))
 
 (defn fold
   "Replay: left-fold events over state through the evolvers only (§4.2)."
   [state events]
   (reduce evolve state events))
+
+;; ---------------------------------------------------------------------------
+;; Effective voice/speed resolution (since 08-voices-and-settings, plan.md
+;; "Policy addition"): the item's source override wins over the global player
+;; setting. The resolved values travel on `play`, not as read-model fields —
+;; the effective voice is observable only in the heard speech (spec notes).
+;; ---------------------------------------------------------------------------
+
+(defn- item-source [state item-id]
+  (get-in state [:sources (get-in state [:items item-id :origin :source-id])]))
+
+(defn effective-voice
+  "The voice an item is heard in: its source's :voice-id override, else the
+   global default, else nil (the speech provider's own default)."
+  [state item-id]
+  (or (:voice-id (item-source state item-id))
+      (get-in state [:player :voice-id])))
+
+(defn effective-speed
+  "The speed an item plays at: its source's :speed override, else the global
+   setting, else 1."
+  [state item-id]
+  (or (:speed (item-source state item-id))
+      (get-in state [:player :speed])
+      1))
 
 ;; ---------------------------------------------------------------------------
 ;; Policies — event → follow-up intents (plan.md story-map policy cards).
@@ -863,10 +962,16 @@
     ;; play-from-queue: the dequeued item starts playing — since
     ;; 04-player-controls at its last recorded position (resume; the play
     ;; intent doc: "the supplied position is the item's last recorded
-    ;; position"), 0 for a never-played item
+    ;; position"), 0 for a never-played item; since 08-voices-and-settings
+    ;; with the effective speed (always) and voice (only when one resolves —
+    ;; the schema field is optional)
     "item-dequeued"
-    [{:kind "play" :item-id (:item-id event)
-      :position (or (get-in state [:items (:item-id event) :position]) 0)}]
+    (let [item-id (:item-id event)
+          voice (effective-voice state item-id)]
+      [(cond-> {:kind "play" :item-id item-id
+                :position (or (get-in state [:items item-id :position]) 0)
+                :speed (effective-speed state item-id)}
+         voice (assoc :voice-id voice))])
 
     ;; progress-tracking: the item's first playback-started marks it in progress
     "playback-started"

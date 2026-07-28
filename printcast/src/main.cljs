@@ -44,6 +44,9 @@
         "fetching"  (fetcher/resume-document! ingest-id document-ref file-name
                                               dispatch/dispatch!)
         nil)))
+  ;; voice enumeration (since 08): platform voices now, re-read on
+  ;; voiceschanged; the ElevenLabs list joins when a key is saved
+  (speech/init-voices!)
   (when-let [k (store/elevenlabs-key)]
     (speech/fetch-voices! k))
   ;; hash routing (since 05): the route atom follows the location hash

@@ -79,6 +79,28 @@
      {:type "file" :accept ".pdf,application/pdf" :aria-label "Document file"
       :on-change add-document!}]]])
 
+;; -- Speed + voice choices (shared by the player, the settings panel, and
+;; the source page) -----------------------------------------------------------
+
+(def ^:private speed-choices [0.5 0.75 1 1.25 1.5 2 2.5 3])
+
+(defn- speed-label [speed]
+  (str speed "x"))
+
+(defn- voice-options
+  "Option groups for a voice select: the enumerated voices grouped by
+   provider (ticket 04), in first-appearance order. Returns a realized seq —
+   a seq child renders as a fragment (a vector would be read as hiccup)."
+  []
+  (let [voices (speech/available-voices)]
+    (doall
+     (for [provider (distinct (map :provider voices))]
+       ^{:key provider}
+       [:optgroup {:label provider}
+        (for [{:keys [voice-id name]} (filter #(= provider (:provider %)) voices)]
+          ^{:key voice-id}
+          [:option {:value voice-id} name])]))))
+
 ;; -- Sources (slice 05: follow a podcast feed) -------------------------------
 
 (defonce ^:private draft-feed (r/atom ""))
@@ -116,7 +138,7 @@
       [:button.btn {:on-click subscribe!} "Subscribe"]]
      (when (seq sources)
        [:ul.source-list
-        (for [{:keys [source-id feed-url title author artwork-url]} sources]
+        (for [{:keys [source-id feed-url title author artwork-url voice-id speed]} sources]
           ^{:key source-id}
           [:li.source-item
            (when artwork-url
@@ -124,7 +146,10 @@
            [:span.source-info
             [:a.source-title {:href (str "#/source/" source-id)}
              (or title feed-url)]
-            (when author [:span.source-author author])]
+            (when author [:span.source-author author])
+            ;; the per-source overrides, when set (since 08)
+            (when voice-id [:span.source-voice (speech/voice-name voice-id)])
+            (when speed [:span.source-speed (speed-label speed)])]
            [source-actions source-id]])])]))
 
 ;; -- Active ingests (slice 03: the capture progress + retry UI) --------------
@@ -385,6 +410,34 @@
 
 ;; -- Source page (slice 05 ticket 03: #/source/<id>) -------------------------
 
+(defn- source-settings
+  "Per-source voice/speed overrides (slice 08 ticket 02): each select
+   dispatches its intent on change. Choosing \"Default voice\" dispatches an
+   empty voice-id — v1's way of clearing the override; the speed placeholder
+   is disabled (v1 always sets a value, clearing is deferred)."
+  [{:keys [source-id voice-id speed]}]
+  [:div.source-settings
+   [:label.settings-label {:for "source-voice"} "Source voice"]
+   [:select#source-voice.settings-input
+    {:value (or voice-id "")
+     :on-change #(dispatch/dispatch! {:kind "set-source-voice"
+                                      :source-id source-id
+                                      :voice-id (.. % -target -value)})}
+    [:option {:value ""} "Default voice"]
+    (voice-options)]
+   [:label.settings-label {:for "source-speed"} "Source speed"]
+   [:select#source-speed.settings-input
+    {:value (if speed (str speed) "")
+     :on-change #(let [v (.. % -target -value)]
+                   (when-not (str/blank? v)
+                     (dispatch/dispatch! {:kind "set-source-speed"
+                                          :source-id source-id
+                                          :speed (js/parseFloat v)})))}
+    [:option {:value "" :disabled true} "Global speed"]
+    (for [s speed-choices]
+      ^{:key s}
+      [:option {:value (str s)} (speed-label s)])]])
+
 (defn source-page [source-id]
   (let [source (->> (:sources (views/source-list @state/app-state))
                     (filter #(= source-id (:source-id %)))
@@ -405,7 +458,8 @@
          [:h2.source-page-title (or (:title source) (:feed-url source))]
          (when (:author source)
            [:p.source-page-author (:author source)])
-         [source-actions source-id]]])
+         [source-actions source-id]
+         [source-settings source]]])
      [:h2.section-label "Episodes"]
      (if (empty? episodes)
        [:p.empty-state "No episodes yet — try Refresh."]
@@ -418,11 +472,6 @@
 ;; spec notes there is no configuring intent anywhere in the contexts.
 (def ^:private skip-forward-seconds 30)
 (def ^:private skip-back-seconds 15)
-
-(def ^:private speed-choices [0.5 0.75 1 1.25 1.5 2 2.5 3])
-
-(defn- speed-label [speed]
-  (str speed "x"))
 
 (defn- player-progress
   "Elapsed m:ss · interactive seek bar · total m:ss. The bar works in seconds;
@@ -496,27 +545,31 @@
        [speed-select speed]]]]))
 
 (defn settings-panel []
-  (let [k (r/atom (or (store/elevenlabs-key) ""))
-        v (r/atom (or (store/elevenlabs-voice) ""))]
+  (let [k (r/atom (or (store/elevenlabs-key) ""))]
     (fn []
       [:section.settings
        [:h2.section-label "Settings"]
+       ;; The default voice (slice 08 ticket 01): a unified select over the
+       ;; enumerated voices, dispatching set-voice immediately — a voice
+       ;; choice is a domain intent, not edge configuration (this supersedes
+       ;; the slice-01 ElevenLabs-only select). The placeholder is disabled:
+       ;; there is no unset-default-voice intent.
+       [:label.settings-label {:for "voice-setting"} "Voice"]
+       [:select#voice-setting.settings-input
+        {:value (or (:voice-id (views/player-view @state/app-state)) "")
+         :on-change #(let [v (.. % -target -value)]
+                       (when-not (str/blank? v)
+                         (dispatch/dispatch! {:kind "set-voice" :voice-id v})))}
+        [:option {:value "" :disabled true} "Provider default"]
+        (voice-options)]
        [:label.settings-label {:for "elevenlabs-key"} "ElevenLabs API key"]
        [:input#elevenlabs-key.settings-input
         {:type "password" :placeholder "xi-api-key (optional)"
          :value @k :on-change #(reset! k (.. % -target -value))}]
-       (when-let [voices @state/elevenlabs-voices]
-         [:<>
-          [:label.settings-label {:for "elevenlabs-voice"} "Voice"]
-          [:select#elevenlabs-voice.settings-input
-           {:value @v :on-change #(reset! v (.. % -target -value))}
-           (for [voice voices]
-             ^{:key (:voice-id voice)}
-             [:option {:value (:voice-id voice)} (:name voice)])]])
        [:div.settings-actions
         [:button.btn.btn-primary
          {:on-click (fn []
-                      (store/save-elevenlabs! @k @v)
+                      (store/save-elevenlabs-key! @k)
                       (if (str/blank? @k)
                         (reset! state/elevenlabs-voices nil)
                         (speech/fetch-voices! @k))
