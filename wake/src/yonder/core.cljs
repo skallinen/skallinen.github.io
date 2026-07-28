@@ -130,6 +130,51 @@
   [speed]
   (.toFixed speed 2))
 
+(defn format-leg-time
+  "Short human date-time for the hover tooltip, in the viewer's timezone"
+  [iso]
+  (.toLocaleString (js/Date. iso) "en-GB"
+                   #js {:day "numeric" :month "short"
+                        :hour "2-digit" :minute "2-digit"}))
+
+(defn haversine-nm
+  "Great-circle distance between two coordinates in nautical miles"
+  [lat1 lon1 lat2 lon2]
+  (let [rad #(* % (/ js/Math.PI 180))
+        dlat (rad (- lat2 lat1))
+        dlon (rad (- lon2 lon1))
+        a (+ (* (js/Math.sin (/ dlat 2)) (js/Math.sin (/ dlat 2)))
+             (* (js/Math.cos (rad lat1)) (js/Math.cos (rad lat2))
+                (js/Math.sin (/ dlon 2)) (js/Math.sin (/ dlon 2))))]
+    (* 3440.065 2 (js/Math.atan2 (js/Math.sqrt a) (js/Math.sqrt (- 1 a))))))
+
+(defn track-distance-nm
+  "Distance sailed along the (downsampled) track, in nautical miles"
+  [track-data]
+  (let [pts (keep (fn [point]
+                    (let [lat (js/parseFloat (get point "lat"))
+                          lon (js/parseFloat (get point "lon"))]
+                      (when (and (not (js/isNaN lat)) (not (js/isNaN lon)))
+                        [lat lon])))
+                  track-data)]
+    (reduce + 0 (map (fn [[[lat1 lon1] [lat2 lon2]]]
+                       (haversine-nm lat1 lon1 lat2 lon2))
+                     (partition 2 1 pts)))))
+
+(defn track-tooltip-html
+  "Leg name with departure, arrival, distance and duration from the track data"
+  [track-name track-data]
+  (let [dep (get (first track-data) "time")
+        arr (get (last track-data) "time")
+        ms (- (.getTime (js/Date. arr)) (.getTime (js/Date. dep)))
+        hours (js/Math.floor (/ ms 3600000))
+        mins (js/Math.round (/ (mod ms 3600000) 60000))
+        nm (js/Math.round (track-distance-nm track-data))]
+    (str "<strong>" track-name "</strong><br>"
+         "Departed " (format-leg-time dep) "<br>"
+         "Arrived " (format-leg-time arr) "<br>"
+         nm " nm &middot; " hours " h " mins " min")))
+
 (defn create-track-with-points
   "Create a track with line, individual point markers, and separate start/end markers"
   [track-data track-color track-name]
@@ -186,6 +231,16 @@
       ;; Add line to group if it exists
       (when track-line
         (.addTo track-line track-line-group)
+
+        ;; Invisible wide line on top as an easy hover target with leg info
+        (let [hit-line (js/L.polyline (clj->js @track-points)
+                                      #js {:color "#000000"
+                                           :weight 14
+                                           :opacity 0})]
+          (.bindTooltip hit-line
+                        (track-tooltip-html track-name track-data)
+                        #js {:sticky true :className "track-tooltip"})
+          (.addTo hit-line track-line-group))
 
         ;; Add start and end markers to separate group (zoom level 8+ visibility)
         (when (seq @track-points)

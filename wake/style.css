@@ -387,3 +387,15 @@ body,
   height: 16px;
   opacity: 0.85;
 }
+
+/* Track hover tooltip */
+.track-tooltip {
+  background: #FFFFF0;
+  border: 1px solid #E5E0CC;
+  color: #333333;
+  font-family: var(--font);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding: 6px 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+}

@@ -9,7 +9,7 @@
 <body>
 <nav class="site-nav"><a href="index.html">Map</a><a href="blog.html">Blog</a><a href="boat.html">Boat</a><a href="wiki.html">Wiki</a></nav>
 <main>
-<h1>Blog</h1><ul class="page-list"><li><span class="date">2026-07-27</span><a href="blog/2026-07-27-home-waters.html">Home waters</a></li><li><span class="date">2026-07-24</span><a href="blog/2026-07-24-thirty-minutes-at-a-time.html">Thirty minutes at a time</a></li><li><span class="date">2026-07-05</span><a href="blog/2026-07-05-crossing-to-ventspils.html">Crossing to Ventspils</a></li></ul>
+<h1>Blog</h1><div class="sort-toggle"><button class="active" type="button">Chronological</button><button type="button">Latest first</button></div><ul class="page-list" id="sortable-list"><li><span class="date">2026-07-05</span><a href="blog/2026-07-05-crossing-to-ventspils.html">Crossing to Ventspils</a></li><li><span class="date">2026-07-24</span><a href="blog/2026-07-24-thirty-minutes-at-a-time.html">Thirty minutes at a time</a></li><li><span class="date">2026-07-27</span><a href="blog/2026-07-27-home-waters.html">Home waters</a></li></ul><script>document.querySelectorAll('.sort-toggle button').forEach(function(b){b.addEventListener('click',function(){if(b.classList.contains('active'))return;document.querySelectorAll('.sort-toggle button').forEach(function(x){x.classList.toggle('active');});var ul=document.getElementById('sortable-list');Array.prototype.slice.call(ul.children).reverse().forEach(function(li){ul.appendChild(li);});});});</script>
 </main>
 </body>
 </html>
