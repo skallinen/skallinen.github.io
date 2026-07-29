@@ -232,17 +232,25 @@
 ;; its extension — the spec-level decision in docs/plan/07-documents/plan.md)
 ;; ---------------------------------------------------------------------------
 
+(defn- extension-start
+  "Where this name's file extension begins — the index of the dot — or nil
+   when it carries no extension. Only a suffix that actually looks like an
+   extension counts: a short run starting with a letter. So a dotted
+   identifier (`1706.03762`), a bare dotfile (`.hidden`) and an undotted name
+   carry none."
+  [name]
+  (let [n (str name)
+        i (str/last-index-of n ".")]
+    (when (and i (pos? i)
+               (re-matches #"[A-Za-z][A-Za-z0-9]{0,4}" (subs n (inc i))))
+      i)))
+
 (defn file-name-sans-extension
   "The file name without its last extension; a name with no extension (or a
-   bare dotfile) is kept whole. Only a suffix that actually looks like an
-   extension counts — a short run starting with a letter — so a dotted
-   identifier (a document address ending in `1706.03762`) keeps all of itself."
+   bare dotfile) is kept whole."
   [file-name]
-  (let [n (str file-name)
-        i (str/last-index-of n ".")]
-    (if (and i (pos? i) (re-matches #"[A-Za-z][A-Za-z0-9]{0,4}" (subs n (inc i))))
-      (subs n 0 i)
-      n)))
+  (let [n (str file-name)]
+    (if-let [i (extension-start n)] (subs n 0 i) n)))
 
 (defn document-title
   "The document's embedded metadata title, falling back to the file name
@@ -352,17 +360,35 @@
   [url]
   (or (url-last-segment url) (url-host url)))
 
+(defn merely-a-file-name?
+  "Is this recorded title a file name rather than the name of a work (since
+   13-document-naming)? True for a **bare name carrying a file extension**:
+   one unbroken run of characters — no whitespace anywhere — that ends in a
+   suffix `file-name-sans-extension` recognises as a genuine extension.
+   `blei03a.dvi` and `report_final_v3.docx` are file names; `1706.03762` and
+   `NIST.SP.800-63-3` are not (a dotted identifier is not an extension), and
+   neither is anything with a space in it — a title that merely contains a
+   dot, `PostgreSQL 16.14 Documentation` or a sentence with a full stop, is
+   prose and stays."
+  [title]
+  (let [s (str/trim (str title))]
+    (boolean (and (not (str/blank? s))
+                  (not (re-find #"\s" s))
+                  (extension-start s)))))
+
 (defn document-title-for-url
-  "The title of a document retrieved from `url` (since 12-documents-by-address):
-   the document's own embedded title, falling back to a name derived from the
-   address. That name is the last path segment minus a suffix that really is a
-   file extension — `blei03a.pdf` is filed as `blei03a`, the dotted identifier
-   `1706.03762` keeps all of itself. When the address has no segment to name it
-   by, the host names it and is kept whole: a top-level domain is not a file
-   extension, so a document at `https://example.org/` is never called
-   `example`."
+  "The title of a document retrieved from `url` (since 12-documents-by-address;
+   refined by 13-document-naming): the title the document records for itself,
+   unless it records none or what it records is merely a file name — then a
+   name derived from the address. That name is the last path segment minus a
+   suffix that really is a file extension — `blei03a.pdf` is filed as
+   `blei03a`, the dotted identifier `1706.03762` keeps all of itself. When the
+   address has no segment to name it by, the host names it and is kept whole:
+   a top-level domain is not a file extension, so a document at
+   `https://example.org/` is never called `example`."
   [metadata-title url]
-  (if (str/blank? (str metadata-title))
+  (if (or (str/blank? (str metadata-title))
+          (merely-a-file-name? metadata-title))
     (if-let [segment (url-last-segment url)]
       (file-name-sans-extension segment)
       (url-host url))
