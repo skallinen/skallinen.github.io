@@ -83,15 +83,19 @@
   "Effect: speak the item's sentence chunks from the given chunk index.
    Each chunk boundary is the periodic progress process (ticket 06): it
    dispatches record-position so positions survive across sessions.
-   The effective voice and the live speed are recomputed from the folded
-   state at every (re)start (since 08-voices-and-settings)."
+   The live speed is recomputed at every (re)start; the voice is NOT — it is
+   the voice the current item is being heard in, the fact the player folds
+   from playback-started (since 15-voice-rotation; before that a recompute
+   here always returned the same answer). Re-deriving it from the rotation
+   at a restart is the defect the stability scenarios exist to catch."
   [item-id position]
   (let [content (get-in @state/app-state [:items item-id :content])
         chunks (domain/chunks (or content ""))]
     (reset! state/speech-position position)
     (speech/speak! chunks position
                    {:rate (live-speed)
-                    :voice (domain/effective-voice @state/app-state item-id)
+                    :item-id item-id ; scopes the made-ready clips (since 19)
+                    :voice (get-in @state/app-state [:player :item-voice])
                     :on-chunk (fn [i]
                                 (reset! state/speech-position i)
                                 (dispatch! {:kind "record-position" :position i}))
@@ -140,14 +144,28 @@
       (speech/stop!)
       (start-speech! item-id position))))
 
+(defn- re-voice-current!
+  "A statement of the rotation (either intent's event) takes effect from the
+   current position — but only when the rotation is what decides the current
+   item's voice: a recording, or a source whose override wins, restarts
+   nothing (slice 08's conditional, restated for the rotation by 15). By the
+   time this runs the fold already holds the new first voice as :item-voice,
+   so the restart simply asks for it."
+  []
+  (let [item-id (get-in @state/app-state [:player :item-id])]
+    (when (and item-id (domain/rotation-decides? @state/app-state item-id))
+      (restart-speech! @state/speech-position))))
+
 (defn- run-effects!
   "Side effects at the edges; business logic stays in the deciders (§9)."
   [event]
   (case (:kind event)
     "playback-started" (start-playback! (:item-id event) (:position event))
     "playback-resumed" (start-playback! (:item-id event) (:position event))
+    ;; pause keeps the made-ready clips — resume replays them (slice 19);
+    ;; a finished item lets them go whole, as does another item's speak!
     "playback-paused"  (do (speech/stop!) (audio/stop!))
-    "item-finished"    (do (speech/stop!) (audio/stop!))
+    "item-finished"    (do (speech/stop!) (speech/drop-made-ready!) (audio/stop!))
     ;; seek/skip while playing move the live playback (a seek on the audio
     ;; element, a re-speak from the chunk for text); record-position events
     ;; never seek/restart because the edge updates the live position first
@@ -166,15 +184,11 @@
     "speed-changed"    (if (audio/playing?)
                          (audio/set-rate! (:speed event))
                          (restart-speech! @state/speech-position))
-    ;; a default-voice change takes effect from the current position — but
-    ;; only when it can alter the heard voice: speech must be running and the
-    ;; new default must be what the current item resolves to (a recording, or
-    ;; a source whose override wins, restarts nothing — ticket 01)
-    "voice-set"        (let [item-id (get-in @state/app-state [:player :item-id])]
-                         (when (and item-id
-                                    (= (:voice-id event)
-                                       (domain/effective-voice @state/app-state item-id)))
-                           (restart-speech! @state/speech-position)))
+    ;; a statement of the voices — one voice or several, one setting —
+    ;; takes effect from the current position when the rotation decides the
+    ;; current item's voice (since 15-voice-rotation)
+    "voice-set"          (re-voice-current!)
+    "voice-rotation-set" (re-voice-current!)
     ;; the sleep countdown edge process follows the timer's lifecycle: a
     ;; duration timer (re)starts it (set-again replaces), an end-of-item
     ;; timer needs none, cancel/expiry stop it (since 10)

@@ -53,17 +53,59 @@
                          ;; chapter-like divisions (since 10-sleep-chapters-history)
                          (:sections item) (assoc :sections (:sections item))))))})
 
+(defn- followed-sources
+  "Which sources the reader currently follows — the one definition, used by
+   the `source-list` projection (which then orders them and counts them) and
+   by the membership test below (which needs neither). An unsubscribed source
+   is `removed` and drops out. Since 05-podcast-feeds, extracted since
+   16-library-membership so that \"followed\" is said once."
+  [state]
+  (filter #(= "active" (:state %)) (vals (:sources state))))
+
+(defn followed-source-ids
+  "The sources the reader currently follows, as a set of ids — exactly the
+   sources the `library-sources` query answers with.
+
+   Membership in `library-items` and in `latest-from-sources` is by
+   FOLLOWING, not by carrying a source id. The weaker test reads simpler and
+   is wrong: unsubscribing does not delete a source's items (the `source`
+   authority) and it removes the source's page, so under \"has an
+   origin.source-id\" those items would be listed nowhere at all. Resolved
+   once here so the two queries cannot drift (library-items.md, Membership;
+   latest-from-sources.md, Membership). Since 16-library-membership."
+  [state]
+  (into #{} (map :source-id) (followed-sources state)))
+
+(defn- of-followed-source?
+  "Does this item-list row belong to a source the reader currently follows?
+   A row with no origin, or one naming a source nobody follows, does not."
+  [row followed]
+  (contains? followed (get-in row [:origin :source-id])))
+
 (defn- library-row-visible?
-  "The library-items filter block (all clauses AND together). Without a
-   status filter archived items stay out of view — archived means \"out of
-   active views\" (item-archived.md; decision in 06-library/decisions.md)."
-  [row {:keys [status kind starred source-id]}]
+  "The library-items filter block (all clauses AND together).
+
+   Two clauses both narrow AND reveal, which is the one shape this query was
+   always built on:
+   - without a status filter, archived items stay out of view — archived
+     means \"out of active views\" (item-archived.md; 06-library);
+   - without a source-id filter, the items of a FOLLOWED source stay out of
+     view, because they are listed on that source's own page and in
+     `latest-from-sources`; naming the source is how the reader asks for
+     them. Since 16-library-membership — until then the unfiltered answer
+     held every item in the library, a followed source's included.
+
+   This block never consults the queue: a queued item is still listed here,
+   and so is the one the player is holding (library-items.md)."
+  [row {:keys [status kind starred source-id]} followed]
   (and (if status
          (= status (:status row))
          (not= "archived" (:status row)))
+       (if source-id
+         (= source-id (get-in row [:origin :source-id]))
+         (not (of-followed-source? row followed)))
        (or (nil? kind) (= kind (:kind row)))
-       (or (nil? starred) (= starred (:starred row)))
-       (or (nil? source-id) (= source-id (get-in row [:origin :source-id])))))
+       (or (nil? starred) (= starred (:starred row)))))
 
 (defn- descending [a b] (compare b a))
 
@@ -107,32 +149,118 @@
     (vec (sort-by key-fn cmp rows))))
 
 (defn library-items
-  "docs/contexts/library/read-models/library-items.md — the query: item-list
-   rows, optionally filtered (status | kind | starred | source-id) and
-   ordered (default date-newest-first, over the item's own date). Since
-   06-library; the two date choices redefined since 11-item-ordering."
+  "docs/contexts/library/read-models/library-items.md — the query: the items
+   the reader added themselves, optionally filtered (status | kind | starred
+   | source-id) and ordered (default date-newest-first, over the item's own
+   date). Naming a source-id reveals that source's items instead. Since
+   06-library; the two date choices redefined since 11-item-ordering; the
+   membership narrowed since 16-library-membership."
   ([state] (library-items state nil))
   ([state {row-filter :filter sort-key :sort}]
-   {:items (-> (->> (:items (item-list state))
-                    (filter #(library-row-visible? % row-filter)))
-               (order-library-rows sort-key))}))
+   (let [followed (followed-source-ids state)]
+     {:items (-> (->> (:items (item-list state))
+                      (filter #(library-row-visible? % row-filter followed)))
+                 (order-library-rows sort-key))})))
+
+(def ^:private unplayed-statuses
+  "item-list.md, \"An unplayed item\": the reader has neither played it nor
+   put it away. Defined once, because two surfaces count unplayed items and
+   must count the same ones — the per-source tally on `source-list` and the
+   membership of `latest-from-sources`. Since 16-library-membership."
+  #{"new" "in-progress"})
+
+(defn- unplayed? [item] (contains? unplayed-statuses (:status item)))
 
 (defn source-list
   "docs/contexts/library/read-models/source-list.md — followed sources with
    display metadata (assembled from feed ingests), oldest subscription first;
    removed sources drop out. Answers the `library-sources` query. Since
-   05-podcast-feeds."
+   05-podcast-feeds; the order stated in the docs, and the per-source
+   :unplayed-count added, since 16-library-membership.
+
+   The count is of the source's WHOLE catalogue as the reader holds it — it
+   deliberately does not exclude what is in the queue, because queueing an
+   episode is not hearing it (source-list.md; plan decision 8). That is the
+   one place where it and `latest-from-sources` differ, and it is intended."
   [state]
-  {:sources (->> (vals (:sources state))
-                 (filter #(= "active" (:state %)))
-                 ;; total key (11-item-ordering): sources subscribed in the
-                 ;; same instant are still settled relative to each other
-                 (sort-by (juxt :subscribed-at :source-id))
-                 (mapv #(select-keys % [:source-id :feed-url :title :author
-                                        :artwork-url :subscribed-at
-                                        ;; per-source overrides, when set
-                                        ;; (since 08-voices-and-settings)
-                                        :voice-id :speed])))})
+  (let [unplayed-per-source (->> (vals (:items state))
+                                 (filter unplayed?)
+                                 (keep #(get-in % [:origin :source-id]))
+                                 frequencies)]
+    {:sources (->> (followed-sources state)
+                   ;; total key (11-item-ordering): sources subscribed in the
+                   ;; same instant are still settled relative to each other
+                   (sort-by (juxt :subscribed-at :source-id))
+                   (mapv #(-> (select-keys % [:source-id :feed-url :title :author
+                                              :artwork-url :subscribed-at
+                                              ;; per-source overrides, when set
+                                              ;; (since 08-voices-and-settings)
+                                              :voice-id :speed])
+                              (assoc :unplayed-count
+                                     (get unplayed-per-source (:source-id %) 0)))))}))
+
+;; -- Latest from sources (since 16-library-membership) -----------------------
+
+(declare player-view)
+
+(def ^:private latest-bound
+  "latest-from-sources.md, \"The bound\": at most ten. A count, not a period
+   of time — a window would make the answer depend on the moment it was
+   asked, so it could not be fully determined. There is deliberately no way
+   to ask for more, and no input to this query at all."
+  10)
+
+(defn- spoken-for-item-ids
+  "What playback has already taken: everything in the queue, plus the item
+   the player has in hand while it is playing or paused (nothing while idle).
+
+   Read from the existing playback read models, NOT re-folded here. \"What is
+   queued\" must have exactly one answer in this app; a second fold of the
+   queue's events living in `library` is the two-answers-to-one-question
+   shape 11-item-ordering had to remove (latest-from-sources.md, \"What the
+   answer is built from\")."
+  [state]
+  (let [pv (player-view state)]
+    (cond-> (into #{} (map :item-id) (:items (queue-view state)))
+      (contains? #{"playing" "paused"} (:state pv))
+      (conj (get-in pv [:item :item-id])))))
+
+(defn latest-from-sources
+  "docs/contexts/library/read-models/latest-from-sources.md — the query: what
+   has arrived from the sources the reader follows and is not yet spoken for.
+   At most ten, newest first by the item's own date. Since
+   16-library-membership.
+
+   Three membership clauses, ANDed: the item belongs to a source the reader
+   currently follows; it is unplayed (`new` or `in-progress` — item-list.md);
+   and playback does not hold it. Custody, not queue membership, is the test:
+   an item dequeued to be played passed into the player's hands rather than
+   back to the reader, and stays out; an item begun in an EARLIER session
+   with the player idle is held by nobody and is listed — what is excluded is
+   custody, not progress.
+
+   QUALIFY, ORDER, THEN TAKE TEN — in that order and no other. Taking ten
+   first and dropping the spoken-for ones afterwards is a different rule with
+   a different answer: it would silently shrink the surface on exactly the
+   day the reader had used it most, while items that plainly qualified sat
+   below the cut unshown. Written in this order there is nowhere for the
+   wrong version to hide.
+
+   The order is `date-newest-first`, reached through the very same
+   order-library-rows the library query answers through, so an item cannot
+   sit in a different position in two places that both show the newest
+   first — and its final tiebreak is what makes the BOUND determinate, since
+   an undetermined order at the boundary is an undetermined tenth item."
+  [state]
+  (let [followed (followed-source-ids state)
+        spoken-for (spoken-for-item-ids state)
+        qualifying (->> (:items (item-list state))
+                        (filter #(of-followed-source? % followed))
+                        (filter unplayed?)
+                        (remove #(contains? spoken-for (:item-id %))))]
+    {:items (->> (order-library-rows qualifying "date-newest-first")
+                 (take latest-bound)
+                 vec)}))
 
 (def ^:private live-ingest-states #{"requested" "fetching" "failed"})
 
@@ -163,18 +291,22 @@
   "docs/contexts/playback/read-models/player-view.md — what the player is
    doing right now. Answers the `now-playing` query. :speed is the effective
    one — the playing item's speed when it carries an override, the global
-   setting otherwise; :voice-id is always the global default (the effective
-   voice is observable only in the heard speech — plan.md 08 spec notes).
+   setting otherwise. :voice-ids is the voice rotation — the picked voices in
+   the order they are heard; since 15-voice-rotation it REPLACES the single
+   string :voice-id (01…14, the one global default voice), and a reader who
+   chose one voice reads back as an array of one. It is always the SETTING,
+   never the voice of the item in hand — the effective voice is observable
+   only in the heard speech (plan.md 08 spec notes, kept by 15).
    Since 10-sleep-chapters-history the item carries its :sections and the
    armed :sleep-timer shows {mode, remaining} — remaining is the armed
    duration (the live countdown is edge runtime, not folded state)."
   [state]
-  (let [{player-state :state :keys [item-id position speed item-speed voice-id
-                                    sleep-timer]}
+  (let [{player-state :state :keys [item-id position speed item-speed
+                                    voice-rotation sleep-timer]}
         (:player state)]
     (cond-> {:state player-state :position position
              :speed (or item-speed speed 1)}
-      voice-id (assoc :voice-id voice-id)
+      (seq (:voice-ids voice-rotation)) (assoc :voice-ids (:voice-ids voice-rotation))
       item-id (assoc :item (let [item (get-in state [:items item-id])]
                              (cond-> (display-item item)
                                (:sections item) (assoc :sections (:sections item)))))

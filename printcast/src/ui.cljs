@@ -89,17 +89,22 @@
 
 (defn- voice-options
   "Option groups for a voice select: the enumerated voices grouped by
-   provider (ticket 04), in first-appearance order. Returns a realized seq —
-   a seq child renders as a fragment (a vector would be read as hiccup)."
+   provider (slice 08 ticket 04), in the order speech/available-voices offers
+   them (slice 14: configured services first, the platform's own built-in
+   voices last, each group by name). Groups are contiguous under that order,
+   so first-appearance grouping emits them in it. Shared by the global voice
+   setting and a source's own, which is how the two agree by construction
+   rather than by coincidence. Returns a realized seq — a seq child renders
+   as a fragment (a vector would be read as hiccup)."
   []
-  (let [voices (speech/available-voices)]
-    (doall
-     (for [provider (distinct (map :provider voices))]
-       ^{:key provider}
-       [:optgroup {:label provider}
-        (for [{:keys [voice-id name]} (filter #(= provider (:provider %)) voices)]
-          ^{:key voice-id}
-          [:option {:value voice-id} name])]))))
+  (doall
+   (for [group (partition-by :provider (speech/available-voices))
+         :let [provider (:provider (first group))]]
+     ^{:key provider}
+     [:optgroup {:label provider}
+      (for [{:keys [voice-id name]} group]
+        ^{:key voice-id}
+        [:option {:value voice-id} name])])))
 
 ;; -- Sources (slice 05: follow a podcast feed) -------------------------------
 
@@ -138,7 +143,8 @@
       [:button.btn {:on-click subscribe!} "Subscribe"]]
      (when (seq sources)
        [:ul.source-list
-        (for [{:keys [source-id feed-url title author artwork-url voice-id speed]} sources]
+        (for [{:keys [source-id feed-url title author artwork-url voice-id speed
+                      unplayed-count]} sources]
           ^{:key source-id}
           [:li.source-item
            (when artwork-url
@@ -147,6 +153,12 @@
             [:a.source-title {:href (str "#/source/" source-id)}
              (or title feed-url)]
             (when author [:span.source-author author])
+            ;; How many of this source are still to hear (since 16). Shown
+            ;; only when there is something: a zero is noise — the row's job
+            ;; is to say where to go next, and "nothing here" is said better
+            ;; by silence than by a badge reading nought (ticket 04).
+            (when (pos? (or unplayed-count 0))
+              [:span.source-unplayed (str unplayed-count " unplayed")])
             ;; the per-source overrides, when set (since 08)
             (when voice-id [:span.source-voice (speech/voice-name voice-id)])
             (when speed [:span.source-speed (speed-label speed)])]
@@ -402,11 +414,39 @@
 (defn library-section []
   (let [{:keys [items]} (views/library-items @state/app-state (library-query))]
     [:section.library
-     [:h2.section-label "Library"]
+     ;; "Saved" since 16-library-membership: the list holds the items the
+     ;; reader added themselves, so a heading reading "Library" would be a
+     ;; plain lie — a followed source's items are obviously in their library,
+     ;; they are merely listed elsewhere. The query id and the context keep
+     ;; their names; only the reader-facing word changes (plan decision 4).
+     [:h2.section-label "Saved"]
      [library-controls]
      (if (empty? items)
        [:p.empty-state "Nothing here — paste something above, or relax the filters."]
        [:ul.library-list
+        (for [item items]
+          ^{:key (:item-id item)}
+          [library-row item])])]))
+
+;; -- Latest from followed sources (slice 16 ticket 03) -----------------------
+;; Sits directly under Following on the page: the reader meets the sources
+;; they follow and then what those sources have sent, before the queue and
+;; before Saved. Rows carry the same affordances a list row carries anywhere
+;; else — including putting an item in the queue, which takes the row out of
+;; THIS list and moves the next-newest qualifying item up into it. The row
+;; does not vanish from the page: it is in Up next, a few centimetres below,
+;; which is why the two sections are worth keeping visibly adjacent.
+
+(defn latest-section []
+  (let [{:keys [items]} (views/latest-from-sources @state/app-state)]
+    [:section.latest
+     [:h2.section-label "Latest"]
+     (if (empty? items)
+       ;; Empty is a NORMAL state here and it says something true — everything
+       ;; that arrived is lined up or heard. It must not read as an error.
+       [:p.empty-state
+        "Nothing new waiting — everything your shows have sent is lined up or heard."]
+       [:ul.latest-list
         (for [item items]
           ^{:key (:item-id item)}
           [library-row item])])]))
@@ -441,23 +481,35 @@
       ^{:key s}
       [:option {:value (str s)} (speed-label s)])]])
 
+;; Which source's archived episodes are on show, or nil. Held as the source's
+;; own id rather than a boolean so that walking to another source's page
+;; starts on that source's episodes rather than inheriting a reveal.
+(defonce ^:private archived-source-shown (r/atom nil))
+
 (defn source-page [source-id]
   (let [source (->> (:sources (views/source-list @state/app-state))
                     (filter #(= source-id (:source-id %)))
                     first)
-        ;; Newest published first, through the very same ordering the
-        ;; library-items query uses (views/order-library-rows), so this page
-        ;; and the library narrowed to this source cannot give different
-        ;; orders — the slice-11 spec asserts they agree. Membership is still
-        ;; every item-list row of this source, archived ones included: this
-        ;; is the show's own page, and the spec constrains its order, not
-        ;; what it holds (decision in 11-item-ordering/decisions.md).
-        episodes (views/order-library-rows
-                  (filter #(= source-id (get-in % [:origin :source-id]))
-                          (:items (views/item-list @state/app-state)))
-                  "date-newest-first")]
+        archived? (= source-id @archived-source-shown)
+        ;; THE PAGE IS THE QUERY NARROWED TO THIS SOURCE — nothing else.
+        ;; library-items.md has said so since 11-item-ordering while this page
+        ;; assembled its own list from item-list rows, so archived episodes
+        ;; appeared here and in no other answer to the same question (the
+        ;; standing gap, HANDOVER §9 [11]). The docs win: asking the query is
+        ;; now the only path from the projection to any list of a source's
+        ;; items, so the page and the library narrowed to this source cannot
+        ;; drift apart again — order, membership and archived rule alike.
+        ;; The queue is NOT consulted here: a source's page is the reader's
+        ;; whole record of a show, and an episode dropping off it because it
+        ;; was lined up would be a worse version of the complaint this slice
+        ;; exists to fix. Only Latest excludes what playback holds.
+        episodes (:items (views/library-items
+                          @state/app-state
+                          {:filter (cond-> {:source-id source-id}
+                                     archived? (assoc :status "archived"))
+                           :sort "date-newest-first"}))]
     [:section.source-page
-     [:a.back-link {:href "#/"} "‹ Library"]
+     [:a.back-link {:href "#/"} "‹ Home"]
      (if (nil? source)
        [:p.empty-state "This source is no longer followed."]
        [:div.source-page-header
@@ -469,9 +521,20 @@
            [:p.source-page-author (:author source)])
          [source-actions source-id]
          [source-settings source]]])
-     [:h2.section-label "Episodes"]
+     [:div.source-episodes-header
+      [:h2.section-label (if archived? "Archived" "Episodes")]
+      ;; The reveal SWAPS the list rather than adding to it, so the label says
+      ;; so: a control that promises to add rows and instead replaces them is
+      ;; the kind of surprise this slice exists to remove (ticket 02).
+      [:button.btn.btn-small
+       {:on-click #(swap! archived-source-shown
+                          (fn [shown] (when-not (= shown source-id) source-id)))}
+       (if archived? "Show episodes" "Show archived only")]]
      (if (empty? episodes)
-       [:p.empty-state "No episodes yet — try Refresh."]
+       [:p.empty-state
+        (if archived?
+          "Nothing archived from this source."
+          "No episodes yet — try Refresh.")]
        [:ul.library-list
         (for [item episodes]
           ^{:key (:item-id item)}
@@ -566,19 +629,47 @@
 (defn- player-progress
   "Elapsed m:ss · interactive seek bar · total m:ss. The bar works in seconds;
    the domain position is the chunk index for text (seconds→chunk conversion
-   at this edge, ticket 01) and seconds for a recording (since 05)."
+   at this edge, ticket 01) and seconds for a recording (since 05).
+
+   A pointer gesture settles to ONE seek (since 19, ticket 03): while the
+   hand is moving, the bar tracks it locally — edge-local display state, like
+   any draft field — and the seek the reader actually requested is dispatched
+   where the gesture settles, at its release. The twenty intermediate
+   positions were never requests, they were the input element's stutter.
+   Keyboard operation keeps dispatching per step: there each step IS the
+   request. A click with no travel settles immediately; a press released
+   without any change dispatches nothing, exactly as before."
   [item duration elapsed]
-  [:div.player-progress
-   [:span.player-position (views/format-position elapsed)]
-   [:input.progress-bar
-    {:type "range" :aria-label "Progress"
-     :min 0 :max duration :step 1 :value elapsed
-     :on-change #(dispatch/dispatch!
-                  {:kind "seek"
-                   :position (domain/position-for-seconds
-                              item
-                              (js/parseInt (.. % -target -value) 10))})}]
-   [:span.player-duration (views/format-position duration)]])
+  (let [drag (r/atom nil)] ; {:secs n :moved? bool} while a gesture is in flight
+    (fn [item duration elapsed]
+      (let [seek! (fn [secs]
+                    (dispatch/dispatch!
+                     {:kind "seek"
+                      :position (domain/position-for-seconds item secs)}))
+            settle! (fn [_]
+                      (when-let [{:keys [secs moved?]} @drag]
+                        (reset! drag nil)
+                        (when moved? (seek! secs))))]
+        [:div.player-progress
+         [:span.player-position (views/format-position (or (:secs @drag) elapsed))]
+         [:input.progress-bar
+          {:type "range" :aria-label "Progress"
+           :min 0 :max duration :step 1 :value (or (:secs @drag) elapsed)
+           :on-pointer-down
+           (fn [e]
+             (reset! drag {:secs (js/parseInt (.. e -target -value) 10)}))
+           ;; the release is the settle; lost capture is the safety net so a
+           ;; gesture ending off the element can never leave the bar stuck
+           :on-pointer-up settle!
+           :on-lost-pointer-capture settle!
+           :on-pointer-cancel (fn [_] (reset! drag nil))
+           :on-change
+           (fn [e]
+             (let [secs (js/parseInt (.. e -target -value) 10)]
+               (if @drag
+                 (swap! drag assoc :secs secs :moved? true)
+                 (seek! secs))))}]
+         [:span.player-duration (views/format-position duration)]]))))
 
 (defn- skip-button [direction seconds enabled?]
   [:button.btn.btn-small.btn-icon
@@ -640,39 +731,84 @@
          [sleep-timer-select (:sleep-timer pv)])]]]))
 
 (defn settings-panel []
-  (let [k (r/atom (or (store/elevenlabs-key) ""))]
+  (let [k (r/atom (or (store/elevenlabs-key) ""))
+        ;; the last refused voice statement's reason — a control that
+        ;; silently does nothing is indistinguishable from a broken one
+        ;; (slice 15 ticket 03); an accepted statement clears it
+        note (r/atom nil)
+        say! (fn [intent]
+               (let [res (dispatch/dispatch! intent)]
+                 (reset! note (when-not (:ok? res) (:reason res)))))
+        ;; read at DISPATCH time, not render time: Reagent re-renders
+        ;; asynchronously, so a handler closing over the rendered list would
+        ;; state a stale rotation when picks come quickly
+        picked-now (fn []
+                     (vec (get-in @state/app-state
+                                  [:player :voice-rotation :voice-ids] [])))]
     (fn []
-      [:section.settings
-       [:h2.section-label "Settings"]
-       ;; The default voice (slice 08 ticket 01): a unified select over the
-       ;; enumerated voices, dispatching set-voice immediately — a voice
-       ;; choice is a domain intent, not edge configuration (this supersedes
-       ;; the slice-01 ElevenLabs-only select). The placeholder is disabled:
-       ;; there is no unset-default-voice intent.
-       [:label.settings-label {:for "voice-setting"} "Voice"]
-       [:select#voice-setting.settings-input
-        {:value (or (:voice-id (views/player-view @state/app-state)) "")
-         :on-change #(let [v (.. % -target -value)]
-                       (when-not (str/blank? v)
-                         (dispatch/dispatch! {:kind "set-voice" :voice-id v})))}
-        [:option {:value "" :disabled true} "Provider default"]
-        (voice-options)]
-       [:label.settings-label {:for "elevenlabs-key"} "ElevenLabs API key"]
-       [:input#elevenlabs-key.settings-input
-        {:type "password" :placeholder "xi-api-key (optional)"
-         :value @k :on-change #(reset! k (.. % -target -value))}]
-       [:div.settings-actions
-        [:button.btn.btn-primary
-         {:on-click (fn []
-                      (store/save-elevenlabs-key! @k)
-                      (if (str/blank? @k)
-                        (reset! state/elevenlabs-voices nil)
-                        (speech/fetch-voices! @k))
-                      (reset! state/settings-open? false))}
-         "Save"]
-        [:button.btn {:on-click #(reset! state/settings-open? false)} "Close"]]
-       [:p.settings-note
-        "Without a key, the browser's built-in speech synthesis is used."]])))
+      (let [picked (get-in @state/app-state [:player :voice-rotation :voice-ids] [])]
+        [:section.settings
+         [:h2.section-label "Settings"]
+         ;; The voice (slice 08 ticket 01): a unified select over the
+         ;; enumerated voices, dispatching set-voice immediately — a voice
+         ;; choice is a domain intent, not edge configuration. Choosing here
+         ;; states a rotation of exactly that one voice (since
+         ;; 15-voice-rotation, a fresh statement of the whole setting); the
+         ;; shown value is the rotation's first voice. The placeholder is
+         ;; disabled: there is no unset-voices intent (the slice-08 gap,
+         ;; still open by decision).
+         [:label.settings-label {:for "voice-setting"} "Voice"]
+         [:select#voice-setting.settings-input
+          {:value (or (first picked) "")
+           :on-change #(let [v (.. % -target -value)]
+                         (when-not (str/blank? v)
+                           (say! {:kind "set-voice" :voice-id v})))}
+          [:option {:value "" :disabled true} "Provider default"]
+          (voice-options)]
+         ;; The rotation (slice 15 ticket 03): an ordered list the reader
+         ;; builds — add a voice to the end, remove one, see the order that
+         ;; results. Every change states the WHOLE rotation through one
+         ;; set-voice-rotation, so there is never a partial setting. Both
+         ;; refusals stay reachable: the controls always dispatch and the
+         ;; decider refuses (HANDOVER §8 decision 11).
+         [:label.settings-label {:for "voice-add"} "Add a voice"]
+         [:select#voice-add.settings-input
+          {:value ""
+           :on-change #(let [v (.. % -target -value)]
+                         (when-not (str/blank? v)
+                           (say! {:kind "set-voice-rotation"
+                                  :voice-ids (conj (picked-now) v)})))}
+          [:option {:value "" :disabled true} "Add a voice…"]
+          (voice-options)]
+         (when (seq picked)
+           [:ol.voice-rotation
+            (doall
+             (for [vid picked]
+               ^{:key vid}
+               [:li.voice-rotation-item
+                [:span.voice-rotation-name (speech/voice-name vid)]
+                [:button.btn.btn-ghost.voice-rotation-remove
+                 {:on-click #(say! {:kind "set-voice-rotation"
+                                    :voice-ids (vec (remove #{vid} (picked-now)))})}
+                 "Remove"]]))])
+         (when @note
+           [:p.voice-rotation-note @note])
+         [:label.settings-label {:for "elevenlabs-key"} "ElevenLabs API key"]
+         [:input#elevenlabs-key.settings-input
+          {:type "password" :placeholder "xi-api-key (optional)"
+           :value @k :on-change #(reset! k (.. % -target -value))}]
+         [:div.settings-actions
+          [:button.btn.btn-primary
+           {:on-click (fn []
+                        (store/save-elevenlabs-key! @k)
+                        (if (str/blank? @k)
+                          (reset! state/elevenlabs-voices nil)
+                          (speech/fetch-voices! @k))
+                        (reset! state/settings-open? false))}
+           "Save"]
+          [:button.btn {:on-click #(reset! state/settings-open? false)} "Close"]]
+         [:p.settings-note
+          "Without a key, the browser's built-in speech synthesis is used."]]))))
 
 ;; -- History & stats pages (slice 10 ticket 03: #/history, #/stats) ----------
 
@@ -683,7 +819,7 @@
      ;; (the slice-05 source page follows it with a block header), and the
      ;; section label is a boxed inline-block that would otherwise sit
      ;; alongside it on the same line
-     [:div.page-back [:a.back-link {:href "#/"} "‹ Library"]]
+     [:div.page-back [:a.back-link {:href "#/"} "‹ Home"]]
      [:h2.section-label "History"]
      (if (empty? entries)
        [:p.empty-state "Nothing has been played yet."]
@@ -701,7 +837,7 @@
   (let [{:keys [total-listened items-finished time-saved-by-speed]}
         (views/listening-stats @state/app-state)]
     [:section.stats
-     [:div.page-back [:a.back-link {:href "#/"} "‹ Library"]]
+     [:div.page-back [:a.back-link {:href "#/"} "‹ Home"]]
      [:h2.section-label "Stats"]
      [:dl.stats-list
       [:div.stat
@@ -725,9 +861,14 @@
      "⚙"]]])
 
 (defn- home []
+  ;; One scrolling page, five sections. Latest sits directly under Following
+  ;; (slice 16): the reader meets the shows they follow, then what those shows
+  ;; have sent and nothing has claimed, then what is lined up, then what they
+  ;; saved themselves. "Adding" is transient and appears only mid-capture.
   [:<>
    [capture-box]
    [sources-section]
+   [latest-section]
    [active-ingests-section]
    [queue-section]
    [library-section]])

@@ -196,7 +196,7 @@ section { margin-bottom: 32px; }
 }
 .btn-small { font-size: 0.6rem; padding: 5px 9px; }
 .btn-icon { min-width: 30px; padding: 5px 6px; text-transform: none; }
-.queue-list, .library-list { list-style: none; }
+.queue-list, .library-list, .latest-list { list-style: none; }
 .queue-item, .library-item {
   display: flex;
   align-items: baseline;
@@ -206,6 +206,7 @@ section { margin-bottom: 32px; }
   border-bottom: 1.5px solid var(--black);
 }
 .queue-list .queue-item:first-child,
+.latest-list .library-item:first-child,
 .library-list .library-item:first-child { border-top: 1.5px solid var(--black); }
 .item-title { font-weight: 600; flex: 1; min-width: 0; }
 .item-meta { display: flex; gap: 12px; flex-shrink: 0; }
@@ -473,6 +474,14 @@ section { margin-bottom: 32px; }
   letter-spacing: 0.04em;
   opacity: 0.75;
 }
+/* how many of a source are still to hear (slice 16) */
+.source-unplayed {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
 .source-voice::before { content: "voice "; text-transform: uppercase; opacity: 0.7; }
 .source-speed::before { content: "speed "; text-transform: uppercase; opacity: 0.7; }
 
@@ -569,3 +578,13 @@ section { margin-bottom: 32px; }
   .player-btn { min-width: 84px; }
   .app-container { padding-bottom: 132px; }
 }
+
+/* -- The source page's episodes / archived heading row (slice 16) -- */
+.source-episodes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+.source-episodes-header .section-label { margin-top: 0; }

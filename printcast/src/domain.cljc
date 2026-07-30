@@ -477,6 +477,172 @@
         :else nil))))
 
 ;; ---------------------------------------------------------------------------
+;; The order the voices are offered in (since 14-voice-picker-order; the
+;; order follows a declared alphabet since 18-an-alphabet-not-a-numbering)
+;;
+;; The list of candidate voices is edge state, not a read model — an external
+;; capability read at the UI edge (08-voices-and-settings ticket 04) — and
+;; ordering it does not make it one. What lives here is only the RULE: a total
+;; function from a list of offered voices (and the alphabet in force, an
+;; explicit argument) to the same list in order, reading
+;; no state, no clock and nothing from the interface. It sits with the other
+;; pure rules the edges call (retrieval addressing, document naming) for the
+;; same reason those do: it is unit-testable at a scale the interface cannot
+;; be driven at, and both pickers reach the one ordering instead of each
+;; sorting for itself — which is how the library and a source's page came to
+;; disagree in 11-item-ordering.
+;; ---------------------------------------------------------------------------
+
+;; The alphabet a name is read by (since 18-an-alphabet-not-a-numbering).
+;; It is DATA, not behaviour — declared in the slice's spec layer and
+;; mirrored here like every other contract (WAY-OF-WORKING §5) — because the
+;; conventional alternative, asking the runtime for its collation tables,
+;; gives an answer that varies by machine and runner, and a listing order in
+;; this app must be totally determined (HANDOVER §7). The alphabet in force
+;; is an explicit argument to the ordering rule; today the app has exactly
+;; one, and the caller supplies it as a constant. The day it becomes a
+;; reader's setting, the argument is filled from a fold over the event log
+;; instead — still pure, still replayable, still total.
+
+(def finnish-alphabet
+  "The declared reading alphabet — Finnish, the reader's own. :letters are
+   the letters in order; å, ä and ö are letters in their own right and come
+   after z, not decoration on a and o. :variants each name the letter whose
+   place they take — é is an e and nothing else; ü is a variant of y and w
+   keeps its own place, both ruled by the reader (18/decisions.md,
+   2026-07-29). æ, ø and œ are letters elsewhere and variants here, because
+   the alphabet in force is the reader's and not the name's. Mirrors the
+   table in 18-an-alphabet-not-a-numbering/plan.md; a correction to it is a
+   data change, not a rule change."
+  {:letters ["a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m"
+             "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z"
+             "å" "ä" "ö"]
+   :variants {"á" "a", "à" "a", "â" "a", "ã" "a", "ā" "a", "ă" "a", "ą" "a"
+              "ć" "c", "ĉ" "c", "ċ" "c", "č" "c", "ç" "c"
+              "ď" "d", "đ" "d", "ð" "d"
+              "é" "e", "è" "e", "ê" "e", "ë" "e", "ē" "e", "ĕ" "e", "ė" "e"
+              "ę" "e", "ě" "e"
+              "ĝ" "g", "ğ" "g", "ġ" "g", "ģ" "g"
+              "í" "i", "ì" "i", "î" "i", "ï" "i", "ī" "i", "į" "i", "ı" "i"
+              "ĺ" "l", "ļ" "l", "ľ" "l", "ł" "l"
+              "ń" "n", "ņ" "n", "ň" "n", "ŋ" "n"
+              "ó" "o", "ò" "o", "ô" "o", "õ" "o", "ō" "o", "ŏ" "o"
+              "ŕ" "r", "ř" "r"
+              "ś" "s", "ŝ" "s", "š" "s", "ş" "s"
+              "ť" "t", "ţ" "t", "þ" "t"
+              "ú" "u", "ù" "u", "û" "u", "ū" "u", "ů" "u", "ų" "u"
+              "ü" "y", "ý" "y", "ŷ" "y", "ÿ" "y"
+              "ź" "z", "ż" "z", "ž" "z"
+              "æ" "ä"
+              "ø" "ö", "œ" "ö", "ő" "ö"}})
+
+(defn- alphabet-places
+  "Each character the alphabet names, mapped to a single character encoding
+   its place: letters in declared order, each variant to the place of the
+   letter it varies. Places are encoded as characters so a whole name's key
+   is a plain string — strings compare position by position, which is what
+   letter-by-letter comparison means (a vector of places would compare by
+   count first and file Zosia before Amélie for being shorter)."
+  [{:keys [letters variants]}]
+  (let [place (fn [i] (char (+ 33 i)))
+        letter-place (into {} (map-indexed (fn [i l] [l (place i)]) letters))]
+    (merge letter-place
+           (into {} (for [[variant base] variants]
+                      [variant (letter-place base)])))))
+
+(defn- name-key
+  "How a name compares, said once for every name the key holds: by the
+   alphabet in force first, and by plain character order second. Under the
+   alphabet each character contributes its place — its own, or its base
+   letter's when it is a variant — as one character of a string, so the name
+   compares position by position. A character the alphabet does not name at
+   all sorts after every letter it does name (`unnamed`, a place past the
+   last letter's, followed by the character itself so such characters take
+   their own order among themselves) — one stated answer for every input,
+   nothing asked of the runtime. Its honest cost, pinned by the spec: a
+   space is not a letter, so Iltarusko is offered before Ilta Aamu. The
+   plain-order half exists because two different names can be equal under an
+   alphabet — Sofia and Sofía are the same letters in Finnish — and it makes
+   their order STATED rather than falling invisibly to the identifier.
+   Letter case is not part of a letter's identity in either half."
+  [places unnamed nm]
+  (let [lower (str/lower-case (str nm))]
+    [(apply str (map (fn [ch] (or (places ch) (str unnamed ch))) (seq lower)))
+     lower]))
+
+(defn order-offered-voices
+  "The voices to offer, in the order to offer them: offered voices × the
+   alphabet in force → the same voices, in order. Reads no configuration, no
+   clock, no locale and nothing from the interface — same voices, same
+   alphabet, same answer, on any machine.
+
+   One key, four parts (14-voice-picker-order/ticket-01, the name parts
+   reworked by 18-an-alphabet-not-a-numbering/ticket-02):
+     1. the service the voice is reached through — every configured service
+        before the platform's own built-in voices (\"built-in last\", not a
+        list of known services), and configured services among themselves by
+        the service's name, compared as every name is;
+     2. the voice's name, by the alphabet in force;
+     3. the voice's name, by plain character order (both from `name-key`);
+     4. the identifier the choice is recorded under — the final tiebreak, and
+        the part that makes the order TOTAL. Displayed names collide
+        (08-voices-and-settings recorded it as a known gap), and a key that
+        stops short leaves collisions in whatever order they reached the
+        sort — the defect class HANDOVER §7 spent a slice on."
+  [voices alphabet]
+  (let [places (alphabet-places alphabet)
+        unnamed (char (+ 33 (count (:letters alphabet))))
+        akey #(name-key places unnamed %)]
+    (vec (sort-by (fn [{:keys [voice-id name provider built-in?]}]
+                    [(if built-in? 1 0)
+                     (akey provider)
+                     (akey name)
+                     (str voice-id)])
+                  (or voices [])))))
+
+;; ---------------------------------------------------------------------------
+;; The look-ahead's pure core (since 19-the-next-sentence-is-ready)
+;;
+;; While one sentence is read aloud, the ones after it are made ready. WHICH
+;; ones is a rule, not a side effect, and it lives here for the reason the
+;; voice ordering above does: it is a total function — of the sentence count,
+;; the playhead, what is already in hand or in flight, and the depth — that
+;; reads no state, no clock and no network, so the unit suite can cover it to
+;; exhaustion while the fetching stays at the edge (speech.cljs). It is not a
+;; read model and no projection reaches it. Audio itself never enters the
+;; event log (HANDOVER §8 decision 6): a made-ready clip is completely
+;; determined by the sentence's text and the voice it is made in, facts the
+;; log already holds — which is also why the reuse key below needs nothing
+;; else. Speed is deliberately absent from the key: audio is made once and
+;; played at the reader's speed, so a speed change is a reuse, never a
+;; re-request.
+;; ---------------------------------------------------------------------------
+
+(def make-ready-depth
+  "How many sentences ahead of the playhead are made ready — two: a full
+   sentence of slack behind every boundary, bounded waste on a stop or skip
+   (19-the-next-sentence-is-ready plan.md, decision 1)."
+  2)
+
+(defn sentences-to-make-ready
+  "The sentence indices to begin making ready while `playhead` is read aloud:
+   the next `depth` sentences, minus any already in hand or in flight
+   (`in-hand`, a set of indices), never past the end of the item. Relative to
+   the playhead wherever a seek put it; sentences behind the playhead are
+   never asked for."
+  [chunk-count playhead in-hand depth]
+  (->> (range (inc playhead) (min chunk-count (+ playhead depth 1)))
+       (remove in-hand)
+       vec))
+
+(defn speech-clip-key
+  "The key speech once made ready is reused under: the exact sentence text
+   and the exact voice it was made in — the two facts that make the audio
+   byte-identical. An unresolved voice keys as itself, not as any voice's."
+  [text voice]
+  [(str text) voice])
+
+;; ---------------------------------------------------------------------------
 ;; Deciders — narrative strings match the statechart transitions (§4.3)
 ;; ---------------------------------------------------------------------------
 
@@ -951,6 +1117,25 @@
     (refuse "a voice is required")
     (accept {:kind "voice-set" :voice-id voice-id :at at})))
 
+;; playback/player — "set-voice-rotation @ idle|playing|paused [the rotation
+;; names at least one voice, and names no voice twice] → same state, emits
+;; [voice-rotation-set]" (since 15-voice-rotation) — a self-transition in
+;; every player state, like set-voice. Exactly two refusals; an identifier
+;; naming no voice the service currently offers is NOT one of them — ids are
+;; opaque here (slice 08), and a choice that cannot be honoured falls through
+;; to the service's own default.
+(defmethod decide "set-voice-rotation"
+  [_state {:keys [voice-ids at]}]
+  (cond
+    (empty? voice-ids)
+    (refuse "at least one voice is required")
+
+    (not (apply distinct? voice-ids))
+    (refuse "a voice may not appear twice in the rotation")
+
+    :else
+    (accept {:kind "voice-rotation-set" :voice-ids (vec voice-ids) :at at})))
+
 ;; playback/player — "finish-item @ playing → idle, emits [item-finished]"
 (defmethod decide "finish-item"
   [state {:keys [at]}]
@@ -1218,14 +1403,23 @@
 ;; clears any stale one, so pre-08 logs replay unchanged.
 ;; playback-started also opens the listening-history entry (a fresh listen is
 ;; unfinished) and anchors the stats segment (since 10-sleep-chapters-history).
-(defmethod evolve "playback-started" [state {:keys [item-id position speed started-at]}]
+;; Since 15-voice-rotation the event's effective :voice-id folds into
+;; :item-voice — the voice the current item is being heard in, the recorded
+;; fact every restart of the rendition resolves to — and each start whose
+;; voice the rotation supplied moves the rotation on.
+(declare advance-rotation)
+
+(defmethod evolve "playback-started" [state {:keys [item-id position speed voice-id started-at]}]
   (-> state
       (update :player
               (fn [p]
                 (cond-> (assoc p :state "playing" :item-id item-id
                                :position (or position 0))
                   speed (assoc :item-speed speed)
-                  (nil? speed) (dissoc :item-speed))))
+                  (nil? speed) (dissoc :item-speed)
+                  voice-id (assoc :item-voice voice-id)
+                  (nil? voice-id) (dissoc :item-voice))))
+      (advance-rotation item-id)
       (anchor-listening item-id (or position 0))
       (update-in [:stats :first-listened-at] (fn [t] (or t started-at)))
       (update :listens assoc item-id {:last-played-at started-at :finished false})))
@@ -1256,15 +1450,43 @@
 (defmethod evolve "speed-changed" [state {:keys [speed]}]
   (update state :player (fn [p] (-> p (assoc :speed speed) (dissoc :item-speed)))))
 
-;; The global default voice — a player setting like :speed
-;; (since 08-voices-and-settings).
+;; The voice rotation — ONE piece of state, stated by two intents (since
+;; 15-voice-rotation; before that, [:player :voice-id] held a single global
+;; default). {:voice-ids [...] :next i} — the ordered voices the reader
+;; picked and which of them the rotation offers next. `voice-set` folds as a
+;; rotation of exactly that one voice, which is why every log recorded since
+;; 08-voices-and-settings replays to identical behaviour with no migration.
+(declare rotation-decides?)
+
+(defn- state-rotation
+  "Fold a statement of the rotation (either intent's event): the rotation
+   becomes the listed voices, offering the FIRST — stating the setting
+   starts it over. When the current item's voice is the rotation's to
+   decide, the item takes that first voice from where it is (slice 08's
+   mid-item promise) and the rotation moves on — the one advance rule,
+   applied because the rotation answered; an item with a source override,
+   and an item playing a recording, are untouched."
+  [state voice-ids]
+  (let [item-id (get-in state [:player :item-id])
+        state (assoc-in state [:player :voice-rotation]
+                        {:voice-ids (vec voice-ids) :next 0})]
+    (if (and item-id (rotation-decides? state item-id))
+      (-> state
+          (assoc-in [:player :item-voice] (first voice-ids))
+          (advance-rotation item-id))
+      state)))
+
 (defmethod evolve "voice-set" [state {:keys [voice-id]}]
-  (assoc-in state [:player :voice-id] voice-id))
+  (state-rotation state [voice-id]))
+
+(defmethod evolve "voice-rotation-set" [state {:keys [voice-ids]}]
+  (state-rotation state voice-ids))
 
 ;; A finished item's recorded position resets so replaying it starts from the
 ;; beginning — otherwise resume-on-play (since 04-player-controls) would pick
 ;; up a played item at its end (decision in 04-player-controls/decisions.md).
-;; The item's effective speed leaves with it (since 08-voices-and-settings).
+;; The item's effective speed leaves with it (since 08-voices-and-settings),
+;; and so does the voice it was heard in (since 15-voice-rotation).
 ;; Since 10-sleep-chapters-history it also closes the stats segment at the
 ;; item's full content, counts the finish, and marks the history entry
 ;; finished; an armed *duration* sleep timer stays — it spans continuous
@@ -1277,7 +1499,7 @@
       (update :listens assoc item-id {:last-played-at finished-at :finished true})
       (assoc-in [:items item-id :position] 0)
       (update :player (fn [p] (-> p (assoc :state "idle" :item-id nil :position 0)
-                                  (dissoc :item-speed))))))
+                                  (dissoc :item-speed :item-voice))))))
 
 ;; The sleep timer on the player aggregate (since 10-sleep-chapters-history):
 ;; set replaces, cancel and expiry consume.
@@ -1299,20 +1521,50 @@
 
 ;; ---------------------------------------------------------------------------
 ;; Effective voice/speed resolution (since 08-voices-and-settings, plan.md
-;; "Policy addition"): the item's source override wins over the global player
-;; setting. The resolved values travel on `play`, not as read-model fields —
-;; the effective voice is observable only in the heard speech (spec notes).
+;; "Policy addition"; the voice's rule deepened by 15-voice-rotation): the
+;; resolved values travel on `play`, not as read-model fields — the effective
+;; voice is observable only in the heard speech (spec notes).
 ;; ---------------------------------------------------------------------------
 
 (defn- item-source [state item-id]
   (get-in state [:sources (get-in state [:items item-id :origin :source-id])]))
 
-(defn effective-voice
-  "The voice an item is heard in: its source's :voice-id override, else the
-   global default, else nil (the speech provider's own default)."
+(defn rotation-decides?
+  "Is this item's voice the rotation's to decide — would the resolution
+   below reach its rotation step? True when the item plays no recording and
+   its source has no voice override (15-voice-rotation). Both the advance
+   rule and the mid-item restatement key on this, so 'which step answered'
+   has exactly one definition."
   [state item-id]
-  (or (:voice-id (item-source state item-id))
-      (get-in state [:player :voice-id])))
+  (and (not (recording? (get-in state [:items item-id])))
+       (nil? (:voice-id (item-source state item-id)))))
+
+(defn effective-voice
+  "The voice an item is heard in WHEN IT STARTS, first answer wins
+   (15-voice-rotation): an item that plays a recording has no voice at all —
+   it is heard as recorded; else its source's :voice-id override; else the
+   voice the rotation is offering; else nil — the speech service's own
+   default. Resolved once per start by the play-from-queue policy; every
+   restart within the item reads the folded [:player :item-voice] instead of
+   asking again (the stability rule)."
+  [state item-id]
+  (when-not (recording? (get-in state [:items item-id]))
+    (or (:voice-id (item-source state item-id))
+        (let [{:keys [voice-ids next]} (get-in state [:player :voice-rotation])]
+          (when (seq voice-ids) (nth voice-ids next))))))
+
+(defn- advance-rotation
+  "The rotation moves on to its next voice exactly when it was the step that
+   answered — this item's start took the offered voice. A recording and an
+   overridden source take no turn, from the same rotation-decides? test the
+   resolution uses; with nothing picked there is nothing to move
+   (15-voice-rotation)."
+  [state item-id]
+  (let [{:keys [voice-ids next]} (get-in state [:player :voice-rotation])]
+    (if (and (seq voice-ids) (rotation-decides? state item-id))
+      (assoc-in state [:player :voice-rotation :next]
+                (mod (inc next) (count voice-ids)))
+      state)))
 
 (defn effective-speed
   "The speed an item plays at: its source's :speed override, else the global
@@ -1327,15 +1579,77 @@
 ;; Pure: fresh ids come from the supplied new-id fn.
 ;; ---------------------------------------------------------------------------
 
+(defn feed-read-successfully-before?
+  "The auto-queue policy's guard for a feed ingest, since 17-arrivals-not-
+   archives: has this ingest's source had its feed read successfully BEFORE
+   this reading? (docs/contexts/ingestion/index.md, \"Auto-queue new items\".)
+
+   `ready` is the state an ingest reaches only through ingest-completed, and it
+   is where an ingest stays, so the source's ingest history is simply the
+   ingests naming it. The current reading is excluded by id: by the time the
+   policy runs, its own ingest is already `ready`.
+
+   Deliberately the source's INGEST HISTORY and not \"does this source have
+   items?\". Unsubscribing keeps a source's items while `removed` is terminal,
+   so following an address again mints a *different* source — whose items all
+   belong to the old one. An item-counting guard would answer \"no items\" for
+   the re-followed source: right on its first reading, and wrong on its second,
+   silently swallowing the first genuinely new episode after a re-follow.
+
+   A fetch that finds no episodes never completes (complete-ingest is refused
+   when no draft is playable), so a show followed before it had published
+   anything has not been read successfully, and the reading that brings its
+   debut episode is still its first."
+  [state ingest-id]
+  (let [source-id (get-in state [:ingests ingest-id :source-id])]
+    (boolean
+     (and source-id
+          (some (fn [g]
+                  (and (= source-id (:source-id g))
+                       (not= ingest-id (:ingest-id g))
+                       (= "ready" (:state g))))
+                (vals (:ingests state)))))))
+
+(defn arrival-order
+  "Created items of one feed reading, ordered as they are to be queued:
+   OLDEST PUBLISHED FIRST (docs/contexts/ingestion/index.md).
+
+   The key is the item's own date — its publication date, else the moment it
+   enters the library, which is 11-item-ordering's `item-date` rule reused
+   rather than redefined. An item's added-at does not exist yet at this point
+   (the dispatcher fills it when add-item runs), so the reading's own
+   completed-at stands in for it: it is the same instant for every item this
+   reading creates and it keeps the policy free of a clock.
+
+   The final tiebreak is the FEED'S OWN ORDER, REVERSED — of two episodes the
+   feed dates identically, or does not date at all, the one listed later is
+   queued first. Feeds list newest first, so reversing continues the same
+   oldest-first intent and keeps a same-day batch in its publisher's sequence.
+   That key is total: two drafts of one reading cannot share a position in the
+   document they came from. `created` arrives in feed order with the
+   already-held drafts dropped, so a position in it is an order-preserving
+   image of the feed's own."
+  [created completed-at]
+  (->> created
+       (map-indexed vector)
+       (sort-by (fn [[i [_ draft]]] [(or (:published-at draft) completed-at) (- i)]))
+       (mapv second)))
+
 (defn policies
   "S' × E × (fn [] fresh-id) → [intent …], where S' is the state after the
    event was folded in."
   [state event new-id]
   (case (:kind event)
-    ;; item-creation + auto-queue: direct user captures (channel present) are
-    ;; queued; feed ingests (channel absent — docs/contexts/ingestion) only
-    ;; create items, and only for episodes whose recording is not already a
-    ;; library item (refresh dedupe by enclosure URL)
+    ;; item-creation + auto-queue. Item creation is unchanged: every draft of a
+    ;; direct capture, and for a feed reading only the episodes whose recording
+    ;; is not already a library item (refresh dedupe by enclosure URL).
+    ;;
+    ;; Auto-queue queues the items the reading CREATED, when either the ingest
+    ;; carries a channel — a direct user capture, unchanged since slice 01 —
+    ;; or, since 17-arrivals-not-archives, the ingest is a feed reading for a
+    ;; source whose feed has been read successfully before. So a source's first
+    ;; reading queues nothing and a back catalogue can never enter the queue,
+    ;; while every later reading queues each new episode it finds.
     "ingest-completed"
     (if (:channel event)
       (vec (mapcat (fn [draft]
@@ -1357,17 +1671,25 @@
                                  [drafts seen]
                                  [(conj drafts draft) (cond-> seen url (conj url))])))
                            [[] known]
-                           (:items event)))]
-        (mapv (fn [draft]
-                (cond-> {:kind "add-item" :item-id (new-id)
-                         :title (:title draft) :item-kind (:kind draft)
-                         :duration-estimate (:duration-estimate draft)}
-                  (:content draft) (assoc :content (:content draft))
-                  (:recording-url draft) (assoc :recording-url (:recording-url draft))
-                  (:published-at draft) (assoc :published-at (:published-at draft))
-                  (:origin draft) (assoc :origin (:origin draft))
-                  (:sections draft) (assoc :sections (:sections draft))))
-              fresh)))
+                           (:items event)))
+            created (mapv (fn [draft] [(new-id) draft]) fresh)
+            adds (mapv (fn [[item-id draft]]
+                         (cond-> {:kind "add-item" :item-id item-id
+                                  :title (:title draft) :item-kind (:kind draft)
+                                  :duration-estimate (:duration-estimate draft)}
+                           (:content draft) (assoc :content (:content draft))
+                           (:recording-url draft) (assoc :recording-url (:recording-url draft))
+                           (:published-at draft) (assoc :published-at (:published-at draft))
+                           (:origin draft) (assoc :origin (:origin draft))
+                           (:sections draft) (assoc :sections (:sections draft))))
+                       created)]
+        (if (feed-read-successfully-before? state (:ingest-id event))
+          ;; queued to the bottom ("play last"), never as play-next: what
+          ;; turned up on its own waits behind what the reader put there
+          (into adds
+                (map (fn [[item-id _]] {:kind "queue-item" :item-id item-id}))
+                (arrival-order created (:completed-at event)))
+          adds)))
 
     ;; feed ingest: a followed or refreshed source gets its feed fetched
     ;; (docs/contexts/ingestion/index.md policy table, since 05-podcast-feeds)
