@@ -12,5 +12,8 @@
 (defonce elevenlabs-voices (r/atom nil))         ; [{:voice-id .. :name ..}] when fetched
 (defonce platform-voices (r/atom []))            ; enumerated platform speech voices (since 08)
 (defonce sleep-seconds-left (r/atom nil))        ; duration-mode sleep countdown (edge runtime, since 10)
+(defonce ticked-seconds (r/atom 0))              ; content seconds watched pass since the last
+                                                 ; authoritative point — the player clock's tick
+                                                 ; (edge display state, since 20; never persisted)
 
 (println "[state] loaded")

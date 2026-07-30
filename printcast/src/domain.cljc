@@ -157,6 +157,21 @@
             i
             (recur (inc i) words-through)))))))
 
+(defn displayed-elapsed
+  "The elapsed reading the player face shows for a spoken item: the
+   authoritative point (`elapsed-seconds` at the recorded position) plus the
+   content seconds watched pass since it landed, read to the whole second and
+   clamped at the next sentence's mark — so the reading runs forward or
+   waits, never past the mark, and the boundary correction is forward or
+   nothing by construction (since 20-a-clock-not-a-ledger, plan.md decision
+   2). At the last sentence the clamp is the item's end. Total over values
+   the domain already defines; the ticked seconds are edge display state,
+   never an event and never a field."
+  [text position ticked]
+  (let [point (elapsed-seconds text position)
+        mark  (elapsed-seconds text (inc position))]
+    (min (js/Math.floor (+ point (max 0 ticked))) mark)))
+
 ;; ---------------------------------------------------------------------------
 ;; Recording helpers (since 05-podcast-feeds: an episode's position is seconds
 ;; of audio time — the docs' duration domain type directly; text items keep

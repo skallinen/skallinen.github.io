@@ -79,6 +79,76 @@
   (let [{:keys [item-speed speed]} (:player @state/app-state)]
     (or item-speed speed 1)))
 
+;; -- The player clock (since 20-a-clock-not-a-ledger) ------------------------
+;; The elapsed reading's ticker is an EDGE process on the sleep countdown's
+;; pattern — and deliberately not its machinery (plan.md decision 3): the
+;; countdown counts wall seconds toward the timer's expiry and follows the
+;; timer's lifecycle; this clock counts content seconds of the current item
+;; and follows playback's. Each tick adds wall-seconds × live speed (content
+;; seconds — the listening-stats arithmetic made visible), and the SAME
+;; documented test knob scales both clocks: __printcastTestClock.multiplier
+;; is the app's sense of time under test, one knob, both clocks (ticket 04).
+;; The ticked value is display state only — never an intent, never an event,
+;; never a domain field, never persisted; the pure rule
+;; domain/displayed-elapsed clamps it at the next sentence's mark, so the
+;; reading runs or waits and never retreats while playing. A throttled
+;; background tab merely starves the interval: the clock lags, and the next
+;; authoritative point catches it up (decision in decisions.md).
+
+(defonce ^:private clock-interval (atom nil))
+(defonce ^:private clock-anchor (atom nil)) ; the position the tick counts from
+
+(defn- stop-clock! []
+  (when-let [t @clock-interval]
+    (js/clearInterval t)
+    (reset! clock-interval nil)))
+
+(defn- clear-clock! []
+  (stop-clock!)
+  (reset! clock-anchor nil)
+  (reset! state/ticked-seconds 0))
+
+(defn- clock-tick!
+  "One ~second of watching: add the listened content seconds. Only while
+   playing — the pause is real, exactly as the countdown's is."
+  []
+  (when (= "playing" (get-in @state/app-state [:player :state]))
+    (swap! state/ticked-seconds + (* (clock-multiplier) (live-speed)))))
+
+(defn- run-clock!
+  "(Re)start the ~1 s tick with a full second ahead of the first tick."
+  []
+  (stop-clock!)
+  (reset! clock-interval (js/setInterval clock-tick! 1000)))
+
+(defn- anchor-clock!
+  "An authoritative point landed at `position`: a NEW position zeroes the
+   tick (the point takes over — seek, skip, chapter jump, the per-sentence
+   record); the SAME position re-recorded (a resume's replay, a speed or
+   voice change's re-speak) holds it — the sentence replays from its start
+   but the clock does not retreat (plan.md decision 4)."
+  [position]
+  (when (not= position @clock-anchor)
+    (reset! clock-anchor position)
+    (reset! state/ticked-seconds 0)))
+
+(defn- sync-clock!
+  "The position-changed hook. Anchors, and — while the ticker runs —
+   restarts its phase, so a value that just landed holds for a moment
+   before the reading runs on."
+  [position]
+  (anchor-clock! position)
+  (when @clock-interval (run-clock!)))
+
+(defn- start-clock!
+  "Play/resume of a spoken item. A started item is a fresh anchor (another
+   item's tick must never carry over); a resumed one runs on from where the
+   clock held, the clamp absorbing the replayed sentence."
+  [position fresh?]
+  (when fresh? (reset! clock-anchor nil))
+  (anchor-clock! position)
+  (run-clock!))
+
 (defn- start-speech!
   "Effect: speak the item's sentence chunks from the given chunk index.
    Each chunk boundary is the periodic progress process (ticket 06): it
@@ -127,11 +197,18 @@
 
 (defn- start-playback!
   "Route the started/resumed item to its edge: recordings to the audio
-   element, everything else to speech."
-  [item-id position]
+   element (which carries its own clock — plan.md decision 7), everything
+   else to speech with the elapsed clock running. The clock is anchored
+   BEFORE speech starts, so the first sentence's own position record lands
+   on an anchor already set. `fresh-clock?` is true on a start (another
+   item's tick must never carry over) and false on a resume (the clock runs
+   on from where it held — since 20-a-clock-not-a-ledger)."
+  [item-id position fresh-clock?]
   (if (domain/recording? (get-in @state/app-state [:items item-id]))
-    (start-audio! item-id position)
-    (start-speech! item-id position)))
+    (do (clear-clock!)
+        (start-audio! item-id position))
+    (do (start-clock! position fresh-clock?)
+        (start-speech! item-id position))))
 
 (defn- restart-speech!
   "Re-speak the current item from the given chunk (seek/skip while playing,
@@ -160,12 +237,15 @@
   "Side effects at the edges; business logic stays in the deciders (§9)."
   [event]
   (case (:kind event)
-    "playback-started" (start-playback! (:item-id event) (:position event))
-    "playback-resumed" (start-playback! (:item-id event) (:position event))
+    "playback-started" (start-playback! (:item-id event) (:position event) true)
+    "playback-resumed" (start-playback! (:item-id event) (:position event) false)
     ;; pause keeps the made-ready clips — resume replays them (slice 19);
     ;; a finished item lets them go whole, as does another item's speak!
-    "playback-paused"  (do (speech/stop!) (audio/stop!))
-    "item-finished"    (do (speech/stop!) (speech/drop-made-ready!) (audio/stop!))
+    ;; pause stops the ticker but HOLDS the ticked value (the clock holds
+    ;; where it stands; resume runs on — since 20)
+    "playback-paused"  (do (stop-clock!) (speech/stop!) (audio/stop!))
+    "item-finished"    (do (clear-clock!) (speech/stop!) (speech/drop-made-ready!)
+                           (audio/stop!))
     ;; seek/skip while playing move the live playback (a seek on the audio
     ;; element, a re-speak from the chunk for text); record-position events
     ;; never seek/restart because the edge updates the live position first
@@ -177,8 +257,12 @@
                                       (not= (:position event) @state/audio-seconds))
                              (reset! state/audio-seconds (:position event))
                              (audio/seek! (:position event)))
-                           (when (not= (:position event) @state/speech-position)
-                             (restart-speech! (:position event)))))
+                           ;; every authoritative point syncs the clock —
+                           ;; a new position takes over, a re-record of the
+                           ;; same one holds the reading (since 20)
+                           (do (sync-clock! (:position event))
+                               (when (not= (:position event) @state/speech-position)
+                                 (restart-speech! (:position event))))))
     ;; a speed change takes effect from the current position: live on the
     ;; audio element, a re-speak at the new rate for speech
     "speed-changed"    (if (audio/playing?)

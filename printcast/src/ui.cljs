@@ -704,7 +704,18 @@
                    (:position pv))
         speed (:speed pv)
         duration (when item-id (get-in pv [:item :duration-estimate]))
-        elapsed (when item-id (domain/item-elapsed-seconds item position))]
+        ;; the one elapsed derivation every hand reads (the m:ss reading,
+        ;; the progress marker, the chapter highlight — slice-11 shape, one
+        ;; derivation shared by construction). A recording's seconds come
+        ;; off the playing audio itself; a spoken item's reading is the
+        ;; running clock: the recorded position's estimate plus the edge
+        ;; tick, clamped at the next sentence's mark
+        ;; (since 20-a-clock-not-a-ledger)
+        elapsed (when item-id
+                  (if (domain/recording? item)
+                    (domain/item-elapsed-seconds item position)
+                    (domain/displayed-elapsed (or (:content item) "") position
+                                              @state/ticked-seconds)))]
     [:div.player {:data-state player-state :data-position position
                   :data-speed (str speed)}
      (when-let [sections (seq (get-in pv [:item :sections]))]
