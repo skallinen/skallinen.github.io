@@ -65,27 +65,30 @@
           members[doc.id] = d.display_name || d.email || doc.id;
         });
 
-        // Collect books
+        // Collect books that have a discussed_at date
         var books = [];
         booksSnap.forEach(function(doc) {
           var d = doc.data();
+          if (!d.discussed_at) return;
           d._id = doc.id;
           books.push(d);
         });
 
-        // Sort: books with discussed_at first (chronological), then undiscussed
+        // discussed_at may be a Firestore timestamp or a "YYYY-MM-DD" string
+        function toSeconds(ts) {
+          if (ts.seconds) return ts.seconds;
+          var ms = Date.parse(ts);
+          return isNaN(ms) ? 0 : ms / 1000;
+        }
+
+        // Sort chronologically
         books.sort(function(a, b) {
-          var ta = a.discussed_at ? (a.discussed_at.seconds || 0) : null;
-          var tb = b.discussed_at ? (b.discussed_at.seconds || 0) : null;
-          if (ta && tb) return ta - tb;
-          if (ta) return -1;
-          if (tb) return 1;
-          return (a.title || '').localeCompare(b.title || '');
+          return toSeconds(a.discussed_at) - toSeconds(b.discussed_at);
         });
 
         // Render table
         var rows = books.map(function(b, i) {
-          var date = b.discussed_at ? formatDate(b.discussed_at) : '<span class="no-date">—</span>';
+          var date = formatDate(b.discussed_at);
           var chosenBy = members[b.added_by] || b.added_by || '—';
           return '<tr>' +
             '<td>' + (i + 1) + '</td>' +
@@ -96,7 +99,7 @@
         });
 
         document.getElementById('output').innerHTML =
-          '<p>' + books.length + ' books</p>' +
+          '<p>' + books.length + ' discussed books</p>' +
           '<table>' +
             '<thead><tr><th>#</th><th>Title / Author</th><th>Discussed</th><th>Chosen by</th></tr></thead>' +
             '<tbody>' + rows.join('') + '</tbody>' +

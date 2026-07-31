@@ -162,7 +162,7 @@
       (-> (.add (.collection db (str "clubs/" club-id "/books"))
                 (clj->js doc))
           (.then (fn [_] (when callback (callback))))
-          (.catch (fn [err] (js/console.error "[db] add-book error:" err))))))
+          (.catch (fn [err] (js/console.error "[db] add-book error:" err)))))))
 
 (defn fetch-books!
   "Fetch all books for a club. Updates the provided atom."
@@ -197,8 +197,8 @@
   (when-let [db auth/firebase-db]
     (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
                  (clj->js {:revealed     false
-                            :revealed_at  (js/firebase.firestore.FieldValue.delete)
-                            :discussed_at (js/firebase.firestore.FieldValue.delete)}))
+                           :revealed_at  (js/firebase.firestore.FieldValue.delete)
+                           :discussed_at (js/firebase.firestore.FieldValue.delete)}))
         (.then (fn [] (when callback (callback))))
         (.catch (fn [err] (js/console.error "[db] unreveal-book error:" err))))))
 
