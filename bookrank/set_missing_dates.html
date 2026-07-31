@@ -49,10 +49,12 @@
 
     // Books discussed long ago whose exact meeting date is unknown.
     // date = best-guess default, editable in the UI before applying.
+    // location (optional) is written to discussed_location alongside the date.
     var TARGETS = [
       {match:["lean startup"],   date:"2015-06-01", note:"pre-WhatsApp era, exact date unknown (placeholder)"},
       {match:["happy hooker"],   date:"2016-06-01", note:"pre-WhatsApp era, exact date unknown (placeholder)"},
-      {match:["ai philosophy","ai evening"], date:"2025-11-01", note:"chat evidence: Jan's prep-materials evening at Kirsikka, 1 Nov 2025 — edit if that's wrong"}
+      {match:["poetry"],         date:"2017-06-01", location:"Torni, Helsinki", note:"years ago at Torni, exact date unknown (placeholder)"},
+      {match:["ai philosophy","ai evening"], date:"2025-11-01", location:"Kirsikka, Hameentie 1, Helsinki", note:"confirmed: 1 Nov 2025 at Kirsikka"}
     ];
 
     var found = []; // {ref, title, existing, inputId}
@@ -85,10 +87,11 @@
             if (!hit) return;
             var inputId = 'date-' + found.length;
             var existing = fmtExisting(b.discussed_at);
-            found.push({ ref: doc.ref, title: b.title, inputId: inputId });
+            found.push({ ref: doc.ref, title: b.title, inputId: inputId, location: target.location || null });
             rows.push('<tr><td>' + esc(b.title) + '</td>' +
               '<td>' + (existing ? existing : '<span class="warn">not set</span>') + '</td>' +
               '<td><input type="date" id="' + inputId + '" value="' + target.date + '" /></td>' +
+              '<td>' + (target.location ? esc(target.location) : '<span class="dim">—</span>') + '</td>' +
               '<td class="dim">' + esc(target.note) + '</td></tr>');
           });
         });
@@ -100,7 +103,7 @@
         }
         document.getElementById('apply-btn').disabled = false;
         document.getElementById('output').innerHTML =
-          '<table><thead><tr><th>Book</th><th>Current date</th><th>Set to</th><th>Note</th></tr></thead>' +
+          '<table><thead><tr><th>Book</th><th>Current date</th><th>Set to</th><th>Location</th><th>Note</th></tr></thead>' +
           '<tbody>' + rows.join('') + '</tbody></table>' +
           '<p class="dim">Adjust any date above, then hit Apply Dates.</p>';
       }).catch(function(e) {
@@ -116,7 +119,9 @@
       found.forEach(function(f) {
         var date = document.getElementById(f.inputId).value;
         if (!date) { done++; return; }
-        f.ref.update({ discussed_at: date }).then(function() {
+        var upd = { discussed_at: date };
+        if (f.location) upd.discussed_location = f.location;
+        f.ref.update(upd).then(function() {
           done++;
           out.innerHTML = '<p class="done">Updated ' + done + ' / ' + found.length + '</p>' +
             (done === found.length ? '<p class="done">All done. The Meetings tab and Who’s next now use these dates.</p>' : '');
