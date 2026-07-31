@@ -121,7 +121,7 @@
     (try
       (let [d (if (string? ts) (js/Date. ts) (js/Date. (* 1000 (.-seconds ts))))]
         (when-not (js/isNaN (.getTime d))
-          (.toLocaleDateString d "en-US" (clj->js {:year "numeric" :month "long"}))))
+          (.toLocaleDateString d "en-US" (clj->js {:year "numeric" :month "long" :day "numeric"}))))
       (catch :default _ nil))))
 
 (defn book-detail-modal

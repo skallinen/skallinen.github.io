@@ -191,13 +191,14 @@
         (.catch (fn [err] (js/console.error "[db] reveal-book error:" err))))))
 
 (defn unreveal-book!
-  "Unreveal a book (admin only). Clears revealed and revealed_at only.
-   Preserves discussed_at since that is the book club meeting date."
+  "Unreveal a book (admin only). Clears revealed, revealed_at and discussed_at
+   so that discussed_at is set correctly when revealed again."
   [club-id book-id callback]
   (when-let [db auth/firebase-db]
     (-> (.update (.doc db (str "clubs/" club-id "/books/" book-id))
-                 (clj->js {:revealed    false
-                            :revealed_at (js/firebase.firestore.FieldValue.delete)}))
+                 (clj->js {:revealed     false
+                            :revealed_at  (js/firebase.firestore.FieldValue.delete)
+                            :discussed_at (js/firebase.firestore.FieldValue.delete)}))
         (.then (fn [] (when callback (callback))))
         (.catch (fn [err] (js/console.error "[db] unreveal-book error:" err))))))
 
