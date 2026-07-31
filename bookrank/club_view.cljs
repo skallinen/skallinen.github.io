@@ -14,7 +14,6 @@
 
 (println "[club-view] loaded")
 
-
 (defn score-class [score]
   (cond
     (>= score 4.0) "score-high"
@@ -50,22 +49,18 @@
 
 (defn scorecard-overlay
   "Full-screen overlay showing book title and the user's score in giant text.
-   Includes a 140-char opinion input that auto-saves.
-   Tap anywhere (except the input) to dismiss."
+   Includes a 140-char opinion with submit/edit flow.
+   Tap anywhere (except the opinion area) to dismiss."
   [book-id books-map rankings club-id]
   (let [book (get books-map book-id)
         score-data (my-score-for-book book-id rankings)
         uid (:uid @auth/user)
         my-ranking (get rankings uid)
         existing-opinion (get (:opinions my-ranking) (keyword book-id) "")
+        has-existing? (and existing-opinion (seq existing-opinion))
         opinion-text (r/atom (or existing-opinion ""))
-        save-timer (atom nil)
-        do-save! (fn []
-                   (when @save-timer (js/clearTimeout @save-timer))
-                   (reset! save-timer
-                           (js/setTimeout
-                            #(db/save-opinion! club-id book-id @opinion-text nil)
-                            500)))]
+        editing? (r/atom (not has-existing?))
+        saving? (r/atom false)]
     (fn [book-id books-map rankings club-id]
       (let [book (get books-map book-id)
             score-data (my-score-for-book book-id rankings)]
@@ -82,27 +77,464 @@
            [:div.scorecard-label "Your Score"]
            [:div.scorecard-opinion
             {:on-click (fn [e] (.stopPropagation e))}
-            [:textarea.opinion-input
-             {:placeholder "Your take (140 chars)"
-              :max-length 140
-              :value @opinion-text
-              :on-change (fn [e]
-                           (let [v (.. e -target -value)]
-                             (when (<= (count v) 140)
-                               (reset! opinion-text v)
-                               (do-save!))))}]
-            [:div.opinion-counter (str (count @opinion-text) "/140")]]
+            (if @editing?
+              ;; Editing mode: textarea + submit
+              [:<>
+               [:textarea.opinion-input
+                {:placeholder "Your take (140 chars)"
+                 :max-length 140
+                 :value @opinion-text
+                 :auto-focus true
+                 :on-change (fn [e]
+                              (let [v (.. e -target -value)]
+                                (when (<= (count v) 140)
+                                  (reset! opinion-text v))))}]
+               [:div {:style {:display "flex" :justify-content "space-between"
+                              :align-items "center" :margin-top "6px"}}
+                [:div.opinion-counter (str (count @opinion-text) "/140")]
+                [:button.btn-opinion-submit
+                 {:disabled (or @saving? (empty? @opinion-text))
+                  :on-click (fn []
+                              (reset! saving? true)
+                              (db/save-opinion! club-id book-id @opinion-text
+                                                (fn []
+                                                  (reset! saving? false)
+                                                  (reset! editing? false))))}
+                 (if @saving? "..." "Submit")]]]
+              ;; Submitted mode: rendered text + edit button
+              (when (seq @opinion-text)
+                [:<>
+                 [:div.opinion-submitted (str "\"" @opinion-text "\"")]
+                 [:button.btn-opinion-edit
+                  {:on-click #(reset! editing? true)}
+                  "Edit"]]))]
            [:div.scorecard-dismiss "tap to close"]])))))
+
+;; =============================================
+;; Unified Book Detail Modal
+;; Opens from both ranking and aggregate tabs.
+;; =============================================
+
+(defn format-date [ts]
+  (when ts
+    (try
+      (let [d (if (string? ts) (js/Date. ts) (js/Date. (* 1000 (.-seconds ts))))]
+        (when-not (js/isNaN (.getTime d))
+          (.toLocaleDateString d "en-US" (clj->js {:year "numeric" :month "long" :day "numeric"}))))
+      (catch :default _ nil))))
+
+(defn date->ms
+  "Timestamp (Firestore or \"YYYY-MM-DD\" string) to epoch millis, or nil."
+  [ts]
+  (when ts
+    (try
+      (let [d (if (string? ts) (js/Date. ts) (js/Date. (* 1000 (.-seconds ts))))
+            t (.getTime d)]
+        (when-not (js/isNaN t) t))
+      (catch :default _ nil))))
+
+(defn next-choosers
+  "Round-robin by least-recently-used turn. For each current member, take the
+   timestamp of their latest pick — discussed_at, falling back to revealed_at
+   and added_at so a pending (chosen but undiscussed) book still counts as
+   having used one's turn. Members whose last pick is oldest come first;
+   members with no picks at all are next in line. Returns up to two
+   {:member m :last {:t ms :book b}} entries."
+  [books members]
+  (let [member-ids (set (map :id members))
+        last-pick (reduce
+                   (fn [acc b]
+                     (let [uid (:added_by b)]
+                       (if (contains? member-ids uid)
+                         (let [t (or (date->ms (:discussed_at b))
+                                     (date->ms (:revealed_at b))
+                                     (date->ms (:added_at b))
+                                     0)]
+                           (if (> t (get-in acc [uid :t] -1))
+                             (assoc acc uid {:t t :book b})
+                             acc))
+                         acc)))
+                   {} books)]
+    (->> members
+         (sort-by (fn [m] (get-in last-pick [(:id m) :t] -1)))
+         (map (fn [m] {:member m :last (get last-pick (:id m))}))
+         (take 2))))
+
+(defn whos-next-modal
+  "Small centered modal showing the next two members in the choosing rotation."
+  [show?]
+  (when @show?
+    (let [[nxt aftr] (next-choosers @state/books @state/members)]
+      [:div.modal-backdrop
+       {:on-click (fn [e]
+                    (when (= (.-target e) (.-currentTarget e))
+                      (reset! show? false)))}
+       [:div.whos-next-modal
+        [:h3 {:style {:margin "0 0 4px"}} "Who's next?"]
+        [:div {:style {:font-size "0.75rem" :color "var(--color-accent)" :margin-bottom "12px"}}
+         "Longest since their last pick goes first."]
+        (doall
+         (for [[label entry] [["Up next" nxt] ["After that" aftr]]
+               :when entry]
+           (let [m (:member entry)
+                 last-book (get-in entry [:last :book])]
+             [:div.whos-next-row {:key (:id m)}
+              [:img.member-avatar {:src (or (:photo_url m) "")
+                                   :alt (or (:display_name m) "")}]
+              [:div
+               [:div.whos-next-tag label]
+               [:div.whos-next-name (or (:display_name m) (:email m) "Unknown")]
+               [:div.whos-next-sub
+                (if last-book
+                  (str "last pick: " (:title last-book)
+                       (when-let [d (format-date (or (:discussed_at last-book)
+                                                     (:added_at last-book)))]
+                         (str " · " d)))
+                  "hasn't picked a book yet")]]])))
+        [:button.modal-btn {:style {:margin-top "16px"}
+                            :on-click #(reset! show? false)}
+         "Close"]]])))
+
+(defn book-detail-modal
+  "Unified modal for viewing and interacting with a book.
+   Shows from both ranking and aggregate contexts."
+  [club-id]
+  (let [move-pos (r/atom "")
+        opinion-text (r/atom "")
+        opinion-editing? (r/atom false)
+        opinion-saving? (r/atom false)
+        date-editing? (r/atom false)
+        date-value (r/atom "")
+        initialized-for (atom nil)]
+    (fn [club-id]
+      (when-let [modal-data @state/detail-modal]
+        (let [{:keys [book-id context callbacks]} modal-data
+              books-map (into {} (map (fn [b] [(:id b) b]) @state/books))
+              book (get books-map book-id)
+              members-map (into {} (map (fn [m] [(:id m) m]) @state/members))
+              member-ids (mapv :id @state/members)
+              uid (:uid @auth/user)
+              my-ranking (get @state/rankings uid)
+              my-order (or (:order my-ranking) [])
+              my-unread (set (or (:unread my-ranking) []))
+              is-ranked? (some #{book-id} my-order)
+              is-skipped? (contains? my-unread book-id)
+              is-unranked? (and (not is-ranked?) (not is-skipped?))
+              score-data (my-score-for-book book-id @state/rankings)
+              unrevealed? (and (some? (:revealed book)) (not (:revealed book)))
+              revealed? (book-revealed? book)
+              current-uid uid
+              is-admin? (or (= current-uid (:created_by @state/club))
+                            (some (fn [m] (and (= (:id m) current-uid)
+                                               (= (:role m) "admin")))
+                                  @state/members))
+              ;; Aggregate data for opinions gating
+              all-book-ids (set (keys books-map))
+              agg-scores (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids)
+              agg-data (get agg-scores book-id)
+              all-rated? (and agg-data (not (:any-unranked? agg-data)))
+              ;; Own opinion
+              my-opinion (get (:opinions my-ranking) (keyword book-id) "")
+              close! (fn []
+                       (set! (.-overflow (.-style (.-body js/document))) "")
+                       (reset! state/detail-modal nil))]
+
+          ;; Initialize opinion text for this book
+          (when (not= @initialized-for book-id)
+            (reset! initialized-for book-id)
+            (reset! opinion-text (or my-opinion ""))
+            (reset! opinion-editing? (not (and my-opinion (seq my-opinion))))
+            (reset! move-pos "")
+            (reset! date-editing? false))
+
+          ;; Lock scroll
+          (set! (.-overflow (.-style (.-body js/document))) "hidden")
+
+          [:div.modal-backdrop
+           {:on-click (fn [e]
+                        (when (= (.-target e) (.-currentTarget e))
+                          (close!)))}
+           [:div.book-detail-modal
+            ;; Back link
+            [:a.back-link {:on-click close! :style {:cursor "pointer"}} "\u2190 Back"]
+
+            ;; Header: title + ranks
+            [:div.modal-header
+             [:h3.modal-title (or (:title book) "Untitled")]
+             [:div {:style {:display "flex" :gap "12px" :align-items "center" :margin-top "2px"}}
+              (when score-data
+                [:span {:style {:font-size "0.8rem" :color "var(--color-accent)"}}
+                 (str "#" (:position score-data) " / " (:total score-data))])
+              (when (and all-rated? agg-data)
+                (let [sorted-ids (->> agg-scores
+                                      (filter (fn [[_ v]] (not (:any-unranked? v))))
+                                      (sort-by (fn [[_ v]] (- (:score v))))
+                                      (map-indexed (fn [i [bid _]] [bid (inc i)])))
+                      agg-rank (some (fn [[bid r]] (when (= bid book-id) r)) sorted-ids)
+                      agg-total (count sorted-ids)]
+                  [:span {:style {:font-size "0.8rem" :color "var(--color-accent)"}}
+                   (str "Aggregate #" agg-rank " / " agg-total)]))]
+             ;; Author
+             [:div.modal-author (or (:author book) "")]]
+
+            ;; Score
+            (when (or score-data (and all-rated? agg-data))
+              [:div.modal-score-section
+               (when score-data
+                 [:div
+                  [:div.modal-score-big
+                   {:class (score-class (:raw score-data))}
+                   (:display score-data)]
+                  [:div.modal-score-label "Your Score"]])
+               (when (and all-rated? agg-data)
+                 [:div {:style (when score-data {:margin-left "24px"})}
+                  [:div.modal-score-big
+                   {:class (score-class (:score agg-data))}
+                   (:display agg-data)]
+                  [:div.modal-score-label "Aggregate"]])])
+
+            ;; Synopsis
+            (when (:synopsis book)
+              [:div.modal-section
+               [:div.modal-section-label "Synopsis"]
+               [:div.modal-synopsis (:synopsis book)]])
+
+            ;; Opinion tweets
+            [:div.modal-section
+             [:div.modal-section-label "Opinion Tweets"]
+             ;; Own opinion (always editable)
+             (if @opinion-editing?
+               [:<>
+                [:textarea.opinion-input
+                 {:placeholder "Your take (140 chars)"
+                  :max-length 140
+                  :value @opinion-text
+                  :on-change (fn [e]
+                               (let [v (.. e -target -value)]
+                                 (when (<= (count v) 140)
+                                   (reset! opinion-text v))))}]
+                [:div {:style {:display "flex" :justify-content "space-between"
+                               :align-items "center" :margin-top "6px"}}
+                 [:div.opinion-counter (str (count @opinion-text) "/140")]
+                 [:button.modal-btn.modal-btn-small
+                  {:disabled (or @opinion-saving? (empty? @opinion-text))
+                   :style {:width "auto"}
+                   :on-click (fn []
+                               (reset! opinion-saving? true)
+                               (db/save-opinion! club-id book-id @opinion-text
+                                                 (fn []
+                                                   (reset! opinion-saving? false)
+                                                   (reset! opinion-editing? false))))}
+                  (if @opinion-saving? "..." "Submit")]]]
+               ;; Submitted state
+               (if (seq my-opinion)
+                 [:<>
+                  [:div.book-opinion [:span.opinion-label "You: "] (str "\"" my-opinion "\"")]
+                  [:button.modal-btn.modal-btn-small
+                   {:style {:width "auto" :margin-top "6px"}
+                    :on-click (fn []
+                                (reset! opinion-text my-opinion)
+                                (reset! opinion-editing? true))}
+                   "Edit"]]
+                 [:button.modal-btn.modal-btn-small
+                  {:style {:width "auto"}
+                   :on-click #(reset! opinion-editing? true)}
+                  "Write Opinion"]))
+
+             ;; Other members' opinions (only visible if all have rated)
+             (when all-rated?
+               [:div.modal-opinions {:style {:margin-top "10px"}}
+                (doall
+                 (for [{:keys [uid]} (:member-scores agg-data)
+                       :when (not= uid current-uid)
+                       :let [member (get members-map uid)
+                             member-ranking (get @state/rankings uid)
+                             opinion (get (:opinions member-ranking) (keyword book-id) nil)]
+                       :when (and opinion (seq opinion))]
+                   [:div.modal-opinion-row {:key uid}
+                    [:img.member-avatar-small
+                     {:src (or (:photo_url member) "")
+                      :alt (or (:display_name member) "")}]
+                    [:div
+                     [:div.modal-opinion-name (or (:display_name member) "Unknown")]
+                     [:div.modal-opinion-text (str "\"" opinion "\"")]]]))])]
+
+            ;; Member scores
+            (when (and all-rated? agg-data)
+              [:div.modal-section
+               [:div.modal-section-label "Member Scores"]
+               [:div.member-ratings
+                (doall
+                 (for [{:keys [uid score]} (:member-scores agg-data)]
+                   (let [member (get members-map uid)]
+                     [:div.member-rating-row {:key uid}
+                      [:img.member-avatar-small
+                       {:src (or (:photo_url member) "")
+                        :alt (or (:display_name member) "")}]
+                      [:span.member-name (or (:display_name member) "Unknown")]
+                      [:span.member-score {:class (score-class score)}
+                       (.toFixed score 1)]])))
+                (doall
+                 (for [uid (:unread-by agg-data)]
+                   (let [member (get members-map uid)]
+                     [:div.member-rating-row {:key (str uid "-skip")}
+                      [:img.member-avatar-small
+                       {:src (or (:photo_url member) "")
+                        :alt (or (:display_name member) "")}]
+                      [:span.member-name (or (:display_name member) "Unknown")]
+                      [:span {:style {:opacity 0.5 :font-size "0.85em"}} "skipped"]])))]])
+
+            ;; Chosen by (always editable)
+            [:div.modal-section
+             [:div.modal-section-label "Chosen by"]
+             [:select.modal-date-input
+              {:value (or (:added_by book) "")
+               :style {:width "auto" :min-width "150px"}
+               :on-change (fn [e]
+                            (let [new-uid (.. e -target -value)]
+                              (when (seq new-uid)
+                                (db/update-book-chosen-by! club-id book-id new-uid nil))))}
+              [:option {:value ""} "\u2014 select \u2014"]
+              [:option {:value "unclaimed"} "Unclaimed"]
+              (doall
+               (for [m @state/members]
+                 [:option {:key (:id m) :value (:id m)}
+                  (or (:display_name m) (:email m))]))
+              [:option {:value "past-peter"} "Peter (past)"]
+              [:option {:value "past-jocke"} "Jocke (past)"]]
+
+            ;; Discussed date (always editable)
+             [:div.modal-section
+              [:div.modal-section-label "Discussed"]
+              (if @date-editing?
+                [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
+                 [:input.modal-date-input
+                  {:type "date"
+                   :value @date-value
+                   :on-change #(reset! date-value (.. % -target -value))}]
+                 [:button.modal-btn.modal-btn-small
+                  {:style {:width "auto"}
+                   :on-click (fn []
+                               (db/update-book-date! club-id book-id @date-value nil)
+                               (reset! date-editing? false))}
+                  "Save"]
+                 [:button.modal-btn.modal-btn-small
+                  {:style {:width "auto"}
+                   :on-click #(reset! date-editing? false)}
+                  "Cancel"]]
+                [:div.modal-meeting-date
+                 (let [discussed (:discussed_at book)
+                       display-date (or (when discussed (format-date discussed))
+                                        (when revealed? (format-date (:revealed_at book))))]
+                   (or display-date "Not set"))
+                 [:button.modal-btn.modal-btn-small
+                  {:style {:width "auto"}
+                   :on-click (fn []
+                               (reset! date-value "")
+                               (reset! date-editing? true))}
+                  "Edit"]])]
+
+            ;; Links
+             [:div.modal-section
+              [:div.modal-links
+               [:a {:href (ranking/book-search-url :storygraph (or (:title book) ""))
+                    :target "_blank"}
+                "StoryGraph \u2197"]
+               [:a {:href (ranking/book-search-url :wikipedia (or (:title book) ""))
+                    :target "_blank"}
+                "Wikipedia \u2197"]]]
+
+            ;; Show Score (unrevealed books, any context)
+             (when (and unrevealed? is-ranked?)
+               [:div.modal-actions
+                [:button.modal-btn.modal-btn-accent
+                 {:on-click (fn []
+                              (close!)
+                              (reset! state/scorecard-book book-id))}
+                 "Show Score"]])
+
+            ;; Action buttons at the bottom (ranking context)
+             (when (= context :ranking)
+               [:div.modal-actions
+
+               ;; Move to position (ranked books only)
+                (when is-ranked?
+                  [:div.modal-move-row
+                   [:input.modal-move-input
+                    {:type "number"
+                     :min 1
+                     :placeholder "#"
+                     :value @move-pos
+                     :on-change #(reset! move-pos (.. % -target -value))}]
+                   [:button.modal-btn.modal-btn-small
+                    {:disabled (empty? @move-pos)
+                     :on-click (fn []
+                                 (when-let [on-move (:on-move callbacks)]
+                                   (on-move (js/parseInt @move-pos 10))
+                                   (close!)))}
+                    "Move to Position"]])
+
+               ;; Add to ranking (unranked books)
+                (when is-unranked?
+                  [:button.modal-btn.modal-btn-accent
+                   {:on-click (fn []
+                                (when-let [on-add (:on-add callbacks)]
+                                  (on-add)
+                                  (close!)))}
+                   "Add to Ranking"])
+
+               ;; Mark as read (skipped books)
+                (when is-skipped?
+                  [:button.modal-btn.modal-btn-accent
+                   {:on-click (fn []
+                                (when-let [on-unskip (:on-unskip callbacks)]
+                                  (on-unskip)
+                                  (close!)))}
+                   "Mark as Read"])
+
+               ;; Skip (ranked or unranked books)
+                (when (or is-ranked? is-unranked?)
+                  [:button.modal-btn
+                   {:on-click (fn []
+                                (when-let [on-skip (:on-skip callbacks)]
+                                  (on-skip)
+                                  (close!)))}
+                   "Mark as Skipped"])
+
+               ;; Remove from ranking (ranked books only)
+                (when is-ranked?
+                  [:button.modal-btn.modal-btn-danger
+                   {:on-click (fn []
+                                (when-let [on-remove (:on-remove callbacks)]
+                                  (on-remove)
+                                  (close!)))}
+                   "Remove from Ranking"])]),
+
+            ;; Admin: Reveal button (unrevealed books)
+             (when (and is-admin? unrevealed?)
+               [:div.modal-actions
+                [:button.modal-btn.modal-btn-primary
+                 {:on-click (fn []
+                              (db/reveal-book! club-id book-id nil))}
+                 "Reveal Scores"]])
+
+            ;; Admin: Unreveal button (already-revealed books)
+             (when (and is-admin? revealed?)
+               [:div.modal-actions
+                [:button.modal-btn.modal-btn-danger
+                 {:on-click (fn []
+                              (db/unreveal-book! club-id book-id nil))}
+                 "Unreveal"]])]]])))))
 
 (defn club-detail-view [club-id]
   (let [;; UI-only state (local to this component)
         show-add   (r/atom false)
         copied     (r/atom false)
         active-tab (r/atom :ranking)
-        expanded-book (r/atom nil)
         confirm-remove (r/atom nil)
         confirm-delete-club (r/atom false)
-        delete-club-input (r/atom "")]
+        delete-club-input (r/atom "")
+        show-whos-next (r/atom false)]
 
     ;; Reset state if navigating to a different club
     (when (not= club-id @state/current-club-id)
@@ -144,6 +576,12 @@
          (when-let [sc-book @state/scorecard-book]
            [scorecard-overlay sc-book books-map @state/rankings club-id])
 
+         ;; Book detail modal
+         [book-detail-modal club-id]
+
+         ;; Who's next modal
+         [whos-next-modal show-whos-next]
+
          ;; Back link
          [:a.back-link {:on-click #(router/navigate! "#/clubs")} "← All Clubs"]
 
@@ -176,6 +614,9 @@
                  [:span.invite-copied " link copied!"])]]]
             [:div {:style {:display "flex" :gap "8px"}}
              [:button.btn.btn-small
+              {:on-click #(reset! show-whos-next true)}
+              "Who's next?"]
+             [:button.btn.btn-small
               {:on-click #(swap! show-add not)}
               (if @show-add "Cancel" "＋ Book")]]])
 
@@ -203,6 +644,9 @@
                [:button.tab {:class (when (= @active-tab :scores) "active")
                              :on-click #(reset! active-tab :scores)}
                 "Aggregate Scores"]
+               [:button.tab {:class (when (= @active-tab :meetings) "active")
+                             :on-click #(reset! active-tab :meetings)}
+                "Meetings"]
                [:button.tab {:class (when (= @active-tab :members) "active")
                              :on-click #(reset! active-tab :members)}
                 (str "Members (" (count @state/members) ")")]]
@@ -223,78 +667,96 @@
                   (map-indexed
                    (fn [idx book]
                      (let [score-data (get agg-scores (:id book))
-                           show-score? (and score-data (not (:any-unranked? score-data)))
-                           is-expanded? (= @expanded-book (:id book))]
-                       [:div {:key (:id book)}
-                        [:div.book-item
-                         {:style (when show-score? {:cursor "pointer"})
-                          :on-click (when show-score?
-                                      (fn [] (swap! expanded-book
-                                                    #(if (= % (:id book)) nil (:id book)))))}
-                         [:span.book-rank (str (inc idx))]
-                         [:div.book-info
-                          [:div.book-title (:title book)]
-                          [:div.book-author (:author book)]]
-                         (if show-score?
-                           [:div {:style {:text-align "right"}}
-                            [:div.book-score {:class (score-class (:score score-data))}
-                             (:display score-data)]
-                            [:div.book-voters (str (:voter-count score-data) "/" (count member-ids)
-                                                   (when (pos? (count (:unread-by score-data)))
-                                                     (str " +" (count (:unread-by score-data)) "☐")))]]
-                           [:div {:style {:text-align "right"}
-                                  :title "Score appears once every member has ranked or skipped this book"}
-                            [:div.book-score {:style {:color "var(--color-accent)"}} "—"]
-                            (when score-data
-                              [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]
-                        ;; Expanded member ratings
-                        (when (and show-score? is-expanded?)
-                          [:div.member-ratings
-                           (doall
-                            (for [{:keys [uid score]} (:member-scores score-data)]
-                              (let [member (get members-map uid)
-                                    member-ranking (get @state/rankings uid)
-                                    opinion (get (:opinions member-ranking) (keyword (:id book)) nil)]
-                                [:div.member-rating-row {:key uid}
-                                 [:img.member-avatar-small
-                                  {:src (or (:photo_url member) "")
-                                   :alt (or (:display_name member) "")}]
-                                 [:div {:style {:flex 1}}
-                                  [:span.member-name (or (:display_name member) "Unknown")]
-                                  (when (and opinion (seq opinion))
-                                    [:div.member-opinion (str "\"" opinion "\"")])]
-                                 [:span.member-score {:class (score-class score)}
-                                  (.toFixed score 1)]])))
-                           (doall
-                            (for [uid (:unread-by score-data)]
-                              (let [member (get members-map uid)]
-                                [:div.member-rating-row {:key (str uid "-unread")}
-                                 [:img.member-avatar-small
-                                  {:src (or (:photo_url member) "")
-                                   :alt (or (:display_name member) "")}]
-                                 [:span.member-name (or (:display_name member) "Unknown")]
-                                 [:span {:style {:opacity 0.5 :font-size "0.85em"}} "skipped"]])))])]))
+                           show-score? (and score-data (not (:any-unranked? score-data)))]
+                       [:div.book-item
+                        {:key (:id book)
+                         :style {:cursor "pointer"}
+                         :on-click (fn []
+                                     (reset! state/detail-modal
+                                             {:book-id (:id book)
+                                              :context :aggregate}))}
+                        [:span.book-rank (str (inc idx))]
+                        [:div.book-info
+                         [:div.book-title (:title book)]
+                         [:div.book-author (:author book)]
+                         (when-let [dt (format-date (:revealed_at book))]
+                           [:div {:style {:font-size "0.7rem" :color "var(--color-accent)" :margin-top "1px"}} dt])]
+                        (if show-score?
+                          [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}}
+                           (let [ranked-count (count (:member-scores score-data))]
+                             (when (< ranked-count 3)
+                               [:div.book-voters
+                                (str "Only " ranked-count " of " (count member-ids) " ranked")]))
+                           [:div.book-score {:class (score-class (:score score-data))}
+                            (:display score-data)]]
+                          [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}
+                                 :title "Score appears once every member has ranked or skipped this book"}
+                           [:div.book-score {:style {:color "var(--color-accent)"}} "\u2014"]
+                           (when score-data
+                             [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]))
                    sorted-books))
-                 ;; Unrevealed books — locked, with admin reveal button
+                 ;; Unrevealed books — locked, open modal for reveal
                  (when (seq unrevealed-books)
                    [:div.unread-section
-                    [:div.unread-label "🔒 Awaiting Reveal"]
+                    [:div.unread-label "\ud83d\udd12 Awaiting Reveal"]
                     (doall
                      (for [book unrevealed-books]
                        [:div.book-item {:key (:id book)
-                                        :style {:opacity 0.7}}
-                        [:span.book-rank "·"]
+                                        :style {:opacity 0.7 :cursor "pointer"}
+                                        :on-click (fn []
+                                                    (reset! state/detail-modal
+                                                            {:book-id (:id book)
+                                                             :context :aggregate}))}
+                        [:span.book-rank "\u00b7"]
                         [:div.book-info
                          [:div.book-title (:title book)]
                          [:div.book-author (:author book)]]
-                        [:div {:style {:display "flex" :gap "6px" :align-items "center"}}
-                         [:span.unrevealed-badge "🔒 hidden"]
-                         (when is-admin?
-                           [:button.btn-reveal
-                            {:on-click (fn [e]
-                                         (.stopPropagation e)
-                                         (db/reveal-book! club-id (:id book) nil))}
-                            "Reveal"])]]))])]
+                        [:span.unrevealed-badge "🔒 hidden"]]))])]
+
+                :meetings
+                (let [meetings (->> @state/books
+                                    (filter :discussed_at)
+                                    (sort-by (fn [b] (- (or (date->ms (:discussed_at b)) 0)))))]
+                  [:div.book-list
+                   [:div {:style {:display "flex" :justify-content "space-between"
+                                  :align-items "center" :padding "4px 8px 12px"}}
+                    [:div {:style {:font-size "0.8em" :opacity 0.7}}
+                     (str (count meetings) " discussion events, newest first")]
+                    [:button.btn.btn-primary.btn-small
+                     {:on-click #(reset! show-whos-next true)}
+                     "Who's next?"]]
+                   (if (empty? meetings)
+                     [:div.empty-state
+                      [:div.empty-state-icon "🗓"]
+                      [:div.empty-state-text "No discussion dates set yet."]]
+                     (doall
+                      (for [b meetings]
+                        (let [chooser (get members-map (:added_by b))
+                              chooser-name (or (:display_name chooser)
+                                               (case (:added_by b)
+                                                 "past-peter" "Peter (past)"
+                                                 "past-jocke" "Jocke (past)"
+                                                 "unclaimed" nil
+                                                 nil))]
+                          [:div.book-item
+                           {:key (:id b)
+                            :style {:cursor "pointer"}
+                            :on-click (fn []
+                                        (reset! state/detail-modal
+                                                {:book-id (:id b)
+                                                 :context :aggregate}))}
+                           [:div.meeting-date (format-date (:discussed_at b))]
+                           [:div.book-info
+                            [:div.book-title (:title b)]
+                            [:div.book-author (:author b)]
+                            (when (seq (:discussed_location b))
+                              [:div.meeting-location (str "📍 " (:discussed_location b))])]
+                           (when chooser-name
+                             [:div.meeting-chooser
+                              (when (:photo_url chooser)
+                                [:img.member-avatar-small {:src (:photo_url chooser)
+                                                           :alt chooser-name}])
+                              [:span chooser-name]])]))))])
 
                 :members
                 [:div.book-list
@@ -364,16 +826,16 @@
                                     {:confirm_ranking v}
                                     nil)))}]
                       "Require confirm after ranking changes"]]
-                    [:div {:style {:margin-top "24px" :padding-top "16px" :border-top "1px solid #333"}}
+                    [:div {:style {:margin-top "24px" :padding-top "16px" :border-top "1px solid var(--color-border)"}}
                      (if (not @confirm-delete-club)
                        [:button.btn.btn-small
                         {:style {:background "transparent" :color "#c00" :border "1px solid #c00" :font-size "0.8em"}
                          :on-click #(reset! confirm-delete-club true)}
                         "Delete Club"]
-                       [:div {:style {:background "#1a0000" :padding "12px" :border-radius "8px" :border "1px solid #c00"}}
+                       [:div {:style {:background "rgba(198, 40, 40, 0.07)" :padding "12px" :border-radius "8px" :border "1px solid #c00"}}
                         [:p {:style {:color "#c00" :margin "0 0 8px" :font-size "0.85em" :font-weight "600"}}
                          "\u26a0 This will permanently delete the club, all books, rankings, and members."]
-                        [:p {:style {:color "#888" :margin "0 0 8px" :font-size "0.8em"}}
+                        [:p {:style {:color "var(--color-accent)" :margin "0 0 8px" :font-size "0.8em"}}
                          (str "Type \"" (:name @state/club) "\" to confirm:")]
                         [:input.form-input {:type "text"
                                             :value @delete-club-input
@@ -394,9 +856,6 @@
                            :on-click #(do (reset! confirm-delete-club false)
                                           (reset! delete-club-input ""))}
                           "Cancel"]]])]])])]))]))))
-
-
-
 
 (defn ranking-page-view [club-id]
   (let [loading (r/atom true)

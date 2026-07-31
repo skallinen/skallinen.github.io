@@ -852,12 +852,13 @@ body.dark-mode .tab.active {
     max-width: 320px;
 }
 
+/* Theme-aware by default (used in the book detail modal on normal background) */
 .opinion-input {
     width: 100%;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
-    color: #fff;
+    color: var(--color-text);
     font-family: var(--font-main);
     font-size: 0.85rem;
     padding: 10px 12px;
@@ -867,11 +868,26 @@ body.dark-mode .tab.active {
 }
 
 .opinion-input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-accent);
 }
 
 .opinion-input:focus {
     outline: none;
+    border-color: var(--color-text);
+}
+
+/* White-on-color styling only inside the full-screen scorecard overlay */
+.scorecard-overlay .opinion-input {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.scorecard-overlay .opinion-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.scorecard-overlay .opinion-input:focus {
     border-color: rgba(255, 255, 255, 0.6);
 }
 
@@ -942,8 +958,12 @@ body.dark-mode .tab.active {
     margin: 4px 0 10px 0;
     padding: 6px 8px 6px 10px;
     border-left: 2px solid var(--color-accent);
-    background: rgba(57, 255, 20, 0.04);
+    background: rgba(0, 0, 0, 0.03);
     border-radius: 0 4px 4px 0;
+}
+
+body.dark-mode .book-opinion {
+    background: rgba(57, 255, 20, 0.04);
 }
 
 .opinion-label {
@@ -966,15 +986,15 @@ body.dark-mode .tab.active {
     bottom: calc(100% + 6px);
     left: 28px;
     right: 0;
-    background: #222;
-    color: var(--color-accent);
+    background: var(--color-surface);
+    color: var(--color-text);
     font-size: 0.75rem;
     font-style: italic;
     line-height: 1.35;
     padding: 8px 10px;
     border-radius: var(--border-radius);
-    border: 1px solid #333;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     z-index: 10;
     pointer-events: none;
 }
@@ -985,7 +1005,7 @@ body.dark-mode .tab.active {
     top: 100%;
     left: 16px;
     border: 5px solid transparent;
-    border-top-color: #333;
+    border-top-color: var(--color-border);
 }
 
 .member-rating-row.has-tooltip:hover .member-tooltip,
@@ -1020,7 +1040,7 @@ body.dark-mode .tab.active {
 /* Scorecard trigger button in ranking list */
 .scorecard-trigger {
     background: none;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
     cursor: pointer;
     padding: 3px 8px;
@@ -1397,5 +1417,73 @@ select.modal-date-input {
 /* Scroll lock when modal is open */
 body.modal-open {
     overflow: hidden;
+}
+
+/* =============================================
+   Who's Next Modal
+   ============================================= */
+
+.whos-next-modal {
+    align-self: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 24px;
+    width: 90%;
+    max-width: 340px;
+    animation: fade-in 0.15s ease-out;
+}
+
+.whos-next-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.whos-next-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+}
+
+.whos-next-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.whos-next-sub {
+    font-size: 0.75rem;
+    color: var(--color-accent);
+    margin-top: 1px;
+}
+
+/* Meetings tab */
+.meeting-date {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    min-width: 92px;
+    flex-shrink: 0;
+    line-height: 1.3;
+}
+
+.meeting-location {
+    font-size: 0.7rem;
+    color: var(--color-accent);
+    margin-top: 1px;
+}
+
+.meeting-chooser {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--color-accent);
 }
 
