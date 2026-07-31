@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head><title>Populate Meeting Dates & Locations</title>
+<style>
+  body{font-family:monospace;background:#111;color:#eee;padding:20px}
+  button{padding:10px 20px;font-size:1rem;margin:8px 8px 8px 0;cursor:pointer}
+  input[type=text]{padding:8px;font-size:1rem;width:300px;background:#222;color:#eee;border:1px solid #444}
+  label{display:block;margin:12px 0 4px}
+  table{border-collapse:collapse;width:100%;margin-top:20px}
+  th{text-align:left;padding:6px 10px;background:#222;color:#aaa;font-size:0.85rem;border-bottom:1px solid #333}
+  td{padding:6px 10px;border-bottom:1px solid #222;vertical-align:top}
+  .done{color:#4caf50}
+  .err{color:#f44336}
+  .warn{color:#ffb300}
+  .dim{color:#666}
+  .keep{color:#888}
+</style>
+</head>
+<body>
+  <h2>Populate discussed_at & discussed_location</h2>
+  <p>Source: BBC WhatsApp chat analysis (Jan 2020 – Jul 2026).<br>
+  Dates are only written where missing unless "overwrite" is checked. Locations are always written.</p>
+
+  <label>Club ID:</label>
+  <input type="text" id="club-id" placeholder="paste club ID here" />
+  <label><input type="checkbox" id="overwrite-dates" /> Overwrite existing discussed_at dates</label>
+  <button onclick="preview()">Load &amp; Preview</button>
+  <button onclick="apply()" id="apply-btn" disabled>Apply Updates</button>
+  <div id="output"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",
+      authDomain: "book-club-e4916.firebaseapp.com",
+      projectId: "book-club-e4916",
+      storageBucket: "book-club-e4916.firebasestorage.app",
+      messagingSenderId: "910679044088",
+      appId: "1:910679044088:web:04f7c993a52c7f393af00d"
+    });
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    auth.onAuthStateChanged(function(u) {
+      if (!u) auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    });
+
+    // match: lowercase substrings; a book matches an entry when ANY keyword
+    // occurs in the normalized book title.
+    var MEETINGS = [
+      {match:["frankissstein","frankenissen","frankenstein"], date:"2020-01-15", location:"Restaurant, Helsinki (unnamed in chat)"},
+      {match:["pelican"],                       date:"2020-04-03", location:"Zoom (first virtual BBC)"},
+      {match:["crawdads"],                      date:"2020-04-25", location:"Zoom"},
+      {match:["dancing in the streets"],        date:"2020-05-23", location:"Zoom / Google Meet"},
+      {match:["hesse","siddhartha","steppenwolf","narcissus"], date:"2020-06-14", location:"Zoom"},
+      {match:["vile bodies"],                   date:"2020-09-26", location:"Joe's summer cottage, Kimitoon"},
+      {match:["loverman"],                      date:"2021-02-06", location:"Zoom"},
+      {match:["spy and the traitor"],           date:"2021-07-08", location:"Haltia nature centre, Nuuksio"},
+      {match:["jews don"],                      date:"2021-11-04", location:"Bona Fide, Vironkatu 8, Helsinki"},
+      {match:["1000 years","joys and sorrows"], date:"2022-05-05", location:"Corporate sauna, Keilaniemenranta, Espoo"},
+      {match:["klara"],                         date:"2022-06-15", location:"Everest, Katajanokka, Helsinki"},
+      {match:["promise"],                       date:"2022-11-24", location:"Laiska Karhu + Ravintola Aito, Helsinki"},
+      {match:["priestdaddy","priest daddy"],    date:"2023-04-12", location:"Bier-Bier + Alexanderplats, Helsinki"},
+      {match:["last animal","mammoth"],         date:"2023-11-16", location:"Hima & Sali + Tanssin Talo + Sewa, Helsinki"},
+      {match:["wager"],                         date:"2024-01-18", location:"Bruuveri, Kamppi, Helsinki"},
+      {match:["gone girl"],                     date:"2024-05-02", location:"Harju8, Kallio, Helsinki"},
+      {match:["regeneration"],                  date:"2024-06-06", location:"Fly Fusion, Katajanokka, Helsinki"},
+      {match:["glass room"],                    date:"2024-08-30", location:"Joe's cottage, Kimitoon (symposium)"},
+      {match:["creation lake"],                 date:"2024-12-16", location:"Restaurant, Helsinki (unnamed in chat)"},
+      {match:["my struggle","knausg"],          date:"2025-01-22", location:"Wellamo, Katajanokka, Helsinki"},
+      {match:["essay","natural world","stegosaur","force that drives"], date:"2025-04-25", location:"Sivukirjasto + Boka, Kallio, Helsinki"},
+      {match:["safekeep"],                      date:"2025-06-13", location:"Fellows + Kuu, Toolo, Helsinki"},
+      {match:["sing to me"],                    date:"2025-09-11", location:"Retro Enoteca, Kaisaniemi, Helsinki"},
+      {match:["ai philosophy","ai evening"],    date:"2025-11-01", location:"Kirsikka, Hameentie 1, Helsinki"},
+      // Joe's Dec 2025 pick: title unknown from chat export (photo-only proposal).
+      // If you add keywords for it here, it gets: 2025-12-21, Lazy Fox note below.
+      {match:[],                                date:"2025-12-21", location:"Lazy Fox planned; moved due to queue (final venue unknown)", note:"Joe's Dec 2025 book - add match keywords once title is known"},
+      {match:["roadside picnic"],               date:"2026-03-15", location:"Nokkalan Majakka, Matinkyla, Espoo"},
+      {match:["piranesi"],                      date:"2026-04-17", location:"Lucy in the Sky, Helsinki"},
+      {match:["theo of golden"],                date:"2026-05-28", location:"Kellotorni + Ravintola Taulu, Helsinki"},
+      {match:["black bag"],                     date:"2026-07-31", location:"Jan's island, Tirmo, Porvoo archipelago"}
+    ];
+
+    var plan = null; // computed by preview()
+
+    function norm(s) { return (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+    function findMeeting(title) {
+      var t = norm(title);
+      for (var i = 0; i < MEETINGS.length; i++) {
+        var m = MEETINGS[i];
+        for (var j = 0; j < m.match.length; j++) {
+          if (t.indexOf(m.match[j].replace(/[^a-z0-9 ]/g, ' ')) !== -1) return m;
+        }
+      }
+      return null;
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function fmtExisting(d) {
+      if (!d) return null;
+      if (d.toDate) return d.toDate().toISOString().slice(0, 10);
+      return String(d);
+    }
+
+    function preview() {
+      var clubId = document.getElementById('club-id').value.trim();
+      if (!clubId) return;
+      var overwrite = document.getElementById('overwrite-dates').checked;
+      document.getElementById('apply-btn').disabled = true;
+
+      db.collection('clubs/' + clubId + '/books').get().then(function(snap) {
+        var rows = [];
+        var updates = [];
+        var matchedEntries = [];
+        snap.forEach(function(doc) {
+          var b = doc.data();
+          var m = findMeeting(b.title);
+          var existing = fmtExisting(b.discussed_at);
+          if (!m) {
+            rows.push('<tr><td>' + esc(b.title) + '</td><td class="warn">no match</td><td>' + (existing || '<span class="dim">—</span>') + '</td><td class="dim">unchanged</td></tr>');
+            return;
+          }
+          matchedEntries.push(m);
+          var upd = { discussed_location: m.location };
+          var dateCell;
+          if (existing && !overwrite) {
+            dateCell = '<span class="keep">keep ' + existing + '</span>';
+          } else {
+            upd.discussed_at = m.date;
+            dateCell = (existing ? existing + ' → ' : '') + '<span class="done">' + m.date + '</span>';
+          }
+          updates.push({ ref: doc.ref, title: b.title, upd: upd });
+          rows.push('<tr><td>' + esc(b.title) + '</td><td class="done">match</td><td>' + dateCell + '</td><td>' + esc(m.location) + '</td></tr>');
+        });
+
+        var unmatched = MEETINGS.filter(function(m) {
+          return m.match.length > 0 && matchedEntries.indexOf(m) === -1;
+        }).map(function(m) { return m.match[0] + ' (' + m.date + ')'; });
+
+        plan = updates;
+        document.getElementById('apply-btn').disabled = updates.length === 0;
+        document.getElementById('output').innerHTML =
+          '<p>' + updates.length + ' books will be updated, ' + (snap.size - updates.length) + ' untouched.</p>' +
+          (unmatched.length ? '<p class="warn">Chat entries with no matching book in the app: ' + esc(unmatched.join('; ')) + '</p>' : '') +
+          '<table><thead><tr><th>Book</th><th>Status</th><th>discussed_at</th><th>discussed_location</th></tr></thead>' +
+          '<tbody>' + rows.join('') + '</tbody></table>';
+      }).catch(function(e) {
+        document.getElementById('output').innerHTML = '<p class="err">Error: ' + esc(e.message) + '</p>';
+      });
+    }
+
+    function apply() {
+      if (!plan || !plan.length) return;
+      document.getElementById('apply-btn').disabled = true;
+      var out = document.getElementById('output');
+      var done = 0;
+      plan.forEach(function(u) {
+        u.ref.update(u.upd).then(function() {
+          done++;
+          out.innerHTML = '<p class="done">Updated ' + done + ' / ' + plan.length + '</p>' + (done === plan.length ? '<p class="done">All done. Reload list_books.html to verify.</p>' : '');
+        }).catch(function(e) {
+          out.innerHTML += '<p class="err">FAILED ' + esc(u.title) + ': ' + esc(e.message) + '</p>';
+        });
+      });
+    }
+  </script>
+</body>
+</html>

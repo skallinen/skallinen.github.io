@@ -90,10 +90,12 @@
         var rows = books.map(function(b, i) {
           var date = formatDate(b.discussed_at);
           var chosenBy = members[b.added_by] || b.added_by || '—';
+          var location = b.discussed_location || '<span class="no-date">—</span>';
           return '<tr>' +
             '<td>' + (i + 1) + '</td>' +
             '<td><div class="title">' + (b.title || '') + '</div><div class="author">' + (b.author || '') + '</div></td>' +
             '<td>' + date + '</td>' +
+            '<td>' + location + '</td>' +
             '<td>' + chosenBy + '</td>' +
             '</tr>';
         });
@@ -101,7 +103,7 @@
         document.getElementById('output').innerHTML =
           '<p>' + books.length + ' discussed books</p>' +
           '<table>' +
-            '<thead><tr><th>#</th><th>Title / Author</th><th>Discussed</th><th>Chosen by</th></tr></thead>' +
+            '<thead><tr><th>#</th><th>Title / Author</th><th>Discussed</th><th>Location</th><th>Chosen by</th></tr></thead>' +
             '<tbody>' + rows.join('') + '</tbody>' +
           '</table>';
       }).catch(function(e) {
