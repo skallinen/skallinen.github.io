@@ -149,15 +149,16 @@
 
 (defn add-book!
   "Add a book to a club."
-  [club-id title author date-read callback & [{:keys [synopsis]}]]
+  [club-id title author date-read callback & [{:keys [synopsis book-club-date]}]]
   (when-let [db auth/firebase-db]
     (let [uid (:uid @auth/user)
-          doc (cond-> {:title      title
-                       :author     author
-                       :added_by   uid
-                       :added_at   (ts-now)
-                       :date_read  (or date-read nil)
-                       :revealed   false}
+          doc (cond-> {:title           title
+                       :author          author
+                       :added_by        uid
+                       :added_at        (ts-now)
+                       :date_read       (or date-read nil)
+                       :book_club_date  (or book-club-date nil)
+                       :revealed        false}
                 synopsis (assoc :synopsis synopsis))]
       (-> (.add (.collection db (str "clubs/" club-id "/books"))
                 (clj->js doc))

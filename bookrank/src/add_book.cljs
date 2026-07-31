@@ -11,10 +11,11 @@
 (defn add-book-form
   "Inline form for adding a book to a club."
   [club-id on-added]
-  (let [title     (r/atom "")
-        author    (r/atom "")
-        date-read (r/atom "")
-        saving    (r/atom false)]
+  (let [title           (r/atom "")
+        author          (r/atom "")
+        date-read       (r/atom "")
+        book-club-date  (r/atom "")
+        saving          (r/atom false)]
     (fn [club-id on-added]
       [:div.card {:style {:margin-bottom "16px"}}
        [:div.form-row
@@ -32,10 +33,16 @@
                              :on-change #(reset! author (-> % .-target .-value))}]]]
        [:div.form-row
         [:div.form-group
+         [:label.form-label "Book club date"]
+         [:input.form-input {:type "date"
+                             :value @book-club-date
+                             :on-change #(reset! book-club-date (-> % .-target .-value))}]]
+        [:div.form-group
          [:label.form-label "Date read (optional)"]
          [:input.form-input {:type "date"
                              :value @date-read
-                             :on-change #(reset! date-read (-> % .-target .-value))}]]
+                             :on-change #(reset! date-read (-> % .-target .-value))}]]]
+       [:div.form-row
         [:div.form-group {:style {:display "flex" :align-items "flex-end"}}
          [:button.btn.btn-primary
           {:disabled @saving
@@ -48,6 +55,8 @@
                                          (reset! title "")
                                          (reset! author "")
                                          (reset! date-read "")
+                                         (reset! book-club-date "")
                                          (reset! saving false)
-                                         (when on-added (on-added))))))}
+                                         (when on-added (on-added)))
+                                       {:book-club-date (when (seq @book-club-date) @book-club-date)})))}
           (if @saving "Adding..." "Add Book")]]]])))

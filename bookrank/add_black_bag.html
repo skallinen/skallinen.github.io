@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head><title>Add Black Bag</title>
+<style>body{font-family:monospace;background:#111;color:#eee;padding:20px}button{padding:10px 20px;font-size:1rem;margin:8px;cursor:pointer}.done{color:#4caf50}.err{color:#f44336}input,select{padding:8px;font-size:1rem;width:300px;background:#222;color:#eee;border:1px solid #444}label{display:block;margin:12px 0 4px}</style>
+</head>
+<body>
+  <h2>Add: Black Bag</h2>
+  <label>Club ID:</label>
+  <input id="club-id" placeholder="paste club ID here" />
+  <button onclick="loadMembers()">Load Members</button>
+
+  <div id="member-section" style="display:none">
+    <label>Chosen by (select Joseph Wright):</label>
+    <select id="chosen-by"></select>
+    <label>Book club date:</label>
+    <input type="date" id="book-club-date" value="2026-07-31" />
+    <button onclick="addBook()">Add Book</button>
+  </div>
+  <div id="status"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",
+      authDomain: "book-club-e4916.firebaseapp.com",
+      projectId: "book-club-e4916",
+      storageBucket: "book-club-e4916.firebasestorage.app",
+      messagingSenderId: "910679044088",
+      appId: "1:910679044088:web:04f7c993a52c7f393af00d"
+    });
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    function log(msg,cls){document.getElementById('status').innerHTML+='<div class="'+(cls||'')+'">'+ msg+'</div>';}
+    auth.onAuthStateChanged(function(u){if(u){log('Logged in: '+u.email);}else{auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());}});
+
+    function loadMembers() {
+      var clubId = document.getElementById('club-id').value.trim();
+      if (!clubId) { log('Enter club ID','err'); return; }
+      db.collection('clubs/' + clubId + '/members').get().then(function(snap) {
+        var sel = document.getElementById('chosen-by');
+        sel.innerHTML = '';
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          var opt = document.createElement('option');
+          opt.value = doc.id;
+          opt.textContent = (d.display_name || d.email || doc.id);
+          if ((d.display_name || '').toLowerCase().indexOf('joseph') >= 0) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        document.getElementById('member-section').style.display = 'block';
+        log('Members loaded. Select Joseph Wright and click Add Book.');
+      });
+    }
+
+    function addBook() {
+      var clubId = document.getElementById('club-id').value.trim();
+      var chosenBy = document.getElementById('chosen-by').value;
+      var bookClubDate = document.getElementById('book-club-date').value;
+      if (!clubId || !chosenBy) { log('Missing data','err'); return; }
+
+      log('Adding Black Bag...');
+      db.collection('clubs/' + clubId + '/books').add({
+        title: "Black Bag",
+        author: "Luke Kennard",
+        synopsis: "A satirical campus novel following a penniless, out-of-work actor in London who accepts a strange job offer from a university professor, Dr. Blend. To assist a psychological experiment recreating a 1967 study on the 'mere-exposure effect', the actor spends an entire university term attending lectures while zipped inside a large black leather bag. As the experiment spirals outward, the actor grows unexpectedly fond of his anonymous existence; a professor of post-humanism falls for the mysterious figure inside the bag; and his flatmate spots a chance to monetize the spectacle. Longlisted for the 2026 Booker Prize, the novel skewers academia, the attention economy, cryptocurrency, and modern masculinity — while remaining, at its core, a profoundly humane and off-kilter love story about the search for meaning and genuine connection.",
+        added_by: chosenBy,
+        added_at: firebase.firestore.FieldValue.serverTimestamp(),
+        date_read: null,
+        book_club_date: bookClubDate || null,
+        revealed: false
+      }).then(function() {
+        log('Added: Black Bag (chosen by Joseph Wright)', 'done');
+      }).catch(function(e) {
+        log('Error: ' + e.message, 'err');
+      });
+    }
+  </script>
+</body>
+</html>
