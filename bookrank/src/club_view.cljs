@@ -445,7 +445,15 @@
                [:button.modal-btn.modal-btn-primary
                 {:on-click (fn []
                              (db/reveal-book! club-id book-id nil))}
-                "Reveal Scores"]])]]])))))
+                "Reveal Scores"]])
+
+            ;; Admin: Unreveal button (already-revealed books)
+            (when (and is-admin? revealed?)
+              [:div.modal-actions
+               [:button.modal-btn.modal-btn-danger
+                {:on-click (fn []
+                             (db/unreveal-book! club-id book-id nil))}
+                "Unreveal"]])]]])))))
 
 (defn club-detail-view [club-id]
   (let [;; UI-only state (local to this component)
