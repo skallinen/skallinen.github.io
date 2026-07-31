@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head><title>Set Missing Discussion Dates</title>
+<style>
+  body{font-family:monospace;background:#111;color:#eee;padding:20px;max-width:700px}
+  button{padding:10px 20px;font-size:1rem;margin:8px 8px 8px 0;cursor:pointer}
+  input[type=text]{padding:8px;font-size:1rem;width:300px;background:#222;color:#eee;border:1px solid #444}
+  input[type=date]{padding:6px;font-size:0.95rem;background:#222;color:#eee;border:1px solid #444}
+  label{display:block;margin:12px 0 4px}
+  table{border-collapse:collapse;width:100%;margin-top:20px}
+  th{text-align:left;padding:6px 10px;background:#222;color:#aaa;font-size:0.85rem;border-bottom:1px solid #333}
+  td{padding:8px 10px;border-bottom:1px solid #222;vertical-align:top}
+  .done{color:#4caf50}
+  .err{color:#f44336}
+  .warn{color:#ffb300}
+  .dim{color:#666;font-size:0.85em}
+</style>
+</head>
+<body>
+  <h2>Set Missing Discussion Dates</h2>
+  <p class="dim">For old books discussed years ago with no known date. The prefilled dates are
+  approximations — edit them before applying if you have better guesses. Without a
+  discussed_at, the who's-next rotation falls back to added_at (when the book was entered
+  into the app), which wrongly counts these as recent turns.</p>
+
+  <label>Club ID:</label>
+  <input type="text" id="club-id" placeholder="paste club ID here" />
+  <button onclick="load()">Load Books</button>
+  <button onclick="apply()" id="apply-btn" disabled>Apply Dates</button>
+  <div id="output"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",
+      authDomain: "book-club-e4916.firebaseapp.com",
+      projectId: "book-club-e4916",
+      storageBucket: "book-club-e4916.firebasestorage.app",
+      messagingSenderId: "910679044088",
+      appId: "1:910679044088:web:04f7c993a52c7f393af00d"
+    });
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    auth.onAuthStateChanged(function(u) {
+      if (!u) auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    });
+
+    // Books discussed long ago whose exact meeting date is unknown.
+    // date = best-guess default, editable in the UI before applying.
+    var TARGETS = [
+      {match:["lean startup"],   date:"2015-06-01", note:"pre-WhatsApp era, exact date unknown (placeholder)"},
+      {match:["happy hooker"],   date:"2016-06-01", note:"pre-WhatsApp era, exact date unknown (placeholder)"},
+      {match:["ai philosophy","ai evening"], date:"2025-11-01", note:"chat evidence: Jan's prep-materials evening at Kirsikka, 1 Nov 2025 — edit if that's wrong"}
+    ];
+
+    var found = []; // {ref, title, existing, inputId}
+
+    function norm(s) { return (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function fmtExisting(d) {
+      if (!d) return null;
+      if (d.toDate) return d.toDate().toISOString().slice(0, 10);
+      return String(d);
+    }
+
+    function load() {
+      var clubId = document.getElementById('club-id').value.trim();
+      if (!clubId) return;
+      document.getElementById('apply-btn').disabled = true;
+      found = [];
+
+      db.collection('clubs/' + clubId + '/books').get().then(function(snap) {
+        var rows = [];
+        snap.forEach(function(doc) {
+          var b = doc.data();
+          var t = norm(b.title);
+          TARGETS.forEach(function(target, i) {
+            var hit = target.match.some(function(kw) { return t.indexOf(kw) !== -1; });
+            if (!hit) return;
+            var inputId = 'date-' + found.length;
+            var existing = fmtExisting(b.discussed_at);
+            found.push({ ref: doc.ref, title: b.title, inputId: inputId });
+            rows.push('<tr><td>' + esc(b.title) + '</td>' +
+              '<td>' + (existing ? existing : '<span class="warn">not set</span>') + '</td>' +
+              '<td><input type="date" id="' + inputId + '" value="' + target.date + '" /></td>' +
+              '<td class="dim">' + esc(target.note) + '</td></tr>');
+          });
+        });
+
+        if (!found.length) {
+          document.getElementById('output').innerHTML =
+            '<p class="warn">None of the target books (Lean Startup, Happy Hooker, AI Philosophy Evening) were found in this club.</p>';
+          return;
+        }
+        document.getElementById('apply-btn').disabled = false;
+        document.getElementById('output').innerHTML =
+          '<table><thead><tr><th>Book</th><th>Current date</th><th>Set to</th><th>Note</th></tr></thead>' +
+          '<tbody>' + rows.join('') + '</tbody></table>' +
+          '<p class="dim">Adjust any date above, then hit Apply Dates.</p>';
+      }).catch(function(e) {
+        document.getElementById('output').innerHTML = '<p class="err">Error: ' + esc(e.message) + '</p>';
+      });
+    }
+
+    function apply() {
+      if (!found.length) return;
+      document.getElementById('apply-btn').disabled = true;
+      var done = 0;
+      var out = document.getElementById('output');
+      found.forEach(function(f) {
+        var date = document.getElementById(f.inputId).value;
+        if (!date) { done++; return; }
+        f.ref.update({ discussed_at: date }).then(function() {
+          done++;
+          out.innerHTML = '<p class="done">Updated ' + done + ' / ' + found.length + '</p>' +
+            (done === found.length ? '<p class="done">All done. The Meetings tab and Who’s next now use these dates.</p>' : '');
+        }).catch(function(e) {
+          out.innerHTML += '<p class="err">FAILED ' + esc(f.title) + ': ' + esc(e.message) + '</p>';
+        });
+      });
+    }
+  </script>
+</body>
+</html>
