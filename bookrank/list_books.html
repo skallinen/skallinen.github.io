@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head><title>Book List</title>
+<style>
+  body{font-family:monospace;background:#111;color:#eee;padding:20px}
+  button{padding:10px 20px;font-size:1rem;margin:8px;cursor:pointer}
+  input{padding:8px;font-size:1rem;width:300px;background:#222;color:#eee;border:1px solid #444}
+  label{display:block;margin:12px 0 4px}
+  table{border-collapse:collapse;width:100%;margin-top:20px}
+  th{text-align:left;padding:8px 12px;background:#222;color:#aaa;font-size:0.85rem;border-bottom:1px solid #333}
+  td{padding:8px 12px;border-bottom:1px solid #222;vertical-align:top}
+  tr:hover td{background:#1a1a1a}
+  .no-date{color:#555}
+  .title{font-weight:bold}
+  .author{color:#aaa;font-size:0.9em}
+</style>
+</head>
+<body>
+  <h2>Books by Discussion Date</h2>
+  <label>Club ID:</label>
+  <input id="club-id" placeholder="paste club ID here" />
+  <button onclick="loadBooks()">Load</button>
+  <div id="output"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyCUn2U-L_gipdKcpcXe4r1TCM63dxhDVnM",
+      authDomain: "book-club-e4916.firebaseapp.com",
+      projectId: "book-club-e4916",
+      storageBucket: "book-club-e4916.firebasestorage.app",
+      messagingSenderId: "910679044088",
+      appId: "1:910679044088:web:04f7c993a52c7f393af00d"
+    });
+    var db = firebase.firestore();
+    var auth = firebase.auth();
+    auth.onAuthStateChanged(function(u) {
+      if (!u) auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    });
+
+    function formatDate(ts) {
+      if (!ts) return null;
+      var d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+    }
+
+    function loadBooks() {
+      var clubId = document.getElementById('club-id').value.trim();
+      if (!clubId) return;
+
+      // Load members and books in parallel
+      Promise.all([
+        db.collection('clubs/' + clubId + '/members').get(),
+        db.collection('clubs/' + clubId + '/books').get()
+      ]).then(function(results) {
+        var membersSnap = results[0];
+        var booksSnap   = results[1];
+
+        // Build uid -> display_name map
+        var members = { unclaimed: 'Unclaimed', 'past-peter': 'Peter (past)', 'past-jocke': 'Jocke (past)' };
+        membersSnap.forEach(function(doc) {
+          var d = doc.data();
+          members[doc.id] = d.display_name || d.email || doc.id;
+        });
+
+        // Collect books
+        var books = [];
+        booksSnap.forEach(function(doc) {
+          var d = doc.data();
+          d._id = doc.id;
+          books.push(d);
+        });
+
+        // Sort: books with discussed_at first (chronological), then undiscussed
+        books.sort(function(a, b) {
+          var ta = a.discussed_at ? (a.discussed_at.seconds || 0) : null;
+          var tb = b.discussed_at ? (b.discussed_at.seconds || 0) : null;
+          if (ta && tb) return ta - tb;
+          if (ta) return -1;
+          if (tb) return 1;
+          return (a.title || '').localeCompare(b.title || '');
+        });
+
+        // Render table
+        var rows = books.map(function(b, i) {
+          var date = b.discussed_at ? formatDate(b.discussed_at) : '<span class="no-date">—</span>';
+          var chosenBy = members[b.added_by] || b.added_by || '—';
+          return '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td><div class="title">' + (b.title || '') + '</div><div class="author">' + (b.author || '') + '</div></td>' +
+            '<td>' + date + '</td>' +
+            '<td>' + chosenBy + '</td>' +
+            '</tr>';
+        });
+
+        document.getElementById('output').innerHTML =
+          '<p>' + books.length + ' books</p>' +
+          '<table>' +
+            '<thead><tr><th>#</th><th>Title / Author</th><th>Discussed</th><th>Chosen by</th></tr></thead>' +
+            '<tbody>' + rows.join('') + '</tbody>' +
+          '</table>';
+      }).catch(function(e) {
+        document.getElementById('output').innerHTML = '<p style="color:#f44">Error: ' + e.message + '</p>';
+      });
+    }
+  </script>
+</body>
+</html>
