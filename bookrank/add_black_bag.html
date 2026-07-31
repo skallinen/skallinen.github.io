@@ -12,8 +12,6 @@
   <div id="member-section" style="display:none">
     <label>Chosen by (select Joseph Wright):</label>
     <select id="chosen-by"></select>
-    <label>Book club date:</label>
-    <input type="date" id="book-club-date" value="2026-07-31" />
     <button onclick="addBook()">Add Book</button>
   </div>
   <div id="status"></div>
@@ -57,7 +55,6 @@
     function addBook() {
       var clubId = document.getElementById('club-id').value.trim();
       var chosenBy = document.getElementById('chosen-by').value;
-      var bookClubDate = document.getElementById('book-club-date').value;
       if (!clubId || !chosenBy) { log('Missing data','err'); return; }
 
       log('Adding Black Bag...');
@@ -68,7 +65,6 @@
         added_by: chosenBy,
         added_at: firebase.firestore.FieldValue.serverTimestamp(),
         date_read: null,
-        book_club_date: bookClubDate || null,
         revealed: false
       }).then(function() {
         log('Added: Black Bag (chosen by Joseph Wright)', 'done');
