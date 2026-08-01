@@ -228,11 +228,13 @@
                             (some (fn [m] (and (= (:id m) current-uid)
                                                (= (:role m) "admin")))
                                   @state/members))
-              ;; Aggregate data for opinions gating
+              ;; Aggregate data for opinions gating. Gated on revealed? so that
+              ;; member scores, opinions and aggregate rank never leak before
+              ;; the book's reveal ceremony.
               all-book-ids (set (keys books-map))
               agg-scores (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids)
               agg-data (get agg-scores book-id)
-              all-rated? (and agg-data (not (:any-unranked? agg-data)))
+              all-rated? (and revealed? agg-data (not (:any-unranked? agg-data)))
               ;; Own opinion
               my-opinion (get (:opinions my-ranking) (keyword book-id) "")
               close! (fn []

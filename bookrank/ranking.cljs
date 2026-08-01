@@ -21,8 +21,8 @@
       "")))
 
 (defn book-details-widget
-  "Collapsible widget showing links and synopsis for a book."
-  [book]
+  "Collapsible widget showing links, synopsis, and opinion for a book."
+  [book & [{:keys [opinion]}]]
   [:details {:style {:margin-top "2px" :font-size "0.75em"}}
    [:summary {:style {:cursor "pointer" :color "#888" :list-style "none"
                       :display "inline-flex" :align-items "center" :gap "2px"}
@@ -30,7 +30,12 @@
     [:span {:style {:font-size "0.8em" :transition "transform 0.2s"}} "▸"]
     [:span "info"]]
    [:div {:style {:padding "4px 0 2px 12px" :line-height "1.4"}}
-    [:div {:style {:display "flex" :gap "10px" :margin-bottom "3px"}}
+    (when (and opinion (seq opinion))
+      [:div.book-opinion [:span.opinion-label "Opinion tweet: "] (str "\"" opinion "\"")])
+    (when (:synopsis book)
+      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3" :margin-bottom "8px"}}
+       (:synopsis book)])
+    [:div {:style {:display "flex" :gap "10px"}}
      [:a {:href (book-search-url :storygraph (or (:title book) ""))
           :target "_blank"
           :style {:color "#888" :text-decoration "none"}}
@@ -38,10 +43,7 @@
      [:a {:href (book-search-url :wikipedia (or (:title book) ""))
           :target "_blank"
           :style {:color "#888" :text-decoration "none"}}
-      "Wikipedia ↗"]]
-    (when (:synopsis book)
-      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3"}}
-       (:synopsis book)])]])
+      "Wikipedia ↗"]]]])
 
 (defonce sortable-instance (atom nil))
 
@@ -64,7 +66,7 @@
                                                   (let [items (.querySelectorAll el "[data-book-id]")
                                                         ids   (mapv #(.getAttribute % "data-book-id")
                                                                     (seq items))]
-                                                    (on-reorder ids)))})))))
+                                                    (on-reorder ids evt)))})))))
 
 (defn ranking-view
   "The drag-and-drop ranking view for a club."
@@ -77,6 +79,22 @@
         list-ref (atom nil)
         dirty    (r/atom false)
         save-timer (atom nil)
+        ;; One-time tip shown after dragging a book a long way up
+        show-drag-tip (r/atom false)
+        drag-tip-key "bookrank-move-tip-seen"
+        dismiss-drag-tip! (fn []
+                            (try (.setItem js/localStorage drag-tip-key "1")
+                                 (catch :default _ nil))
+                            (reset! show-drag-tip false))
+        maybe-show-drag-tip! (fn [evt]
+                               (let [oi (.-oldIndex evt)
+                                     ni (.-newIndex evt)
+                                     seen? (try (= "1" (.getItem js/localStorage drag-tip-key))
+                                                (catch :default _ false))]
+                                 (when (and (number? oi) (number? ni)
+                                            (>= (- oi ni) 10)
+                                            (not seen?))
+                                   (reset! show-drag-tip true))))
         do-save! (fn []
                    ;; Debounced autosave: waits 500ms after last action
                    (when @save-timer (js/clearTimeout @save-timer))
@@ -98,19 +116,19 @@
     ;; Load existing ranking using callback (no more setTimeout race condition)
     (let [ranking-data (r/atom nil)]
       (db/fetch-ranking! club-id ranking-data
-        (fn []
-          (let [data @ranking-data
-                all-book-ids (set (keys books-map))
-                existing-order (or (:order data) [])
-                existing-unread (set (or (:unread data) []))
+                         (fn []
+                           (let [data @ranking-data
+                                 all-book-ids (set (keys books-map))
+                                 existing-order (or (:order data) [])
+                                 existing-unread (set (or (:unread data) []))
                 ;; Books in order that still exist
-                valid-order (filterv #(contains? all-book-ids %) existing-order)
+                                 valid-order (filterv #(contains? all-book-ids %) existing-order)
                 ;; NOTE: Firestore field is 'unread' but UI shows 'skipped' (backward compat)
-                valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
+                                 valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
             ;; New books not in order or unread stay "unranked" (not stored anywhere)
-            (reset! order valid-order)
-            (reset! unread valid-unread)
-            (reset! loaded true)))))
+                             (reset! order valid-order)
+                             (reset! unread valid-unread)
+                             (reset! loaded true)))))
 
     (fn [club-id books-map confirm?]
       (let [order-set    (set @order)
@@ -119,18 +137,68 @@
             unread-books (filterv #(contains? unread-set %) (keys books-map))
             ;; Unranked = not in order AND not in unread
             unranked-books (filterv #(and (not (contains? order-set %))
-                                         (not (contains? unread-set %)))
+                                          (not (contains? unread-set %)))
                                     (keys books-map))
-            total        (count ranked-books)]
+            total        (count ranked-books)
+            open-modal! (fn [book-id]
+                          (reset! state/detail-modal
+                                  {:book-id book-id
+                                   :context :ranking
+                                   :callbacks
+                                   {:on-remove (fn []
+                                                 (swap! order (fn [o] (filterv #(not= % book-id) o)))
+                                                 (do-save!))
+                                    :on-skip   (fn []
+                                                 (swap! unread conj book-id)
+                                                 (swap! order (fn [o] (filterv #(not= % book-id) o)))
+                                                 (do-save!))
+                                    :on-add    (fn []
+                                                 (swap! order conj book-id)
+                                                 (if confirm?
+                                                   (reset! dirty true)
+                                                   (do-save!)))
+                                    :on-unskip (fn []
+                                                 (swap! unread disj book-id)
+                                                 (when-not (some #{book-id} @order)
+                                                   (swap! order conj book-id))
+                                                 (do-save!))
+                                    :on-move   (fn [target-pos]
+                                                 (let [ranked (filterv #(not (contains? @unread %)) @order)
+                                                       without (filterv #(not= % book-id) ranked)
+                                                       clamped (max 0 (min (count without) (dec target-pos)))
+                                                       new-ranked (into (subvec without 0 clamped)
+                                                                        (into [book-id] (subvec without clamped)))
+                                                       unread-ids (filterv #(contains? @unread %) @order)]
+                                                   (reset! order (into new-ranked unread-ids))
+                                                   (if confirm?
+                                                     (reset! dirty true)
+                                                     (do-save!))))}}))]
         [:div
+         ;; Long-drag tip modal
+         (when @show-drag-tip
+           [:div.modal-backdrop
+            {:on-click (fn [e]
+                         (when (= (.-target e) (.-currentTarget e))
+                           (dismiss-drag-tip!)))}
+            [:div.center-modal
+             [:h3 {:style {:margin "0 0 8px"}} "Tip: jump by number"]
+             [:p {:style {:font-size "0.85rem" :line-height "1.5" :margin "0 0 6px"}}
+              "Moving a book a long way? Tap the book to open its card and use "
+              [:strong "Move to Position"]
+              " to type the rank number directly."]
+             [:p {:style {:font-size "0.85rem" :line-height "1.5" :margin "0"}}
+              "It's easier to land it roughly by number first, then fine-tune with a short drag."]
+             [:button.modal-btn {:style {:margin-top "14px"}
+                                 :on-click dismiss-drag-tip!}
+              "Got it"]]])
          ;; Help tips
          [:details {:style {:margin-bottom "12px" :font-size "0.82em" :opacity 0.8}}
-          [:summary {:style {:cursor "pointer" :color "var(--color-accent)"}} "ℹ How this works"]
+          [:summary {:style {:cursor "pointer" :color "var(--color-accent)"}} "How this works"]
           [:div {:style {:padding "8px 12px" :line-height "1.5"}}
-           [:p "Drag books to reorder. Best at top, worst at bottom. The order is what matters — the score is just a representation."]
-           [:p {:style {:margin-top "6px"}} "📊 = add to your ranking · 📕 = skip (haven't read it) · ↩ = remove from ranking"]
+           [:p "Drag books to reorder. Best at top, worst at bottom. The order is what matters."]
+           [:p {:style {:margin-top "6px"}} "Tap a book for more options (skip, remove, move to position, opinion tweet)."]
            [:p {:style {:margin-top "6px"}} "Leave books " [:strong "unranked"] " if you're currently reading or plan to. Only mark " [:strong "skipped"] " if it will stay unread for now."]
-           [:p {:style {:margin-top "6px"}} "Can't remember a book? Put it in the middle — if it wasn't memorable enough to recall, it's probably average."]]]
+           [:p {:style {:margin-top "6px"}} "Can't remember a book? Put it in the middle."]]]
          ;; Ranked books (sortable)
          [:div.ranking-list
           {:ref (fn [el]
@@ -138,11 +206,12 @@
                     (reset! list-ref el)
                     (js/setTimeout
                      #(init-sortable! el
-                                      (fn [new-ids]
+                                      (fn [new-ids evt]
                                         (reset! order
                                                 (into (vec new-ids)
                                                       (filterv (fn [id] (contains? @unread id))
                                                                @order)))
+                                        (when evt (maybe-show-drag-tip! evt))
                                         (if confirm?
                                           (reset! dirty true)
                                           (do-save!))))
@@ -152,50 +221,25 @@
              (map-indexed
               (fn [idx book-id]
                 (let [book  (get books-map book-id)
-                      score (scoring/rank->score idx total)
-                      unrevealed? (and (some? (:revealed book)) (not (:revealed book)))
-                      my-ranking (get @state/rankings (:uid @auth/user))
-                      opinion (get (:opinions my-ranking) (keyword book-id) nil)]
+                      score (scoring/rank->score idx total)]
                   [:div.ranking-item
                    {:key          book-id
-                    :data-book-id book-id}
-                   [:span.drag-handle "⠿"]
+                    :data-book-id book-id
+                    :on-click     (fn [e]
+                                    ;; Don't open modal when drag handle is tapped
+                                    (when-not (.. e -target -classList (contains "drag-handle"))
+                                      (open-modal! book-id)))}
+                   [:span.drag-handle "\u2807"]
                    [:span.ranking-position (str (inc idx))]
                    [:div.book-info
                     [:div.book-title (or (:title book) book-id)]
-                    [:div.book-author (or (:author book) "")]
-                    (when (and opinion (seq opinion))
-                      [:div.book-opinion (str "\"" opinion "\"")])
-                    [book-details-widget book]]
+                    [:div.book-author (or (:author book) "")]]
                    [:span.ranking-score
                     {:class (cond
                               (>= (:raw score) 4.0) "score-high"
                               (>= (:raw score) 2.5) "score-mid"
                               :else                  "score-low")}
-                    (:display score)]
-                   ;; Scorecard button for unrevealed books
-                   (when unrevealed?
-                     [:button.scorecard-trigger
-                      {:title    "Show full-screen score"
-                       :on-click (fn [e]
-                                   (.stopPropagation e)
-                                   (reset! state/scorecard-book book-id))}
-                      "📱 Show"])
-                   [:div {:style {:display "flex" :gap "2px"}}
-                    [:button.btn-icon
-                     {:title    "Skip (haven't read)"
-                      :on-click (fn [e]
-                                  (.stopPropagation e)
-                                  (swap! unread conj book-id)
-                                  (do-save!))}
-                     "📕"]
-                    [:button.btn-icon
-                     {:title    "Remove from ranking"
-                      :on-click (fn [e]
-                                  (.stopPropagation e)
-                                  (swap! order (fn [o] (filterv #(not= % book-id) o)))
-                                  (do-save!))}
-                     "↩"]]]))
+                    (:display score)]]))
               ranked-books)))]
 
          ;; Unranked section (new books not yet ranked or marked unread)
@@ -205,28 +249,12 @@
             (doall
              (for [book-id unranked-books]
                (let [book (get books-map book-id)]
-                 [:div.unread-item {:key book-id}
+                 [:div.unread-item {:key book-id
+                                    :style {:cursor "pointer"}
+                                    :on-click #(open-modal! book-id)}
                   [:div.book-info
                    [:div.book-title (or (:title book) book-id)]
-                   [:div.book-author (or (:author book) "")]
-                   [book-details-widget book]]
-                  [:div {:style {:display "flex" :gap "4px"}}
-                   [:button.btn-icon
-                    {:title    "Add to ranking"
-                     :on-click (fn []
-                                 (swap! order conj book-id)
-                                 (if confirm?
-                                   (reset! dirty true)
-                                   (do-save!)))}
-                    "📊"]
-                   [:button.btn-icon
-                    {:title    "Skip (haven't read)"
-                     :on-click (fn []
-                                 (swap! unread conj book-id)
-                                 (if confirm?
-                                   (reset! dirty true)
-                                   (do-save!)))}
-                    "📕"]]])))])
+                   [:div.book-author (or (:author book) "")]]])))])
 
          ;; Skipped section
          (when (seq unread-books)
@@ -235,19 +263,12 @@
             (doall
              (for [book-id unread-books]
                (let [book (get books-map book-id)]
-                 [:div.unread-item {:key book-id}
+                 [:div.unread-item {:key book-id
+                                    :style {:cursor "pointer"}
+                                    :on-click #(open-modal! book-id)}
                   [:div.book-info
                    [:div.book-title (or (:title book) book-id)]
-                   [:div.book-author (or (:author book) "")]]
-                  [:button.btn-icon
-                   {:title    "Mark as read"
-                    :on-click (fn []
-                                (swap! unread disj book-id)
-                                ;; Add back to end of order if not present
-                                (when-not (some #{book-id} @order)
-                                  (swap! order conj book-id))
-                                (do-save!))}
-                   "📖"]])))])
+                   [:div.book-author (or (:author book) "")]]])))])
 
          ;; Confirm ranking button (fixed bar at bottom after drag reorder)
          (when @dirty
@@ -264,5 +285,5 @@
          [:div {:style {:margin-top "8px" :text-align "center"}}
           (cond
             @saving [:span {:style {:color "var(--color-accent)" :font-size "0.8rem"}} "Saving..."]
-            @saved  [:span.invite-copied "✓ Saved"]
+            @saved  [:span.invite-copied "\u2713 Saved"]
             :else   nil)]]))))

@@ -66,7 +66,7 @@
                                                   (let [items (.querySelectorAll el "[data-book-id]")
                                                         ids   (mapv #(.getAttribute % "data-book-id")
                                                                     (seq items))]
-                                                    (on-reorder ids)))})))))
+                                                    (on-reorder ids evt)))})))))
 
 (defn ranking-view
   "The drag-and-drop ranking view for a club."
@@ -79,6 +79,22 @@
         list-ref (atom nil)
         dirty    (r/atom false)
         save-timer (atom nil)
+        ;; One-time tip shown after dragging a book a long way up
+        show-drag-tip (r/atom false)
+        drag-tip-key "bookrank-move-tip-seen"
+        dismiss-drag-tip! (fn []
+                            (try (.setItem js/localStorage drag-tip-key "1")
+                                 (catch :default _ nil))
+                            (reset! show-drag-tip false))
+        maybe-show-drag-tip! (fn [evt]
+                               (let [oi (.-oldIndex evt)
+                                     ni (.-newIndex evt)
+                                     seen? (try (= "1" (.getItem js/localStorage drag-tip-key))
+                                                (catch :default _ false))]
+                                 (when (and (number? oi) (number? ni)
+                                            (>= (- oi ni) 10)
+                                            (not seen?))
+                                   (reset! show-drag-tip true))))
         do-save! (fn []
                    ;; Debounced autosave: waits 500ms after last action
                    (when @save-timer (js/clearTimeout @save-timer))
@@ -100,19 +116,19 @@
     ;; Load existing ranking using callback (no more setTimeout race condition)
     (let [ranking-data (r/atom nil)]
       (db/fetch-ranking! club-id ranking-data
-        (fn []
-          (let [data @ranking-data
-                all-book-ids (set (keys books-map))
-                existing-order (or (:order data) [])
-                existing-unread (set (or (:unread data) []))
+                         (fn []
+                           (let [data @ranking-data
+                                 all-book-ids (set (keys books-map))
+                                 existing-order (or (:order data) [])
+                                 existing-unread (set (or (:unread data) []))
                 ;; Books in order that still exist
-                valid-order (filterv #(contains? all-book-ids %) existing-order)
+                                 valid-order (filterv #(contains? all-book-ids %) existing-order)
                 ;; NOTE: Firestore field is 'unread' but UI shows 'skipped' (backward compat)
-                valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
+                                 valid-unread (set (filter #(contains? all-book-ids %) existing-unread))]
             ;; New books not in order or unread stay "unranked" (not stored anywhere)
-            (reset! order valid-order)
-            (reset! unread valid-unread)
-            (reset! loaded true)))))
+                             (reset! order valid-order)
+                             (reset! unread valid-unread)
+                             (reset! loaded true)))))
 
     (fn [club-id books-map confirm?]
       (let [order-set    (set @order)
@@ -121,7 +137,7 @@
             unread-books (filterv #(contains? unread-set %) (keys books-map))
             ;; Unranked = not in order AND not in unread
             unranked-books (filterv #(and (not (contains? order-set %))
-                                         (not (contains? unread-set %)))
+                                          (not (contains? unread-set %)))
                                     (keys books-map))
             total        (count ranked-books)
             open-modal! (fn [book-id]
@@ -158,6 +174,23 @@
                                                      (reset! dirty true)
                                                      (do-save!))))}}))]
         [:div
+         ;; Long-drag tip modal
+         (when @show-drag-tip
+           [:div.modal-backdrop
+            {:on-click (fn [e]
+                         (when (= (.-target e) (.-currentTarget e))
+                           (dismiss-drag-tip!)))}
+            [:div.center-modal
+             [:h3 {:style {:margin "0 0 8px"}} "Tip: jump by number"]
+             [:p {:style {:font-size "0.85rem" :line-height "1.5" :margin "0 0 6px"}}
+              "Moving a book a long way? Tap the book to open its card and use "
+              [:strong "Move to Position"]
+              " to type the rank number directly."]
+             [:p {:style {:font-size "0.85rem" :line-height "1.5" :margin "0"}}
+              "It's easier to land it roughly by number first, then fine-tune with a short drag."]
+             [:button.modal-btn {:style {:margin-top "14px"}
+                                 :on-click dismiss-drag-tip!}
+              "Got it"]]])
          ;; Help tips
          [:details {:style {:margin-bottom "12px" :font-size "0.82em" :opacity 0.8}}
           [:summary {:style {:cursor "pointer" :color "var(--color-accent)"}} "How this works"]
@@ -173,11 +206,12 @@
                     (reset! list-ref el)
                     (js/setTimeout
                      #(init-sortable! el
-                                      (fn [new-ids]
+                                      (fn [new-ids evt]
                                         (reset! order
                                                 (into (vec new-ids)
                                                       (filterv (fn [id] (contains? @unread id))
                                                                @order)))
+                                        (when evt (maybe-show-drag-tip! evt))
                                         (if confirm?
                                           (reset! dirty true)
                                           (do-save!))))

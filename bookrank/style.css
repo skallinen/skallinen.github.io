@@ -1423,7 +1423,8 @@ body.modal-open {
    Who's Next Modal
    ============================================= */
 
-.whos-next-modal {
+.whos-next-modal,
+.center-modal {
     align-self: center;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
