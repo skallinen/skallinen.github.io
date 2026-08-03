@@ -109,14 +109,24 @@
                        ;; so a re-join cannot drop fields it does not carry either.
                        (-> (.get (.doc db (str "clubs/" club-id "/members/" uid)))
                            (.then (fn [snap]
-                                    (let [existing (when (.-exists snap) (.data snap))
-                                          role     (or (some-> existing .-role) "member")]
+                                    ;; Re-joining is idempotent, so an existing
+                                    ;; role AND an existing join moment both
+                                    ;; survive. The join moment is the
+                                    ;; rotation's last-resort ordering key
+                                    ;; (docs/contexts/library/read-models.md,
+                                    ;; `whos-next`) — stamping ts-now on every
+                                    ;; join would move a returning member to the
+                                    ;; back of the tie-break queue for having
+                                    ;; followed their own invite link.
+                                    (let [existing  (when (.-exists snap) (.data snap))
+                                          role      (or (some-> existing .-role) "member")
+                                          joined-at (or (some-> existing .-joined_at) (ts-now))]
                                       (.set (.doc db (str "clubs/" club-id "/members/" uid))
                                             (clj->js {:display_name (:display-name @auth/user)
                                                       :email        (:email @auth/user)
                                                       :photo_url    (:photo-url @auth/user)
                                                       :role         role
-                                                      :joined_at    (ts-now)})
+                                                      :joined_at    joined-at})
                                             (clj->js {:merge true})))))
                            (.then (fn []
                                     ;; Also add UID to member_uids array on club doc

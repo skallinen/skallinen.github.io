@@ -152,7 +152,34 @@
 
    A book offering none of the three moments contributes NO candidate, rather
    than one dated 0 — otherwise its chooser is shown a last pick of 1 Jan 1970
-   and sorts behind members who have genuinely never picked."
+   and sorts behind members who have genuinely never picked.
+
+   THE ORDER IS TOTAL, and every key is written out rather than left to the
+   sort. The keys:
+
+     1. latest-pick moment, ascending (never-picked members first);
+     2. the moment the member JOINED THE CLUB (`joined_at` on the member
+        document), earliest first — this is what orders never-picked members
+        among themselves and breaks any remaining tie between equal latest
+        picks. It replaces the old \"roster order\", which was defined nowhere
+        and in practice meant the order Firestore handed the members over in;
+        the join moment is real evidence the member record already carries, and
+        it says the right thing — a member who has been in the club longer
+        without ever choosing is more overdue;
+     3. member id, as the tie-breaker of last resort.
+
+   Key 3 is there because key 2 can be MISSING (the field postdates some
+   records) or shared. An absent join moment counts as the EARLIEST: a record
+   with no join moment predates the club recording join moments at all, so its
+   owner has been waiting at least as long as anyone who has one. The id, which
+   every member has and no two share, makes the order total.
+
+   ClojureScript's `sort-by` IS stable, so on this track keys 2 and 3 could
+   have been left implicit — and that is exactly why they are not. The mobile
+   track's sort is Dart's, which is explicitly NOT stable, so an implicit
+   tiebreak there is a different answer to \"who is up next\" (its T2-D69).
+   Both tracks now state every key, and neither leans on what its platform
+   happens to do. See docs/contexts/library/read-models.md, `whos-next`."
   [books members]
   (let [member-ids (set (map :id members))
         last-pick (reduce
@@ -166,9 +193,15 @@
                        (if (and t (> t (get-in acc [uid :t] -1)))
                          (assoc acc uid {:t t :book b})
                          acc)))
-                   {} books)]
+                   {} books)
+        ;; -1 sorts every never-picked member ahead of every real moment —
+        ;; and the same trick reads an absent join moment as the earliest
+        sort-key (fn [m]
+                   [(get-in last-pick [(:id m) :t] -1)
+                    (or (date->ms (:joined_at m)) -1)
+                    (str (:id m))])]
     (->> members
-         (sort-by (fn [m] (get-in last-pick [(:id m) :t] -1)))
+         (sort-by sort-key)
          (map (fn [m] {:member m :last (get last-pick (:id m))}))
          (take 2))))
 
