@@ -100,13 +100,24 @@
                          (when callback (callback nil)))
                      (let [club-doc (first (seq (.-docs snapshot)))
                            club-id  (.-id club-doc)]
-                       ;; Add member subdoc
-                       (-> (.set (.doc db (str "clubs/" club-id "/members/" uid))
-                                 (clj->js {:display_name (:display-name @auth/user)
-                                           :email        (:email @auth/user)
-                                           :photo_url    (:photo-url @auth/user)
-                                           :role         "member"
-                                           :joined_at    (ts-now)}))
+                       ;; Add member subdoc.
+                       ;; PRESERVE AN EXISTING ROLE. docs/contexts/membership/index.md:
+                       ;; joining a club one already belongs to "preserves the existing
+                       ;; role". Writing "member" unconditionally silently demoted any
+                       ;; admin who pasted their own club's invite code — and since the
+                       ;; Join box is always visible, that was one action away. Merge,
+                       ;; so a re-join cannot drop fields it does not carry either.
+                       (-> (.get (.doc db (str "clubs/" club-id "/members/" uid)))
+                           (.then (fn [snap]
+                                    (let [existing (when (.-exists snap) (.data snap))
+                                          role     (or (some-> existing .-role) "member")]
+                                      (.set (.doc db (str "clubs/" club-id "/members/" uid))
+                                            (clj->js {:display_name (:display-name @auth/user)
+                                                      :email        (:email @auth/user)
+                                                      :photo_url    (:photo-url @auth/user)
+                                                      :role         role
+                                                      :joined_at    (ts-now)})
+                                            (clj->js {:merge true})))))
                            (.then (fn []
                                     ;; Also add UID to member_uids array on club doc
                                     (-> (.update (.doc db (str "clubs/" club-id))

@@ -84,9 +84,18 @@
         book-rrf     (atom {})   ;; {book-id -> rrf-total}
         book-rankers (atom {})   ;; {book-id -> count of members who ranked it}
         book-members (atom {})   ;; {book-id -> [{:uid uid :score raw}]}
-        book-unread  (atom {})]  ;; {book-id -> #{uid}}
-    ;; Calculate RRF scores from each member's ranking
-    (doseq [[uid ranking] all-rankings]
+        book-unread  (atom {})   ;; {book-id -> #{uid}}
+        roster       (set member-ids)]
+    ;; Calculate RRF scores from each member's ranking.
+    ;; ONLY CURRENT MEMBERS FUSE. A ranking document that belongs to nobody on
+    ;; the roster — someone removed from the club, whose cascade left the
+    ;; document behind — must not influence the club's verdict.
+    ;; docs/contexts/ranking/scoring.md §3 names the current member roster as
+    ;; an input, and spec.feature's "Removing a member removes their influence"
+    ;; makes the consequence explicit. Without this filter the rule held only
+    ;; for as long as a second, non-atomic delete happened to succeed.
+    (doseq [[uid ranking] all-rankings
+            :when (contains? roster uid)]
       (let [order  (or (:order ranking) [])
             unread (set (or (:unread ranking) []))
             total  (count order)]

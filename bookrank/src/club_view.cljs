@@ -135,24 +135,36 @@
 
 (defn next-choosers
   "Round-robin by least-recently-used turn. For each current member, take the
-   timestamp of their latest pick — discussed_at, falling back to revealed_at
-   and added_at so a pending (chosen but undiscussed) book still counts as
-   having used one's turn. Members whose last pick is oldest come first;
-   members with no picks at all are next in line. Returns up to two
-   {:member m :last {:t ms :book b}} entries."
+   timestamp of their latest pick — discussed_at, falling back to revealed_at,
+   and then to added_at ONLY WHILE THE BOOK IS STILL UNREVEALED, so a pending
+   (chosen but undiscussed) book still counts as having used one's turn.
+   Members whose last pick is oldest come first; members with no picks at all
+   are next in line. Returns up to two {:member m :last {:t ms :book b}}
+   entries.
+
+   The unrevealed guard matters: a book with no reveal record is REVEALED by
+   the legacy rule above, so without it every backlogged catalog entry counted
+   as a turn its chooser had just taken, and adding old books reshuffled the
+   rotation. The club's 17 books bulk-added on 2026-04-17..20 made the panel
+   name the wrong member entirely. See docs/contexts/library/read-models.md,
+   projection `whos-next` — the spec said this ambiguously and both tracks
+   obeyed it; the spec was corrected first, then this.
+
+   A book offering none of the three moments contributes NO candidate, rather
+   than one dated 0 — otherwise its chooser is shown a last pick of 1 Jan 1970
+   and sorts behind members who have genuinely never picked."
   [books members]
   (let [member-ids (set (map :id members))
         last-pick (reduce
                    (fn [acc b]
-                     (let [uid (:added_by b)]
-                       (if (contains? member-ids uid)
-                         (let [t (or (date->ms (:discussed_at b))
-                                     (date->ms (:revealed_at b))
-                                     (date->ms (:added_at b))
-                                     0)]
-                           (if (> t (get-in acc [uid :t] -1))
-                             (assoc acc uid {:t t :book b})
-                             acc))
+                     (let [uid (:added_by b)
+                           t (when (contains? member-ids uid)
+                               (or (date->ms (:discussed_at b))
+                                   (date->ms (:revealed_at b))
+                                   (when-not (book-revealed? b)
+                                     (date->ms (:added_at b)))))]
+                       (if (and t (> t (get-in acc [uid :t] -1)))
+                         (assoc acc uid {:t t :book b})
                          acc)))
                    {} books)]
     (->> members
