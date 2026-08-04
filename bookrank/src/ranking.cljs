@@ -23,26 +23,24 @@
 (defn book-details-widget
   "Collapsible widget showing links, synopsis, and opinion for a book."
   [book & [{:keys [opinion]}]]
-  [:details {:style {:margin-top "2px" :font-size "0.75em"}}
-   [:summary {:style {:cursor "pointer" :color "#888" :list-style "none"
-                      :display "inline-flex" :align-items "center" :gap "2px"}
+  [:details.disclosure {:style {:margin-top "2px" :margin-bottom "0"}}
+   [:summary {:style {:list-style "none"
+                      :display "inline-flex" :align-items "center" :gap "4px"}
               :on-click #(.stopPropagation %)}
-    [:span {:style {:font-size "0.8em" :transition "transform 0.2s"}} "▸"]
+    [:span "▸"]
     [:span "info"]]
-   [:div {:style {:padding "4px 0 2px 12px" :line-height "1.4"}}
+   [:div.disclosure-body {:style {:padding-left "12px"}}
     (when (and opinion (seq opinion))
       [:div.book-opinion [:span.opinion-label "Opinion tweet: "] (str "\"" opinion "\"")])
     (when (:synopsis book)
-      [:div {:style {:color "#999" :font-style "italic" :line-height "1.3" :margin-bottom "8px"}}
+      [:div.modal-synopsis {:style {:margin-bottom "8px"}}
        (:synopsis book)])
-    [:div {:style {:display "flex" :gap "10px"}}
+    [:div.modal-links
      [:a {:href (book-search-url :storygraph (or (:title book) ""))
-          :target "_blank"
-          :style {:color "#888" :text-decoration "none"}}
+          :target "_blank"}
       "StoryGraph ↗"]
      [:a {:href (book-search-url :wikipedia (or (:title book) ""))
-          :target "_blank"
-          :style {:color "#888" :text-decoration "none"}}
+          :target "_blank"}
       "Wikipedia ↗"]]]])
 
 (defonce sortable-instance (atom nil))
@@ -192,13 +190,13 @@
                                  :on-click dismiss-drag-tip!}
               "Got it"]]])
          ;; Help tips
-         [:details {:style {:margin-bottom "12px" :font-size "0.82em" :opacity 0.8}}
-          [:summary {:style {:cursor "pointer" :color "var(--color-accent)"}} "How this works"]
-          [:div {:style {:padding "8px 12px" :line-height "1.5"}}
+         [:details.disclosure
+          [:summary "How this works"]
+          [:div.disclosure-body
            [:p "Drag books to reorder. Best at top, worst at bottom. The order is what matters."]
-           [:p {:style {:margin-top "6px"}} "Tap a book for more options (skip, remove, move to position, opinion tweet)."]
-           [:p {:style {:margin-top "6px"}} "Leave books " [:strong "unranked"] " if you're currently reading or plan to. Only mark " [:strong "skipped"] " if it will stay unread for now."]
-           [:p {:style {:margin-top "6px"}} "Can't remember a book? Put it in the middle."]]]
+           [:p "Tap a book for more options (skip, remove, move to position, opinion tweet)."]
+           [:p "Leave books " [:strong "unranked"] " if you're currently reading or plan to. Only mark " [:strong "skipped"] " if it will stay unread for now."]
+           [:p "Can't remember a book? Put it in the middle."]]]
          ;; Ranked books (sortable)
          [:div.ranking-list
           {:ref (fn [el]
@@ -272,18 +270,15 @@
 
          ;; Confirm ranking button (fixed bar at bottom after drag reorder)
          (when @dirty
-           [:div {:style {:position "fixed" :bottom "0" :left "0" :right "0"
-                          :background "var(--color-bg)" :border-top "2px solid var(--color-accent)"
-                          :padding "12px" :text-align "center" :z-index "100"
-                          :box-shadow "0 -2px 8px rgba(0,0,0,0.15)"}}
+           [:div.confirm-bar
             [:button.btn.btn-primary
              {:disabled @saving
               :on-click (fn [] (do-save!))}
              "Confirm Ranking"]])
 
          ;; Autosave status
-         [:div {:style {:margin-top "8px" :text-align "center"}}
+         [:div.autosave-status
           (cond
-            @saving [:span {:style {:color "var(--color-accent)" :font-size "0.8rem"}} "Saving..."]
+            @saving [:span.autosave-saving "Saving..."]
             @saved  [:span.invite-copied "\u2713 Saved"]
             :else   nil)]]))))

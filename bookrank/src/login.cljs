@@ -1,5 +1,6 @@
 (ns login
   (:require [reagent.core :as r]
+            [logo]
             [auth]))
 
 ;; =============================================
@@ -21,6 +22,7 @@
 
 (defn login-view []
   [:div.login-container
+   (logo/mark "login-logo")
    [:h1.login-title "BookRank"]
    [:p.login-subtitle "Rank books with your book club. Drag, drop, and discover what everyone really thinks."]
    [:button.google-btn {:on-click auth/sign-in!}

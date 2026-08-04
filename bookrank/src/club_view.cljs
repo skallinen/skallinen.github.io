@@ -216,7 +216,7 @@
                       (reset! show? false)))}
        [:div.whos-next-modal
         [:h3 {:style {:margin "0 0 4px"}} "Who's next?"]
-        [:div {:style {:font-size "0.75rem" :color "var(--color-accent)" :margin-bottom "12px"}}
+        [:div.whos-next-sub {:style {:margin-bottom "12px"}}
          "Longest since their last pick goes first."]
         (doall
          (for [[label entry] [["Up next" nxt] ["After that" aftr]]
@@ -310,7 +310,7 @@
              [:h3.modal-title (or (:title book) "Untitled")]
              [:div {:style {:display "flex" :gap "12px" :align-items "center" :margin-top "2px"}}
               (when score-data
-                [:span {:style {:font-size "0.8rem" :color "var(--color-accent)"}}
+                [:span.modal-score-label
                  (str "#" (:position score-data) " / " (:total score-data))])
               (when (and all-rated? agg-data)
                 (let [sorted-ids (->> agg-scores
@@ -319,7 +319,7 @@
                                       (map-indexed (fn [i [bid _]] [bid (inc i)])))
                       agg-rank (some (fn [[bid r]] (when (= bid book-id) r)) sorted-ids)
                       agg-total (count sorted-ids)]
-                  [:span {:style {:font-size "0.8rem" :color "var(--color-accent)"}}
+                  [:span.modal-score-label
                    (str "Aggregate #" agg-rank " / " agg-total)]))]
              ;; Author
              [:div.modal-author (or (:author book) "")]]
@@ -429,7 +429,7 @@
                        {:src (or (:photo_url member) "")
                         :alt (or (:display_name member) "")}]
                       [:span.member-name (or (:display_name member) "Unknown")]
-                      [:span {:style {:opacity 0.5 :font-size "0.85em"}} "skipped"]])))]])
+                      [:span.member-skipped "skipped"]])))]])
 
             ;; Chosen by (always editable)
             [:div.modal-section
@@ -704,7 +704,7 @@
 
                 :scores
                 [:div.book-list
-                 [:div {:style {:font-size "0.8em" :opacity 0.7 :padding "4px 8px 10px" :line-height "1.4"}}
+                 [:div.list-note
                   "Collective rank uses "
                   [:strong "reciprocal rank fusion"]
                   " to merge everyone's lists. Scores (1–5) follow a normal distribution. "
@@ -727,7 +727,7 @@
                          [:div.book-title (:title book)]
                          [:div.book-author (:author book)]
                          (when-let [dt (format-date (:revealed_at book))]
-                           [:div {:style {:font-size "0.7rem" :color "var(--color-accent)" :margin-top "1px"}} dt])]
+                           [:div.meeting-location dt])]
                         (if show-score?
                           [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}}
                            (let [ranked-count (count (:member-scores score-data))]
@@ -738,7 +738,7 @@
                             (:display score-data)]]
                           [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}
                                  :title "Score appears once every member has ranked or skipped this book"}
-                           [:div.book-score {:style {:color "var(--color-accent)"}} "\u2014"]
+                           [:div.book-score {:style {:color "var(--color-muted)"}} "\u2014"]
                            (when score-data
                              [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]))
                    sorted-books))
@@ -766,8 +766,8 @@
                                     (sort-by (fn [b] (- (or (date->ms (:discussed_at b)) 0)))))]
                   [:div.book-list
                    [:div {:style {:display "flex" :justify-content "space-between"
-                                  :align-items "center" :padding "4px 8px 12px"}}
-                    [:div {:style {:font-size "0.8em" :opacity 0.7}}
+                                  :align-items "center" :padding "4px 2px 12px"}}
+                    [:div.list-note {:style {:padding "0"}}
                      (str (count meetings) " discussion events, newest first")]
                     [:button.btn.btn-primary.btn-small
                      {:on-click #(reset! show-whos-next true)}
@@ -816,7 +816,7 @@
                       [:div.book-title
                        (or (:display_name m) "Unknown")
                        (when (= (:role m) "admin")
-                         [:span {:style {:font-size "0.7em" :opacity 0.5 :margin-left "8px"}} "ADMIN"])]
+                         [:span.role-tag "Admin"])]
                       [:div.book-author (or (:email m) "")]]
                      [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
                       (let [member-ranking (get @state/rankings (:id m))]
@@ -827,41 +827,28 @@
                       (when (and is-admin? (not= (:id m) current-uid))
                         (if (= @confirm-remove (:id m))
                           [:div {:style {:display "flex" :gap "4px"}}
-                           [:button.btn.btn-small
-                            {:style {:font-size "0.7em" :padding "2px 8px" :background "#c00" :color "#fff"}
-                             :on-click (fn [e]
+                           [:button.btn.btn-small.btn-danger-solid
+                            {:on-click (fn [e]
                                          (.stopPropagation e)
                                          (db/delete-member! club-id (:id m)
                                                             (fn [] (reset! confirm-remove nil))))}
                             "Remove?"]
                            [:button.btn.btn-small
-                            {:style {:font-size "0.7em" :padding "2px 8px"}
-                             :on-click (fn [e]
+                            {:on-click (fn [e]
                                          (.stopPropagation e)
                                          (reset! confirm-remove nil))}
                             "Cancel"]]
-                          [:button.btn.btn-small
-                           {:style {:font-size "0.7em" :padding "2px 8px" :color "#c00"}
-                            :on-click (fn [e]
+                          [:button.btn.btn-small.btn-danger-outline
+                           {:on-click (fn [e]
                                         (.stopPropagation e)
                                         (reset! confirm-remove (:id m)))}
                            "\u2715"]))]]))
                  ;; Admin settings
                  (when is-admin?
                    [:<>
-                    [:div {:style {:margin-top "20px"
-                                   :padding "12px"
-                                   :border-top "1px solid var(--color-border)"}}
-                     [:div {:style {:font-size "0.85em"
-                                    :font-weight "600"
-                                    :margin-bottom "8px"
-                                    :opacity 0.7}}
-                      "Club Settings"]
-                     [:label {:style {:display "flex"
-                                      :align-items "center"
-                                      :gap "8px"
-                                      :font-size "0.85em"
-                                      :cursor "pointer"}}
+                    [:div.settings-block
+                     [:div.settings-block-title "Club Settings"]
+                     [:label.settings-check
                       [:input {:type "checkbox"
                                :checked (boolean (:confirm_ranking @state/club))
                                :on-change
@@ -873,25 +860,23 @@
                                     {:confirm_ranking v}
                                     nil)))}]
                       "Require confirm after ranking changes"]]
-                    [:div {:style {:margin-top "24px" :padding-top "16px" :border-top "1px solid var(--color-border)"}}
+                    [:div.settings-block
                      (if (not @confirm-delete-club)
-                       [:button.btn.btn-small
-                        {:style {:background "transparent" :color "#c00" :border "1px solid #c00" :font-size "0.8em"}
-                         :on-click #(reset! confirm-delete-club true)}
+                       [:button.btn.btn-small.btn-danger-outline
+                        {:on-click #(reset! confirm-delete-club true)}
                         "Delete Club"]
-                       [:div {:style {:background "rgba(198, 40, 40, 0.07)" :padding "12px" :border-radius "8px" :border "1px solid #c00"}}
-                        [:p {:style {:color "#c00" :margin "0 0 8px" :font-size "0.85em" :font-weight "600"}}
+                       [:div.danger-panel
+                        [:p.danger-panel-title
                          "\u26a0 This will permanently delete the club, all books, rankings, and members."]
-                        [:p {:style {:color "var(--color-accent)" :margin "0 0 8px" :font-size "0.8em"}}
+                        [:p.danger-panel-note
                          (str "Type \"" (:name @state/club) "\" to confirm:")]
                         [:input.form-input {:type "text"
                                             :value @delete-club-input
-                                            :style {:margin-bottom "8px" :font-size "0.85em"}
+                                            :style {:margin-bottom "8px"}
                                             :on-change #(reset! delete-club-input (-> % .-target .-value))}]
                         [:div {:style {:display "flex" :gap "8px"}}
-                         [:button.btn.btn-small
-                          {:style {:background "#c00" :color "#fff" :border "none" :font-size "0.8em"}
-                           :disabled (not= @delete-club-input (:name @state/club))
+                         [:button.btn.btn-small.btn-danger-solid
+                          {:disabled (not= @delete-club-input (:name @state/club))
                            :on-click (fn []
                                        (db/delete-club! club-id
                                                         (fn []
@@ -899,8 +884,7 @@
                                                           (router/navigate! "#/clubs"))))}
                           "Delete Forever"]
                          [:button.btn.btn-small
-                          {:style {:font-size "0.8em"}
-                           :on-click #(do (reset! confirm-delete-club false)
+                          {:on-click #(do (reset! confirm-delete-club false)
                                           (reset! delete-club-input ""))}
                           "Cancel"]]])]])])]))]))))
 

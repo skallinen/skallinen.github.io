@@ -5,6 +5,7 @@
             [auth]
             [db]
             [state]
+            [logo]
             [login]
             [clubs]
             [club-view]))
@@ -32,7 +33,9 @@
 ;; -- Header --
 (defn header []
   [:div.app-header
-   [:span.app-title {:on-click #(router/navigate! "#/clubs")} "BookRank"]
+   [:span.app-title {:on-click #(router/navigate! "#/clubs")}
+    (logo/mark "app-logo")
+    "BookRank"]
    [:div.header-actions
     (when-let [u @auth/user]
       [:<>
