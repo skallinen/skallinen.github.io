@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Group lead brief</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ─── RESET ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── TOKENS ─────────────────────────────────────────── */
+    :root {
+      --white:       #ffffff;
+      --black:       #000000;
+      --rose:        #E3CAC3;
+      --linen:       #EEE7E1;
+      --peach:       #F9EDDD;
+      --orange:      #a9431e;
+
+      --font:        'Plus Jakarta Sans', Arial, sans-serif;
+      --display:     clamp(2.1rem, 5.2vw, 3.4rem);
+      --h2:          clamp(1.3rem, 2.8vw, 1.9rem);
+      --h3:          clamp(1.05rem, 1.9vw, 1.25rem);
+      --body:        clamp(1rem, 1.15vw, 1.1rem);
+      --body-sm:     clamp(0.9rem, 1vw, 1rem);
+      --label:       clamp(0.68rem, 0.85vw, 0.78rem);
+
+      --lh-tight:    1.08;
+      --lh-normal:   1.55;
+      --measure:     34em;
+      --pad:         clamp(1.15rem, 4vw, 3.5rem);
+
+      --hair:        rgba(0,0,0,0.16);
+      --hair-strong: rgba(0,0,0,0.32);
+    }
+
+    /* ─── BASE ───────────────────────────────────────────── */
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: var(--font);
+      font-size: var(--body);
+      font-weight: 400;
+      line-height: var(--lh-normal);
+      background: var(--linen);
+      color: var(--black);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page {
+      max-width: 60rem;
+      margin: 0 auto;
+      padding: clamp(2.4rem, 6vw, 5rem) var(--pad) clamp(3rem, 7vw, 6rem);
+    }
+    /* Comfortable reading measure, about 70 characters. The run sheet and the
+       set-apart blocks are allowed the full column. */
+    .measure { max-width: var(--measure); }
+
+    /* ─── TYPOGRAPHY ─────────────────────────────────────── */
+    .label {
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: var(--display);
+      font-weight: 800;
+      line-height: var(--lh-tight);
+      letter-spacing: -0.02em;
+      margin-bottom: 1.4rem;
+    }
+    h2 {
+      font-size: var(--h2);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      margin: clamp(2.6rem, 5vw, 3.6rem) 0 1.1rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--hair-strong);
+    }
+    h3 {
+      font-size: var(--h3);
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: clamp(2rem, 4vw, 2.8rem) 0 1rem;
+    }
+    p { margin-bottom: 1.05rem; }
+    p:last-child { margin-bottom: 0; }
+    strong { font-weight: 700; }
+    a { color: var(--orange); }
+
+    /* ─── MASTHEAD ───────────────────────────────────────── */
+    .masthead {
+      border-bottom: 1px solid var(--hair-strong);
+      padding-bottom: clamp(1.6rem, 4vw, 2.4rem);
+      margin-bottom: clamp(1.8rem, 4vw, 2.6rem);
+    }
+    .masthead .label {
+      display: block;
+      color: var(--orange);
+      margin-bottom: 1.1rem;
+    }
+    .standfirst {
+      font-size: clamp(1.05rem, 1.5vw, 1.25rem);
+      font-weight: 600;
+      line-height: 1.4;
+      max-width: 36em;
+    }
+
+    /* ─── SET-APART SPEECH ───────────────────────────────── */
+    /* Anything a lead can read out loud. Findable at a glance: peach ground,
+       an orange rule, and never the same weight as an instruction. */
+    .say {
+      background: var(--peach);
+      border-left: 4px solid var(--orange);
+      padding: clamp(0.9rem, 2vw, 1.15rem) clamp(1rem, 2.4vw, 1.5rem);
+      margin: 1.2rem 0 1.4rem;
+      font-size: clamp(1.02rem, 1.35vw, 1.2rem);
+      font-weight: 500;
+      line-height: 1.45;
+      max-width: 36em;
+    }
+    .say p { margin-bottom: 0.8rem; }
+    .say p:last-child { margin-bottom: 0; }
+    .says { margin: 1.2rem 0 1.4rem; }
+    .says .say { margin: 0 0 0.5rem; }
+    .says .say:last-child { margin-bottom: 0; }
+
+    /* Quoted speech inside a run-sheet cell or a paragraph. Same job, inline. */
+    .qq { color: var(--orange); font-weight: 600; }
+
+    /* ─── RUN SHEET ──────────────────────────────────────── */
+    .sheet-wrap { margin: 1.6rem 0 2rem; }
+    table.sheet {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--body-sm);
+      line-height: 1.45;
+      table-layout: fixed;
+    }
+    table.sheet th {
+      text-align: left;
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0 0.9rem 0.7rem 0;
+      border-bottom: 1px solid var(--hair-strong);
+      vertical-align: bottom;
+    }
+    table.sheet th:last-child, table.sheet td:last-child { padding-right: 0; }
+    table.sheet td {
+      padding: 1rem 0.9rem 1rem 0;
+      border-bottom: 1px solid var(--hair);
+      vertical-align: top;
+    }
+    table.sheet tr:last-child td { border-bottom: 1px solid var(--hair-strong); }
+    table.sheet col.c-len     { width: 8%; }
+    table.sheet col.c-elapsed { width: 11%; }
+    table.sheet col.c-do      { width: 52%; }
+    table.sheet col.c-out     { width: 29%; }
+    td.len {
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    td.elapsed {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      opacity: 0.75;
+    }
+    td.out { font-weight: 500; }
+    tr.marker td {
+      background: var(--rose);
+      font-weight: 700;
+      padding-top: 0.7rem;
+      padding-bottom: 0.7rem;
+    }
+    tr.marker td.elapsed { opacity: 1; }
+    @media (min-width: 701px) {
+      tr.marker td.elapsed, tr.marker td.len { padding-left: 0.6rem; }
+    }
+    .stack-label { display: none; }
+
+    /* Under 700px a four-column table with long cells is unreadable, so each
+       step becomes its own block: the clock line first and prominent, then what
+       to do, then what is written down when it ends. Nothing scrolls sideways. */
+    @media (max-width: 700px) {
+      table.sheet, table.sheet tbody, table.sheet tr, table.sheet td { display: block; width: 100%; }
+      table.sheet thead, table.sheet colgroup { display: none; }
+      table.sheet { table-layout: auto; }
+      table.sheet tr {
+        border-bottom: 1px solid var(--hair-strong);
+        padding: 1.1rem 0 1.2rem;
+      }
+      table.sheet tr:first-child { border-top: 1px solid var(--hair-strong); }
+      table.sheet td, table.sheet tr:last-child td { border-bottom: 0; padding: 0; }
+
+      td.len {
+        font-size: clamp(1.3rem, 6vw, 1.6rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        display: inline-block;
+        margin-right: 0.6em;
+      }
+      td.len:empty { display: none; }
+      td.elapsed {
+        display: inline-block;
+        opacity: 1;
+        font-size: var(--label);
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: var(--black);
+        color: var(--white);
+        padding: 0.3em 0.6em;
+        transform: translateY(-0.2em);
+      }
+      td.do { margin-top: 0.7rem; }
+      td.out {
+        margin-top: 0.75rem;
+        padding-top: 0.7rem !important;
+        border-top: 1px solid var(--hair) !important;
+        font-size: var(--body-sm);
+      }
+      td.out:empty { display: none; }
+      td.out .stack-label {
+        display: block;
+        font-size: var(--label);
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.5;
+        margin-bottom: 0.2rem;
+      }
+      tr.marker {
+        background: var(--rose);
+        padding: 0.9rem 0.9rem 1rem;
+      }
+      tr.marker td.elapsed { background: var(--orange); }
+      tr.marker td.do { margin-top: 0.55rem; }
+    }
+
+    /* ─── CHECKPOINT ─────────────────────────────────────── */
+    /* The block a lead reaches for under pressure at minute 25. */
+    .checkpoint {
+      background: var(--white);
+      border: 1px solid var(--black);
+      border-left: 8px solid var(--orange);
+      padding: clamp(1.1rem, 2.6vw, 1.7rem) clamp(1.1rem, 2.6vw, 1.8rem);
+      margin: 1.8rem 0;
+      max-width: 40em;
+      line-height: 1.5;
+    }
+    .checkpoint > .label {
+      display: block;
+      color: var(--orange);
+      margin-bottom: 0.6rem;
+    }
+    .never {
+      display: block;
+      margin-top: 0.9rem;
+      background: var(--orange);
+      color: var(--white);
+      padding: 0.55em 0.75em;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    /* ─── PART DIVIDER ───────────────────────────────────── */
+    .divider {
+      margin: clamp(3rem, 7vw, 5rem) 0 clamp(2rem, 5vw, 3rem);
+      border-top: 3px solid var(--black);
+      border-bottom: 1px solid var(--black);
+      padding: 1.1rem 0;
+    }
+    .divider p {
+      margin: 0;
+      max-width: 34em;
+      font-size: clamp(1rem, 1.4vw, 1.15rem);
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .divider + h2 { border-top: 0; padding-top: 0; margin-top: 0; }
+
+    /* ─── CASE BLOCKS (IF IT GOES WRONG) ─────────────────── */
+    .case { margin-bottom: 1.9rem; max-width: 36em; }
+    .case p { margin-bottom: 0.5rem; }
+
+    /* ─── NUMBERED LIST ──────────────────────────────────── */
+    ol.six {
+      list-style: none;
+      counter-reset: t;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7em;
+      margin: 1.3rem 0 1.5rem;
+      max-width: 34em;
+    }
+    ol.six li {
+      counter-increment: t;
+      display: flex;
+      gap: 0.9em;
+      align-items: baseline;
+      line-height: 1.4;
+    }
+    ol.six li::before {
+      content: counter(t) ".";
+      font-size: var(--label);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      min-width: 1.7em;
+      color: var(--orange);
+      flex-shrink: 0;
+    }
+
+    /* ─── EXAMPLE PAIR ───────────────────────────────────── */
+    .say.bad { background: var(--white); border-left-color: var(--hair-strong); opacity: 0.8; }
+
+    /* ─── FOOTER ─────────────────────────────────────────── */
+    footer {
+      margin-top: clamp(3rem, 7vw, 5rem);
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--hair-strong);
+      font-size: var(--label);
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.5;
+    }
+
+    @media print {
+      body { background: var(--white); }
+      .say, .checkpoint { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1>Group lead brief</h1>
+    <p class="standfirst">AI workshop, Elisa DII. Wednesday 19 August, 14.00 to 16.00, Elisa Pasila. About 25 people, five groups of roughly five.</p>
+  </header>
+
+  <p class="measure">Sami presents first. Your slot is 45 minutes long. It is scheduled to begin around 14.35, and it will probably begin later, since the part before it can run over. Then a five minute break, then one person per group presents for about five minutes, then ten minutes setting up the 30 day experiments, then pizza.</p>
+
+  <p class="measure">Materials will be ready in the room, so bring nothing. Each group gets a flip chart sheet, ruled into four blocks, markers, and post-its for everyone. That sheet is &ldquo;the sheet&rdquo; below. It gets filled during the session, handed to whoever presents, and photographed at the end. Note the time your group actually starts and write it at the top of the sheet, because the run sheet below is counted in minutes from there rather than off the wall clock. Everything your group produces gets written down, and what you write goes to whoever presents. This replaces the earlier brief you were sent. You also get the deck before Friday, and the Friday call walks through the argument behind the afternoon, so this document stays with the practical part.</p>
+
+  <p class="measure"><strong>What your group produces:</strong> two tasks they would hand to AI, the <strong>Kill List</strong>, and one thing worth doing that the change opens up or newly demands, the <strong>Wish List</strong>. Then one of those becomes a 30 day experiment with an owner&rsquo;s name on it.</p>
+
+  <p class="measure">You keep time, ask questions and write things down. The content comes from the group. You do not present anything, and you do not demo your own AI use. You do not need to know anything about AI to run this well.</p>
+
+  <h2>Run sheet, 45 minutes from your own start</h2>
+
+  <div class="sheet-wrap">
+    <table class="sheet">
+      <colgroup>
+        <col class="c-len"><col class="c-elapsed"><col class="c-do"><col class="c-out">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Length</th>
+          <th scope="col">Elapsed</th>
+          <th scope="col">Do</th>
+          <th scope="col">Written down when it ends</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="len">3 min</td>
+          <td class="elapsed">0 to 3</td>
+          <td class="do">Sheet: rule four blocks, KILL 1, KILL 2, WISH, EXP. Names down the side. Tell them what the group produces, both lists. Warn them: seven silent minutes first.</td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Four blocks ruled, everyone&rsquo;s name on the sheet</td>
+        </tr>
+        <tr>
+          <td class="len">7 min</td>
+          <td class="elapsed">3 to 10</td>
+          <td class="do">Silent writing on post-its, seven minutes, no discussion. One idea per note. Sit through the silence and write nothing of your own. Halfway, if pens have stopped, one prompt only: <span class="qq">&ldquo;What part of your week would you happily never do again?&rdquo;</span></td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Five private lists</td>
+        </tr>
+        <tr>
+          <td class="len">9 min</td>
+          <td class="elapsed">10 to 19</td>
+          <td class="do">Round the table in seating order, one note each, read it out and stick it on the sheet, about 90 seconds. As they speak, you write the other three facts next to the note: who does it now, how often, roughly how long. Nobody speaks twice until everyone has spoken once, and tick names as you go. No debate: <span class="qq">&ldquo;Hold the discussion. I want all five on the paper first.&rdquo;</span> For an abstraction: <span class="qq">&ldquo;Give me the last time you actually did it.&rdquo;</span> For a tool: <span class="qq">&ldquo;Assume the tool works. What is the work you would hand over?&rdquo;</span> Same item from two people, write it once with both names.</td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Five candidates, each with task, who does it now, how often, roughly how long. Rough is fine</td>
+        </tr>
+        <tr>
+          <td class="len">6 min</td>
+          <td class="elapsed">19 to 25</td>
+          <td class="do">Cluster duplicate notes, park the rest below the blocks. Narrow to two: <span class="qq">&ldquo;Which two would make the most difference if they went away, and which two can we describe honestly to a room in five minutes?&rdquo;</span> Three minutes of discussion, then close it yourself. If they stall, show of hands, take the top two. Read the two back with the numbers filled in: <span class="qq">&ldquo;Does everyone recognise these two as ours?&rdquo;</span> Two hesitate, spend a minute. One hesitates, write the objection in one line and move on.</td>
+          <td class="out"><span class="stack-label">Written down when it ends</span><strong>Two Kill List items, complete</strong></td>
+        </tr>
+        <tr class="marker">
+          <td class="len"></td>
+          <td class="elapsed">at 25</td>
+          <td class="do" colspan="2"><strong>Checkpoint.</strong> See below.</td>
+        </tr>
+        <tr>
+          <td class="len">7 min</td>
+          <td class="elapsed">25 to 32</td>
+          <td class="do">Wish List. Name both shapes: better work the time allows, or new work the change creates. One silent minute, one post-it each. Then read them out in the same order and stick them under WISH. Pick one as a group with all of them on the sheet. If the line says more and nothing concrete: <span class="qq">&ldquo;More of what, with whom, and how often?&rdquo;</span></td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>One Wish List line, specific enough that someone could start it next week</td>
+        </tr>
+        <tr>
+          <td class="len">6 min</td>
+          <td class="elapsed">32 to 38</td>
+          <td class="do">The experiment: <span class="qq">&ldquo;One of these becomes a 30 day experiment. It gets shown at the AI Hub in about a month. Who wants to own it?&rdquo;</span> Take whoever volunteers, willingness beats size. Get four things onto the sheet out loud with the group listening: what will be tried, who owns it, when they have blocked time, what they will show. Ask the third as a question and wait: <span class="qq">&ldquo;Open your calendar. When is the first hour?&rdquo;</span></td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Owner, calendar slot, demo</td>
+        </tr>
+        <tr>
+          <td class="len">7 min</td>
+          <td class="elapsed">38 to 45</td>
+          <td class="do">Pick the presenter. Ask for a volunteer, otherwise the owner of the experiment or whoever spoke most about the winning item, then confirm with the group. Say to them: <span class="qq">&ldquo;You do not have to defend it. Read what is on the paper and say why we picked it.&rdquo;</span> Then read the whole sheet back slowly and fix the wording they object to. Hand them the paper, then sit down and stay sitting down, including during questions.</td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Presenter briefed, paper handed over</td>
+        </tr>
+        <tr class="marker">
+          <td class="len"></td>
+          <td class="elapsed">at 45</td>
+          <td class="do" colspan="2">Break.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="checkpoint">
+    <p><strong>Checkpoint, 25 minutes in.</strong> You are on time if both Kill List items are complete with their numbers. You are behind if you have one item, two items with no numbers, or you are still arguing about which two. If behind, drop in this order: cut the second Kill item to one line and stop polishing it, then skip the silent minute in the Wish List and go straight round out loud, then cut the final read-back to the experiment only. <strong class="never">Never drop the experiment, its owner and the blocked time.</strong> If ahead, do not start a new topic. Spend the spare minutes on how the group would check the output of Kill item one.</p>
+  </div>
+
+  <h3>Say these, close to verbatim</h3>
+
+  <div class="says">
+    <blockquote class="say">&ldquo;Forty five minutes. We produce three things. Two tasks we would hand to AI, that is the Kill List. One thing worth doing that this change opens up, either with the time it frees or as new work it creates, that is the Wish List. Then one of them becomes a 30 day experiment with somebody&rsquo;s name on it. One of you presents it at the end, and it will not be me.&rdquo;</blockquote>
+
+    <blockquote class="say">&ldquo;I am here to keep time and write things down. The list is yours, not mine. I am going to keep quiet about my own AI use today, because this works better when nobody is measuring themselves against anyone.&rdquo;</blockquote>
+
+    <blockquote class="say">&ldquo;Think about the last two weeks. Write down two or three things that ate your time and produced very little. Real things, yours, this month. Boring is good. Do not talk to each other.&rdquo;</blockquote>
+
+    <blockquote class="say">&ldquo;What is the task, who does it now, how often, and roughly how long does it take?&rdquo;</blockquote>
+  </div>
+
+  <div class="divider">
+    <p>Everything below is optional. Read it once beforehand, or reach for it if something goes wrong.</p>
+  </div>
+
+  <h2>If it goes wrong</h2>
+
+  <div class="case">
+    <p><strong>One person takes over.</strong> Say it plainly, without heat.</p>
+    <blockquote class="say">&ldquo;Let me hear from the people who have not gone yet.&rdquo;</blockquote>
+  </div>
+
+  <div class="case">
+    <p><strong>The group is silent.</strong> Go back to writing.</p>
+    <blockquote class="say">&ldquo;Two minutes, everybody writes. Then I will read them out without names.&rdquo;</blockquote>
+  </div>
+
+  <div class="case">
+    <p><strong>Tooling debate.</strong> Which model is best will eat your whole slot.</p>
+    <blockquote class="say">&ldquo;Park the tool for now. What is the task?&rdquo;</blockquote>
+  </div>
+
+  <div class="case">
+    <p><strong>The group cannot agree on two items.</strong> Take the vote, write both, and put the disagreement on the sheet in one line.</p>
+    <blockquote class="say">&ldquo;We do not have to pick the best two. We have to pick two we can describe honestly. Hands up for the first one.&rdquo;</blockquote>
+  </div>
+
+  <h2>Making the outcomes stick</h2>
+
+  <p class="measure">A vague list produces nothing, so every line has to carry the same few facts.</p>
+
+  <p class="measure"><strong>Each Kill List item, four facts:</strong> the task in concrete verbs, in the order a person does it. Who does it today, a role or a name. How often, per sprint, per week, per release. Roughly how long, a range is fine. Plus the one that is easy to skip and worth the minute: how they would know the output was good enough to use. If the group cannot say how they would check it, say so plainly.</p>
+
+  <p class="measure"><strong>If they are stuck on whether something belongs on the Kill List,</strong> ask: <span class="qq">&ldquo;If we threw the work away and had it made again from scratch, would this part have to survive?&rdquo;</span> What has to survive stays with you, and the rest is a candidate to hand over.</p>
+
+  <p class="measure"><strong>The Wish List item, one line:</strong> who does what, how often, starting roughly when.</p>
+
+  <p class="measure"><strong>What makes a Wish List line good:</strong> two shapes both count. Better work the freed time now allows, something the group can only do together, like getting properly agreed on something or checking that what was agreed is what everyone thinks was agreed. Or new work the change itself creates, like reviewing output that arrives faster than anyone can check it, writing down what a system is meant to do so it survives being regenerated, or bringing somebody into a system nobody wrote by hand. If the line is the same execution work, just more of it or faster, nudge once with <span class="qq">&ldquo;what would that time let us finally sort out together?&rdquo;</span> or <span class="qq">&ldquo;what will we have to start doing that nobody does today?&rdquo;</span></p>
+
+  <p class="measure"><strong>The experiment, four facts:</strong> what will be tried in one sentence, present tense. Who owns it, one name, not a team. When they have blocked time, a day and an hour. What they will show at the AI Hub in a month.</p>
+
+  <p class="measure"><strong>The test.</strong> Could someone who was not in your group pick up the sheet and start on Monday. If no, it is not finished. Apply it to every line before you hand the paper over.</p>
+
+  <p class="measure">A bad Kill List item, invented and generic, use it as a shape:</p>
+
+  <blockquote class="say bad">&ldquo;Documentation. It takes ages and nobody reads it.&rdquo;</blockquote>
+
+  <p class="measure">The same thing, good:</p>
+
+  <blockquote class="say">&ldquo;Writing the release notes at the end of each sprint. Done by whoever closes the sprint, every two weeks, about 90 minutes. We would check it by comparing against the tickets that actually merged.&rdquo;</blockquote>
+
+  <p class="measure">Somebody could start the second one on Monday, and the last sentence is the part that makes it usable.</p>
+
+  <h2>Why the Wish List is there</h2>
+
+  <p class="measure">Ask only what people would hand to AI and one sum runs silently around the table: if everyone drops half their work, half of us are surplus. Nobody says it out loud, and it quietly shapes every answer you get. The Wish List gives the freed time somewhere to go, which is what makes the first half safe to answer honestly. A group that knows the Wish List is coming gives you a much better Kill List, so name both lists in your opening minute.</p>
+
+  <h2>Why we are doing this at all</h2>
+
+  <p class="measure">Sami argues it from the stage before he hands over. Making code is getting cheap, and nobody knows how far that goes. If it holds, the constraint does not vanish. By Goldratt&rsquo;s rule it moves, and the belief is that it moves onto the shared understanding of what is worth building and why. That understanding was always the hard part, and it used to get built on the way to something else, because you could not write the code without working out what the thing should do. Take the expensive step away and the thinking stops happening by itself. Peter Naur named the thing at stake back in 1985: what a team really holds is a theory of the program, and the code is only its residue. What has changed is the economics, so the question becomes what we carry the theory in. Whatever we carry it in is a map, and a map is useful only because it leaves things out, so deciding what it leaves out is the work. What remains is the work that was always hardest and was rarely anyone&rsquo;s job.</p>
+
+  <p class="measure">His slide lists what always hard actually means. Every line is a week that went somewhere, and it is the most useful thing to have in your head for your 45 minutes:</p>
+
+  <ol class="six">
+    <li><span>Agreeing, in the first place.</span></li>
+    <li><span>Checking that what we agreed is what everyone thinks we agreed.</span></li>
+    <li><span>Working out what other people already understand.</span></li>
+    <li><span>Noticing who is not in the room, and which knowledge left with them.</span></li>
+    <li><span>Holding a shared model of what the thing actually does.</span></li>
+    <li><span>Keeping that model alive as people leave, join and hand over.</span></li>
+  </ol>
+
+  <p class="measure">None of them is a typing problem. Groups reach for typing first: boilerplate, test data, ticket writing, release notes. Those are real and they belong on the list. If your group produces only those, push once past typing with <span class="qq">&ldquo;when did we last lose a week to a misunderstanding?&rdquo;</span> The six are raw material for the second shape of Wish List line, the one a group can only do together. What makes a Wish List line good, earlier in this half, is what one of them looks like once it is written down and owned.</p>
+
+  <p class="measure"><strong>Hold the six lightly.</strong> They are one person&rsquo;s framing, arrived at from his own background, and they are where the argument came from rather than a list to comply with. Your group should work from what they have actually lived this year, and your job is to keep their items meaningful and concrete. Walking them onto these six is no part of it. The failure to watch for is a group producing something generic or dutiful, and the fix is the same one you use all afternoon: ask for the last time it actually happened to them.</p>
+
+  <blockquote class="say">&ldquo;That list is where the idea came from. It is not what we have to produce. Tell me what has really cost us time this year, and we will work from that.&rdquo;</blockquote>
+
+  <p class="measure">If someone asks you why you are all doing this, say:</p>
+
+  <blockquote class="say">&ldquo;Making things got cheap. Agreeing what to make did not. We are looking for the parts of our week worth handing over, and for what we would do with the time that frees up.&rdquo;</blockquote>
+
+  <footer>Generated 12 August 2026</footer>
+
+</div>
+</body>
+</html>
