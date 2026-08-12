@@ -202,16 +202,20 @@
       table.sheet tr:first-child { border-top: 1px solid var(--hair-strong); }
       table.sheet td, table.sheet tr:last-child td { border-bottom: 0; padding: 0; }
 
-      td.len {
-        font-size: clamp(1.3rem, 6vw, 1.6rem);
+      table.sheet td.len {
+        font-size: clamp(1.35rem, 6.5vw, 1.7rem);
         line-height: 1.1;
         letter-spacing: -0.02em;
         display: inline-block;
-        margin-right: 0.6em;
+        width: auto;
+        vertical-align: middle;
+        margin-right: 0.55em;
       }
-      td.len:empty { display: none; }
-      td.elapsed {
+      table.sheet td.len:empty { display: none; }
+      table.sheet td.elapsed {
         display: inline-block;
+        width: auto;
+        vertical-align: middle;
         opacity: 1;
         font-size: var(--label);
         font-weight: 700;
@@ -219,8 +223,7 @@
         text-transform: uppercase;
         background: var(--black);
         color: var(--white);
-        padding: 0.3em 0.6em;
-        transform: translateY(-0.2em);
+        padding: 0.3em 0.65em;
       }
       td.do { margin-top: 0.7rem; }
       td.out {
