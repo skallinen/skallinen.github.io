@@ -1,0 +1,398 @@
+<!-- Speaker notes for the DII deck, phone-first. One card per slide, numbered in
+     lockstep with index.html (24 slides). Tap/swipe to navigate, position persists.
+     Single-theme dark on purpose: read in a dim room, held in a hand. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>DII Speaker Notes</title>
+<style>
+  :root {
+    --ink:    #f5f1ec;
+    --ground: #0b0a09;
+    --card:   #161311;
+    --orange: #d96a2b;
+    --peach:  #f9eddd;
+    --muted:  rgba(245,241,236,0.52);
+    --rule:   rgba(245,241,236,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .card {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 1.1rem 1.2rem 3rem;
+    overflow-y: auto;
+  }
+  .card.active { display: flex; }
+  .top {
+    display: flex; align-items: baseline; gap: 0.7rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.55rem; margin-bottom: 0.8rem;
+    flex-shrink: 0;
+  }
+  .no {
+    font-size: 2rem; font-weight: 800; line-height: 1;
+    color: var(--orange);
+    font-variant-numeric: tabular-nums;
+    min-width: 2.4rem;
+  }
+  .lab {
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--muted);
+    flex: 1;
+  }
+  .img-tag {
+    font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ground); background: var(--peach);
+    padding: 0.2em 0.55em; border-radius: 2px;
+    flex-shrink: 0;
+  }
+  h1 {
+    font-size: 1.28rem; font-weight: 750; line-height: 1.22;
+    letter-spacing: -0.012em; text-wrap: balance;
+    margin-bottom: 0.85rem;
+    flex-shrink: 0;
+  }
+  ul { list-style: none; display: flex; flex-direction: column; gap: 0.72rem; }
+  li {
+    font-size: 1.12rem; line-height: 1.38; font-weight: 450;
+    padding-left: 1.05em; position: relative;
+    max-width: 34em;
+  }
+  li::before {
+    content: "–"; position: absolute; left: 0;
+    color: var(--orange); font-weight: 800;
+  }
+  li strong { font-weight: 750; color: var(--peach); }
+  li.key {
+    font-weight: 700; color: var(--peach);
+    border-left: 3px solid var(--orange);
+    padding-left: 0.8em; margin-left: 0;
+  }
+  li.key::before { content: none; }
+  li.warn { color: var(--orange); font-weight: 700; }
+  li.warn::before { content: "✕"; font-size: 0.8em; top: 0.25em; }
+  .handover { background: #7a3413; }
+  .handover .no { color: var(--peach); }
+  /* chrome */
+  #bar {
+    position: fixed; left: 0; bottom: 0; height: 3px;
+    background: var(--orange); z-index: 5;
+    transition: width 0.2s ease;
+  }
+  #count {
+    position: fixed; right: 1rem; bottom: 0.75rem;
+    font-size: 0.78rem; font-weight: 700; color: var(--muted);
+    font-variant-numeric: tabular-nums; z-index: 5;
+    pointer-events: none;
+  }
+  #hint {
+    position: fixed; left: 1.2rem; bottom: 0.75rem;
+    font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--muted); z-index: 5; pointer-events: none;
+    text-transform: uppercase;
+  }
+</style>
+<body>
+
+<!-- 1 -->
+<section class="card active">
+  <div class="top"><span class="no">1</span><span class="lab">Title · 14.00</span></div>
+  <h1>Making things got obviously cheaper. Agreeing what to make did not.</h1>
+  <ul>
+    <li>welcome. one sentence: made things cheaper, agreeing didn't.</li>
+  </ul>
+</section>
+
+<!-- 2 -->
+<section class="card">
+  <div class="top"><span class="no">2</span><span class="lab">Shape of the afternoon</span></div>
+  <h1>Read the blocks.</h1>
+  <ul>
+    <li>point at Leevi: <strong>"he takes over at 14.20."</strong></li>
+  </ul>
+</section>
+
+<!-- 3 -->
+<section class="card">
+  <div class="top"><span class="no">3</span><span class="lab">What this talk is not about</span><span class="img-tag">wildfire</span></div>
+  <h1>We are bracketing the hard questions.</h1>
+  <ul>
+    <li>disclaimer: AI has big hard questions. not today.</li>
+    <li>next 2 hours, narrow: how it changes software work + what we do on Monday.</li>
+  </ul>
+</section>
+
+<!-- 4 -->
+<section class="card">
+  <div class="top"><span class="no">4</span><span class="lab">Goldratt, restated</span><span class="img-tag">queue</span></div>
+  <h1>Who becomes the new constraint?</h1>
+  <ul>
+    <li>management thinker, Theory of Constraints.</li>
+    <li>new tech doesn't remove the bottleneck. <strong>it moves it.</strong></li>
+  </ul>
+</section>
+
+<!-- 5 -->
+<section class="card">
+  <div class="top"><span class="no">5</span><span class="lab">The hypothesis</span></div>
+  <h1>Making the code is getting cheap.</h1>
+  <ul>
+    <li>IF code got cheap — <strong>hold it as a hypothesis, all afternoon.</strong></li>
+    <li>we all act as if it's true. that's not evidence.</li>
+    <li>if your work says otherwise → say so in Q&amp;A.</li>
+    <li>then: where did the bottleneck go? → <strong>understanding.</strong></li>
+  </ul>
+</section>
+
+<!-- 6 -->
+<section class="card">
+  <div class="top"><span class="no">6</span><span class="lab">Why nobody did this on purpose</span></div>
+  <h1>Understanding was the hard part. Coding is how it got built.</h1>
+  <ul>
+    <li>the model got built as a side effect of coding. no model → nothing to write.</li>
+    <li>never easy: DDD, ubiquitous language, modularity — decades of tools for exactly this.</li>
+  </ul>
+</section>
+
+<!-- 7 -->
+<section class="card">
+  <div class="top"><span class="no">7</span><span class="lab">When the step goes</span></div>
+  <h1>Take the step away, the thinking stops by itself.</h1>
+  <ul>
+    <li>walk to work (only way there) → you get a car → fitness quietly gone.</li>
+    <li class="key">you've felt this: an agent forces you to state what you want. a colleague never did.</li>
+    <li>maybe the model was the real thing. code just its manifestation.</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section class="card">
+  <div class="top"><span class="no">8</span><span class="lab">Not a new idea</span></div>
+  <h1>Naur named this forty years ago.</h1>
+  <ul>
+    <li>theory of the program lives in the team. code = its residue.</li>
+    <li class="warn">stop there — no "worthless code / software dies". that's Q&amp;A appendix.</li>
+    <li>Conway, 1968: same problem from the org side.</li>
+    <li>no longer stuck at the bottleneck → forced AND freed to express the theory itself.</li>
+  </ul>
+</section>
+
+<!-- 9 -->
+<section class="card">
+  <div class="top"><span class="no">9</span><span class="lab">What do we carry it in</span><span class="img-tag">map</span></div>
+  <h1>Deciding what to leave out is the work.</h1>
+  <ul>
+    <li>the artifact is a map: useful BECAUSE it leaves things out.</li>
+    <li class="key">say Fowler's line out loud: "throw the implementation away — would this have to survive?" (leads reuse it at 14.50)</li>
+    <li>so: back to the old problem. communicating with people.</li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section class="card">
+  <div class="top"><span class="no">10</span><span class="lab">What is in the model</span><span class="img-tag">fog</span></div>
+  <h1>The essential difficulty is other people.</h1>
+  <ul>
+    <li>read the five bullets. slowly.</li>
+  </ul>
+</section>
+
+<!-- 11 -->
+<section class="card">
+  <div class="top"><span class="no">11</span><span class="lab">Two claims · 1/2</span></div>
+  <h1>The feeling is not the instrument.</h1>
+  <ul>
+    <li>famous study.</li>
+    <li class="warn">do NOT mention Niko / the survey — that's Leevi's.</li>
+    <li>forecast +24 · felt +20 · <strong>measured −19.</strong></li>
+    <li>disclaimer first: n=16, 2025, not robust. <strong>the GAP is the point.</strong></li>
+    <li>shortcut on the map: feels faster, timer says no.</li>
+    <li>generating is obviously faster. the whole may not be — expect a dip while we learn.</li>
+    <li class="key">the dip is what a 30-day experiment is for. (only line pointing at 15.50)</li>
+  </ul>
+</section>
+
+<!-- 12 -->
+<section class="card">
+  <div class="top"><span class="no">12</span><span class="lab">Two claims · 2/2</span></div>
+  <h1>The artefact is not the alignment.</h1>
+  <ul>
+    <li>second study. numbers on the slide: 41% got it, ~2h each, 42% trust down.</li>
+    <li>warning for us: capture the theory with AI → this is the failure mode.</li>
+  </ul>
+</section>
+
+<!-- 13 -->
+<section class="card">
+  <div class="top"><span class="no">13</span><span class="lab">One exploration</span><span class="img-tag">scaffolding</span></div>
+  <h1>What if the code is the disposable part?</h1>
+  <ul>
+    <li>my own story, two years, agents throughout.</li>
+    <li>wiki → spec → agent implements from scratch weekly → independent agents score.</li>
+    <li>specs tech-agnostic; many stacks. <strong>keep it this level — no client detail.</strong></li>
+    <li>this is the CURRENT way. evolving. n=1.</li>
+  </ul>
+</section>
+
+<!-- 14 -->
+<section class="card">
+  <div class="top"><span class="no">14</span><span class="lab">One exploration</span></div>
+  <h1>What that forces.</h1>
+  <ul>
+    <li>a bug is no longer work — it's data about the description.</li>
+    <li>not written down by the deadline = it dies. code goes, agent has no memory.</li>
+    <li class="key">the coding forced the thinking. now the forcing function is rebuilt on purpose.</li>
+  </ul>
+</section>
+
+<!-- 15 -->
+<section class="card">
+  <div class="top"><span class="no">15</span><span class="lab">What the cheapness is for</span></div>
+  <h1>Maybe speed was never the point.</h1>
+  <ul>
+    <li>may not get faster for a while. nothing broken if not.</li>
+    <li>prize = quality: what we build, how we check, how we understand each other.</li>
+    <li class="key">"hold that thought ten minutes" → next slide → Leevi.</li>
+  </ul>
+</section>
+
+<!-- 16 -->
+<section class="card">
+  <div class="top"><span class="no">16</span><span class="lab">Survey act · 14.20</span></div>
+  <h1>Now your own numbers</h1>
+  <ul>
+    <li>21 asked, <strong>21 answered.</strong> not anonymously, every question.</li>
+    <li>"nobody here has seen the results."</li>
+  </ul>
+</section>
+
+<!-- 17 -->
+<section class="card handover">
+  <div class="top"><span class="no">17</span><span class="lab">Handover</span></div>
+  <h1>Over to Leevi.</h1>
+  <ul>
+    <li>say the two sentences on the wall. nothing more.</li>
+    <li class="key">sit down. switch to Leevi's own deck.</li>
+  </ul>
+</section>
+
+<!-- 18 -->
+<section class="card">
+  <div class="top"><span class="no">18</span><span class="lab">14.30</span></div>
+  <h1>Five minutes. Questions.</h1>
+  <ul>
+    <li>hold the time. five, not fifteen.</li>
+  </ul>
+</section>
+
+<!-- 19 -->
+<section class="card">
+  <div class="top"><span class="no">19</span><span class="lab">Exercise 1/2 · 14.35</span></div>
+  <h1>Kill List: two things you hand to AI.</h1>
+  <ul>
+    <li>read the bullets.</li>
+    <li class="key">"this round is Kill List only. wishes get parked."</li>
+  </ul>
+</section>
+
+<!-- 20 -->
+<section class="card">
+  <div class="top"><span class="no">20</span><span class="lab">Exercise 2/2</span></div>
+  <h1>Wish List: what this opens up, or newly demands.</h1>
+  <ul>
+    <li>two kinds: better work the time allows · new work the change creates.</li>
+    <li>"kill list alone = redundancy plan. together = job description."</li>
+  </ul>
+</section>
+
+<!-- 21 -->
+<section class="card">
+  <div class="top"><span class="no">21</span><span class="lab">Ground rules</span></div>
+  <h1>Read the rules.</h1>
+  <ul>
+    <li>leads facilitate, not present · somebody else presents · ~3 people · process experiment counts · don't redesign the sprint.</li>
+  </ul>
+</section>
+
+<!-- 22 -->
+<section class="card">
+  <div class="top"><span class="no">22</span><span class="lab">Find your group</span></div>
+  <h1>Four groups. Four flip charts.</h1>
+  <ul>
+    <li class="key">"say the number, not the names." then stop talking.</li>
+    <li>leave this slide up all 45 min.</li>
+    <li>unexpected person → Kristofer.</li>
+  </ul>
+</section>
+
+<!-- 23 -->
+<section class="card">
+  <div class="top"><span class="no">23</span><span class="lab">The ask · 15.50</span></div>
+  <h1>One 30-day experiment. Per group.</h1>
+  <ul>
+    <li>named owner · time in the calendar · demo at AI Hub ~a month.</li>
+    <li>"Eija sends the invitation after today."</li>
+  </ul>
+</section>
+
+<!-- 24 -->
+<section class="card">
+  <div class="top"><span class="no">24</span><span class="lab">Close · 16.00</span></div>
+  <h1>Making things got cheap. Understanding each other just did too.</h1>
+  <ul>
+    <li>say it. stop. pizza.</li>
+  </ul>
+</section>
+
+<div id="bar"></div>
+<div id="count">1 / 24</div>
+<div id="hint">tap right · back left</div>
+
+<script>
+  const cards = document.querySelectorAll('.card');
+  let cur = Math.min(parseInt(localStorage.getItem('dii-note') || '0', 10) || 0, cards.length - 1);
+
+  function show(i) {
+    cur = Math.max(0, Math.min(i, cards.length - 1));
+    cards.forEach((c, j) => c.classList.toggle('active', j === cur));
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + cards.length;
+    document.getElementById('bar').style.width = ((cur + 1) / cards.length * 100) + '%';
+    localStorage.setItem('dii-note', cur);
+    cards[cur].scrollTop = 0;
+  }
+
+  // Tap zones: left third back, rest forward.
+  document.addEventListener('click', e => {
+    show(e.clientX < window.innerWidth * 0.33 ? cur - 1 : cur + 1);
+  });
+
+  // Swipe.
+  let x0 = null;
+  document.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, {passive: true});
+  document.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 50) { show(dx < 0 ? cur + 1 : cur - 1); }
+    x0 = null;
+  }, {passive: true});
+
+  // Keys, for desktop rehearsal alongside the deck.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') show(cur + 1);
+    else if (e.key === 'ArrowLeft') show(cur - 1);
+  });
+
+  show(cur);
+</script>
+</body>
