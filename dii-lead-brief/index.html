@@ -134,6 +134,18 @@
     /* Quoted speech inside a run-sheet cell or a paragraph. Same job, inline. */
     .qq { color: var(--orange); font-weight: 600; }
 
+    /* ─── THE SHEET, DRAWN ───────────────────────────────── */
+    /* The geometry was described in prose across three places and nobody could
+       assemble it in their head. One drawing replaces all of it. */
+    .sheetfig { margin: 1.6rem 0 0.4rem; max-width: 24rem; }
+    .sheetfig svg { display: block; width: 100%; height: auto; font-family: var(--font); }
+    .sheetfig figcaption {
+      font-size: var(--body-sm);
+      opacity: 0.75;
+      margin-top: 0.7rem;
+      max-width: 32em;
+    }
+
     /* ─── RUN SHEET ──────────────────────────────────────── */
     .sheet-wrap { margin: 1.6rem 0 2rem; }
     table.sheet {
@@ -354,13 +366,66 @@
 
   <p class="measure">Sami presents first. Your slot is 45 minutes long. It is scheduled to begin around 14.35, and it will probably begin later, since the part before it can run over. Then a five minute break, then one person per group presents for about five minutes, then ten minutes setting up the 30 day experiments, then pizza.</p>
 
-  <p class="measure">Materials will be ready in the room, so bring nothing. Each group gets a flip chart sheet, markers, and post-its for everyone. You rule the sheet into four blocks yourself. That sheet is &ldquo;the sheet&rdquo; below. It gets filled during the session, handed to whoever presents, and photographed at the end. Note the time your group actually starts and write it at the top of the sheet, because the run sheet below is counted in minutes from there rather than off the wall clock. Everything your group produces gets written down, and what you write goes to whoever presents. This replaces the earlier brief you were sent. You also get the deck before Friday, and the Friday call walks through the argument behind the afternoon, so this document stays with the practical part.</p>
+  <p class="measure">Materials are in the room, so bring nothing: a flip chart sheet, markers, and post-its for everyone. You rule the sheet as drawn below. It gets filled during the session, handed to whoever presents, and photographed at the end. This replaces the earlier brief you were sent.</p>
 
   <p class="measure"><strong>What your group produces:</strong> two tasks they would hand to AI, the <strong>Kill List</strong>, and one thing worth doing that the change opens up or newly demands, the <strong>Wish List</strong>. Then one of those becomes a 30 day experiment with an owner&rsquo;s name on it.</p>
 
   <p class="measure">You keep time, ask questions and write things down. The content comes from the group. You do not present anything, and you do not demo your own AI use. You do not need to know anything about AI to run this well.</p>
 
   <h2>Run sheet, 45 minutes from your own start</h2>
+
+  <figure class="sheetfig">
+    <svg viewBox="0 0 360 440" role="img" aria-label="The flip chart sheet: start time and four output blocks across the top, then a grid with one row per person and a KILL and WISH column, and a SPARES strip down the right edge">
+      <!-- the sheet -->
+      <rect x="8" y="8" width="344" height="424" fill="#ffffff" stroke="rgba(0,0,0,0.4)"/>
+      <line x1="306" y1="8" x2="306" y2="432" stroke="rgba(0,0,0,0.4)"/>
+      <!-- start time -->
+      <text x="22" y="32" font-size="14" font-weight="700">14.41</text>
+      <!-- output blocks -->
+      <rect x="84" y="44" width="50" height="64" fill="none" stroke="rgba(0,0,0,0.4)"/>
+      <text x="109" y="60" text-anchor="middle" font-size="9.5" font-weight="700">KILL 1</text>
+      <rect x="138" y="44" width="50" height="64" fill="none" stroke="rgba(0,0,0,0.4)"/>
+      <text x="163" y="60" text-anchor="middle" font-size="9.5" font-weight="700">KILL 2</text>
+      <rect x="192" y="44" width="50" height="64" fill="none" stroke="rgba(0,0,0,0.4)"/>
+      <text x="217" y="60" text-anchor="middle" font-size="9.5" font-weight="700">WISH</text>
+      <rect x="246" y="44" width="50" height="64" fill="none" stroke="rgba(0,0,0,0.4)"/>
+      <text x="271" y="60" text-anchor="middle" font-size="9.5" font-weight="700">EXP</text>
+      <text x="271" y="98" text-anchor="middle" font-size="9" fill="#a9431e">33&#8211;39</text>
+      <!-- winners copied up -->
+      <line x1="60" y1="146" x2="60" y2="118" stroke="rgba(0,0,0,0.6)"/>
+      <path d="M 55 126 L 60 116 L 65 126" fill="none" stroke="rgba(0,0,0,0.6)"/>
+      <text x="70" y="134" font-size="10" fill="rgba(0,0,0,0.6)">winners, copied up</text>
+      <!-- the grid -->
+      <text x="90" y="168" font-size="10" font-weight="600" fill="#a9431e">KILL &#183; 7&#8211;17</text>
+      <text x="212" y="168" font-size="10" font-weight="600" fill="#a9431e">WISH &#183; 24&#8211;33</text>
+      <line x1="16" y1="176" x2="298" y2="176" stroke="rgba(0,0,0,0.4)"/>
+      <line x1="16" y1="226" x2="298" y2="226" stroke="rgba(0,0,0,0.16)"/>
+      <line x1="16" y1="276" x2="298" y2="276" stroke="rgba(0,0,0,0.16)"/>
+      <line x1="16" y1="326" x2="298" y2="326" stroke="rgba(0,0,0,0.16)"/>
+      <line x1="16" y1="376" x2="298" y2="376" stroke="rgba(0,0,0,0.16)"/>
+      <line x1="16" y1="426" x2="298" y2="426" stroke="rgba(0,0,0,0.16)"/>
+      <line x1="82" y1="176" x2="82" y2="426" stroke="rgba(0,0,0,0.3)"/>
+      <line x1="204" y1="176" x2="204" y2="426" stroke="rgba(0,0,0,0.3)"/>
+      <!-- names label rows, in turn order -->
+      <text x="22" y="205" font-size="12">Anna</text>
+      <text x="22" y="255" font-size="12">Bo</text>
+      <text x="22" y="305" font-size="12">Cem</text>
+      <text x="22" y="355" font-size="12">Dia</text>
+      <text x="22" y="405" font-size="12">Eve</text>
+      <!-- first row filled as the example -->
+      <rect x="90" y="188" width="15" height="15" fill="#F9EDDD" stroke="rgba(0,0,0,0.3)"/>
+      <text x="111" y="200" font-size="9" opacity="0.65">who &#183; often &#183; long</text>
+      <rect x="212" y="188" width="15" height="15" fill="#F9EDDD" stroke="rgba(0,0,0,0.3)"/>
+      <rect x="90" y="238" width="15" height="15" fill="#F9EDDD" stroke="rgba(0,0,0,0.3)"/>
+      <text x="111" y="250" font-size="9" opacity="0.65">who &#183; often &#183; long</text>
+      <text x="94" y="300" font-size="11" opacity="0.5">&#8230;</text>
+      <!-- spares strip -->
+      <text transform="translate(334 26) rotate(90)" font-size="11" font-weight="700" letter-spacing="2">SPARES</text>
+      <rect x="321" y="140" width="16" height="16" fill="#F9EDDD" stroke="rgba(0,0,0,0.3)"/>
+      <rect x="323" y="168" width="16" height="16" fill="#F9EDDD" stroke="rgba(0,0,0,0.3)"/>
+    </svg>
+    <figcaption>One row per person; the rows, top to bottom, are the order you go round. Each row holds that person&rsquo;s Kill note with its facts, and later their Wish note. Winners get copied up into the blocks; EXP is filled at the end.</figcaption>
+  </figure>
 
   <div class="sheet-wrap">
     <table class="sheet">
@@ -379,48 +444,48 @@
         <tr>
           <td class="len">3 min</td>
           <td class="elapsed">0 to 3</td>
-          <td class="do">Rule the sheet into four blocks, headed KILL 1, KILL 2, WISH, EXP. Do it before they sit down if you can. Names down the side. Your real start time at the top. Say the opening: both lists, and that they are not two halves of the same thing. Warn: five silent minutes first.</td>
-          <td class="out"><span class="stack-label">Written down when it ends</span>Blocks ruled and headed, five names, start time</td>
+          <td class="do">Rule the sheet as drawn above, real start time at the top. Do it before they arrive if you can.<br>Strangers in the group &rarr; everyone introduces themselves: name, team, ten seconds each.<br>Then open: the two lists, the 30 day experiment, and that one of them presents it, not you. Wording below.</td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Sheet ruled as drawn, five names <strong>in turn order</strong>, start time</td>
         </tr>
         <tr>
-          <td class="len">5 min</td>
-          <td class="elapsed">3 to 8</td>
-          <td class="do">Silent post-its. One idea per note. Say nothing, write nothing, sit. Halfway, only if pens have stopped: <span class="qq">&ldquo;What part of your week would you happily never do again?&rdquo;</span></td>
+          <td class="len">4 min</td>
+          <td class="elapsed">3 to 7</td>
+          <td class="do">Silent post-its. One idea per note. Say nothing, write nothing, stay out of their eyeline. Halfway, only if pens have stopped: <span class="qq">&ldquo;What part of your week would you happily never do again?&rdquo;</span></td>
           <td class="out"><span class="stack-label">Written down when it ends</span>Five private lists</td>
         </tr>
         <tr>
           <td class="len">10 min</td>
-          <td class="elapsed">8 to 18</td>
-          <td class="do">Round the table, seating order, one note each, about two minutes. They read it out and stick it <strong>below</strong> the blocks. You write three facts beside it: who does it now, how often, roughly how long. Tick names. Nobody twice until all five have spoken. Same item from two people, write it once with both names.<br>Debate &rarr; <span class="qq">&ldquo;Hold it. All five on the paper first.&rdquo;</span><br>Abstraction &rarr; <span class="qq">&ldquo;Last time you actually did it?&rdquo;</span><br>Tool talk &rarr; <span class="qq">&ldquo;Assume the tool works. What is the work you would hand over?&rdquo;</span><br>A fix or a wish &rarr; <span class="qq">&ldquo;That is a solution. Park it. What is the task?&rdquo;</span><br>Personal admin &rarr; <span class="qq">&ldquo;Team&rsquo;s problem, or yours? Park it if it is yours.&rdquo;</span></td>
-          <td class="out"><span class="stack-label">Written down when it ends</span>Five candidates, each: task / who / how often / how long. Rough is fine</td>
+          <td class="elapsed">7 to 17</td>
+          <td class="do">Row by row, about two minutes each. They read a note out and stick it <strong>in their row</strong>; their spare notes go into SPARES, unread.<br>Beside each, write three facts: <strong>who does it now, how often, how long</strong>. <span class="qq">&ldquo;Anna, every sprint, about 90 minutes&rdquo;</span> is enough. Same item from two people &mdash; write it once, both names.<br>Debate &rarr; <span class="qq">&ldquo;Hold it. All five on the paper first.&rdquo;</span><br>Abstraction &rarr; <span class="qq">&ldquo;Last time you actually did it?&rdquo;</span><br>Tool talk &rarr; <span class="qq">&ldquo;Assume the tool works. What is the work you would hand over?&rdquo;</span><br>A fix or a wish &rarr; <span class="qq">&ldquo;That is a solution. Park it. What is the task?&rdquo;</span><br>Personal admin &rarr; <span class="qq">&ldquo;Team&rsquo;s problem, or yours? Park it if it is yours.&rdquo;</span></td>
+          <td class="out"><span class="stack-label">Written down when it ends</span>Five candidates, each with its three facts: who / how often / how long</td>
         </tr>
         <tr>
           <td class="len">7 min</td>
-          <td class="elapsed">18 to 25</td>
-          <td class="do">Cluster duplicates. The rest stays parked below. Cut to two: <span class="qq">&ldquo;Which two would make the most difference if they went away, and which two can we describe honestly to a room in five minutes?&rdquo;</span> Three minutes, then close it yourself. Stalled &rarr; hands up, top two. Write the two into KILL 1 and KILL 2, numbers filled in, and read them back: <span class="qq">&ldquo;Does everyone recognise these two as ours?&rdquo;</span> Two hesitate &rarr; spend a minute. One hesitates &rarr; write the objection in one line, move on.</td>
-          <td class="out"><span class="stack-label">Written down when it ends</span><strong>Two Kill List items, complete</strong></td>
+          <td class="elapsed">17 to 24</td>
+          <td class="do">Cut to two: <span class="qq">&ldquo;Which two would make the most difference if they went away, and which two can we describe honestly to a room in five minutes?&rdquo;</span> Three minutes, then <strong>make the call yourself</strong>. Stalled &rarr; hands up, top two. Write the two into KILL 1 and KILL 2 with their facts, and read them back: <span class="qq">&ldquo;Does everyone recognise these two as ours?&rdquo;</span> Two hesitate &rarr; spend a minute. One hesitates &rarr; write the objection in one line, move on. Rejected &rarr; replace from SPARES.</td>
+          <td class="out"><span class="stack-label">Written down when it ends</span><strong>Two Kill List items, complete, with their three facts</strong></td>
         </tr>
         <tr class="marker">
           <td class="len"></td>
-          <td class="elapsed">at 25</td>
+          <td class="elapsed">at 24</td>
           <td class="do" colspan="2"><strong>Checkpoint.</strong> See below.</td>
         </tr>
         <tr>
-          <td class="len">7 min</td>
-          <td class="elapsed">25 to 32</td>
-          <td class="do">Restate first: <span class="qq">&ldquo;Two Kill items done. One more line, then an owner.&rdquo;</span> Then say what this list is <strong>not</strong>: <span class="qq">&ldquo;Not the fix for what we just killed. That list already says we hand those over. This is work nobody is doing yet.&rdquo;</span> Two shapes, one line each: more of something we barely do, or start something new. <strong>No examples unless they stall</strong> &mdash; they hand your examples straight back. One silent minute, one post-it each, read out in the same order, stick under WISH. Group picks one.<br>Vague &rarr; <span class="qq">&ldquo;More of what, with whom, and how often?&rdquo;</span><br>A fix for a Kill item &rarr; <span class="qq">&ldquo;That is a fix. Park it.&rdquo;</span></td>
+          <td class="len">9 min</td>
+          <td class="elapsed">24 to 33</td>
+          <td class="do">Make clear the Wish List is not fixes for the Kill items &mdash; it is work nobody is doing yet: <span class="qq">&ldquo;That list already says we hand those over. This is work nobody is doing yet.&rdquo;</span> Two kinds of answer, one line each: more of something we barely do, or start something new. <strong>No examples unless they stall</strong> &mdash; they hand your examples straight back. Two silent minutes, one post-it each, read out row by row, each stuck in their row&rsquo;s WISH column. Group picks one; copy it into the WISH block.<br>Vague &rarr; <span class="qq">&ldquo;More of what, with whom, and how often?&rdquo;</span><br>A fix for a Kill item &rarr; <span class="qq">&ldquo;That is a fix. Park it.&rdquo;</span></td>
           <td class="out"><span class="stack-label">Written down when it ends</span>One Wish List line, specific enough that someone could start it next week</td>
         </tr>
         <tr>
           <td class="len">6 min</td>
-          <td class="elapsed">32 to 38</td>
-          <td class="do">Two moves, in this order. Do not merge them.<br><strong>1. Which one.</strong> <span class="qq">&ldquo;Which of these three do we run for 30 days?&rdquo;</span><br><strong>2. Then the owner.</strong> <span class="qq">&ldquo;It gets shown at the AI Hub in about a month. Who wants to own it?&rdquo;</span> Whoever volunteers, willingness beats size.<br>Then onto the sheet, out loud, group listening. Owner, one name, not a team. Blocked time &mdash; ask it as a question and wait: <span class="qq">&ldquo;Open your calendar. When is the first hour?&rdquo;</span> A day and an hour, and whether it is once or every week. What they will show at the Hub. <strong>Last</strong>, as the read-back: <span class="qq">&ldquo;Say the experiment in one sentence, present tense.&rdquo;</span> Ask that one last or it gets skipped.</td>
+          <td class="elapsed">33 to 39</td>
+          <td class="do">Two moves, in this order. Do not merge them.<br><strong>1. Which one.</strong> <span class="qq">&ldquo;Which of these three do we run for 30 days?&rdquo;</span><br><strong>2. Then the owner.</strong> <span class="qq">&ldquo;It gets shown at the AI Hub in about a month. Who wants to own it?&rdquo;</span> Take the volunteer, even if their item is smaller.<br>Then fill EXP, out loud. Owner &mdash; one name, not a team. Blocked time &mdash; <span class="qq">&ldquo;Open your calendar. When is the first hour?&rdquo;</span> A day and an hour, once or weekly. What they will show at the Hub. <strong>Last:</strong> <span class="qq">&ldquo;Say the experiment in one sentence, present tense.&rdquo;</span></td>
           <td class="out"><span class="stack-label">Written down when it ends</span>Item, owner, calendar slot, demo, one sentence</td>
         </tr>
         <tr>
-          <td class="len">7 min</td>
-          <td class="elapsed">38 to 45</td>
-          <td class="do">Presenter: a volunteer, else the experiment&rsquo;s owner, else whoever spoke most for the winning item. Confirm with the group. <span class="qq">&ldquo;You do not have to defend it. Read what is on the paper and say why we picked it.&rdquo;</span> Read the whole sheet back slowly, fix the wording they object to. Hand over the paper. Then sit down, and stay sitting down, including during questions.</td>
+          <td class="len">6 min</td>
+          <td class="elapsed">39 to 45</td>
+          <td class="do">Presenter: a volunteer, else the experiment&rsquo;s owner, else whoever spoke most for the winning item. Confirm with the group. <span class="qq">&ldquo;You do not have to defend it. Read what is on the paper and say why we picked it.&rdquo;</span> Read the whole sheet back slowly, fix the wording they object to. Hand over the paper. Then get out of the way, at the front later too.</td>
           <td class="out"><span class="stack-label">Written down when it ends</span>Presenter briefed, paper handed over</td>
         </tr>
         <tr class="marker">
@@ -433,7 +498,7 @@
   </div>
 
   <div class="checkpoint">
-    <p><strong>Checkpoint, 25 minutes in.</strong> On time: both Kill items complete, with numbers. Behind: one item, or two without numbers, or still arguing about which two. If behind, drop in this order &mdash; Kill 2 down to one line, stop polishing it; then skip the Wish List&rsquo;s silent minute and go straight round out loud; then cut the final read-back to the experiment only. <strong class="never">Never drop the experiment, its owner and the blocked time.</strong> If ahead, no new topic &mdash; ask how the group would check the output of Kill item one.</p>
+    <p><strong>Checkpoint, 24 minutes in.</strong> On time: both Kill items complete, with their three facts. Behind: one item, or two without their three facts, or still arguing about which two. If behind, drop in this order &mdash; Kill 2 down to one line, stop polishing it; then skip the Wish List&rsquo;s silent minutes and go straight round out loud; then cut the final read-back to the experiment only. <strong class="never">Never drop the experiment, its owner and the blocked time.</strong> If ahead, no new topic &mdash; ask how the group would check the output of Kill item one.</p>
   </div>
 
   <h3>Say these, close to verbatim</h3>
@@ -478,15 +543,14 @@
 
   <p class="measure">A vague list produces nothing, so every line has to carry the same few facts.</p>
 
-  <p class="measure"><strong>Each Kill List item, four facts:</strong> the task in concrete verbs, in the order a person does it. Who does it today, a role or a name. How often, per sprint, per week, per release. Roughly how long, a range is fine. Plus the one that is easy to skip and worth the minute: how they would know the output was good enough to use. If the group cannot say how they would check it, say so plainly.</p>
+  <p class="measure"><strong>Each Kill List item:</strong> the task in concrete verbs, its three facts &mdash; and the one that is easy to skip and worth the minute: how they would know the output was good enough to use. If the group cannot say how they would check it, say so plainly.</p>
 
   <p class="measure"><strong>If they are stuck on whether something belongs on the Kill List,</strong> ask: <span class="qq">&ldquo;If we threw the work away and had it made again from scratch, would this part have to survive?&rdquo;</span> What has to survive stays with you, and the rest is a candidate to hand over.</p>
 
   <p class="measure"><strong>The Wish List item, one line:</strong> who does what, how often, starting roughly when.</p>
 
-  <p class="measure"><strong>What makes a Wish List line good:</strong> two shapes both count. Better work the freed time now allows, something the group can only do together, like getting properly agreed on something or checking that what was agreed is what everyone thinks was agreed. Or new work the change itself creates, like reviewing output that arrives faster than anyone can check it, writing down what a system is meant to do so it survives being regenerated, or bringing somebody into a system nobody wrote by hand. If the line is the same execution work, just more of it or faster, nudge once with <span class="qq">&ldquo;what would that time let us finally sort out together?&rdquo;</span> or <span class="qq">&ldquo;what will we have to start doing that nobody does today?&rdquo;</span></p>
+  <p class="measure"><strong>What makes a Wish List line good:</strong> two kinds of answer both count. Better work the freed time now allows, something the group can only do together, like getting properly agreed on something or checking that what was agreed is what everyone thinks was agreed. Or new work the change itself creates, like reviewing output that arrives faster than anyone can check it, writing down what a system is meant to do so it survives being regenerated, or bringing somebody into a system nobody wrote by hand. If the line is the same execution work, just more of it or faster, nudge once with <span class="qq">&ldquo;what would that time let us finally sort out together?&rdquo;</span> or <span class="qq">&ldquo;what will we have to start doing that nobody does today?&rdquo;</span></p>
 
-  <p class="measure"><strong>The experiment, four facts:</strong> what will be tried in one sentence, present tense. Who owns it, one name, not a team. When they have blocked time, a day and an hour. What they will show at the AI Hub in a month.</p>
 
   <p class="measure"><strong>The test.</strong> Could someone who was not in your group pick up the sheet and start on Monday. If no, it is not finished. Apply it to every line before you hand the paper over.</p>
 
