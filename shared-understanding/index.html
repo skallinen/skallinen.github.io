@@ -351,10 +351,11 @@
       <div class="section-label">8-bit-sheep &middot; August 2026</div>
       <h1 class="display">Making things<br>got <span class="muted">cheaper</span>.<br>Agreeing what to make<br><span class="accent">did not</span>.</h1>
       <p class="body-lg muted" style="margin-top: 1rem;">Sami Kallinen. The opening talk of a two-hour workshop on what AI does to software work.</p>
+      <p class="muted" style="margin-top:0.8rem; font-size:0.95rem;">Press <b>f</b> for full screen. The down arrow opens each slide's notes.</p>
       <div class="notes">
         <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
         <div class="notes-body">
-          <p>This deck was presented live and is published close to how it was argued. Most slides carry notes behind the chevron, one press of the down arrow: they hold the parts of the argument that were spoken rather than shown, plus the sources and the caveats.</p>
+          <p>The notes hold the sources, the caveats, and the parts of the argument that were spoken rather than shown.</p>
           <p style="opacity:0.8;">Photographs: Matt Palmer, Hal Gatewood, Alex Boyd, Patrick Hendry and Ricardo Gomez Angel, all on Unsplash.</p>
         </div>
       </div>
@@ -373,7 +374,7 @@
       <div class="notes">
         <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
         <div class="notes-body">
-          <p>The quoted phrase is John Perry Barlow, A Declaration of the Independence of Cyberspace, Davos, February 1996. "The new home of Mind" is verbatim. The point of quoting it is not that Barlow was foolish. Serious, informed people wrote down what the network would do to the world and were wrong in ways nobody could see from inside the moment. That is also the position this talk is in, which is why the big questions get bracketed rather than answered.</p>
+          <p>The quoted phrase is John Perry Barlow, A Declaration of the Independence of Cyberspace, Davos, February 1996. "The new home of Mind" is verbatim. The point of quoting it is not that Barlow was foolish. Serious, informed people wrote down what the network would do to the world and were wrong in ways nobody could see from inside the moment. That is also the position anyone reasoning about AI is in now, which is why the big questions get bracketed rather than answered.</p>
         </div>
       </div>
     </div>
@@ -388,7 +389,7 @@
       <div class="notes">
         <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
         <div class="notes-body">
-          <p>Eliyahu Goldratt, Theory of Constraints: a system's throughput is set by its constraint, and improving anything else improves nothing. The corollary this talk leans on is that new capacity does not remove the bottleneck. It moves it, usually to a place nobody was watching, because that place was never a problem while the old queue existed.</p>
+          <p>Eliyahu Goldratt, Theory of Constraints: a system's throughput is set by its constraint, and improving anything else improves nothing. The corollary that matters here is that new capacity does not remove the bottleneck. It moves it, usually to a place nobody was watching, because that place was never a problem while the old queue existed.</p>
         </div>
       </div>
     </div>
@@ -407,12 +408,12 @@
           <div class="claim-body">
             <div class="claim-fact">
               
-              The title of this deck states that as an obvious fact. It is a hypothesis. Almost everyone in software already works as though it were true, which is not the same thing as it being true, and is not evidence that it is. Hold it as conditional to the end, because nothing after this slide survives if it turns out to be false.
-              <span class="sub">If generating code is becoming cheap, then by Goldratt it stops being the constraint, and the constraint moves upstream, onto the shared understanding of what the thing should do and why. I will call that the model for the rest of the deck.</span>
+              A hypothesis, not a fact. Almost everyone in software already works as though it were true, which is not the same thing as it being true, and is not evidence that it is. Everything that follows depends on it.
+              <span class="sub">If generating code is becoming cheap, then by Goldratt it stops being the constraint, and the constraint moves upstream, onto the shared understanding of what the thing should do and why. That is the model everything else builds on.</span>
             </div>
             <p class="feynman">Every workshop has one machine everybody queues for. Buy a second one and the queue does not disappear. It reappears somewhere else, usually somewhere nobody was watching, because that place was never a problem while the queue existed. The claim on this slide is only that the machine got faster. Where the queue goes is the rest of the talk.</p>
           </div>
-          <p class="do-line"><b>Do</b>Hold this as a hypothesis to the end. If your own work says the making has not got cheaper, the chain stops here for you, because every step after it depends on it.</p>
+          <p class="do-line"><b>Do</b>If your own work says the making has not got cheaper, the chain stops here for you; every later step depends on this one.</p>
         </div>
       </div>
     </div>
@@ -453,7 +454,7 @@
           <div class="claim-body">
             <div class="claim-fact">
               The byproduct goes with the activity that produced it. The understanding stops getting built by accident, and nothing announces that it has stopped. From here it gets built deliberately, with artefacts made for the job, or the code arrives with nothing behind it and nobody finds out for a quarter.
-              <span class="sub">This is the whole hinge. Everything after this slide is an attempt to answer one question: if the work no longer forces the thinking, what does?</span>
+              <span class="sub">This is the whole hinge: if the work no longer forces the thinking, what does? Everything that follows is an attempt at that question.</span>
             </div>
             
             <p class="feynman">Now imagine a car turns up, and of course you take it. The commute gets forty minutes shorter and the fitness leaves quietly along with it. Nothing tells you. You are faster, so you feel faster, and the loss shows up months later in something that looks unrelated.</p>
@@ -508,7 +509,7 @@
           <div class="claim-body">
             <div class="claim-fact">
               A map complete in every detail is the territory, and a map the size of the territory helps nobody. Nobody ever needed the whole theory written down.
-              <span class="sub">Specifications are one candidate for holding it. There are others, and that part is genuinely open: the deck does not know that specs are the answer and does not claim to.</span>
+              <span class="sub">Specifications are one candidate for holding it. There are others, and that part is genuinely open; nobody yet knows whether specs are the answer.</span>
             </div>
             <p class="feynman">The question on the slide is Chad Fowler's, August 2026. He names the failure mode too: when what production teaches you never gets back into the spec, regenerating stops being a rebuild and becomes amnesia. Stanford's Hazy Research group put it harder, from inside CUDA megakernels where every nanosecond is argued over by hand: the implementation becomes disposable, a cache of one particular compilation rather than the source of truth.</p>
           </div>
@@ -555,9 +556,9 @@
         <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
         <div class="notes-body">
           <div class="claim-body">
-            <p><strong>If your first objection is the n, it is a fair one.</strong> Sixteen developers is very little and the study does not generalise on its own. Two things keep it worth citing: 246 tasks rather than 16, so the effect is not one person's bad week; and the direction of the gap, which is the part being claimed. If the only conclusion you take is "measure rather than feel", the slide has done its whole job.</p>
+            <p><strong>If your first objection is the n, it is a fair one.</strong> Sixteen developers is very little and the study does not generalise on its own. Two things keep it worth citing: 246 tasks rather than 16, so the effect is not one person's bad week; and the direction of the gap, which is the part being claimed. The one conclusion that survives every caveat is: measure rather than feel.</p>
             
-            <p><strong>The 2026 re-run did not flip.</strong> A claim circulated that the re-run showed a positive effect; checked against METR's own post, it is false. Returning developers measured &minus;18% (CI &minus;38% to +9%), newly recruited developers &minus;4% (CI &minus;15% to +9%). A year later, with better tools, still not positive. METR calls its own re-run "only very weak evidence": developers now refuse to work without AI and 30 to 50% withheld tasks, so selection biases the number downward, the truth could be higher, and they are redesigning the experiment. Even the people who measure this for a living say it is hard to measure, which is this slide's whole point. Cite the gap. The single number is the least reliable thing here.</p>
+            <p><strong>The 2026 re-run did not flip.</strong> A claim circulated that the re-run showed a positive effect; checked against METR's own post, it is false. Returning developers measured &minus;18% (CI &minus;38% to +9%), newly recruited developers &minus;4% (CI &minus;15% to +9%). A year later, with better tools, still not positive. METR calls its own re-run "only very weak evidence": developers now refuse to work without AI and 30 to 50% withheld tasks, so selection biases the number downward, the truth could be higher, and they are redesigning the experiment. Even the people who measure this for a living say it is hard to measure. Cite the gap; the single number is the least reliable thing here.</p>
             <p class="feynman">Someone timed a shortcut with a stopwatch and found it four minutes slower, even though it felt faster. You are never sitting still on a shortcut, and sitting still is what makes you notice time. Then they went back a year later and the road had changed so much there was nothing left to compare against. What we know for certain is smaller and more useful: your own sense of speed was never the instrument.</p>
           </div>
           <p class="do-line"><b>Do</b>Instrument cycle time, rework and review load before and after. Ban "it feels faster" as evidence in planning.</p>
@@ -602,7 +603,7 @@
       <div class="notes">
         <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
         <div class="notes-body">
-          <p class="feynman">One system, early cycles, unfinished, and run by the author of this deck. That is the entire evidence base for this exploration. What follows is what the practice forces on you, and that part is worth more than the result.</p>
+          <p class="feynman">One system, early cycles, unfinished, run by the author. That is the entire evidence base for this exploration. The value is what the practice forces on you, and that part is worth more than the result.</p>
         </div>
       </div>
     </div>
@@ -691,7 +692,7 @@
       <div class="notes">
         <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
         <div class="notes-body">
-          <p>This is the turn the whole argument was building to, and it is a question, not a promise. If the constraint really has moved onto shared understanding, then the freed capacity is only worth what it buys there.</p>
+          <p>A question, not a promise. If the constraint really has moved onto shared understanding, then the freed capacity is only worth what it buys there.</p>
         </div>
       </div>
     </div>
