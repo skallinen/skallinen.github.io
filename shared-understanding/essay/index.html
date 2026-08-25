@@ -5,117 +5,87 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Cost of Shared Understanding</title>
 <meta name="description" content="Software got cheap to make because translation got free. What that takes away, what it gives back, and why the written why is the licence for everything else. By Sami Kallinen and Niklas Höglund.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <style>
+  /* The wake look: ivory + Helvetica, crimson accent */
   :root {
-    --bg:        #EEE7E1;
-    --paper:     #F9EDDD;
-    --ink:       #1a1512;
-    --muted:     #6b625a;
-    --accent:    #a9431e;
-    --teal:      #7badb6;
-    --rule:      #d9cfc5;
-    --sans:      'Plus Jakarta Sans', Arial, sans-serif;
-    --serif:     'Source Serif 4', Georgia, serif;
+    --font:   'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --ink:    #333333;
+    --paper:  #FFFFF0;
+    --accent: #dc143c;
+    --muted:  #8a8570;
+    --rule:   #E5E0CC;
     /* map tokens */
-    --surface-1: #F9EDDD;
-    --text-primary: #1a1512;
-    --text-secondary: #52514e;
-    --text-muted: #7a7871;
-    --grid: #ddd2c6;
+    --surface-1: #FFFFF0;
+    --text-primary: #333333;
+    --text-secondary: #6b6754;
+    --text-muted: #8a8570;
+    --grid: #E5E0CC;
     --component: #2a78d6;
-    --movement: #a9431e;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:        #171412;
-      --paper:     #1f1b18;
-      --ink:       #ece5dd;
-      --muted:     #a39a90;
-      --accent:    #d97b52;
-      --rule:      #3a342e;
-      --surface-1: #1f1b18;
-      --text-primary: #ece5dd;
-      --text-secondary: #c3bcb2;
-      --text-muted: #8f887f;
-      --grid: #3a342e;
-      --component: #4a90dd;
-      --movement: #d97b52;
-    }
+    --movement: #dc143c;
   }
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
+  html, body {
     margin: 0;
-    background: var(--bg);
+    padding: 0;
+    font-family: var(--font);
+    background-color: var(--paper);
     color: var(--ink);
-    font-family: var(--serif);
-    font-size: 1.125rem;
-    line-height: 1.65;
   }
   .site-nav {
-    font-family: var(--sans);
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
-    padding: 1.1rem 1.5rem;
     display: flex;
+    align-items: baseline;
     gap: 1.5rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #FFFFF0, #F5F0DC);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.12);
   }
-  .site-nav a { color: var(--muted); text-decoration: none; }
+  .site-nav a {
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 600;
+  }
   .site-nav a:hover { color: var(--accent); }
   article {
     max-width: 42rem;
     margin: 0 auto;
-    padding: 2.5rem 1.5rem 6rem;
+    padding: 2rem 1.5rem 4rem;
+    line-height: 1.6;
   }
   h1 {
-    font-family: var(--sans);
-    font-weight: 700;
-    font-size: clamp(2rem, 5vw, 3rem);
-    line-height: 1.1;
-    margin: 0 0 0.75rem;
+    font-size: 1.8rem;
+    margin: 0 0 0.25rem;
   }
   .byline {
-    font-family: var(--sans);
-    font-size: 0.95rem;
     color: var(--muted);
-    margin-bottom: 3rem;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
   }
-  .byline .date { margin-left: 0.75rem; }
+  .byline .date { margin-left: 0.75rem; font-variant-numeric: tabular-nums; }
   h2 {
-    font-family: var(--sans);
-    font-weight: 600;
-    font-size: 1.35rem;
-    line-height: 1.25;
-    margin: 3rem 0 1rem;
+    font-size: 1.25rem;
+    margin-top: 2rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.25rem;
   }
   p { margin: 0 0 1.25rem; }
   em { font-style: italic; }
-  .close p {
-    font-family: var(--sans);
-    font-weight: 500;
-  }
+  a { color: var(--ink); text-decoration-color: var(--accent); }
+  a:hover { color: var(--accent); }
+  .close p { font-weight: 600; }
   figure.map {
-    margin: 3rem -1.5rem;
+    margin: 2rem 0;
     background: var(--paper);
-    border-top: 1px solid var(--rule);
-    border-bottom: 1px solid var(--rule);
-    padding: 1.5rem 1.5rem 2rem;
-  }
-  @media (min-width: 48rem) {
-    figure.map { margin: 3rem -3rem; border: 1px solid var(--rule); border-radius: 8px; }
+    border-radius: 3px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    padding: 1.25rem 1.25rem 1.5rem;
   }
   figure.map .fig-title {
-    font-family: var(--sans);
     font-weight: 600;
-    font-size: 1.05rem;
-    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    margin: 0 0 0.25rem;
   }
   figure.map .fig-lede {
-    font-family: var(--sans);
     font-size: 0.9rem;
     color: var(--muted);
     margin: 0 0 1rem;
@@ -124,7 +94,7 @@
   #chart { min-width: 700px; height: 480px; }
   svg { width: 100%; height: 100%; display: block; }
   .axis line, .axis path { stroke: var(--grid); }
-  .stage { fill: var(--text-muted); font-size: 12.5px; font-family: var(--sans); }
+  .stage { fill: var(--text-muted); font-size: 12.5px; font-family: var(--font); }
   .dep { stroke: var(--grid); stroke-width: 1.5px; fill: none; }
   .dep.hot { stroke: var(--text-secondary); }
   .move { stroke: var(--movement); stroke-width: 2px; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrowhead); }
@@ -134,24 +104,23 @@
   .node.ghost circle { fill: var(--surface-1); stroke: var(--text-muted); stroke-width: 2px; }
   .node.ghost text { fill: var(--text-muted); }
   .node text {
-    fill: var(--text-primary); font-size: 12.5px; font-family: var(--sans); pointer-events: none;
+    fill: var(--text-primary); font-size: 12.5px; font-family: var(--font); pointer-events: none;
     paint-order: stroke; stroke: var(--surface-1); stroke-width: 3.5px; stroke-linejoin: round;
   }
-  .note { fill: var(--text-secondary); font-size: 12px; font-style: italic; font-family: var(--sans); }
+  .note { fill: var(--text-secondary); font-size: 12px; font-style: italic; font-family: var(--font); }
   .note.warm { fill: var(--movement); }
   .tooltip {
     position: fixed; pointer-events: none; z-index: 10;
     background: var(--surface-1); color: var(--text-primary);
-    border: 1px solid var(--grid); border-radius: 6px;
-    padding: 8px 10px; font-size: 13px; font-family: var(--sans); max-width: 290px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.15); opacity: 0; transition: opacity .1s;
+    border: 1px solid var(--grid); border-radius: 3px;
+    padding: 8px 10px; font-size: 13px; font-family: var(--font); max-width: 290px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.15); opacity: 0; transition: opacity .1s;
   }
   figcaption {
-    font-family: var(--sans);
     font-size: 0.9rem;
     line-height: 1.55;
     color: var(--muted);
-    margin-top: 1.25rem;
+    margin-top: 1rem;
   }
   figcaption p { margin: 0 0 0.7rem; }
   figcaption strong { color: var(--ink); font-weight: 600; }
@@ -159,13 +128,13 @@
     max-width: 42rem;
     margin: 0 auto;
     padding: 0 1.5rem 4rem;
-    font-family: var(--sans);
     font-size: 0.9rem;
     color: var(--muted);
     border-top: 1px solid var(--rule);
   }
   footer p { margin: 1.5rem 0 0; }
-  footer a { color: var(--accent); }
+  footer a { color: var(--ink); text-decoration-color: var(--accent); }
+  footer a:hover { color: var(--accent); }
 </style>
 </head>
 <body>
