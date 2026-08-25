@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Cost of Shared Understanding</title>
+<meta name="description" content="Software got cheap to make because translation got free. What that takes away, what it gives back, and why the written why is the licence for everything else. By Sami Kallinen and Niklas Höglund.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  :root {
+    --bg:        #EEE7E1;
+    --paper:     #F9EDDD;
+    --ink:       #1a1512;
+    --muted:     #6b625a;
+    --accent:    #a9431e;
+    --teal:      #7badb6;
+    --rule:      #d9cfc5;
+    --sans:      'Plus Jakarta Sans', Arial, sans-serif;
+    --serif:     'Source Serif 4', Georgia, serif;
+    /* map tokens */
+    --surface-1: #F9EDDD;
+    --text-primary: #1a1512;
+    --text-secondary: #52514e;
+    --text-muted: #7a7871;
+    --grid: #ddd2c6;
+    --component: #2a78d6;
+    --movement: #a9431e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:        #171412;
+      --paper:     #1f1b18;
+      --ink:       #ece5dd;
+      --muted:     #a39a90;
+      --accent:    #d97b52;
+      --rule:      #3a342e;
+      --surface-1: #1f1b18;
+      --text-primary: #ece5dd;
+      --text-secondary: #c3bcb2;
+      --text-muted: #8f887f;
+      --grid: #3a342e;
+      --component: #4a90dd;
+      --movement: #d97b52;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.125rem;
+    line-height: 1.65;
+  }
+  .site-nav {
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    padding: 1.1rem 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+  }
+  .site-nav a { color: var(--muted); text-decoration: none; }
+  .site-nav a:hover { color: var(--accent); }
+  article {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 6rem;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+    margin: 0 0 0.75rem;
+  }
+  .byline {
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-bottom: 3rem;
+  }
+  .byline .date { margin-left: 0.75rem; }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1.35rem;
+    line-height: 1.25;
+    margin: 3rem 0 1rem;
+  }
+  p { margin: 0 0 1.25rem; }
+  em { font-style: italic; }
+  .close p {
+    font-family: var(--sans);
+    font-weight: 500;
+  }
+  figure.map {
+    margin: 3rem -1.5rem;
+    background: var(--paper);
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 1.5rem 1.5rem 2rem;
+  }
+  @media (min-width: 48rem) {
+    figure.map { margin: 3rem -3rem; border: 1px solid var(--rule); border-radius: 8px; }
+  }
+  figure.map .fig-title {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin: 0 0 0.35rem;
+  }
+  figure.map .fig-lede {
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin: 0 0 1rem;
+  }
+  .chart-scroll { overflow-x: auto; }
+  #chart { min-width: 700px; height: 480px; }
+  svg { width: 100%; height: 100%; display: block; }
+  .axis line, .axis path { stroke: var(--grid); }
+  .stage { fill: var(--text-muted); font-size: 12.5px; font-family: var(--sans); }
+  .dep { stroke: var(--grid); stroke-width: 1.5px; fill: none; }
+  .dep.hot { stroke: var(--text-secondary); }
+  .move { stroke: var(--movement); stroke-width: 2px; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrowhead); }
+  .inertia { stroke: var(--text-primary); stroke-width: 5px; }
+  .node circle { fill: var(--component); stroke: var(--surface-1); stroke-width: 2px; cursor: pointer; }
+  .node.anchor circle { fill: var(--surface-1); stroke: var(--text-primary); stroke-width: 2px; }
+  .node.ghost circle { fill: var(--surface-1); stroke: var(--text-muted); stroke-width: 2px; }
+  .node.ghost text { fill: var(--text-muted); }
+  .node text {
+    fill: var(--text-primary); font-size: 12.5px; font-family: var(--sans); pointer-events: none;
+    paint-order: stroke; stroke: var(--surface-1); stroke-width: 3.5px; stroke-linejoin: round;
+  }
+  .note { fill: var(--text-secondary); font-size: 12px; font-style: italic; font-family: var(--sans); }
+  .note.warm { fill: var(--movement); }
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 10;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--grid); border-radius: 6px;
+    padding: 8px 10px; font-size: 13px; font-family: var(--sans); max-width: 290px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15); opacity: 0; transition: opacity .1s;
+  }
+  figcaption {
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-top: 1.25rem;
+  }
+  figcaption p { margin: 0 0 0.7rem; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  footer {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 0 1.5rem 4rem;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    color: var(--muted);
+    border-top: 1px solid var(--rule);
+  }
+  footer p { margin: 1.5rem 0 0; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a href="/">1-bit-wonder</a><a href="../">The talk</a></nav>
+<article>
+<h1>The Cost of Shared Understanding</h1>
+<div class="byline">Sami Kallinen and Niklas Höglund<span class="date">2026-08-25</span></div>
+
+<p>Last week one of us stood in front of thirty people, engineers, product managers and designers, with a claim the two of us have been circling for two years: making software is getting cheap, because these language models are, before anything else, translators. They turn intent into code, code into explanation, one format into any other, and to a good enough translator a comment, a specification and the code itself are the same thing said three ways. This is a hypothesis, and the fact that an entire industry is acting as if it were true is not evidence. We will treat it as true anyway, because that is where the interesting consequences start.</p>
+
+<p>One thing does not get cheap: agreeing on what to build. It never has, and it may never. When one step in a process collapses in price, the queue forms at the step that did not. This essay is about that queue.</p>
+
+<h2>The part that was always hard</h2>
+
+<p>Shared understanding was always the difficult part of software, and most of the field's history can be read as attempts at it. The difficulty is not even ours alone. Psychologists of conversation worked out in the early nineties that mutual understanding has to be built and confirmed, turn by turn; silence is not agreement, and a contribution needs positive evidence that it landed (Clark and Brennan, 1991). Inside software, the classic field study of large projects found the same three problems everywhere it looked: thin domain knowledge, conflicting and fluctuating requirements, communication breakdowns (Curtis, Krasner and Iscoe, 1988). That is our list, measured, thirty-eight years ago.</p>
+
+<p>The sharpest statement of what a team actually has came from Peter Naur in 1985: programming is theory building. The real product is not the code but the theory in the builders' heads, the understanding of what the system is for and why it is the way it is. The code is the residue the theory leaves behind. A mathematical result can be copied in one line; the proof is what tells you why it holds and what happens when the problem shifts. A team holding the result but not the proof can repeat itself accurately and adapt not at all.</p>
+
+<p>The profession has spent decades answering this with a ladder of concessions, each rung conceding a little more to the developer. The code is the truth, so read the code. The code is hard to read, so we made it self-documenting: structured programming, objects, patterns, clean code, domain-driven design, fifty years of fighting for understanding from inside the code. And it worked, up to a point. Code really can be an expressive artifact.</p>
+
+<p>But the cap was never expressiveness. It was readership. However well the code expresses the theory, the theory ends up stored in a room most of its owners cannot enter. And they are its owners: the why of a system comes from product, design, the domain, the users. It never comes from the developers alone. Brooks and Conway said the quiet part decades ago: the hard problems of software are people problems. The theory was not wrong. It was mislaid.</p>
+
+<p>One clarification before going on, because the title invites a naive reading. Shared understanding does not mean everyone understanding everything. The research on team cognition is fairly blunt about this: teams whose knowledge interlocks, each member holding a different piece plus a map of who holds the rest, outperform teams whose knowledge is merely identical, by roughly a factor of two on team process. Everyone held a piece of the why. The work is making the pieces meet.</p>
+
+<h2>The theory moves out to the whole team</h2>
+
+<p>The first thing free translation buys is an artifact everyone can read. The format in which a system is described stops being dictated by the toolchain and becomes a choice, and the sensible way to make that choice is by readership: what can the people who own the why actually read, write and argue over. The answer is rarely code. It is behaviour, and the reasons behind it.</p>
+
+<p>There is arithmetic here, no philosophy required. Developers already spend roughly 58 percent of their time comprehending existing code (Xia et al., 2018). Production was the expensive part; comprehension was the majority part. Make production nearly free and the constraint moves to where the time already goes.</p>
+
+<p>The obvious objection is Naur's own: the theory lives in heads, and much of it cannot be told. We think the objection has quietly expired. The theory went unwritten because writing it was never worth the cost, and what did get written died in silence; studies of documentation put the average staleness at 4.7 years behind the code (Tan et al., 2024). Both of those economics just changed. The machine sits where the theory leaks out anyway, in conversations, in reviews, in the question that gets asked twice, and it can capture what it hears, organise it, and express it in each reader's register. Nobody has to tell what they cannot tell; the tacit surfaces in work and talk, and the machine harvests it.</p>
+
+<p>This is also why the essay is addressed to product and design people as much as to developers. When the system's description is behaviour and reasons, product writes in it, design writes in it, engineering writes in it. The practices converge on the same material, closer together than they have ever been.</p>
+
+<h2>What quietly breaks if nobody does this</h2>
+
+<p>Here is the uncomfortable part. The understanding we had was never planned. It was a byproduct of code being expensive to write, the way fitness used to be a byproduct of walking to work. Nobody decided to exercise; the distance made them. Move closer, and the exercise stops without anyone making a decision. Remove the expensive step, and the thinking that rode on it stops the same way. Silently. Nothing announces it.</p>
+
+<p>This is now measured. In a randomised trial published by Anthropic in January 2026, engineers who built a feature with AI assistance scored seventeen points lower on comprehension of what they had just built than those who built it by hand, 50 percent against 67, and the effect was clearest in exactly the group that delegated most. Those who used the model to ask conceptual questions retained nearly as much as the control group.</p>
+
+<p>Worse, we cannot feel it happening. In a widely discussed METR study from last year, experienced developers forecast that AI tools would speed them up by 24 percent, reported afterwards that they had been sped up by about 20, and had, by that study's measurement, been slowed by 19; outside experts had guessed 39. We would not lean on the numbers. It was one study, its methods have been argued over, the models have improved a great deal since, and METR themselves say the effect resists measurement. What we would lean on is the shape of it: felt speed and measured speed came apart by some forty points, in careful people, and none of them could tell from the inside. Speed is treacherously subjective, and that survives every quarrel with the method. We ran a small version of this on the workshop audience. Twenty of twenty-one said AI made them faster, most with high confidence, none said slower. They may all be right. The study above is the reason we hold the confidence more lightly than the claim.</p>
+
+<p>There is already a word for what this produces at scale: workslop, fluent output passed along by someone who does not understand it, work that looks finished and quietly transfers the burden of comprehension to whoever receives it. Grounding again: a document nobody could have written themselves is a contribution with no evidence that anyone holds it.</p>
+
+<h2>The code gets demoted</h2>
+
+<p>If the theory moves out of the code, every developer asks the same question next: then what is the code? Our answer is that it gets demoted, and the demotion has a test. A piece of code may become a box you never open exactly when you can put behaviour in and get a why back out. Not before.</p>
+
+<p>We should be precise about what changes, because the nearest analogy misleads. Compiler output became unreadable and nobody minded; generated code does not have to go the same way. It can stay engineer-readable, it costs nothing to ask for that, and there is no reason not to. What changes is not legibility but status. The code stops being the source, the thing humans keep alive, and becomes an output that happens to be inspectable. Readability becomes an aesthetic property rather than a functional one. Between the description and the box there is a seam, and the craft moves there: specifications clear enough that the translation can be trusted, and nothing left more opaque than it needs to be.</p>
+
+<p>The resistance to this will not be technical. The best-loved sentence in the field's canon, from Structure and Interpretation of Computer Programs, says that programs must be written for people to read, and only incidentally for machines to execute. We were raised on it too. But it was an aspiration, not a description: a correction aimed at a practice that wrote for the computer alone, fought from inside a medium the computer had chosen. Now that the machine has stopped caring how it is fed, we can afford to admit what that instruction was up against all along. The code was for the machine, and the fight for the human reader can finally leave the medium. Developers have heard a version of this before. When compilers arrived, hand-coders judged their output as assembly and found it bad assembly. They were right, and it did not matter, because assembly had stopped being where the truth lived. What is being asked of developers now is not a new tool but a change of identity, from author of the source to keeper of the seam. The hard problem is social, and this arrow moves at the speed of the people being asked to stop being the source.</p>
+
+<p>There is fine print, and it is forty years old. Bainbridge pointed out in 1983 that automation is supervised by people who learned the manual version, and that this arrangement quietly rides on their skills. Today's engineers can open the box because they grew up inside it. The next generation cannot. The box rides on a one-generation loan, and the written theory is the collateral we are proposing.</p>
+
+<p>Without this section, everything above collapses into advice the field has ignored for fifty years: write better documentation. That is an addition, and additions lose to deadlines every time. This is a trade. The written theory replaces the code as the thing humans keep alive.</p>
+
+<h2>The licence</h2>
+
+<p>The two moves are one move. The code is only allowed to become a box because the theory moved out into the light. The box earns its lid.</p>
+
+<figure class="map">
+  <p class="fig-title">Who can read the artifact?</p>
+  <p class="fig-lede">The whole argument in one picture. Hover or tap a dot for what it stands for.</p>
+  <div class="chart-scroll"><div id="chart"></div></div>
+  <figcaption>
+    <p><strong>How to read this.</strong> The drawing borrows its shape from a Wardley map, and those are not self-explanatory, so: each dot is an artifact a software team keeps, and the lines between dots mean one depends on the other. The vertical position is only bookkeeping, things near the top are close to what the team and its stakeholders actually need, things near the bottom are plumbing. The axis that matters is the horizontal one. It is not time, and not maturity. It is <strong>readership</strong>: who can actually read that artifact, from no one on the left to anyone on the right.</p>
+    <p><strong>The arrows are the essay.</strong> The theory of the system, its behaviour and its written why move right, out of single heads and out of the code, into a form the whole team can read. Code moves left, toward a box nobody opens. The left arrow is only allowed because the right ones happen: that is the coupling this section states. The black bar across code's arrow is inertia, and it is social, not technical: developer identity. The hollow dot, assembly, is the precedent: a generation's craft that already made the same journey, and nobody misses reading it.</p>
+  </figcaption>
+</figure>
+
+<p>Chad Fowler has named the raw material: every mature system, he writes, is carrying around lessons that were never written down, encoded as validations, retries, timeouts, workflows and exceptions. The implementation remembers. Here is what happens when you then ask the box about one of those lessons. Ask the system why a call to the payment provider retries three times. If the reason was ever recorded, the vendor's API was flaky, there was an incident two years ago, the retry count came out of a Tuesday postmortem, then the model retrieves the true story and tells it in your language, whether you are an engineer or a product manager. If the reason was never recorded, the model does not say so. It composes something plausible: retries improve resilience in distributed systems. Fluent, generic, wrong, and indistinguishable from the outside. Workslop, turned inward, delivered with confidence.</p>
+
+<p>So the precondition has to be said out loud. The translator retrieves and rephrases; it does not know what happened two years ago. The reasons must be written down, at the moment they exist, by the people who hold them. No written why, no closed box. And this is where the silent decay of the earlier section becomes dangerous: while the box is open, missing understanding shows up as a question someone has to go answer. Once the box closes, it shows up as a confident answer that happens to be false. The written theory is the licence, and it is the only thing standing between those two.</p>
+
+<h2>The experiment</h2>
+
+<p>We are running the experiment ourselves, on a production system we will describe only in outline, because it is a real one with a business around it.</p>
+
+<p>The system lives on a weekly loop. Its description, a wiki, feature specifications, behaviour scenarios in Gherkin, the word taken in its widest sense, is the only artifact we keep alive. Much of what is inside the description is itself drafted by the models; we read it, correct it, and intervene where it matters. The point is not who types. The point is where the work happens, and the work happens only in the description. Every week, agents rebuild the software from scratch, from the description alone, with no memory of the previous build. Independent agents then score the result against every build that came before it. Whatever last week taught goes into Monday's edits of the description, and nothing unwritten survives the weekend. One mechanical detail matters more than it looks: the builder is prevented from reading the scoring tests, so it cannot aim at the checklist while the description stays bad. The description has to carry the theory, because nothing else gets through.</p>
+
+<p>Naur, of all people, prescribed this gesture. He wrote that a team holding the theory could discard the program and rebuild it at no higher, and possibly lower, cost. But for him the discard was grief: it was what you did when the theory had died with the team and the residue was worthless. Here the same gesture means the opposite. The discard is proof. If the rebuild succeeds, the theory has been captured; the rebuild is the receipt.</p>
+
+<p>We hold the practice more lightly than the principle. Weekly regeneration is a validation instrument, not necessarily a development model; one can imagine futures where a module with a stable interface stands for years until its description changes, and how this lands in ordinary teams is genuinely open. And the evidence is what it is: one system, early cycles, a sample of one, reported by the people running it. Hold it accordingly. What it demonstrates does not depend on any of that: after a few Saturdays you know exactly which artifacts carry the theory, because everything else dies on the weekend and nothing breaks.</p>
+
+<p>Others are circling the same spot. Chad Fowler, again: he used to ask how long it would take your team to rebuild your system from scratch, as a health question, and now writes about regenerative software outright. Hazy Research has taken to treating the implementation as a cache over the description. The framing is spreading.</p>
+
+<h2>What the cheapness is for</h2>
+
+<p>Maybe speed was never the point. Everyone is spending the new cheapness on producing more, faster, and the studies above suggest we cannot even feel whether that part is working. The prize sits elsewhere: in what we choose to build, how we check it, and how well we understand it together, and that last one has been the bottleneck since the field began.</p>
+
+<p>And there is a gain here we never had, not even in the good old days that never quite existed. Software has never answered why. A codebase tells you what it does, in merciless detail, and tells you nothing about why, and the people who knew leave. With the theory written down and a translator to interrogate it, why becomes an answerable question for the first time. That is not a restoration. It is better than what we ever had.</p>
+
+<div class="close">
+<p>Producing software got cheap. Understanding each other did not, and may never. What we were given is the time to do it properly, for the first time since the field began.</p>
+</div>
+
+</article>
+<footer>
+<p>This argument was first given as a talk; <a href="../">the deck is here</a>. References named in the text: Clark and Brennan (1991) on grounding; Curtis, Krasner and Iscoe (1988); Naur, "Programming as Theory Building" (1985); Xia et al. (2018); Tan et al. (2024); Anthropic (2026); METR (2025); Bainbridge, "Ironies of Automation" (1983); Chad Fowler, "The Implementation Remembers" (2026).</p>
+</footer>
+<div class="tooltip" id="tip"></div>
+<script>
+// x: readership 0..1 (No one -> Anyone). y: value chain 0..1 (visible -> invisible)
+const nodes = [
+  {id:"team",      label:"The team & its stakeholders", x:0.62, y:0.02, anchor:true,
+   tip:"The anchor. Everyone who holds a piece of the why: product, design, domain, engineering, users."},
+  {id:"need",      label:"The right thing, built & understood", x:0.62, y:0.10,
+   tip:"The need: software the team still understands together, not merely software that runs."},
+  {id:"theory",    label:"The theory (the why)", x:0.28, y:0.28, mx:0.62,
+   tip:"Naur's real artifact. Today it lives in single heads and hallway talk. The essay's project is this arrow: move it into a form the whole team can read. It also pays for code's leftward arrow."},
+  {id:"behaviour", label:"Behaviour description (the source)", x:0.44, y:0.44, mx:0.64,
+   tip:"What the thing should do, in ordinary language. Specs have been a profession's artifact; translation lets them become the team's shared material, where the practices converge."},
+  {id:"why",       label:"The written why (wiki, decisions)", x:0.24, y:0.56, mx:0.62,
+   tip:"Decision records. The licence for the closed box: the model can only answer 'why' truthfully if the reasons were written down. No written why, no closed box."},
+  {id:"evals",     label:"Evaluation & scores", x:0.44, y:0.67, mx:0.60,
+   tip:"How we know behaviour survived translation. Tests and evals have been developer artifacts; scores against a description are readable by anyone who can read the description."},
+  {id:"code",      label:"Code", x:0.44, y:0.78, mx:0.10, inertia:true,
+   tip:"Readable by one profession. Now drifting toward 'no one', which the box test permits: behaviour in, why out. The inertia bar is developer identity; the hard problem is social."},
+  {id:"assembly",  label:"Assembly", x:0.05, y:0.88, ghost:true,
+   tip:"The precedent. A generation's craft, now read by almost no one, except on the rare descent when the abstraction leaks. It made code's journey once already."},
+  {id:"translate", label:"Translation (LLMs)", x:0.86, y:0.95,
+   tip:"The engine under every arrow on this map. Anyone can talk to it, which is exactly why readership became a free choice at all."}
+];
+const deps = [
+  ["team","need"], ["need","theory"], ["need","code"],
+  ["theory","behaviour"], ["theory","why"],
+  ["behaviour","evals"], ["behaviour","translate"],
+  ["code","translate"], ["code","assembly"],
+  ["why","translate"], ["evals","translate"]
+];
+const stages = [
+  {x:0.00, label:"No one"},
+  {x:0.18, label:"One head"},
+  {x:0.38, label:"One profession"},
+  {x:0.58, label:"The whole team"},
+  {x:0.80, label:"Anyone"}
+];
+
+const chart = document.getElementById("chart");
+const tip = document.getElementById("tip");
+const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+function draw() {
+  const w = chart.clientWidth, h = chart.clientHeight;
+  const m = {top: 16, right: 30, bottom: 44, left: 56};
+  d3.select(chart).selectAll("svg").remove();
+  const svg = d3.select(chart).append("svg").attr("viewBox", [0, 0, w, h]);
+  const X = d3.scaleLinear([0, 1], [m.left, w - m.right]);
+  const Y = d3.scaleLinear([0, 1], [m.top, h - m.bottom]);
+
+  svg.append("defs").append("marker")
+    .attr("id","arrowhead").attr("viewBox","0 0 10 10").attr("refX",9).attr("refY",5)
+    .attr("markerWidth",7).attr("markerHeight",7).attr("orient","auto")
+    .append("path").attr("d","M0,0L10,5L0,10z").attr("fill","var(--movement)");
+
+  const g = svg.append("g").attr("class","axis");
+  g.append("line").attr("x1",X(0)).attr("y1",Y(0)).attr("x2",X(0)).attr("y2",Y(1));
+  g.append("line").attr("x1",X(0)).attr("y1",Y(1)).attr("x2",X(1)).attr("y2",Y(1));
+  stages.slice(1).forEach(s => g.append("line")
+    .attr("x1",X(s.x)).attr("y1",Y(0)).attr("x2",X(s.x)).attr("y2",Y(1))
+    .attr("stroke-dasharray","2 5"));
+  stages.forEach(s => svg.append("text").attr("class","stage")
+    .attr("x", X(s.x) + 8).attr("y", h - m.bottom + 20).text(s.label));
+  svg.append("text").attr("class","stage")
+    .attr("transform",`translate(${m.left-38},${Y(0.5)}) rotate(-90)`)
+    .attr("text-anchor","middle").text("Closer to the user need ↑");
+  svg.append("text").attr("class","stage")
+    .attr("x", X(1)).attr("y", h - m.bottom + 20).attr("text-anchor","end").text("Who can read it →");
+
+  const dep = svg.append("g").selectAll("line").data(deps).join("line")
+    .attr("class","dep")
+    .attr("x1", d => X(byId[d[0]].x)).attr("y1", d => Y(byId[d[0]].y))
+    .attr("x2", d => X(byId[d[1]].x)).attr("y2", d => Y(byId[d[1]].y));
+
+  nodes.filter(n => n.mx !== undefined).forEach(n => {
+    const dir = n.mx > n.x ? 1 : -1;
+    svg.append("path").attr("class","move")
+      .attr("d", `M${X(n.x) + dir*10},${Y(n.y)} L${X(n.mx) - dir*4},${Y(n.y)}`);
+    if (n.inertia) svg.append("line").attr("class","inertia")
+      .attr("x1", X((n.x + n.mx)/2)).attr("x2", X((n.x + n.mx)/2))
+      .attr("y1", Y(n.y) - 9).attr("y2", Y(n.y) + 9);
+  });
+
+  svg.append("text").attr("class","note warm")
+    .attr("x", X(0.30)).attr("y", Y(0.24))
+    .text("the essay's project: move the theory to the whole team");
+  svg.append("text").attr("class","note warm")
+    .attr("x", X(0.13)).attr("y", Y(0.74))
+    .text("allowed only because the arrows above point right");
+  svg.append("text").attr("class","note")
+    .attr("x", X(0.02)).attr("y", Y(0.84)).text("the precedent:");
+
+  const node = svg.append("g").selectAll("g").data(nodes).join("g")
+    .attr("class", d => "node" + (d.anchor ? " anchor" : "") + (d.ghost ? " ghost" : ""))
+    .attr("transform", d => `translate(${X(d.x)},${Y(d.y)})`);
+  node.append("circle").attr("r", 8);
+  node.append("text").attr("x", 12).attr("y", -10).text(d => d.label);
+
+  node.on("pointerenter", (e, d) => {
+    tip.innerHTML = `<strong>${d.label}</strong><br>${d.tip}`;
+    tip.style.opacity = 1;
+    dep.classed("hot", l => l[0] === d.id || l[1] === d.id);
+  }).on("pointermove", e => {
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 310) + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+  }).on("pointerleave", () => {
+    tip.style.opacity = 0;
+    dep.classed("hot", false);
+  });
+}
+draw();
+addEventListener("resize", draw);
+</script>
+</body>
+</html>
