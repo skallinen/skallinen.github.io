@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Cost of Shared Understanding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white:       #ffffff;
+      --black:       #000000;
+      --rose:        #E3CAC3;
+      --linen:       #EEE7E1;
+      --peach:       #F9EDDD;
+      --orange:      #a9431e;
+      --teal:        #7badb6;
+
+      --font:        'Plus Jakarta Sans', Arial, sans-serif;
+      --display:     clamp(2.4rem, 5vw, 5.2rem);
+      --display-sm:  clamp(1.6rem, 3vw, 3rem);
+      --body-lg:     clamp(1rem, 1.6vw, 1.5rem);
+      --body-sm:     clamp(0.85rem, 1.2vw, 1.1rem);
+      --label:       clamp(0.7rem, 0.9vw, 0.9rem);
+
+      --lh-tight:    1.05;
+      --lh-normal:   1.35;
+      --space:       clamp(2rem, 5vw, 5rem);
+    }
+
+    html {
+      font-size: 150%;
+    }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: var(--font);
+      background: var(--black);
+    }
+
+    .deck {
+      position: relative;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: var(--space);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .slide.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .bg-black  { background: var(--black);  color: var(--white); }
+    .bg-white  { background: var(--white);  color: var(--black); }
+    .bg-rose   { background: var(--rose);   color: var(--black); }
+    .bg-linen  { background: var(--linen);  color: var(--black); }
+    .bg-peach  { background: var(--peach);  color: var(--black); }
+    .bg-orange { background: var(--orange); color: var(--white); }
+
+    .display {
+      font-size: var(--display);
+      font-weight: 800;
+      line-height: var(--lh-tight);
+      letter-spacing: -0.02em;
+    }
+    .display-sm {
+      font-size: var(--display-sm);
+      font-weight: 700;
+      line-height: var(--lh-tight);
+      letter-spacing: -0.015em;
+    }
+    .body-lg {
+      font-size: var(--body-lg);
+      font-weight: 400;
+      line-height: var(--lh-normal);
+    }
+    .body-sm {
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+    }
+    .label {
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .accent { color: var(--orange); }
+    .teal   { color: var(--teal); }
+    .muted  { opacity: 0.45; }
+    .bg-orange .accent { color: var(--peach); }
+
+    .col { display: flex; flex-direction: column; gap: 1.2rem; }
+    .row { display: flex; flex-direction: row; gap: clamp(2rem,4vw,5rem); align-items: flex-start; }
+    .row .col { flex: 1; }
+    .spacer { flex: 1; }
+    .wrap { width: 100%; max-width: 1600px; margin: 0 auto; }
+    .col.wrap { max-width: 1200px; }
+    .center { align-items: center; text-align: center; }
+
+    .section-label {
+      display: inline-block;
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0.35em 0.7em;
+      background: var(--white);
+      color: var(--black);
+      margin-bottom: 1.5rem;
+      align-self: flex-start;
+    }
+    .bg-black .section-label {
+      background: var(--white);
+      color: var(--black);
+    }
+    .bg-linen .section-label, .bg-peach .section-label, .bg-rose .section-label, .bg-white .section-label {
+      background: var(--black);
+      color: var(--white);
+    }
+    .bg-orange .section-label {
+      background: var(--white);
+      color: var(--orange);
+    }
+
+    .slide-head {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      margin-bottom: 1.1rem;
+    }
+    .slide-head .section-label { margin-bottom: 0; }
+    .item-no {
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      opacity: 0.4;
+      margin-left: 0.9em;
+    }
+
+    .claim-title { margin-bottom: 1.4rem; }
+    .claim-body { display: flex; flex-direction: row; gap: clamp(2rem,4vw,4.5rem); align-items: flex-start; }
+    .claim-body > * { flex: 1; }
+    .claim-fact {
+      font-size: var(--body-lg);
+      line-height: var(--lh-normal);
+      font-weight: 500;
+    }
+    .claim-fact .sub {
+      display: block;
+      margin-top: 0.8em;
+      font-size: var(--body-sm);
+      font-weight: 400;
+      opacity: 0.7;
+    }
+    .feynman {
+      font-size: var(--body-sm);
+      line-height: 1.45;
+      padding-left: 1.2em;
+      border-left: 2px solid var(--orange);
+      opacity: 0.9;
+    }
+    .bg-orange .feynman { border-left-color: var(--white); }
+    .do-line {
+      margin-top: 1.4rem;
+      font-size: var(--body-sm);
+      font-weight: 600;
+      line-height: var(--lh-normal);
+      padding-top: 0.9rem;
+      border-top: 1px solid currentColor;
+      opacity: 0.85;
+    }
+    .do-line b {
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: var(--label);
+      color: var(--orange);
+      margin-right: 0.7em;
+    }
+    .bg-orange .do-line b { color: var(--peach); }
+
+    ul.bullet-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8em;
+    }
+    ul.bullet-list li {
+      font-size: var(--body-lg);
+      line-height: var(--lh-normal);
+      padding-left: 1.5em;
+      position: relative;
+    }
+    ul.bullet-list li::before {
+      content: "—";
+      position: absolute;
+      left: 0;
+      color: var(--orange);
+      font-weight: 800;
+    }
+    .bg-orange ul.bullet-list li::before { color: var(--peach); }
+    ul.bullet-list.tight li { font-size: var(--body-sm); }
+
+    .flow { display: flex; gap: clamp(0.7rem, 1.4vw, 1.3rem); align-items: stretch; }
+    .flow .step {
+      flex: 1;
+      border: 3px solid var(--black);
+      padding: clamp(0.9rem, 1.6vw, 1.4rem);
+      display: flex; flex-direction: column; gap: 0.5rem;
+      background: rgba(255,255,255,0.35);
+    }
+    .flow .days {
+      font-size: var(--label); font-weight: 800;
+      letter-spacing: 0.12em; color: var(--orange);
+    }
+    .flow .what { font-size: var(--body-lg); font-weight: 700; line-height: 1.2; }
+    .flow .how  { font-size: var(--body-sm); opacity: 0.7; line-height: var(--lh-normal); }
+    .flow .arr  {
+      align-self: center; flex-shrink: 0;
+      font-size: clamp(1.5rem, 2.6vw, 2.4rem); font-weight: 800; color: var(--orange);
+    }
+    .flow-loop { margin-top: 1rem; font-size: var(--body-sm); font-weight: 600; opacity: 0.75; }
+    
+    .flow .step.theory { border-color: var(--orange); background: rgba(169,67,30,0.08); }
+
+    .slide > .wrap, .slide > .col.wrap {
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
+      min-height: 0;
+    }
+    .slide > .wrap > *, .slide > .col.wrap > * { flex-shrink: 0; min-height: 0; }
+    .slide > .wrap > .notes, .slide > .col.wrap > .notes,
+    .slide > .wrap > *:has(.notes), .slide > .col.wrap > *:has(.notes) { flex-shrink: 1; }
+
+    .notes {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-height: 0;
+      margin-top: 1.4rem;
+    }
+    .notes-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75em;
+      font-family: var(--font);
+      font-size: var(--label);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0.4em 0;
+      cursor: pointer;
+      opacity: 0.35;
+      transition: opacity 0.2s ease;
+    }
+    .notes-toggle:hover, .notes-toggle:focus-visible { opacity: 0.8; outline: none; }
+    .notes-toggle .chev {
+      display: block;
+      width: 0.5em;
+      height: 0.5em;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: translateY(-0.15em) rotate(45deg);
+      transition: transform 0.2s ease;
+    }
+    .notes.open .notes-toggle { opacity: 0.8; }
+    .notes.open .notes-toggle .chev { transform: translateY(0.1em) rotate(-135deg); }
+
+    .notes-body {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0.5rem 0.2rem 0.4rem 0;
+      font-size: var(--body-sm);
+      line-height: var(--lh-normal);
+      opacity: 0.85;
+    }
+    .notes.open .notes-body { display: flex; }
+    .notes-body .claim-fact { font-size: var(--body-sm); font-weight: 400; }
+    .notes-body .claim-fact .sub { font-size: var(--body-sm); }
+    .notes-body .do-line { margin-top: 0; }
+
+    .claim-body > *:only-child { flex: 0 1 auto; max-width: 24em; }
+
+    #counter {
+      position: fixed;
+      bottom: 1.6rem;
+      right: 2rem;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.3);
+      z-index: 100;
+      mix-blend-mode: screen;
+    }
+    #progress {
+      position: fixed;
+      bottom: 0; left: 0;
+      height: 2px;
+      background: var(--orange);
+      transition: width 0.35s ease;
+      z-index: 100;
+    }
+    #nav-hint {
+      position: fixed;
+      bottom: 1.6rem;
+      left: 2rem;
+      font-family: var(--font);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.2);
+      z-index: 100;
+      mix-blend-mode: screen;
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress" style="width: 0%;"></div>
+<div id="nav-hint">&larr; &rarr; TO NAVIGATE &middot; &darr; FOR NOTES &middot; F FULL SCREEN</div>
+<div id="counter">1 / 1</div>
+
+<div class="deck" id="deck">
+
+  <section class="slide bg-black active">
+    <div class="col wrap">
+      <div class="section-label">8-bit-sheep &middot; August 2026</div>
+      <h1 class="display">Making things<br>got <span class="muted">cheaper</span>.<br>Agreeing what to make<br><span class="accent">did not</span>.</h1>
+      <p class="body-lg muted" style="margin-top: 1rem;">Sami Kallinen. The opening talk of a two-hour workshop on what AI does to software work.</p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p>This deck was presented live and is published close to how it was argued. Most slides carry notes behind the chevron, one press of the down arrow: they hold the parts of the argument that were spoken rather than shown, plus the sources and the caveats.</p>
+          <p style="opacity:0.8;">Photographs: Matt Palmer, Hal Gatewood, Alex Boyd, Patrick Hendry and Ricardo Gomez Angel, all on Unsplash.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-black" style="background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.62)), url('wildfire-matt-palmer.jpg') center / cover no-repeat;">
+    <div class="col wrap">
+      <div class="section-label">What This Talk Is Not About</div>
+      <h2 class="display-sm" style="margin-bottom:1.3rem;">We are bracketing the hard questions, not answering them.</h2>
+      
+      <p class="body-lg">The energy cost. Whose work the training data was. Who ends up owning the capability. All real, none of them touched today, and I have no answers to any of them.</p>
+      
+      <p class="body-lg" style="margin-top:1rem;">In the nineties we thought this would flatten hierarchies, put knowledge within everyone's reach and make authoritarianism harder to sustain. Serious people wrote it down: cyberspace as <em>"the new home of Mind"</em>. We meant it. <strong>Whatever we conclude here will read like that in thirty years.</strong></p>
+      <p class="do-line"><b>So</b>One narrow question. Does this change how we build software, and what do we do on Monday.</p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p>The quoted phrase is John Perry Barlow, A Declaration of the Independence of Cyberspace, Davos, February 1996. "The new home of Mind" is verbatim. The point of quoting it is not that Barlow was foolish. Serious, informed people wrote down what the network would do to the world and were wrong in ways nobody could see from inside the moment. That is also the position this talk is in, which is why the big questions get bracketed rather than answered.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-black" style="background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.68)), url('queue-hal-gatewood.jpg') center / cover no-repeat;">
+    <div class="col wrap">
+      
+      <div class="section-label">Goldratt, Restated</div>
+      
+      <h1 class="display">When making stops<br>being the slow part,<br>who becomes the <span class="accent">new constraint</span>?<br><span class="muted">And are they ready?</span></h1>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p>Eliyahu Goldratt, Theory of Constraints: a system's throughput is set by its constraint, and improving anything else improves nothing. The corollary this talk leans on is that new capacity does not remove the bottleneck. It moves it, usually to a place nobody was watching, because that place was never a problem while the old queue existed.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-orange">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">The Hypothesis Everything Rests On</span></div>      </div>
+      <h2 class="display-sm claim-title">Making the code is getting cheap.</h2>
+      
+      <p class="body-lg" style="margin-top:0.2rem;">If that is true, the constraint moves. Onto the <strong>shared understanding</strong> of what the thing should do, and why.</p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <div class="claim-body">
+            <div class="claim-fact">
+              
+              The title of this deck states that as an obvious fact. It is a hypothesis. Almost everyone in software already works as though it were true, which is not the same thing as it being true, and is not evidence that it is. Hold it as conditional to the end, because nothing after this slide survives if it turns out to be false.
+              <span class="sub">If generating code is becoming cheap, then by Goldratt it stops being the constraint, and the constraint moves upstream, onto the shared understanding of what the thing should do and why. I will call that the model for the rest of the deck.</span>
+            </div>
+            <p class="feynman">Every workshop has one machine everybody queues for. Buy a second one and the queue does not disappear. It reappears somewhere else, usually somewhere nobody was watching, because that place was never a problem while the queue existed. The claim on this slide is only that the machine got faster. Where the queue goes is the rest of the talk.</p>
+          </div>
+          <p class="do-line"><b>Do</b>Hold this as a hypothesis to the end. If your own work says the making has not got cheaper, the chain stops here for you, because every step after it depends on it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-linen">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">Why Nobody Had to Do This on Purpose Before</span></div>      </div>
+      <h2 class="display-sm claim-title">The understanding was always the hard part.<br>Writing the code is how it got built.</h2>
+      
+      <p class="body-lg" style="margin-top:0.2rem;">It was never one profession's work. Product, design, domain, engineering: <strong>everyone who held a piece of the why.</strong></p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <div class="claim-body">
+            <div class="claim-fact">
+              
+              You could not produce the code without working out what the thing should do on the way. The understanding got built as a byproduct of an activity that was expensive and that nobody could skip. Where it then lived varied. Sometimes in the code, often in one person's head.
+              <span class="sub">The craft has worked on this for decades: ubiquitous language, modelling workshops, pairing. So the problem is old and well described. Only the price has changed.</span>
+            </div>
+            
+            <p class="feynman">Imagine the only way to get to work is to walk. No car, no bus, no bicycle: the walk is simply how you arrive. You would never call it exercise, and you never chose it. The fitness comes anyway: a side effect of a journey you cannot skip, and it never asks for an hour of your evening or a gym subscription.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-peach">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">What Happens When the Step Goes</span></div>      </div>
+      <h2 class="display-sm claim-title">Take the expensive step away<br>and the thinking stops happening by itself.</h2>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <div class="claim-body">
+            <div class="claim-fact">
+              The byproduct goes with the activity that produced it. The understanding stops getting built by accident, and nothing announces that it has stopped. From here it gets built deliberately, with artefacts made for the job, or the code arrives with nothing behind it and nobody finds out for a quarter.
+              <span class="sub">This is the whole hinge. Everything after this slide is an attempt to answer one question: if the work no longer forces the thinking, what does?</span>
+            </div>
+            
+            <p class="feynman">Now imagine a car turns up, and of course you take it. The commute gets forty minutes shorter and the fitness leaves quietly along with it. Nothing tells you. You are faster, so you feel faster, and the loss shows up months later in something that looks unrelated.</p>
+          </div>
+          <p class="do-line"><b>Note</b>You have probably already felt this. An agent gets messy the moment the task is slightly complex, and what you hit there is rarely a limit of the model. Working with agents forces you to state clearly what you want. Almost nobody was ever forced to do that with a colleague.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-linen">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">This Is Not a New Idea</span></div>      </div>
+      <h2 class="display-sm claim-title">Naur named this forty years ago.</h2>
+      <div class="claim-body">
+        <div class="claim-fact">
+          Peter Naur, the N in Backus-Naur Form, wrote in 1985 that what a team really holds is a theory of the program. The code is the residue of that theory.
+        </div>
+      </div>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <div class="claim-body">
+            <div class="claim-fact">
+              On his account the programming is the theory building, and the artefacts are what is left behind by it.
+              <span class="sub">The idea is forty years old and has been quoted in this industry for most of them. What has changed is the economics. Producing the residue got cheap, so the live question is the one Naur did not have to answer: what do we carry the theory in?</span>
+            </div>
+            <p class="feynman">A proof and its result are different things. The result is one line and anybody can copy it. The proof is why that line is true, and it is what tells you whether the line still holds when the problem shifts slightly. A group holding the result without the proof can repeat itself accurately and cannot adapt at all. Naur's claim is that the code is the result.</p>
+          </div>
+          <p class="do-line"><b>Do</b>Keep the two questions apart. What the theory is, which Naur settled. What we carry it in, which he left open and which is now ours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-black" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url('map-alex-boyd.jpg') center / cover no-repeat;">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">So What Do We Carry It In</span></div>      </div>
+      
+      <h2 class="display-sm claim-title">Deciding what to leave out<br>is the work.</h2>
+      <div class="claim-body">
+        <div class="claim-fact">
+          Whatever we carry the theory in is a map, and a map is useful only because it leaves things out. So, for every line of it: <em>if we threw the implementation away and made it again, would this have to survive?</em>
+        </div>
+      </div>
+      <p class="do-line"><b>So</b>What has to survive is the theory. The rest was scaffolding.</p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <div class="claim-body">
+            <div class="claim-fact">
+              A map complete in every detail is the territory, and a map the size of the territory helps nobody. Nobody ever needed the whole theory written down.
+              <span class="sub">Specifications are one candidate for holding it. There are others, and that part is genuinely open: the deck does not know that specs are the answer and does not claim to.</span>
+            </div>
+            <p class="feynman">The question on the slide is Chad Fowler's, August 2026. He names the failure mode too: when what production teaches you never gets back into the spec, regenerating stops being a rebuild and becomes amnesia. Stanford's Hazy Research group put it harder, from inside CUDA megakernels where every nanosecond is argued over by hand: the implementation becomes disposable, a cache of one particular compilation rather than the source of truth.</p>
+          </div>
+          <p class="do-line"><b>Do</b>Bound every document by a purpose before writing a line of it, and run that question over anything you are calling a spec, sentence by sentence.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-linen" style="background: linear-gradient(rgba(238,231,225,0.7), rgba(238,231,225,0.82)), url('fog-patrick-hendry.jpg') center 45% / cover no-repeat;">
+    <div class="col wrap">
+      <div class="section-label">What Is Actually In the Model</div>
+      <h2 class="display-sm" style="margin-bottom:1.2rem;">The essential difficulty is other people.</h2>
+      <ul class="bullet-list">
+        <li>Agreeing, in the first place.</li>
+        <li>Then discovering we each agreed to something different.</li>
+        <li>Guessing what everyone else already knows.</li>
+        <li>Noticing who is not in the room, and what left with them.</li>
+        <li>And keeping all of it alive as people leave, join and hand over.</li>
+      </ul>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          
+          <p>Brooks, 1986, called this half of the difficulty essential, and he meant four properties of the artefact: complexity, conformity, changeability, invisibility. This list is what those properties do to a group of people, which he names in three sentences and leaves there. Naur, 1985, is where the last line comes from. And Conway found the same thing from the other side already in 1968: ship your org chart: the system comes out shaped like the way the people who built it talk to each other. Three people, three decades, three directions, one conclusion. No line here is a typing problem, and no compiler ever helped with any of them.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-linen">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">Two Claims</span><span class="item-no">01 / 02</span></div>      </div>
+      <h2 class="display-sm claim-title">The feeling is not the instrument.</h2>
+      <div class="claim-body">
+        <div class="claim-fact">
+          METR, 2025. Sixteen developers, 246 tasks, in code they already knew. They forecast <span class="accent">+24%</span>. They felt <span class="accent">+20%</span>. They measured <span class="accent">&minus;19%</span>.
+          <span class="sub">Sixteen people, and a year is a long time in this. Not a verdict, and not about you. <strong>The gap is the finding, not the number.</strong></span>
+        </div>
+      </div>
+      <p class="do-line"><b>So</b>Expect a dip. The tools are new and the practice for using them is still being built, and building it is exactly what a time-boxed experiment is for.</p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <div class="claim-body">
+            <p><strong>If your first objection is the n, it is a fair one.</strong> Sixteen developers is very little and the study does not generalise on its own. Two things keep it worth citing: 246 tasks rather than 16, so the effect is not one person's bad week; and the direction of the gap, which is the part being claimed. If the only conclusion you take is "measure rather than feel", the slide has done its whole job.</p>
+            
+            <p><strong>The 2026 re-run did not flip.</strong> A claim circulated that the re-run showed a positive effect; checked against METR's own post, it is false. Returning developers measured &minus;18% (CI &minus;38% to +9%), newly recruited developers &minus;4% (CI &minus;15% to +9%). A year later, with better tools, still not positive. METR calls its own re-run "only very weak evidence": developers now refuse to work without AI and 30 to 50% withheld tasks, so selection biases the number downward, the truth could be higher, and they are redesigning the experiment. Even the people who measure this for a living say it is hard to measure, which is this slide's whole point. Cite the gap. The single number is the least reliable thing here.</p>
+            <p class="feynman">Someone timed a shortcut with a stopwatch and found it four minutes slower, even though it felt faster. You are never sitting still on a shortcut, and sitting still is what makes you notice time. Then they went back a year later and the road had changed so much there was nothing left to compare against. What we know for certain is smaller and more useful: your own sense of speed was never the instrument.</p>
+          </div>
+          <p class="do-line"><b>Do</b>Instrument cycle time, rework and review load before and after. Ban "it feels faster" as evidence in planning.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-peach">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">Two Claims</span><span class="item-no">02 / 02</span></div>      </div>
+      <h2 class="display-sm claim-title">The artefact is not the alignment.</h2>
+      <div class="claim-body">
+        <div class="claim-fact">
+          AI can manufacture the appearance of shared understanding without the understanding. Output that looks like finished work and carries no substance has a name now: workslop.
+          
+          <span class="sub">Stanford and BetterUp surveyed 1,150 workers when they coined the term: <span class="accent">41%</span> had received workslop within the month. Each took about <span class="accent">2 hours</span> to untangle. <span class="accent">42%</span> trusted the sender less afterwards.</span>
+        </div>
+      </div>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p class="feynman">A design document nobody disagreed with looks exactly like one everybody agreed on. Before, that was mostly safe, because writing one took long enough that somebody had to think. Now the document is free, so the tell is gone. A polished artefact used to be evidence that alignment happened. It is not any more, and the only remaining test is whether anyone pushed back.</p>
+          <p class="do-line"><b>Do</b>Ask who argued with the document. If nobody did, it did no work. Steer the thing, do not ride along behind it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-black" style="background: linear-gradient(rgba(0,0,0,0.58), rgba(0,0,0,0.66)), url('scaffolding-ricardo-gomez-angel.jpg') center / cover no-repeat;">
+    <div class="wrap">
+      <div class="slide-head">
+        <div><span class="section-label">One Exploration, Work in Progress</span></div>      </div>
+      <h2 class="display-sm claim-title">What if the code is the disposable part?</h2>
+      <div class="claim-body">
+        <div class="claim-fact">
+          An application, regenerated from its description every week.
+          <span class="sub">The description and the instrument that scores it are kept. The implementation is thrown away and built again from scratch.</span>
+        </div>
+      </div>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p class="feynman">One system, early cycles, unfinished, and run by the author of this deck. That is the entire evidence base for this exploration. What follows is what the practice forces on you, and that part is worth more than the result.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-peach">
+    <div class="col wrap">
+      <div class="section-label">One Exploration, Work in Progress</div>
+      <h2 class="display-sm" style="margin-bottom:1.4rem;">The artefact is the theory of the program.</h2>
+      <div class="flow">
+        <div class="step theory">
+          <span class="days">Kept &middot; the artefact</span>
+          <span class="what">Wiki</span>
+          <span class="how">The domain, the decisions, the why.</span>
+        </div>
+        <span class="arr">&rarr;</span>
+        <div class="step theory">
+          <span class="days">Kept &middot; the artefact</span>
+          <span class="what">Feature specs</span>
+          <span class="how">What the thing should do.</span>
+        </div>
+        <span class="arr">&rarr;</span>
+        <div class="step theory">
+          <span class="days">Kept &middot; the artefact</span>
+          <span class="what">Gherkin</span>
+          <span class="how">The spec made executable. This is what the agents get.</span>
+        </div>
+        <span class="arr">&rarr;</span>
+        <div class="step">
+          <span class="days">Agents</span>
+          <span class="what">Build</span>
+          <span class="how">From scratch. No memory of the last build.</span>
+        </div>
+        <span class="arr">&rarr;</span>
+        <div class="step">
+          <span class="days">Agents</span>
+          <span class="what">Score</span>
+          <span class="how">Independently, against every earlier build.</span>
+        </div>
+      </div>
+      <p class="do-line"><b>So</b>The team writes the left half, and the team is not just the engineers. Everything to the right of it is regenerated.</p>
+    </div>
+  </section>
+
+  <section class="slide bg-rose">
+    <div class="col wrap">
+      <div class="section-label">One Exploration, Work in Progress</div>
+      <h2 class="display-sm" style="margin-bottom:1.4rem;">One week, every week.</h2>
+      <div class="flow">
+        <div class="step">
+          <span class="days">Mon &middot; Tue</span>
+          <span class="what">The description is edited.</span>
+          <span class="how">Everything last week taught us goes in. Nothing else survives the weekend.</span>
+        </div>
+        <span class="arr">&rarr;</span>
+        <div class="step">
+          <span class="days">Wed &middot; Sat</span>
+          <span class="what">The application is rebuilt. From scratch.</span>
+          <span class="how">By agents, with no memory of the previous build.</span>
+        </div>
+        <span class="arr">&rarr;</span>
+        <div class="step">
+          <span class="days">Sat &middot; Mon</span>
+          <span class="what">Independent agents score it.</span>
+          <span class="how">Against every build that came before it.</span>
+        </div>
+      </div>
+      <p class="flow-loop">&#8635; The scores become Monday's edits. Same loop, every week.</p>
+      <p class="do-line"><b>Kept</b>The description and the scores. Thrown away: every line of the code.</p>
+      
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p>Writing the code used to force the thinking. The weekly loop does that job now, on purpose. A bug stops being work and becomes data about the description; anything not written down by the deadline dies with the build.</p>
+          <p>How do we know the description itself is improving, rather than the scores? The generation is physically prevented from reading the scoring instrument. Given the checklist, it would aim at the checklist and score well while the description stayed bad.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-orange">
+    <div class="col wrap">
+      <div class="section-label">What the Cheapness Is For</div>
+      <h1 class="display">Maybe speed<br>was never<br>the <span class="accent">point</span>.</h1>
+      <p class="body-lg" style="margin-top:1rem;">The making got cheaper. The whole may not get faster for a while, and nothing is broken if it does not. The prize is what the freed capacity does to <strong>quality</strong>: what we choose to build, how we check it, how well we understand it together.</p>
+      <div class="notes">
+        <button class="notes-toggle" type="button" aria-expanded="false"><span class="chev"></span>Notes</button>
+        <div class="notes-body">
+          <p>This is the turn the whole argument was building to, and it is a question, not a promise. If the constraint really has moved onto shared understanding, then the freed capacity is only worth what it buys there.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide bg-black">
+    <div class="col wrap center">
+      <h1 class="display">Making things<br>got cheap.<br><span class="accent">Understanding<br>each other</span><br>just did too.</h1>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  const navHint = document.getElementById('nav-hint');
+  let currentSlide = 0;
+
+  // ─── DISCLOSURE ───────────────────────────────────────────
+  // Notes are closed on every slide change, so a slide can never open having
+  // remembered a previous state.
+  function closeAllNotes() {
+    document.querySelectorAll('.notes.open').forEach(setNotes.bind(null, false));
+  }
+
+  function setNotes(open, notes) {
+    notes.classList.toggle('open', open);
+    const btn = notes.querySelector('.notes-toggle');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const body = notes.querySelector('.notes-body');
+    if (body && !open) body.scrollTop = 0;
+  }
+
+  function toggleNotes() {
+    const notes = slides[currentSlide].querySelector('.notes');
+    if (notes) setNotes(!notes.classList.contains('open'), notes);
+  }
+
+  document.getElementById('deck').addEventListener('click', (e) => {
+    const btn = e.target.closest('.notes-toggle');
+    if (!btn) return;
+    const notes = btn.closest('.notes');
+    setNotes(!notes.classList.contains('open'), notes);
+  });
+
+  function updateSlides() {
+    closeAllNotes();
+    slides.forEach((slide, index) => {
+      if (index === currentSlide) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    counter.innerText = (currentSlide + 1) + " / " + slides.length;
+    progress.style.width = ((currentSlide + 1) / slides.length * 100) + "%";
+
+    // Determine nav hint/counter contrast depending on active slide background
+    const cl = slides[currentSlide].classList;
+    const isLight = cl.contains('bg-white') ||
+                    cl.contains('bg-linen') ||
+                    cl.contains('bg-peach') ||
+                    cl.contains('bg-rose');
+
+    if (isLight) {
+      counter.style.color = "rgba(0,0,0,0.5)";
+      navHint.style.color = "rgba(0,0,0,0.4)";
+      counter.style.mixBlendMode = "normal";
+      navHint.style.mixBlendMode = "normal";
+    } else {
+      counter.style.color = "rgba(255,255,255,0.3)";
+      navHint.style.color = "rgba(255,255,255,0.2)";
+      counter.style.mixBlendMode = "screen";
+      navHint.style.mixBlendMode = "screen";
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'Space' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      currentSlide = Math.min(currentSlide + 1, slides.length - 1);
+      updateSlides();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      currentSlide = Math.max(currentSlide - 1, 0);
+      updateSlides();
+    } else if (e.key === 'ArrowDown') {
+      // Free: nothing else binds it, and a remote's down key reaches it.
+      e.preventDefault();
+      toggleNotes();
+    } else if (e.key === 'f' || e.key === 'F') {
+      // Toggle full screen. webkit fallback because Safari still prefixes it.
+      e.preventDefault();
+      const d = document, el = d.documentElement;
+      if (d.fullscreenElement || d.webkitFullscreenElement) {
+        (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      } else {
+        (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      }
+    } else if (e.key === 'Escape') {
+      // Escape only closes notes; leaving full screen is the browser's own Escape,
+      // which fires before this handler and does not reach it.
+      closeAllNotes();
+    }
+  });
+
+  updateSlides();
+</script>
+
+</body>
+</html>
