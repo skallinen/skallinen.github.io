@@ -70,6 +70,18 @@
   }
   p { margin: 0 0 1.25rem; }
   em { font-style: italic; }
+  article img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 3px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    margin: 0.5rem 0;
+  }
+  .media-caption {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: -0.25rem;
+  }
   a { color: var(--ink); text-decoration-color: var(--accent); }
   a:hover { color: var(--accent); }
   .close p { font-weight: 600; }
@@ -142,6 +154,9 @@
 <article>
 <h1>The Cost of Shared Understanding</h1>
 <div class="byline">Sami Kallinen and Niklas Höglund<span class="date">2026-08-25</span></div>
+
+<p><img src="chalkboard-tim-mossholder.jpg" alt="A blackboard wiped of its writing, the chalk smears still showing where it was" width="1400" height="933"></p>
+<p class="media-caption"><em>The residue. Photograph: Tim Mossholder, on Unsplash.</em></p>
 
 <p>Last week one of us stood in front of thirty people, engineers, product managers and designers, with a claim the two of us have been circling for two years: making software is getting cheap, because these language models are, before anything else, translators. They turn intent into code, code into explanation, one format into any other, and to a good enough translator a comment, a specification and the code itself are the same thing said three ways. This is a hypothesis, and the fact that an entire industry is acting as if it were true is not evidence. We will treat it as true anyway, because that is where the interesting consequences start.</p>
 
