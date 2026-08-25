@@ -62,6 +62,13 @@
     margin-bottom: 1.5rem;
   }
   .byline .date { margin-left: 0.75rem; font-variant-numeric: tabular-nums; }
+  .standfirst {
+    font-style: italic;
+    color: var(--ink);
+    border-left: 3px solid var(--rule);
+    padding-left: 1rem;
+    margin: 0 0 1.5rem;
+  }
   h2 {
     font-size: 1.25rem;
     margin-top: 2rem;
@@ -103,7 +110,7 @@
     margin: 0 0 1rem;
   }
   .chart-scroll { overflow-x: auto; }
-  #chart { min-width: 700px; height: 480px; }
+  #chart { min-width: 700px; height: 520px; }
   svg { width: 100%; height: 100%; display: block; }
   .axis line, .axis path { stroke: var(--grid); }
   .stage { fill: var(--text-muted); font-size: 12.5px; font-family: var(--font); }
@@ -155,6 +162,8 @@
 <h1>The Cost of Shared Understanding</h1>
 <div class="byline">Sami Kallinen and Niklas Höglund<span class="date">2026-08-25</span></div>
 
+<p class="standfirst">Producing code got cheap, because language models are translators before they are anything else. Agreeing on what to build did not get cheap, and may never. The understanding a team used to get free, as a byproduct of code being slow to write, now has to be kept on purpose, in a form everyone can read: the system's behaviour and the reasons behind it. Keep that description alive and the code can retire into a box nobody needs to open. Skip it, and the thinking quietly stops, without anyone deciding it should.</p>
+
 <p><img src="chalkboard-tim-mossholder.jpg" alt="A blackboard wiped of its writing, the chalk smears still showing where it was" width="1400" height="933"></p>
 <p class="media-caption"><em>The residue. Photograph: Tim Mossholder, on Unsplash.</em></p>
 
@@ -188,6 +197,9 @@
 
 <p>Here is the uncomfortable part. The understanding we had was never planned. It was a byproduct of code being expensive to write, the way fitness used to be a byproduct of walking to work. Nobody decided to exercise; the distance made them. Move closer, and the exercise stops without anyone making a decision. Remove the expensive step, and the thinking that rode on it stops the same way, silently, and nothing announces the stopping.</p>
 
+<p><img src="path-lili-popper.jpg" alt="A worn footpath through a green valley, made by walking" width="1400" height="787"></p>
+<p class="media-caption"><em>Nobody planned it; the walking made it. Photograph: Lili Popper, on Unsplash.</em></p>
+
 <p>This is now measured. In a randomised trial published by Anthropic in January 2026, engineers who built a feature with AI assistance scored seventeen points lower on comprehension of what they had just built than those who built it by hand, 50 percent against 67, and the effect was clearest in exactly the group that delegated most. Those who used the model to ask conceptual questions retained nearly as much as the control group.</p>
 
 <p>Worse, we cannot feel it happening. In a widely discussed METR study from last year, experienced developers forecast that AI tools would speed them up by 24 percent, reported afterwards that they had been sped up by about 20, and had, by that study's measurement, been slowed by 19; outside experts had guessed 39. We would not lean on the numbers. It was one study of sixteen developers, its methods have been argued over, the models have improved a great deal since, and METR themselves say the effect resists measurement. The gap is harder to argue away: felt speed and measured speed came apart by some forty points, in careful people, and none of them could tell from the inside. Speed is treacherously subjective. We ran a small version of this on the workshop audience. Twenty of twenty-one said AI made them faster, most with high confidence, none said slower. They may all be right. The study above is the reason we hold the confidence more lightly than the claim.</p>
@@ -197,6 +209,9 @@
 <h2>The code gets demoted</h2>
 
 <p>If the theory moves out of the code, every developer asks the same question next: then what is the code? Our answer is that it gets demoted, and the demotion has a test. A piece of code may become a box you never open exactly when you can put behaviour in and get a why back out, and not before.</p>
+
+<p><img src="box-tommy-diner.jpg" alt="A closed black cube on a plain grey ground" width="1400" height="933"></p>
+<p class="media-caption"><em>The box. Photograph: Tommy Diner, on Unsplash.</em></p>
 
 <p>We should be precise about what changes, because the nearest analogy misleads. Compiler output became unreadable and nobody minded; generated code does not have to go the same way. It can stay engineer-readable, it costs nothing to ask for that, and there is no reason not to. What changes is the code's standing: it stops being the source, the thing humans keep alive, and becomes an output that happens to be inspectable. Readability becomes an aesthetic property rather than a functional one. Between the description and the box there is a seam, and the craft moves there: specifications clear enough that the translation can be trusted, and nothing left more opaque than it needs to be.</p>
 
@@ -216,19 +231,22 @@
   <div class="chart-scroll"><div id="chart"></div></div>
   <figcaption>
     <p><strong>How to read this.</strong> The drawing borrows its shape from a Wardley map, and those are not self-explanatory, so: each dot is an artifact a software team keeps, and the lines between dots mean one depends on the other. The vertical position is only bookkeeping, things near the top are close to what the team and its stakeholders actually need, things near the bottom are plumbing. The axis that matters is the horizontal one: <strong>readership</strong>, who can actually read that artifact, from no one on the left to anyone on the right. (A Wardley map proper has evolution there.)</p>
-    <p><strong>The arrows are the essay.</strong> The theory of the system, its behaviour and its written why move right, out of single heads and out of the code, into a form the whole team can read. Code moves left, toward a box nobody opens. The left arrow is only allowed because the right ones happen: that is the coupling this section states. The black bar across code's arrow is inertia, and it is social, not technical: developer identity. The hollow dot, assembly, is the precedent: a generation's craft that already made the same journey, and nobody misses reading it.</p>
+    <p><strong>The arrows are the essay.</strong> The theory of the system, its behaviour and its written why move right, out of single heads and out of the code, into a form the whole team can read. Code goes the other way, and mostly down: it sinks deeper into the plumbing, toward a box nobody needs to open, drifting a little back toward single heads as it goes. The black bar across its arrow is inertia, and it is social, not technical: developer identity. The hollow dot, assembly, is the precedent: a generation's craft that already sank, and nobody misses reading it.</p>
   </figcaption>
 </figure>
 
 <p>Chad Fowler has named the raw material: every mature system, he writes, is carrying around lessons that were never written down, encoded as validations, retries, timeouts, workflows and exceptions. The implementation remembers. Here is what happens when you then ask the box about one of those lessons. Ask the system why a call to the payment provider retries three times. If the reason was ever recorded, the vendor's API was flaky, there was an incident two years ago, the retry count came out of a Tuesday postmortem, then the model retrieves the true story and tells it in your language, whether you are an engineer or a product manager. If the reason was never recorded, the model does not say so. It composes something plausible: retries improve resilience in distributed systems. Fluent, generic, wrong, and indistinguishable from the outside. Workslop, turned inward.</p>
 
-<p>So the precondition has to be said out loud. The translator retrieves and rephrases; it does not know what happened two years ago. The reasons must be written down, at the moment they exist, by the people who hold them. No written why, no closed box. And this is where the silent decay of the earlier section becomes dangerous: while the box is open, missing understanding shows up as a question someone has to go answer. Once the box closes, it shows up as a confident answer that happens to be false. The written theory is the licence, and it is the only thing standing between those two.</p>
+<p>So the precondition has to be said out loud: the reasons must be written down, at the moment they exist, by the people who hold them. No written why, no closed box. And this is where the silent decay of the earlier section turns dangerous. While the box is open, missing understanding shows up as a question someone has to go answer; once it closes, it shows up as a confident answer that happens to be false. The written theory is the licence.</p>
 
 <h2>The experiment</h2>
 
 <p>We are running the experiment ourselves, on one of the systems we work on.</p>
 
 <p>The system lives on a weekly loop. Its description, a collection of composable wikis, feature specifications, behaviour scenarios in Gherkin, is the only artifact we keep alive. Much of what is inside the description is itself drafted by the models; we read it, correct it, and intervene where it matters. Whoever does the typing, the work itself happens in the description and nowhere else. Every week, agents rebuild the software from scratch, from the description alone, with no memory of the previous build. Independent agents then score the result against every build that came before it. Whatever last week taught goes into Monday's edits of the description, and nothing unwritten survives the weekend. One mechanical detail matters more than it looks: the builder is prevented from reading the scoring tests, so it cannot aim at the checklist while the description stays bad. The description has to carry the theory, because nothing else gets through.</p>
+
+<p><img src="blueprint-amsterdam-city-archives.jpg" alt="A blueprint cross-section of a house, rooms and stairs drawn in white on blue" width="1400" height="1133"></p>
+<p class="media-caption"><em>Described well enough to build again. Blueprint: Amsterdam City Archives, on Unsplash.</em></p>
 
 <p>Naur, of all people, prescribed this gesture. He wrote that a team holding the theory could discard the program and rebuild it at no higher, and possibly lower, cost. But for him the discard was grief: it was what you did when the theory had died with the team and the residue was worthless. Here the same gesture means the opposite: the discard is proof. If the rebuild succeeds, the theory has been captured; the rebuild is the receipt.</p>
 
@@ -266,9 +284,9 @@ const nodes = [
    tip:"Decision records. The licence for the closed box: the model can only answer 'why' truthfully if the reasons were written down. No written why, no closed box."},
   {id:"evals",     label:"Evaluation & scores", x:0.44, y:0.67, mx:0.60,
    tip:"How we know behaviour survived translation. Tests and evals have been developer artifacts; scores against a description are readable by anyone who can read the description."},
-  {id:"code",      label:"Code", x:0.44, y:0.78, mx:0.10, inertia:true,
-   tip:"Readable by one profession. Now drifting toward 'no one', which the box test permits: behaviour in, why out. The inertia bar is developer identity; the hard problem is social."},
-  {id:"assembly",  label:"Assembly", x:0.05, y:0.88, ghost:true,
+  {id:"code",      label:"Code", x:0.46, y:0.74, mx:0.30, my:0.92, inertia:true,
+   tip:"Readable by one profession. The main movement is downward, deeper into machinery nobody needs to open, with a small drift back toward single heads. The box test says how far it may go: behaviour in, why out. The inertia bar is developer identity; the hard problem is social."},
+  {id:"assembly",  label:"Assembly", x:0.06, y:0.94, ghost:true,
    tip:"The precedent. A generation's craft, now read by almost no one, except on the rare descent when the abstraction leaks. It made code's journey once already."},
   {id:"translate", label:"Translation (LLMs)", x:0.86, y:0.95,
    tip:"The engine under every arrow on this map. Anyone can talk to it, which is exactly why readership became a free choice at all."}
@@ -294,7 +312,7 @@ const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
 
 function draw() {
   const w = chart.clientWidth, h = chart.clientHeight;
-  const m = {top: 16, right: 30, bottom: 44, left: 56};
+  const m = {top: 28, right: 30, bottom: 60, left: 56};
   d3.select(chart).selectAll("svg").remove();
   const svg = d3.select(chart).append("svg").attr("viewBox", [0, 0, w, h]);
   const X = d3.scaleLinear([0, 1], [m.left, w - m.right]);
@@ -312,35 +330,41 @@ function draw() {
     .attr("x1",X(s.x)).attr("y1",Y(0)).attr("x2",X(s.x)).attr("y2",Y(1))
     .attr("stroke-dasharray","2 5"));
   stages.forEach(s => svg.append("text").attr("class","stage")
-    .attr("x", X(s.x) + 8).attr("y", h - m.bottom + 20).text(s.label));
+    .attr("x", X(s.x) + 8).attr("y", h - m.bottom + 22).text(s.label));
   svg.append("text").attr("class","stage")
     .attr("transform",`translate(${m.left-38},${Y(0.5)}) rotate(-90)`)
     .attr("text-anchor","middle").text("Closer to the user need ↑");
   svg.append("text").attr("class","stage")
-    .attr("x", X(1)).attr("y", h - m.bottom + 20).attr("text-anchor","end").text("Who can read it →");
+    .attr("x", X(1)).attr("y", h - m.bottom + 44).attr("text-anchor","end").text("Who can read it →");
 
   const dep = svg.append("g").selectAll("line").data(deps).join("line")
     .attr("class","dep")
     .attr("x1", d => X(byId[d[0]].x)).attr("y1", d => Y(byId[d[0]].y))
     .attr("x2", d => X(byId[d[1]].x)).attr("y2", d => Y(byId[d[1]].y));
 
-  nodes.filter(n => n.mx !== undefined).forEach(n => {
-    const dir = n.mx > n.x ? 1 : -1;
+  nodes.filter(n => n.mx !== undefined || n.my !== undefined).forEach(n => {
+    const x1 = X(n.x), y1 = Y(n.y);
+    const x2 = X(n.mx !== undefined ? n.mx : n.x), y2 = Y(n.my !== undefined ? n.my : n.y);
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
     svg.append("path").attr("class","move")
-      .attr("d", `M${X(n.x) + dir*10},${Y(n.y)} L${X(n.mx) - dir*4},${Y(n.y)}`);
-    if (n.inertia) svg.append("line").attr("class","inertia")
-      .attr("x1", X((n.x + n.mx)/2)).attr("x2", X((n.x + n.mx)/2))
-      .attr("y1", Y(n.y) - 9).attr("y2", Y(n.y) + 9);
+      .attr("d", `M${x1 + ux*12},${y1 + uy*12} L${x2 - ux*6},${y2 - uy*6}`);
+    if (n.inertia) {
+      const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+      svg.append("line").attr("class","inertia")
+        .attr("x1", cx - uy*9).attr("y1", cy + ux*9)
+        .attr("x2", cx + uy*9).attr("y2", cy - ux*9);
+    }
   });
 
   svg.append("text").attr("class","note warm")
-    .attr("x", X(0.30)).attr("y", Y(0.24))
+    .attr("x", X(0.31)).attr("y", Y(0.335))
     .text("the essay's project: move the theory to the whole team");
   svg.append("text").attr("class","note warm")
-    .attr("x", X(0.13)).attr("y", Y(0.74))
+    .attr("x", X(0.42)).attr("y", Y(0.87))
     .text("allowed only because the arrows above point right");
   svg.append("text").attr("class","note")
-    .attr("x", X(0.02)).attr("y", Y(0.84)).text("the precedent:");
+    .attr("x", X(0.02)).attr("y", Y(0.885)).text("the precedent:");
 
   const node = svg.append("g").selectAll("g").data(nodes).join("g")
     .attr("class", d => "node" + (d.anchor ? " anchor" : "") + (d.ghost ? " ghost" : ""))
