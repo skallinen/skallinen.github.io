@@ -88,6 +88,16 @@
     font-size: 0.9rem;
     margin-top: -0.25rem;
   }
+.figure-flow {
+    margin: 2rem 0;
+    background: var(--paper);
+    border-radius: 3px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    padding: 1.25rem 1.25rem 1rem;
+  }
+  .figure-flow .fig-title { font-weight: 600; font-size: 1rem; margin: 0 0 0.25rem; }
+  .figure-flow .fig-lede { font-size: 0.9rem; color: var(--muted); margin: 0 0 1rem; }
+  .figure-flow svg { width: 100%; height: auto; display: block; font-family: var(--font); }
   a { color: var(--ink); text-decoration-color: var(--accent); }
   a:hover { color: var(--accent); }
   .close p { font-weight: 600; }
@@ -115,17 +125,17 @@
 <p><img src="box-christopher-bill.jpg" alt="A closed brown cardboard box on a white surface" width="1400" height="933"></p>
 <p class="media-caption"><em>The honest box. Photograph: Christopher Bill, on Unsplash.</em></p>
 
-<p>We build from a specification. What the system is supposed to do is written down where the whole team can read it, and the behaviour in it is written as Gherkin scenarios, which means the scenarios run: a scenario is a test. The arrangement is tighter than it sounds: a test exists because a sentence in the specification exists, and for no other reason. Last week an agent built an implementation from that specification. The scenarios are green, the implementation works, and somewhere in the implementation there is code that no sentence of the specification asked for. Either we forgot to write it down and the agent quietly covered for us, or the agent invented it. From the outside the two look the same. Both are green. Neither was specified.</p>
+<p>We build from a specification. What the system is supposed to do is written down where the whole team can read it, and the behaviour in it is written as Gherkin scenarios, which means the scenarios run: a scenario is a test. The arrangement is tighter than it sounds: a test exists because a sentence in the specification exists, and for no other reason. Last week an agent built an implementation from that specification. The scenarios are green, the implementation works, and somewhere in the implementation there is code that no sentence of the specification asked for. Either we forgot to write it down and the agent quietly covered for us, an omission, or the agent invented it, an invention. From the outside the two look the same. Both are green. Neither was specified.</p>
 
 <p>Last month we wrote about the cost of shared understanding: producing code got cheap, agreeing on what to build did not, so keep the agreement written where everyone can read it and let the code become a box nobody needs to open, as long as you can still ask the box why. The specification is that agreement, written down. This is about one more question you should be able to ask the box. Not why. Whether. Did you do what the specification says, and is there code in there that nothing in it would miss?</p>
 
-<h2>The itch</h2>
+<h2>Green, and still drifting</h2>
 
 <p>What has been nagging us is not test quality. It is drift. A specification goes into the agent and an implementation comes out, and in between there is the box we cannot ask. We said we would rather not read the implementation. We still want proof, in the form of the behaviour that now exists, that the agreement was kept. An honest box. One you can poke.</p>
 
 <p>Anyone who works this way knows the feeling: you suspect the implementation drifted from what you meant, there is no cheap way to find out, so you read the implementation after all, which is exactly what the box was supposed to spare you.</p>
 
-<h2>What seeing through would take</h2>
+<h2>Two things it takes to see through</h2>
 
 <p>The first thing we already have: a faithful translation from agreement to tests, so that every sentence in the specification has a scenario that fails when the sentence is false. Our weekly rebuild, where agents build the system again from the specification alone, leans on it, and it is why the rest of this works at all. If tests get written on the side, or sentences go untested, nothing below means anything. And the scenarios have to be the only source of tests, or a survivor gets a third reading: specified somewhere else.</p>
 
@@ -134,7 +144,7 @@
 <p><img src="switch-scott-rodgerson.jpg" alt="An old toggle light switch on a worn painted wall, flipped to on, in black and white" width="1400" height="2101"></p>
 <p class="media-caption"><em>One small change. Photograph: Scott Rodgerson, on Unsplash.</em></p>
 
-<h2>A technique in one screen</h2>
+<h2>The technique, in one screen</h2>
 
 <p>Mutation testing makes one small change to your production code, flips a negation, deletes a line, swaps a string, and runs the tests that touch it against the result. That changed program is a mutant. If any test goes red, the mutant is killed. If none does, it survived. Then the code goes back, the next change goes in, and the tests run again.</p>
 
@@ -147,21 +157,55 @@
 <p>The pitch it usually travels under is that mutation testing is a quality review of your tests. The pitch is honest and it sticks.</p>
 
 <p><img src="sieve-olga-kovalski.jpg" alt="A stainless steel mesh strainer hanging on a plain wall" width="1400" height="937"></p>
-<p class="media-caption"><em>Slack, not surplus. Photograph: Olga Kovalski, on Unsplash.</em></p>
+<p class="media-caption"><em>What passes through. Photograph: Olga Kovalski, on Unsplash.</em></p>
 
-<h2>Turn it around</h2>
-
-<p>Point it at the agreement.</p>
+<h2>Point it at the specification</h2>
 
 <p>Run mutation testing on the scenarios only. If a test did not come from a sentence in the specification, it does not get a vote. Now every mutant the agreement can see should die, because the code exists to satisfy the agreement and every sentence of it is watching. The rest is the report.</p>
 
-<p>When a mutant survives and actually changes behaviour, two explanations matter. Either the code it touched is inessential to the specification, or the specification and the implementation differ. In the first case the agent built something we never asked for. In the second we asked for less than we meant. Either way the survivor goes back to the specification as a question: is something missing here, or did the implementation make something up? That is the opening again, this time with a mechanism behind it, and it is the moment the box becomes honest.</p>
+<p>When a mutant survives and actually changes behaviour, three readings are possible, and the report has to say which. The first is an invention: the code it touched is inessential to the specification, and the agent built something we never asked for. The second is an omission: the code does something the specification never captured, and we asked for less than we meant. The third is a leak in the translation: a scenario reached the code but did not constrain it, a mock returning an empty default being the usual cause, and until that is fixed the other two readings are not available. The first two go back to the specification as a question: is something missing here, or did the implementation make something up? That is the opening again, this time with a mechanism behind it, and it is the moment the box becomes honest.</p>
 
-<p>We had a run on the screen while we talked, and the survivors read this way once you look for it. A deleted line around an entity that, on inspection, should never have been there: inessential. A flipped negation that stayed green, in logic that obviously should have been covered: behaviour nobody wrote down. And two survivors traced to a mock returning an empty value by default, so the deletion was never observed. Those two are neither reading. They are a hole in the translation itself, and the method has to find those first.</p>
+<p>We had a run on the screen while we talked, and the survivors sorted into those three once we looked. A deleted line around an entity that, on inspection, should never have been there: an invention. Two survivors traced to a mock returning an empty value by default, so the deletion was never observed: leaks, and the ones to fix first. The cleanest omission came later, arguing over this draft. A cache has no functional behaviour, so delete it and every scenario stays green; the survivor goes back for an explanation, and the explanation is a non-functional requirement nobody had written down.</p>
 
-<p>There is a limit, and it should be said plainly. The method finds slack, not surplus. Code welded to required behaviour dies with it and never shows up: if the agreement says the applicant is notified and the agent notifies everyone, the mutant on that line is killed because the applicant stops being notified, and the other recipients were never checked. So the agreement has to say what must not happen as well. A cache is the example we argued over. It has no functional behaviour, so delete it and every scenario stays green; the survivor goes back for an explanation, and the explanation turns out to be a non-functional requirement nobody wrote down. The method showed the drift. It could not have guaranteed there was none, and strict test-first is the only discipline we know that can claim that. What it gives you is a report of the differences.</p>
+<figure class="figure-flow">
+  <p class="fig-title">Where a mutant goes</p>
+  <p class="fig-lede">The whole mechanism in one picture. A killed mutant says a scenario holds that line; a survivor is a question, and the report says which of three.</p>
+  <svg viewBox="0 0 760 420" role="img" aria-label="Flow from specification to scenarios to implementation, a mutant introduced, and the fork between killed and survivor, with the survivor read as invention, omission or leak">
+  <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#333333"/></marker><marker id="ahr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#dc143c"/></marker></defs>
+  <rect x="280" y="16" width="200" height="40" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="380.0" y="41.0" text-anchor="middle" font-size="14" font-weight="600" fill="#333333">Specification</text>
+  <line x1="380" y1="56" x2="380" y2="92" stroke="#333333" stroke-width="1.5" marker-end="url(#ah)"/>
+  <text x="392" y="78" text-anchor="start" font-size="12.5" fill="#6b6754" font-style="italic">one sentence, one scenario</text>
+  <rect x="280" y="92" width="200" height="40" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="380.0" y="117.0" text-anchor="middle" font-size="14" font-weight="600" fill="#333333">Scenarios</text>
+  <line x1="380" y1="132" x2="380" y2="168" stroke="#333333" stroke-width="1.5" marker-end="url(#ah)"/>
+  <text x="392" y="154" text-anchor="start" font-size="12.5" fill="#6b6754" font-style="italic">run against</text>
+  <rect x="280" y="168" width="200" height="40" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="380.0" y="193.0" text-anchor="middle" font-size="14" font-weight="600" fill="#333333">Implementation</text>
+  <circle cx="482" cy="176" r="6" fill="#dc143c"/>
+  <text x="496" y="181" text-anchor="start" font-size="12.5" fill="#dc143c">one small change: a mutant</text>
+  <line x1="380" y1="208" x2="380" y2="244" stroke="#333333" stroke-width="1.5" marker-end="url(#ah)"/>
+  <rect x="240" y="244" width="280" height="40" rx="3" fill="#FFFFF0" stroke="#E5E0CC" stroke-width="1.5"/><text x="380.0" y="269.0" text-anchor="middle" font-size="14" font-weight="400" fill="#333333">Does a scenario fail?</text>
+  <line x1="240" y1="264" x2="160" y2="264" stroke="#333333" stroke-width="1.5" marker-end="url(#ah)"/>
+  <text x="200.0" y="256" text-anchor="middle" font-size="12" fill="#6b6754">yes</text>
+  <line x1="520" y1="264" x2="560" y2="264" stroke="#333333" stroke-width="1.5" marker-end="url(#ah)"/>
+  <text x="540.0" y="256" text-anchor="middle" font-size="12" fill="#6b6754">no</text>
+  <rect x="30" y="244" width="130" height="40" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="95.0" y="269.0" text-anchor="middle" font-size="14" font-weight="600" fill="#333333">Killed</text>
+  <text x="95" y="306" text-anchor="middle" font-size="12.5" fill="#6b6754" font-style="italic">some scenario holds that line;</text>
+  <text x="95" y="322" text-anchor="middle" font-size="12.5" fill="#6b6754" font-style="italic">nothing more is proved</text>
+  <rect x="560" y="244" width="130" height="40" rx="3" fill="#FFFFF0" stroke="#dc143c" stroke-width="1.5"/><text x="625.0" y="269.0" text-anchor="middle" font-size="14" font-weight="600" fill="#333333">Survivor</text>
+  <line x1="625" y1="284" x2="625" y2="304" stroke="#dc143c" stroke-width="1.5"/>
+  <line x1="545" y1="304" x2="693" y2="304" stroke="#dc143c" stroke-width="1.5"/>
+  <line x1="545" y1="304" x2="545" y2="318" stroke="#dc143c" stroke-width="1.5"/>
+  <line x1="619" y1="304" x2="619" y2="318" stroke="#dc143c" stroke-width="1.5"/>
+  <line x1="693" y1="304" x2="693" y2="318" stroke="#dc143c" stroke-width="1.5"/>
+  <rect x="512" y="318" width="66" height="36" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="545.0" y="341.0" text-anchor="middle" font-size="13" font-weight="400" fill="#333333">invention</text>
+  <rect x="586" y="318" width="66" height="36" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="619.0" y="341.0" text-anchor="middle" font-size="13" font-weight="400" fill="#333333">omission</text>
+  <rect x="660" y="318" width="66" height="36" rx="3" fill="#FFFFF0" stroke="#333333" stroke-width="1.5"/><text x="693.0" y="341.0" text-anchor="middle" font-size="13" font-weight="400" fill="#333333">leak</text>
+  <text x="30" y="398" text-anchor="start" font-size="12.5" fill="#6b6754" font-style="italic">Each survivor is read once. Inventions and omissions go back to the specification; a leak is fixed first.</text>
+  </svg>
+</figure>
 
-<h2>Where it sits</h2>
+<p>There is a limit, and it should be said plainly. A survivor is code that no scenario constrains. The reverse does not hold: a killed mutant proves that some scenario constrains that line, not that the line does only what the scenario says. If the specification says the applicant is notified and the agent notifies everyone, deleting the call kills the mutant, because the applicant stops being notified, and the other recipients were never checked. Extra behaviour that rides on a constrained line is invisible to this method. So the specification has to say what must not happen as well. The method finds what is loose; it does not certify what is tight. It shows drift, and it cannot guarantee there is none. Strict test-first is the only discipline we know that can claim that. What it gives you is a report of the differences.</p>
+
+<h2>What the report is for</h2>
 
 <p>In exploration, when you build a proof of concept from a specification, you are also proving the specification. The survivors are the debt you want on the table before anyone commits to the design.</p>
 
@@ -192,6 +236,7 @@
 <p>What if we wanted to see through how our agreement has been implemented? To ask the implementation, in a language everyone in the room can read, whether it did what the specification says, and whether it carries anything that none of the specification's sentences would miss, without opening it. A fifty-year-old technique, pointed at a purpose it was never designed for, gets you most of the way. The demo runs for free.</p>
 </div>
 
+<p>Two questions to take to your own suite. When a mutant survives today, can you tell an omission from an invention? And when you can, does your process prune the implementation, or grow the specification until the line is accounted for?</p>
 </article>
 <footer>
 <p>This continues <a href="/shared-understanding/essay/">The Cost of Shared Understanding</a>. References named in the text: Lipton (1971), as reported in Jia and Harman, "An Analysis and Survey of the Development of Mutation Testing" (2011); DeMillo, Lipton and Sayward, "Hints on Test Data Selection: Help for the Practicing Programmer" (1978); Robert C. Martin in conversation with Matt Pocock, <a href="https://www.youtube.com/watch?v=zcLPGC-tvgk">"Uncle Bob on Software Fundamentals in the Age of AI"</a> (2026-08-19).</p>
