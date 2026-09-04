@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Did we actually agree with the agent?</title>
-<meta name="description" content="Mutation testing breaks the code one small change at a time and asks whether any test notices. By Niklas Höglund and Sami Kallinen.">
+<meta name="description" content="Mutation testing breaks the code one small change at a time and checks whether any test fails. By Niklas Höglund and Sami Kallinen.">
 <style>
   /* The wake look: ivory + Helvetica, crimson accent */
   :root {
@@ -110,7 +110,7 @@
 <h1>Did we actually agree with the agent?</h1>
 <div class="byline">Niklas Höglund and Sami Kallinen<span class="date">2026-09-04</span></div>
 
-<p class="standfirst">An agent builds what we agreed on, the scenarios go green, and somewhere in the diff there is code no sentence of the agreement asked for. Either we forgot to say it, or the agent invented it, and from the outside those look the same. We work from a written description whose scenarios run as tests, and we would rather not read the code, so we need a way to ask the code whether it did what we said, and whether it holds anything that none of our sentences would miss. A technique from 1971 does it, once you point it away from its usual job. Mutation testing breaks the code one small change at a time and asks whether any test notices. Run it on the specification's tests alone, and every change that survives is either code the agreement does not need or behaviour the agreement never captured. Both are questions for the specification, not the code. What comes out is a list a designer can read, which survivors and why each lived, and behind it one question: how strongly did we agree, and did the agent agree with us.</p>
+<p class="standfirst">An agent builds what we agreed on, the scenarios go green, and somewhere in the diff there is code no sentence of the agreement asked for. Either we forgot to say it, or the agent invented it, and from the outside those look the same. We work from a written description whose scenarios run as tests, and we would rather not read the code, so we need a way to ask the code whether it did what we said, and whether it holds anything that none of our sentences would miss. A technique from 1971 does it, once you point it away from its usual job. Mutation testing breaks the code one small change at a time and checks whether any test fails. Run it on the specification's tests alone, and every change that survives is either code the agreement does not need or behaviour the agreement never captured. Both are questions for the specification, not the code. What comes out is a list a designer can read, which survivors and why each lived, and behind it one question: how strongly did we agree, and did the agent agree with us.</p>
 
 <p><img src="box-christopher-bill.jpg" alt="A closed brown cardboard box on a white surface" width="1400" height="933"></p>
 <p class="media-caption"><em>The honest box. Photograph: Christopher Bill, on Unsplash.</em></p>
@@ -129,7 +129,7 @@
 
 <p>The first thing we already have: a faithful translation from agreement to tests, so that every sentence in the description has a test that fails when the sentence is false. Our weekly rebuild leans on it, and it is why the rest of this works at all. If tests get written on the side, or sentences go untested, nothing below means anything. And the scenarios have to be the only source of tests, or a survivor gets a third reading: specified somewhere else.</p>
 
-<p>The second thing nobody asks for: would those tests notice if the code were different? Coverage cannot say. Coverage tells you which lines ran while the tests were green, not whether anyone was watching. A line can be executed by forty tests and changed with impunity if none of the forty asserts anything about what it did.</p>
+<p>The second thing is a question few people ask: if the code were changed, would those tests fail? Coverage cannot answer it. Coverage only says which lines the tests ran. A line can be run by forty tests and still be changed freely, if none of the forty checks what it did.</p>
 
 <p><img src="switch-scott-rodgerson.jpg" alt="An old toggle light switch on a worn painted wall, flipped to on, in black and white" width="1400" height="2101"></p>
 <p class="media-caption"><em>One small change. Photograph: Scott Rodgerson, on Unsplash.</em></p>
@@ -138,9 +138,9 @@
 
 <p>Mutation testing makes one small change to your production code, flips a negation, deletes a line, swaps a string, and runs the tests that touch it against the result. That changed program is a mutant. If any test goes red, the mutant is killed. If none does, it survived. Then the code goes back, the next change goes in, and the tests run again.</p>
 
-<p>A surviving mutant is a place where the code can be wrong and the suite does not care. Some changes alter nothing observable and survive for that reason; every tool produces a share of those, nobody agrees how large, no tool can tell you which, and sorting them is the work. The goal is simple to state: every survivor gets an explanation.</p>
+<p>A surviving mutant is a place where the code can be wrong and no test fails. Some changes alter nothing observable and survive for that reason; every tool produces a share of those, nobody agrees how large, no tool can tell you which, and sorting them is the work. The goal is simple to state: every survivor gets an explanation.</p>
 
-<p>The tools generate the mutants from a long standard list; nobody writes them by hand. Your own tests deliver the verdict. If chaos engineering is chaos from the outside, this is chaos from the inside. It was first proposed in 1971, and engineers we consider very senior have never heard of it.</p>
+<p>The tools generate the mutants from a long standard list; nobody writes them by hand. Your own tests give the answer. If chaos engineering is chaos from the outside, this is chaos from the inside. It was first proposed in 1971, and engineers we consider very senior have never heard of it.</p>
 
 <p>Lately it has had a small revival, attached to AI. Robert Martin, for one, ran mutation testing around the year 2000, overnight, because the suite took four minutes and he ran it several hundred times, and set it aside as impractical. Last winter he tried again with an agent, which does not care how boring the work is, and the run took half an hour instead of a night. Others say the barrier was never the run but the two days of setup, which an agent now does in an afternoon. Both are true, and neither is the point. Nothing in the mechanism changes because a model is nearby, and Martin's own mutation stage, he says, still takes a good long time. The reason to care now is different. What killed adoption was sorting the survivors by hand, and that is now agent work. What the sorting is for is the rest of this piece.</p>
 
@@ -155,17 +155,17 @@
 
 <p>Run mutation testing on the specification-derived tests only. If a test did not come from a sentence in the description, it does not get a vote. Now every mutant the agreement can see should die, because the code exists to satisfy the agreement and every sentence of it is watching. The rest is the report.</p>
 
-<p>When a mutant survives and actually changes behaviour, two explanations are worth the specification's time. Either the code it touched is inessential to the described behaviour, or the described behaviour and the actual behaviour differ. In the first case the agent built something we never asked for. In the second we asked for less than we meant. Either way the survivor lands on the specification's desk as a question: is something missing here, or did the implementation make something up? That is the opening again, this time with a mechanism behind it, and it is the moment the box becomes honest.</p>
+<p>When a mutant survives and actually changes behaviour, two explanations are worth the specification's time. Either the code it touched is inessential to the described behaviour, or the described behaviour and the actual behaviour differ. In the first case the agent built something we never asked for. In the second we asked for less than we meant. Either way the survivor goes back to the specification as a question: is something missing here, or did the implementation make something up? That is the opening again, this time with a mechanism behind it, and it is the moment the box becomes honest.</p>
 
 <p>We had a run on the screen while we talked, and the survivors read this way once you look for it. A deleted line around an entity that, on inspection, should never have been there: inessential. A flipped negation that stayed green, in logic that obviously should have been covered: behaviour nobody wrote down. And two survivors traced to a mock returning an empty value by default, so the deletion was never observed. Those two are neither reading. They are a hole in the translation itself, and the method has to find those first.</p>
 
-<p>There is a limit, and it should be said plainly. The method sees slack, not surplus. Code welded to required behaviour dies with it and is never seen: if the agreement says the applicant is notified and the agent notifies everyone, the mutant on that line is killed because the applicant stops being notified, and the other recipients were never probed. So the agreement has to say what must not happen as well. A cache is the example we argued over. It has no functional behaviour, so delete it and every scenario stays green; the survivor goes back for an explanation, and the explanation turns out to be a non-functional requirement nobody wrote down. The method noted the drift. It could not have guaranteed there was none, and strict test-first is the only discipline we know that can claim that. What it gives you is a good diff.</p>
+<p>There is a limit, and it should be said plainly. The method finds slack, not surplus. Code welded to required behaviour dies with it and never shows up: if the agreement says the applicant is notified and the agent notifies everyone, the mutant on that line is killed because the applicant stops being notified, and the other recipients were never checked. So the agreement has to say what must not happen as well. A cache is the example we argued over. It has no functional behaviour, so delete it and every scenario stays green; the survivor goes back for an explanation, and the explanation turns out to be a non-functional requirement nobody wrote down. The method showed the drift. It could not have guaranteed there was none, and strict test-first is the only discipline we know that can claim that. What it gives you is a good diff.</p>
 
 <h2>Where it sits</h2>
 
 <p>In exploration, when you build a proof of concept from a description, you are also proving the description. The survivors are the debt you want on the table before anyone commits to the design.</p>
 
-<p>In production it compensates for the agent. The agent invents something; the report brings it back into plain language, as an extension the specification did not have and now has to accept or refuse. What comes out is a quality stamp on the thing just done, and it is a list a designer can read: which survivors, and why each lived. The percentage is a trend line.</p>
+<p>In production it compensates for the agent. The agent invents something; the report puts it back into plain language, as an extension the specification did not have and now has to accept or refuse. What comes out is a quality stamp on the thing just done, and it is a list a designer can read: which survivors, and why each lived. The percentage is a trend line.</p>
 
 <p>Martin has arrived next door, and then walked the other way. He no longer reads what the agents write; he measures it, and the mutation tester is one of the instruments. He has also stopped writing specifications: he looks at the end result and says, well, that is the specification. We do the opposite. The agreement is the artefact we keep alive, so the measure moves one artefact up, from the tests to the agreement. The usual pitch asks what the quality of your tests is. This asks how strongly we agreed, and whether the agent agreed with us.</p>
 
@@ -184,7 +184,7 @@
 
 <p>This feels completely right, and we do not know yet, about this or about most of the toolbox we use. There are too few samples to know which techniques earn their time, and it is possible that mutation testing does exactly what we say and gives so little in the end that nobody bothers. Clever people are on the same track and the theory is old and sound. Neither is evidence. We are reporting an opening, not a result.</p>
 
-<p>We said it at the start and it bears saying again: the premise carries the argument. If the translation from agreement to tests is loose, the survivors mean nothing in particular, and you are back to reading the diff. The method is only as honest as the seam it sits on.</p>
+<p>We said it at the start and it bears saying again: the premise carries the argument. If the translation from agreement to tests is loose, the survivors mean nothing in particular, and you are back to reading the diff. The method is worth exactly what the translation under it is worth.</p>
 
 <h2>The question, again</h2>
 
