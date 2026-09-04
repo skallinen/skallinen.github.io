@@ -127,7 +127,7 @@
 
 <p>We build from a specification. What the system is supposed to do is written down where the whole team can read it, and the behaviour in it is written as Gherkin scenarios, which means the scenarios run: a scenario is a test. The arrangement is tighter than it sounds: a test exists because a sentence in the specification exists, and for no other reason. Last week an agent built an implementation from that specification. The scenarios are green, the implementation works, and somewhere in the implementation there is code that no sentence of the specification asked for. Either we forgot to write it down and the agent quietly covered for us, an omission, or the agent invented it, an invention. From the outside the two look the same. Both are green. Neither was specified.</p>
 
-<p>Last month we wrote about the cost of shared understanding: producing code got cheap, agreeing on what to build did not, so keep the agreement written where everyone can read it and let the code become a box nobody needs to open, as long as you can still ask the box why. The specification is that agreement, written down. This is about one more question you should be able to ask the box. Not why. Whether. Did you do what the specification says, and is there code in there that nothing in it would miss?</p>
+<p>Last month we wrote about the cost of shared understanding: producing code got cheap, agreeing on what to build did not, so keep the agreement written where everyone can read it and let the code become a box nobody needs to open, as long as you can still ask the box why. The specification is that agreement, written down. What we want to be able to say of the box is simple: nothing more is implemented than what we told it. This is about the question that gets you there. Not why. Whether. Did you do what the specification says, and is there code in there that nothing in it would miss?</p>
 
 <h2>Green, and still drifting</h2>
 
@@ -146,13 +146,13 @@
 
 <h2>The technique, in one screen</h2>
 
-<p>Mutation testing makes one small change to your production code, flips a negation, deletes a line, swaps a string, and runs the tests that touch it against the result. That changed program is a mutant. If any test goes red, the mutant is killed. If none does, it survived. Then the code goes back, the next change goes in, and the tests run again.</p>
+<p>Mutation testing makes one small change to your production code, flips a negation, deletes a line, swaps a string, and runs the tests that touch it against the result. That changed program is a mutant. If any test goes red, the mutant is killed. If none does, it survived. Then the code goes back, the next change goes in, and the tests run again. Every mutant needs a run of its own, so the whole thing is slow; baselines saved from an earlier run keep later runs to what changed.</p>
 
 <p>A surviving mutant is a place where the code can be wrong and no test fails. Some mutants change nothing observable and survive for that reason, equivalent mutants in the literature; every tool produces a share of those, nobody agrees how large, no tool can tell you which, and sorting them is the work. The goal is simple to state: every survivor gets an explanation.</p>
 
 <p>The tools generate the mutants from a long standard list; nobody writes them by hand. Your own tests give the answer. If chaos engineering is chaos from the outside, this is chaos from the inside. It was first proposed in 1971, and engineers we consider very senior have never heard of it.</p>
 
-<p>Lately it has had a small revival, attached to AI. Robert Martin, for one, ran mutation testing around the year 2000, overnight, because the suite took four minutes and he ran it several hundred times, and set it aside as impractical. Last winter he tried again with an agent, which does not care how boring the work is, and the run took half an hour instead of a night. Others say the barrier was never the run but the two days of setup, which an agent now does in an afternoon. Both are true, and neither is the point. Nothing in the mechanism changes because an agent is nearby, and Martin's own mutation stage, he says, still takes a good long time. The reason to care now is different. What killed adoption was sorting the survivors by hand, and that is now agent work. What the sorting is for is the rest of this piece.</p>
+<p>Lately it has had a small revival, attached to AI. Robert Martin, for one, ran mutation testing around the year 2000, overnight, because the suite took four minutes and he ran it several hundred times, and set it aside as impractical. Last winter he tried again with an agent, which does not care how boring the work is, and the run took half an hour instead of a night. Others say the barrier was never the run but the two days of setup, which an agent now does in an afternoon. Both are true, and neither is the point. Nothing in the mechanism changes because an agent is nearby, and Martin's own mutation stage, he says, still takes a good long time. He has also stopped reading what his agents write, measuring it instead, and stopped writing specifications, which is where our roads part. The reason to care now is different. What killed adoption was sorting the survivors by hand, and that is now agent work. What the sorting is for is the rest of this piece.</p>
 
 <p>The pitch it usually travels under is that mutation testing is a quality review of your tests. The pitch is honest and it sticks.</p>
 
@@ -205,30 +205,16 @@
 
 <p>There is a limit, and it should be said plainly. A survivor is code that no scenario constrains. The reverse does not hold: a killed mutant proves that some scenario constrains that line, not that the line does only what the scenario says. If the specification says the applicant is notified and the agent notifies everyone, deleting the call kills the mutant, because the applicant stops being notified, and the other recipients were never checked. Extra behaviour that rides on a constrained line is invisible to this method. So the specification has to say what must not happen as well. The method finds what is loose; it does not certify what is tight. It shows drift, and it cannot guarantee there is none. Strict test-first is the only discipline we know that can claim that. What it gives you is a report of the differences.</p>
 
-<h2>What the report is for</h2>
+<h2>What the report says</h2>
 
-<p>In exploration, when you build a proof of concept from a specification, you are also proving the specification. The survivors are the debt you want on the table before anyone commits to the design.</p>
-
-<p>In production it compensates for the agent. The agent invents something; the report puts it back into plain language, as an extension the specification did not have and now has to accept or refuse. What comes out is a report on the thing just done, and a designer can read it: which survivors, and why each lived. The percentage is a trend line.</p>
-
-<p>Martin has arrived next door, and then walked the other way. He no longer reads what the agents write; he measures it, and the mutation tester is one of the instruments. He has also stopped writing specifications: he looks at the end result and says, well, that is the specification. We do the opposite. The agreement is the artefact we keep alive, so the measure moves one artefact up, from the tests to the agreement. The usual pitch asks what the quality of your tests is. This asks how strongly we agreed, and whether the agent agreed with us.</p>
-
-<p>It may also explain an intuition nobody has put into words. People are eager for implementation tests in agentic workflows, and when asked why, they say things about safety. We think the eagerness is a suspicion that the agreement leaks, and a test suite is the nearest thing to hand for catching it.</p>
-
-<h2>What it costs</h2>
-
-<p>Every mutant needs a test run of its own, so the cause can be isolated. The tools trim each run to the tests that cover the change, and parallelism helps too. Neither changes the arithmetic: one run per mutant, and the run on our screen had 2329 mutants that compiled and was working on number 841 when we stopped watching.</p>
-
-<p>Baselines make it affordable: results are saved from an earlier run, and later runs re-test only the mutants whose code or tests changed since. That needs somewhere to keep the runs, in some tools the feature is still marked experimental, and, in the words of the person who set it up, it is well worth it.</p>
+<p>The report divides the implementation in two. Code whose mutants all die is held by the specification: some scenario fails when it changes, and nobody needs to read it, so the box stays closed there. Code with a survivor is not held, and it is the only code anyone has to read. Review shrinks to that second part, and each survivor arrives with its reading: an invention to remove, an omission to write into the specification, or a leak to fix in the translation. The percentage is a trend line. The partition is the result.</p>
 
 <p><img src="weather-vane-drawing.png" alt="A pen drawing of a weather vane with its four letters and an arrow" width="670" height="819"></p>
-<p class="media-caption"><em>The jury is out.</em></p>
+<p class="media-caption"><em>Undecided.</em></p>
 
-<h2>The jury is out</h2>
+<h2>Why not simply prove it</h2>
 
-<p>This feels completely right, and we do not know yet, about this or about most of the toolbox we use. There are too few samples to know which techniques earn their time, and it is possible that mutation testing does exactly what we say and gives so little in the end that nobody bothers. Clever people are on the same track and the theory is old and sound. Neither is evidence. We are reporting an opening, not a result.</p>
-
-<p>We said it at the start and it bears saying again: the premise carries the argument. If the translation from agreement to tests is loose, the survivors mean nothing in particular, and you are back to reading the implementation. The method is worth exactly what the translation under it is worth.</p>
+<p>Why not prove it instead? Formal specification is the obvious answer, and it tempts us: write the agreement in a language a proof checker reads, and let the checker say whether the implementation satisfies it. The thing we cannot check is whether the specification says what we meant, and a proof does not touch that question. It moves the leap of faith one artefact up and leaves it there. Nor is the leap gone on our side. Under every scenario sit its step definitions, ordinary code that turns a sentence into a call, and somebody has to read those or trust them. The method is worth exactly what that translation is worth. We said it at the start and it bears saying again.</p>
 
 <h2>The question, again</h2>
 
