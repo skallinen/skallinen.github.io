@@ -33,6 +33,37 @@
   (let [v (:revealed book)]
     (or (nil? v) (true? v))))
 
+(defn collective-visible?
+  "THE GATE (docs/contexts/ranking/read-models.md, \"The Gating rules\").
+
+   May the viewer see this book's aggregate score and aggregate rank, other
+   members' individual scores, and other members' opinions? Requires BOTH:
+   the book is Revealed, AND every current roster member WHO IS NOT AWAY has
+   ranked or skipped it (the spec's \"fully dealt with\" — one gate with a
+   narrower population since slice 01-away, not a second gate; D12). An away
+   member is never waited for, and sees the same collective data as everyone
+   once the gate opens (D15). The viewer's own score and own opinion are never
+   gated by this, and neither is the voter-count progress.
+
+   The quantifier is not applied here: it is `:any-unranked?` on the aggregate
+   datum, computed by `scoring/compute-aggregate-scores` from the roster AND
+   the away set — so a call site that forgets to pass `state/away-ids` gets
+   the pre-Away gate, which is stricter, never looser.
+
+   One named function rather than an inline conjunction, so a new surface
+   inherits the whole rule instead of restating half of it: the binding this
+   replaced was called `all-rated?`, which names the second condition and is
+   silent about the reveal. The mobile track states the same rule once, under
+   the same name, in `bookrank.views/collective-visible?`.
+
+   THE CAVEAT, and it is the whole of it: this is a RENDERING gate, and the
+   store does not enforce it. Every member can read every other member's
+   ranking document straight from Firestore. See docs/impl/web/index.md, WD3."
+  [book agg-data]
+  (boolean (and (book-revealed? book)
+                agg-data
+                (not (:any-unranked? agg-data)))))
+
 (defn my-score-for-book
   "Compute the current user's score for a specific book based on their ranking.
    Returns the score data merged with :position and :total."
@@ -179,9 +210,18 @@
    track's sort is Dart's, which is explicitly NOT stable, so an implicit
    tiebreak there is a different answer to \"who is up next\" (its T2-D69).
    Both tracks now state every key, and neither leans on what its platform
-   happens to do. See docs/contexts/library/read-models.md, `whos-next`."
+   happens to do. See docs/contexts/library/read-models.md, `whos-next`.
+
+   AWAY MEMBERS ARE LEFT OUT ENTIRELY — not moved to the back, not counted —
+   and the filter is inside this function so that a caller handing over the
+   whole roster gets the spec's answer. Their picks stay attributed to them
+   (the meetings rows and the chooser selector are NOT filtered: an away
+   member is a current member), and because the rotation is computed from the
+   catalog, clearing the mark puts them back at their true place
+   (docs/plan/01-away/decisions.md D17)."
   [books members]
-  (let [member-ids (set (map :id members))
+  (let [members    (remove :away members)
+        member-ids (set (map :id members))
         last-pick (reduce
                    (fn [acc b]
                      (let [uid (:added_by b)
@@ -273,13 +313,13 @@
                             (some (fn [m] (and (= (:id m) current-uid)
                                                (= (:role m) "admin")))
                                   @state/members))
-              ;; Aggregate data for opinions gating. Gated on revealed? so that
-              ;; member scores, opinions and aggregate rank never leak before
-              ;; the book's reveal ceremony.
+              ;; Aggregate data for the collective half of the card. Whether any
+              ;; of it may be drawn is THE GATE, asked once, above.
               all-book-ids (set (keys books-map))
-              agg-scores (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids)
+              agg-scores (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids
+                                                           (state/away-ids))
               agg-data (get agg-scores book-id)
-              all-rated? (and revealed? agg-data (not (:any-unranked? agg-data)))
+              collective? (collective-visible? book agg-data)
               ;; Own opinion
               my-opinion (get (:opinions my-ranking) (keyword book-id) "")
               close! (fn []
@@ -312,7 +352,7 @@
               (when score-data
                 [:span.modal-score-label
                  (str "#" (:position score-data) " / " (:total score-data))])
-              (when (and all-rated? agg-data)
+              (when (and collective? agg-data)
                 (let [sorted-ids (->> agg-scores
                                       (filter (fn [[_ v]] (not (:any-unranked? v))))
                                       (sort-by (fn [[_ v]] (- (:score v))))
@@ -325,7 +365,7 @@
              [:div.modal-author (or (:author book) "")]]
 
             ;; Score
-            (when (or score-data (and all-rated? agg-data))
+            (when (or score-data (and collective? agg-data))
               [:div.modal-score-section
                (when score-data
                  [:div
@@ -333,7 +373,7 @@
                    {:class (score-class (:raw score-data))}
                    (:display score-data)]
                   [:div.modal-score-label "Your Score"]])
-               (when (and all-rated? agg-data)
+               (when (and collective? agg-data)
                  [:div {:style (when score-data {:margin-left "24px"})}
                   [:div.modal-score-big
                    {:class (score-class (:score agg-data))}
@@ -389,7 +429,7 @@
                   "Write Opinion"]))
 
              ;; Other members' opinions (only visible if all have rated)
-             (when all-rated?
+             (when collective?
                [:div.modal-opinions {:style {:margin-top "10px"}}
                 (doall
                  (for [{:keys [uid]} (:member-scores agg-data)
@@ -407,7 +447,7 @@
                      [:div.modal-opinion-text (str "\"" opinion "\"")]]]))])]
 
             ;; Member scores
-            (when (and all-rated? agg-data)
+            (when (and collective? agg-data)
               [:div.modal-section
                [:div.modal-section-label "Member Scores"]
                [:div.member-ratings
@@ -601,7 +641,10 @@
             member-ids   (mapv :id @state/members)
             members-map  (into {} (map (fn [m] [(:id m) m]) @state/members))
             all-book-ids (set (keys books-map))
-            agg-scores   (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids)
+            ;; The roster fuses; the away set narrows the gate's quantifier
+            ;; and the per-book denominators (scoring.cljs).
+            agg-scores   (scoring/compute-aggregate-scores @state/rankings member-ids all-book-ids
+                                                           (state/away-ids))
             ;; Only include revealed books in aggregate sorting
             revealed-books (filter book-revealed? @state/books)
             sorted-books (sort-by (fn [b]
@@ -641,10 +684,14 @@
               [:div.members-row
                (doall
                 (for [m @state/members]
+                  ;; Away members stay in the row, marked (D19): dimmed, with
+                  ;; the dashed "provisional" ring.
                   [:img.member-avatar
                    {:key (:id m)
+                    :class (when (:away m) "away")
                     :src (or (:photo_url m) "")
-                    :title (or (:display_name m) (:email m))
+                    :title (str (or (:display_name m) (:email m))
+                                (when (:away m) " (away)"))
                     :alt (or (:display_name m) "")}]))]
               [:span.invite-code
                {:on-click
@@ -708,7 +755,8 @@
                   "Collective rank uses "
                   [:strong "reciprocal rank fusion"]
                   " to merge everyone's lists. Scores (1–5) follow a normal distribution. "
-                  "A score only appears once every member has ranked or skipped a book."]
+                  "A score only appears once every participating member has ranked or skipped a book; "
+                  "a member marked away is not waited for, but everything they rank still counts."]
                  ;; Revealed books — normal aggregate view
                  (doall
                   (map-indexed
@@ -730,17 +778,20 @@
                            [:div.meeting-location dt])]
                         (if show-score?
                           [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}}
+                           ;; `m` is the book's own population (scoring.md §3):
+                           ;; the awaited, plus away members who dealt with it.
                            (let [ranked-count (count (:member-scores score-data))]
                              (when (< ranked-count 3)
                                [:div.book-voters
-                                (str "Only " ranked-count " of " (count member-ids) " ranked")]))
+                                (str "Only " ranked-count " of " (:population score-data) " ranked")]))
                            [:div.book-score {:class (score-class (:score score-data))}
                             (:display score-data)]]
                           [:div {:style {:text-align "right" :flex-shrink 0 :min-width "80px"}
-                                 :title "Score appears once every member has ranked or skipped this book"}
+                                 :title "Score appears once every participating member has ranked or skipped this book"}
                            [:div.book-score {:style {:color "var(--color-muted)"}} "\u2014"]
                            (when score-data
-                             [:div.book-voters (str (:voter-count score-data) "/" (count member-ids))])])]))
+                             ;; Never reads m/m: fully-dealt-with? <=> voter-count = m.
+                             [:div.book-voters (str (:voter-count score-data) "/" (:population score-data))])])]))
                    sorted-books))
                  ;; Unrevealed books — locked, open modal for reveal
                  (when (seq unrevealed-books)
@@ -816,7 +867,10 @@
                       [:div.book-title
                        (or (:display_name m) "Unknown")
                        (when (= (:role m) "admin")
-                         [:span.role-tag "Admin"])]
+                         [:span.role-tag "Admin"])
+                       (when (:away m)
+                         [:span.away-tag {:title "Not waited for: books show their scores without this member's vote. Whatever they rank still counts."}
+                          "Away"])]
                       [:div.book-author (or (:email m) "")]]
                      [:div {:style {:display "flex" :gap "8px" :align-items "center"}}
                       (let [member-ranking (get @state/rankings (:id m))]

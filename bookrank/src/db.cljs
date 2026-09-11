@@ -362,12 +362,19 @@
                  (fn [err] (js/console.error "[db] subscribe-books error:" err)))))
 
 (defn subscribe-members!
-  "Subscribe to real-time updates on a club's members."
+  "Subscribe to real-time updates on a club's members.
+   Each member carries `:away` as a boolean — the spec's Away mark
+   (docs/contexts/membership/index.md); the field is optional in the store and
+   ABSENT MEANS FALSE, so it is normalised here rather than at every reader."
   [club-id members-atom]
   (when-let [db auth/firebase-db]
     (.onSnapshot (.collection db (str "clubs/" club-id "/members"))
                  (fn [snapshot]
-                   (reset! members-atom (mapv doc->map (seq (.-docs snapshot)))))
+                   (reset! members-atom
+                           (mapv (fn [doc]
+                                   (let [m (doc->map doc)]
+                                     (assoc m :away (true? (:away m)))))
+                                 (seq (.-docs snapshot)))))
                  (fn [err] (js/console.error "[db] subscribe-members error:" err)))))
 
 (defn subscribe-rankings!

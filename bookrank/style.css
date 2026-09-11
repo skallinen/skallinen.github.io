@@ -765,6 +765,13 @@ body {
     border-color: var(--color-accent);
 }
 
+/* An away member (docs/plan/01-away): still in the row, dimmed, with the
+   dashed "provisional" ring — the house idiom for "not waited for". */
+.member-avatar.away {
+    opacity: 0.45;
+    border-style: dashed;
+}
+
 /* ========================================
    Invite Code
    ======================================== */
@@ -1605,6 +1612,23 @@ select.modal-date-input {
     letter-spacing: 0.12em;
     color: var(--color-muted);
     margin-left: 8px;
+}
+
+/* The Away state on the roster: an uppercase micro-label in a dashed 1.5px
+   rule — the same "provisional / withheld" idiom as the unrevealed badge. */
+.away-tag {
+    display: inline-block;
+    font-size: 0.55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-muted);
+    padding: 1px 6px;
+    border: var(--rule) dashed var(--color-border);
+    border-radius: var(--border-radius);
+    margin-left: 8px;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 /* Explanatory note above a list (aggregate/meetings tabs) */

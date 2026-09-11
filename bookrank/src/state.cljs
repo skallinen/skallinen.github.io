@@ -79,6 +79,21 @@
   (into {} (map (fn [m] [(:id m) m]) @members)))
 
 (defn member-ids
-  "Derive a vec of member IDs."
+  "Derive a vec of member IDs — the WHOLE current roster, away members
+   included. This is the population that fuses (scoring.md §3, \"only current
+   members fuse\"). It is NOT the population the gate waits for; see
+   `awaited-ids`. A call site that needs one of the two has to say which."
   []
   (mapv :id @members))
+
+(defn away-ids
+  "The set of current members marked Away (docs/plan/01-away). The gate does
+   not wait for them; their contributions still count in full."
+  []
+  (into #{} (comp (filter :away) (map :id)) @members))
+
+(defn awaited-ids
+  "The gate's quantifier: current members who are not away
+   (docs/contexts/ranking/scoring.md §3, `fully-dealt-with?`)."
+  []
+  (into [] (comp (remove :away) (map :id)) @members))

@@ -62,16 +62,35 @@
 
 (defn compute-aggregate-scores
   "Given a map of {uid -> {:order [book-ids...] :unread [book-ids...]}},
-   a seq of member-ids, and a set of all book IDs in the club,
-   compute the aggregate score for each book using RRF.
+   a seq of member-ids (the CURRENT ROSTER), a set of all book IDs in the
+   club, and optionally the set of roster members who are AWAY, compute the
+   aggregate score for each book using RRF.
    A book is 'unranked' for a member if it's not in their order or unread.
-   If any member has a book unranked, the aggregate is hidden.
+   If any member WHO IS NOT AWAY has a book unranked, the aggregate is hidden
+   (docs/contexts/ranking/scoring.md §3, `fully-dealt-with?`).
    After RRF sorting, display scores are assigned using the normal distribution
    system (same as individual rankings).
    Returns a map of {book-id -> {:score :display :rrf-score :voter-count
-                                  :member-scores :unread-by :any-unranked?}}."
-  [all-rankings member-ids all-book-ids]
+                                  :member-scores :unread-by :population
+                                  :any-unranked?}}.
+
+   TWO POPULATIONS, and they are deliberately not the same set
+   (docs/plan/01-away/decisions.md D10, D11):
+     - the ROSTER (`member-ids`) is the fusion filter: every current member's
+       ranking fuses, away or not;
+     - the AWAITED (`member-ids` minus `away-ids`) is the gate's quantifier:
+       only they can hold a book back.
+   The three-argument arity means \"nobody is away\" and is byte-for-byte the
+   pre-Away behaviour; the cross-track parity harness calls it that way."
+  ([all-rankings member-ids all-book-ids]
+   (compute-aggregate-scores all-rankings member-ids all-book-ids #{}))
+  ([all-rankings member-ids all-book-ids away-ids]
   (let [k 60  ;; RRF constant
+        ;; Away is a mark ON A ROSTER MEMBER; an id that is not on the roster
+        ;; can be neither awaited nor counted, so the set is intersected.
+        away         (into #{} (filter (set member-ids)) away-ids)
+        ;; The gate's quantifier: current members who are not away.
+        awaited      (remove #(contains? away %) member-ids)
         ;; Build per-member sets for quick lookup (all members)
         member-known (into {}
                           (map (fn [mid]
@@ -80,6 +99,10 @@
                                        unread-set (set (or (:unread ranking) []))]
                                    [mid {:order order-set :unread unread-set}]))
                                member-ids))
+        dealt-with?  (fn [mid book-id]
+                       (let [m (get member-known mid)]
+                         (or (contains? (:order m) book-id)
+                             (contains? (:unread m) book-id))))
         ;; Collect per-book RRF scores and member scores
         book-rrf     (atom {})   ;; {book-id -> rrf-total}
         book-rankers (atom {})   ;; {book-id -> count of members who ranked it}
@@ -128,18 +151,25 @@
                              (let [{:keys [raw display]} (rank->score idx total-scored)
                                    unread-set (get @book-unread book-id #{})
                                    entries (get @book-members book-id [])
+                                   ;; Only the awaited can hold a book back.
                                    any-unranked?
-                                   (some (fn [mid]
-                                           (let [m (get member-known mid)]
-                                             (and (not (contains? (:order m) book-id))
-                                                  (not (contains? (:unread m) book-id)))))
-                                         member-ids)]
+                                   (some (fn [mid] (not (dealt-with? mid book-id)))
+                                         awaited)
+                                   ;; The per-book population `m`: everyone
+                                   ;; awaited, plus every away member who has
+                                   ;; dealt with THIS book. The denominator of
+                                   ;; the progress count and of the caveat;
+                                   ;; fully-dealt-with? <=> voter-count = m.
+                                   population
+                                   (+ (count awaited)
+                                      (count (filter #(dealt-with? % book-id) away)))]
                                [book-id {:score          raw
                                          :display        display
                                          :rrf-score      rrf-score
                                          :voter-count    (+ (count entries) (count unread-set))
                                          :member-scores  entries
                                          :unread-by      unread-set
+                                         :population     population
                                          :any-unranked?  (boolean any-unranked?)}]))
                            scored-books)]
-      (into {} scored-with-pos))))
+      (into {} scored-with-pos)))))
