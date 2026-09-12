@@ -1,0 +1,6 @@
+node_modules/
+public/app.js
+data/
+test-results/
+playwright-report/
+.env
