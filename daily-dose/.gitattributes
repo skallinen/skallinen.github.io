@@ -1,0 +1,2 @@
+# Bundled SDK template strings contain significant trailing spaces.
+assets/app.js -whitespace linguist-generated=true

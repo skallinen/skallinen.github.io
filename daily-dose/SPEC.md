@@ -2,6 +2,11 @@
 
 See [README.md](README.md) for operation and integration.
 
+Production uses GitHub Pages + direct Firebase Auth/Firestore, like Bookrank and
+Family Agenda. The Node/SQLite version is retained only as a local demo/test
+harness. In the rules below, server time/access control means Firebase's
+`request.time` and deployed Firestore security rules.
+
 - Same Google identity and existing club membership as Bookrank; no new signup,
   roster, invitation system or changes to Bookrank data.
 - An organiser selects a club, Day 1 date and IANA timezone (default
@@ -29,7 +34,9 @@ See [README.md](README.md) for operation and integration.
   withheld by the server. After reveal, member read statistics and comments
   become available. Reveal is permanent; late reading adds catch-up activity
   without concealing already published comments. Removed members lose access
-  immediately and no longer block; membership remains owned by Bookrank.
+  immediately; their pending entries stop blocking when the organiser next opens
+  the app and synchronises the programme roster with Bookrank. New club members
+  are admitted at that sync. Membership remains owned by Bookrank.
 - On-day means the server received the checkmark on that date. No backdating,
   offline completion claims or client-provided timestamps. No scheduling by
   elapsed 24-hour intervals: daylight-saving days are still calendar days.

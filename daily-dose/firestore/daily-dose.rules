@@ -1,0 +1,121 @@
+    // Daily Dose only. Append inside /databases/{database}/documents.
+    // Bookrank / Agenda rules are deliberately not replaced by a local template.
+    function doseProgram(c) {
+      return get(/databases/$(database)/documents/dailyDose/$(c)).data;
+    }
+    function doseMember(c) {
+      return request.auth != null
+        && request.auth.uid in doseProgram(c).participantUids
+        && exists(/databases/$(database)/documents/clubs/$(c)/members/$(request.auth.uid));
+    }
+    function doseOrganizer(c) {
+      return doseMember(c) && request.auth.uid in doseProgram(c).organizerUids;
+    }
+    function doseWork(c, w) {
+      return get(/databases/$(database)/documents/dailyDose/$(c)/works/$(w)).data;
+    }
+    function doseReleased(c, w) {
+      return doseWork(c, w).openAt is timestamp && doseWork(c, w).openAt <= request.time;
+    }
+    function dosePending(c, w) {
+      return get(/databases/$(database)/documents/dailyDose/$(c)/gates/$(w)).data.pending;
+    }
+    function doseGateClear(c, w) {
+      return dosePending(c, w).toSet().intersection(doseProgram(c).participantUids.toSet()).size() == 0;
+    }
+    match /dailyDose/{club} {
+      allow get: if doseMember(club);
+      allow list, create, delete: if false;
+      // Scheduling is a trusted organiser action; all reading dates then freeze.
+      allow update: if doseOrganizer(club) && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantUids'])
+          && request.resource.data.participantUids is list
+          && request.resource.data.participantUids.size() <= 100
+          && request.auth.uid in request.resource.data.participantUids)
+        || ((resource.data.startDate == null || resource.data.boundaries[0] > request.time)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['startDate', 'timezone', 'boundaries', 'updatedAt'])
+          && request.resource.data.startDate is string && request.resource.data.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.timezone is string && request.resource.data.timezone.size() <= 100
+          && request.resource.data.boundaries is list && request.resource.data.boundaries.size() == 51
+          && request.resource.data.boundaries[0] is timestamp
+          && request.resource.data.boundaries[0] > request.time - duration.value(26, 'h')
+          && request.resource.data.updatedAt == request.time));
+
+      match /sessions/{uid} {
+        allow get: if doseMember(club) && request.auth.uid == uid;
+        allow create, update: if doseMember(club) && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+        allow list, delete: if false;
+      }
+      match /texts/{work} {
+        allow get: if doseMember(club) && doseReleased(club, work);
+        allow list, write: if false;
+      }
+      match /works/{work} {
+        allow read: if doseMember(club) && resource.data.openAt >= timestamp.date(1970, 1, 1) && resource.data.openAt <= request.time;
+        allow create, delete: if false;
+        allow update: if doseMember(club) && (
+          // A blind publish attempt succeeds only when Firebase verifies the gate.
+          (resource.data.openAt is timestamp && resource.data.closeAt <= request.time
+            && resource.data.revealedAt == null && request.resource.data.revealedAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revealedAt'])
+            && doseGateClear(club, work))
+          || (doseOrganizer(club)
+            && (doseProgram(club).startDate == null || doseProgram(club).boundaries[0] > request.time)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['openAt', 'closeAt'])
+            && request.resource.data.openAt == getAfter(/databases/$(database)/documents/dailyDose/$(club)).data.boundaries[resource.data.day - 1]
+            && request.resource.data.closeAt == getAfter(/databases/$(database)/documents/dailyDose/$(club)).data.boundaries[resource.data.day]));
+        match /reads/{uid} {
+          function rowShape(d) {
+            return d.keys().hasAll(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
+              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
+              && d.status in ['reading', 'done', 'withdrawn'] && d.startedAt is timestamp
+              && d.joinedOnDay is bool && d.comment is string && d.comment.matches('(?s)^.{0,140}$')
+              && d.updatedAt == request.time;
+          }
+          function pendingMatches(d) {
+            return (request.auth.uid in getAfter(/databases/$(database)/documents/dailyDose/$(club)/gates/$(work)).data.pending)
+              == (d.status == 'reading' && d.joinedOnDay);
+          }
+          function starts(d) {
+            return d.status in ['reading', 'done'] && d.startedAt == request.time
+              && d.joinedOnDay == (request.time < doseWork(club, work).closeAt)
+              && d.comment == '' && d.commentAt == null
+              && ((d.status == 'reading' && d.completedAt == null) || (d.status == 'done' && d.completedAt == request.time));
+          }
+          function changes(d, old) {
+            return (old.status == 'withdrawn' && starts(d))
+              || (old.status == 'reading' && d.status in ['done', 'withdrawn']
+                && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
+                && d.comment == '' && d.commentAt == null
+                && ((d.status == 'done' && d.completedAt == request.time) || (d.status == 'withdrawn' && d.completedAt == null)))
+              || (old.status == 'done' && d.status == 'done' && d.completedAt == old.completedAt
+                && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay && d.commentAt == request.time);
+          }
+          allow get: if doseMember(club) && (request.auth.uid == uid || doseWork(club, work).revealedAt is timestamp);
+          allow list: if doseMember(club) && doseWork(club, work).revealedAt is timestamp;
+          allow create: if doseMember(club) && request.auth.uid == uid && doseReleased(club, work)
+            && rowShape(request.resource.data) && starts(request.resource.data) && pendingMatches(request.resource.data);
+          allow update: if doseMember(club) && request.auth.uid == uid && doseReleased(club, work)
+            && rowShape(request.resource.data) && changes(request.resource.data, resource.data) && pendingMatches(request.resource.data);
+          allow delete: if false;
+        }
+      }
+      match /gates/{work} {
+        function validGateChange() {
+          let uid = request.auth.uid;
+          let row = getAfter(/databases/$(database)/documents/dailyDose/$(club)/works/$(work)/reads/$(uid)).data;
+          let withoutMe = resource.data.pending.toSet().difference([uid].toSet());
+          let expected = row.status == 'reading' && row.joinedOnDay ? withoutMe.union([uid].toSet()) : withoutMe;
+          return row.updatedAt == request.time && request.resource.data.actor == uid
+            && request.resource.data.updatedAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pending', 'actor', 'updatedAt'])
+            && request.resource.data.pending is list && request.resource.data.pending.size() <= 100
+            && request.resource.data.pending.size() == request.resource.data.pending.toSet().size()
+            && request.resource.data.pending.toSet() == expected;
+        }
+        // No participant (including the organiser) can inspect private group stats.
+        allow read, create, delete: if false;
+        allow update: if doseMember(club) && doseReleased(club, work) && validGateChange();
+      }
+    }

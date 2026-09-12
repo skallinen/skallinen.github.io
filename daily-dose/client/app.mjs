@@ -1,9 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { esc, tableHtml } from './text.mjs';
+import { firebaseConfig } from './firebase-config.mjs';
+import { createFirestoreBackend } from './firestore.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
+const firestoreMode = document.querySelector('meta[name="daily-dose-backend"]')?.content === 'firestore';
+let backend;
 const state = { config: null, auth: null, user: null, demoToken: null, clubs: [], clubId: null,
   feed: null, filter: 'all', drafts: new Map(), pending: new Set(), generation: 0 };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
@@ -19,6 +23,7 @@ function notify(message, error = false) {
 }
 
 async function api(url, options = {}) {
+  if (backend) return backend.request(url, options);
   const token = state.demoToken || await state.user?.getIdToken();
   const response = await fetch(`/api${url}`, { ...options, headers: {
     ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json',
@@ -28,7 +33,7 @@ async function api(url, options = {}) {
   return result;
 }
 
-const brand = `<a href="/" class="brand" aria-label="Daily Dose home"><span class="brand-mark">d.</span><span>Daily Dose<small>BETTER BOOK CLUB</small></span></a>`;
+const brand = `<a href="${firestoreMode ? './' : '/'}" class="brand" aria-label="Daily Dose home"><span class="brand-mark">d.</span><span>Daily Dose<small>BETTER BOOK CLUB</small></span></a>`;
 
 function shell(content) {
   root.innerHTML = `${state.config?.demo ? '<div class="demo-banner">LOCAL DEMO · fictional participants · no real club data</div>' : ''}
@@ -48,6 +53,7 @@ function login() {
 }
 
 async function signedIn(user, demoToken = null) {
+  backend?.reset();
   reader.close(); reader.innerHTML = '';
   state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.drafts.clear();
   if (!user) { state.clubs = []; state.clubId = null; login(); return; }
@@ -81,7 +87,7 @@ function render() {
   if (!feed.campaign) {
     shell(`<section class="empty"><p class="eyebrow">${esc(feed.club.name)}</p><h1>Every story has<br>a beginning.</h1>
       ${feed.organizer ? scheduleForm(null) : '<p>Your organiser will set Day 1. Nothing is unlocked yet.</p>'}
-      <details class="help"><summary>Organiser setup</summary><p>The server operator can enable scheduling for your Firebase UID:</p><code>${esc(feed.me.uid)}</code></details></section>`);
+      ${firestoreMode ? '<p class="fine-print">Uses your existing Bookrank club membership.</p>' : `<details class="help"><summary>Organiser setup</summary><p>The server operator can enable scheduling for your Firebase UID:</p><code>${esc(feed.me.uid)}</code></details>`}</section>`);
     return;
   }
   const campaign = feed.campaign;
@@ -239,10 +245,12 @@ document.addEventListener('submit', async event => {
 reader.addEventListener('click', e => { if (e.target === reader) reader.close(); });
 
 try {
-  state.config = await api('/config');
+  state.config = firestoreMode ? { demo: false, firebase: firebaseConfig } : await api('/config');
   if (state.config.demo) login();
   else {
-    state.auth = getAuth(initializeApp(state.config.firebase));
+    const app = initializeApp(state.config.firebase);
+    state.auth = getAuth(app);
+    if (firestoreMode) backend = createFirestoreBackend(app, () => state.user);
     onAuthStateChanged(state.auth, user => signedIn(user));
   }
 } catch (error) { root.innerHTML = `<main class="empty"><h1>We couldn’t open the reading room.</h1><p>${esc(error.message)}</p><a href="/">Try again</a></main>`; }
