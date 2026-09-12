@@ -19,6 +19,10 @@ export function createStore(filename = ':memory:') {
       club_id TEXT NOT NULL, work_id TEXT NOT NULL, revealed_at INTEGER NOT NULL,
       PRIMARY KEY(club_id, work_id)
     );`);
+  // Additive migration: existing local checkmarks and comments are preserved.
+  if (!db.prepare('PRAGMA table_info(reads)').all().some(c => c.name === 'rating')) {
+    db.exec('ALTER TABLE reads ADD COLUMN rating INTEGER CHECK(rating IS NULL OR (typeof(rating) = \'integer\' AND rating BETWEEN 0 AND 5))');
+  }
   return {
     db,
     campaign: club => db.prepare('SELECT * FROM campaigns WHERE club_id=?').get(club),

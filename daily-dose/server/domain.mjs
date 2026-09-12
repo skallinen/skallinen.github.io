@@ -37,6 +37,18 @@ export function validateComment(value) {
   return value.trim();
 }
 
+export function validateRating(value) {
+  if (value !== null && (!Number.isInteger(value) || value < 0 || value > 5)) {
+    throw new Problem(400, 'Choose a whole-star rating from 0 to 5, or clear it.');
+  }
+  return value;
+}
+
+export function ratingSummary(rows) {
+  const values = rows.map(r => r.rating).filter(v => Number.isInteger(v) && v >= 0 && v <= 5);
+  return { count: values.length, average: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null };
+}
+
 export function released(work, campaign, now) {
   return campaign && addDays(campaign.start_date, work.day - 1) <= localDate(now, campaign.timezone);
 }

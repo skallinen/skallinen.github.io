@@ -68,9 +68,11 @@
         match /reads/{uid} {
           function rowShape(d) {
             return d.keys().hasAll(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
-              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
+              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'updatedAt'])
               && d.status in ['reading', 'done', 'withdrawn'] && d.startedAt is timestamp
               && d.joinedOnDay is bool && d.comment is string && d.comment.matches('(?s)^.{0,140}$')
+              && (d.get('rating', null) == null || (d.rating is int && d.rating >= 0 && d.rating <= 5))
+              && (d.status == 'done' || d.get('rating', null) == null)
               && d.updatedAt == request.time;
           }
           function pendingMatches(d) {
@@ -90,7 +92,9 @@
                 && d.comment == '' && d.commentAt == null
                 && ((d.status == 'done' && d.completedAt == request.time) || (d.status == 'withdrawn' && d.completedAt == null)))
               || (old.status == 'done' && d.status == 'done' && d.completedAt == old.completedAt
-                && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay && d.commentAt == request.time);
+                && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
+                && d.diff(old).affectedKeys().hasOnly(['comment', 'commentAt', 'rating', 'updatedAt'])
+                && ((d.comment == old.comment && d.commentAt == old.commentAt) || d.commentAt == request.time));
           }
           allow get: if doseMember(club) && (request.auth.uid == uid || doseWork(club, work).revealedAt is timestamp);
           allow list: if doseMember(club) && doseWork(club, work).revealedAt is timestamp;

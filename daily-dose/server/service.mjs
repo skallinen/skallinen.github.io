@@ -1,5 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
-import { Problem, addDays, dayNumber, localDate, validateSchedule, validateComment, released, gateOpen } from './domain.mjs';
+import { Problem, addDays, dayNumber, localDate, validateSchedule, validateComment, validateRating, ratingSummary, released, gateOpen } from './domain.mjs';
 
 const clean = html => sanitizeHtml(html, {
   allowedTags: ['i', 'b', 'em', 'strong', 'br', 'sup', 'sub', 'u'], allowedAttributes: {},
@@ -29,18 +29,19 @@ export function createService(store, anthology, clock = () => Date.now()) {
     const date = addDays(campaign.start_date, work.day - 1);
     const result = { ...meta(work), date, mine: own ? {
       status: own.status, onTime: Boolean(own.on_time), completedAt: own.completed_at,
-      comment: own.comment, joinedOnDay: Boolean(own.joined_on_day),
+      comment: own.comment, rating: own.rating ?? null, joinedOnDay: Boolean(own.joined_on_day),
     } : null, revealed: Boolean(reveal),
     revealReason: reveal ? null : localDate(clock(), campaign.timezone) <= date ? 'day-open' : 'readers-finishing' };
     // Single gate: private rows never enter the response before publication.
     if (reveal) {
       const completed = rows.filter(r => r.status === 'done' && club.members.has(r.uid));
       result.collective = {
+        ratings: ratingSummary(completed),
         revealedAt: reveal.revealed_at,
         onTime: completed.filter(r => r.on_time).length,
         catchUp: completed.filter(r => !r.on_time).length,
         readers: completed.map(r => ({ uid: r.uid, name: club.members.get(r.uid).name,
-          onTime: Boolean(r.on_time), completedAt: r.completed_at })),
+          onTime: Boolean(r.on_time), completedAt: r.completed_at, rating: r.rating ?? null })),
         comments: completed.filter(r => r.comment).sort((a, b) => b.comment_at - a.comment_at || a.uid.localeCompare(b.uid))
           .map(r => ({ uid: r.uid, name: club.members.get(r.uid).name, text: r.comment,
             at: r.comment_at, onTime: Boolean(r.on_time) })),
@@ -98,10 +99,11 @@ export function createService(store, anthology, clock = () => Date.now()) {
     },
     act(user, club, workId, payload) {
       const { action } = payload;
-      if (!['start', 'complete', 'withdraw', 'comment'].includes(action)) throw new Problem(400, 'Unknown reading action.');
+      if (!['start', 'complete', 'withdraw', 'comment', 'rate'].includes(action)) throw new Problem(400, 'Unknown reading action.');
       // Reject time/status/UID injection instead of silently accepting backdating.
-      if (Object.keys(payload).some(k => !['action', 'comment'].includes(k))) throw new Problem(400, 'Unexpected reading fields.');
+      if (Object.keys(payload).some(k => !['action', 'comment', 'rating'].includes(k)) || ('rating' in payload && action !== 'rate')) throw new Problem(400, 'Unexpected reading fields.');
       const comment = 'comment' in payload ? validateComment(payload.comment) : undefined;
+      const rating = action === 'rate' ? validateRating(payload.rating) : undefined;
       return store.transaction(() => {
         const { work, campaign } = available(club.id, workId);
         const now = clock();
@@ -127,6 +129,9 @@ export function createService(store, anthology, clock = () => Date.now()) {
           if (row?.status === 'done') throw new Problem(409, 'A recorded read cannot be undone or backdated.');
           if (row) store.db.prepare("UPDATE reads SET status='withdrawn' WHERE club_id=? AND work_id=? AND uid=?")
             .run(club.id, workId, user.uid);
+        } else if (action === 'rate') {
+          if (row?.status !== 'done') throw new Problem(409, 'Check off the reading before rating it.');
+          store.db.prepare('UPDATE reads SET rating=? WHERE club_id=? AND work_id=? AND uid=?').run(rating, club.id, workId, user.uid);
         } else {
           if (row?.status !== 'done') throw new Problem(409, 'Check off the reading before posting a comment.');
           if (comment === undefined) throw new Problem(400, 'A comment is required.');

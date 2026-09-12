@@ -26,13 +26,17 @@ taken from Bookrank's self-editable member role.
 Future texts are blocked by Firestore rules. Opening a piece on its day joins
 its reading group. Checkmarks use Firebase server timestamps and cannot be
 backdated or undone. A later checkmark is catch-up. After completion, each reader
-can write or edit one optional comment of at most 140 Unicode code points.
+can write or edit one optional comment of at most 140 Unicode code points,
+and give an optional whole-star rating from 0 to 5. Zero is a real rating;
+“Clear” removes it. Ratings can be changed without changing reading timestamps.
 
-Comments and other readers' statistics become readable only after the day ends
+Comments, ratings and other readers' statistics become readable only after the day ends
 and all on-day starters have checked off or withdrawn with “Not reading today.”
 The pending-reader document itself is never readable by participants, including
 the organiser. Atomic writes and rules ensure a participant can alter only their
 own entry in that group. Once published, a discussion cannot be hidden again.
+After reveal, individual ratings and the average/count are shown; unrated texts
+are excluded from the average. Existing reading records need no data migration.
 
 Firestore listeners update cached data; the 30-second UI refresh does not
 re-download the whole collection each time. Publication is checked by active
@@ -81,6 +85,9 @@ remain in the private editorial workspace's ignored `data/` directory.
 - `scripts/deploy-rules.mjs`: validates, checks the live backup and appends that
   fragment; `--apply` performs deployment. It refuses a changed live baseline or
   a second append. Subsequent updates need a newly reviewed live baseline.
+- `scripts/update-rules.mjs FULL_BACKUP OLD_FRAGMENT [--apply]`: validates and
+  replaces exactly the inspected Daily Dose fragment in unchanged live rules.
+  Rules for other apps are preserved byte-for-byte; concurrent releases abort.
 - `scripts/seed-firestore.mjs`: prepares the BBC programme and 150 sanitised
   texts; `--apply` commits 451 create-only documents atomically. Existing data
   causes the entire operation to abort. Never overwrite a programme to redeploy.

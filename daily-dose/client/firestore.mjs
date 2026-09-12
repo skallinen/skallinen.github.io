@@ -1,6 +1,6 @@
 import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, Timestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
-import { dayNumber, validateComment } from '../server/domain.mjs';
+import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
 const noAccess = e => e.code === 'permission-denied';
@@ -58,7 +58,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       return (await getDocFromServer(workRef(c, w.id))).data();
     } catch (e) { if (!noAccess(e)) throw e; return w; }
   }
-  const mine = (r, w) => r ? { status: r.status, onTime: r.completedAt != null && millis(r.completedAt) < millis(w.closeAt), completedAt: millis(r.completedAt), comment: r.comment, joinedOnDay: r.joinedOnDay } : null;
+  const mine = (r, w) => r ? { status: r.status, onTime: r.completedAt != null && millis(r.completedAt) < millis(w.closeAt), completedAt: millis(r.completedAt), comment: r.comment, rating: r.rating ?? null, joinedOnDay: r.joinedOnDay } : null;
   async function project(c, input, ctx) {
     const w = await reveal(c, input, ctx.now);
     const { openAt, closeAt, revealedAt, ...meta } = w;
@@ -71,8 +71,8 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       result.mine = mine(rows.docs.find(d => d.id === user().uid)?.data(), w);
       const done = rows.docs.map(d => ({ uid: d.id, ...d.data() })).filter(r => r.status === 'done' && ctx.members.has(r.uid));
       const onTime = r => millis(r.completedAt) < millis(closeAt);
-      result.collective = { revealedAt: millis(revealedAt), onTime: done.filter(onTime).length, catchUp: done.filter(r => !onTime(r)).length,
-        readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(r.completedAt), onTime: onTime(r) })),
+      result.collective = { ratings: ratingSummary(done), revealedAt: millis(revealedAt), onTime: done.filter(onTime).length, catchUp: done.filter(r => !onTime(r)).length,
+        readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(r.completedAt), onTime: onTime(r), rating: r.rating ?? null })),
         comments: done.filter(r => r.comment).sort((a, b) => millis(b.commentAt) - millis(a.commentAt) || a.uid.localeCompare(b.uid))
           .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), onTime: onTime(r) })) };
     }
@@ -107,9 +107,10 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     if (watches.has(`p:${c}`)) watches.get(`p:${c}`).snap = latest;
   }
   async function act(c, id, payload, retry = true) {
-    if (!['start','complete','withdraw','comment'].includes(payload.action)) throw new Error('Unknown reading action.');
-    if (Object.keys(payload).some(k => !['action','comment'].includes(k))) throw new Error('Unexpected reading fields.');
+    if (!['start','complete','withdraw','comment','rate'].includes(payload.action)) throw new Error('Unknown reading action.');
+    if (Object.keys(payload).some(k => !['action','comment','rating'].includes(k)) || ('rating' in payload && payload.action !== 'rate')) throw new Error('Unexpected reading fields.');
     const comment = payload.action === 'comment' ? validateComment(payload.comment) : null;
+    const rating = payload.action === 'rate' ? validateRating(payload.rating) : null;
     const now = await clock(c) + 1000;
     try {
       await runTransaction(db, async tx => {
@@ -127,6 +128,9 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
           if (row?.status === 'done') throw new Error('A recorded read cannot be undone.');
           if (!row || row.status === 'withdrawn') return;
           next = { ...row, status: 'withdrawn' };
+        } else if (payload.action === 'rate') {
+          if (row?.status !== 'done') throw new Error('Check off the reading before rating it.');
+          next = { ...row, rating };
         } else {
           if (row?.status !== 'done') throw new Error('Check off the reading before posting a comment.');
           next = { ...row, comment, commentAt: serverTimestamp() };

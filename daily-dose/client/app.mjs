@@ -3,6 +3,7 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signO
 import { esc, tableHtml } from './text.mjs';
 import { firebaseConfig } from './firebase-config.mjs';
 import { createFirestoreBackend } from './firestore.mjs';
+import { ratingControl, sharedRatings } from './ratings.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -127,9 +128,11 @@ function workCard(work) {
       ${done ? `<span class="completion"><span aria-hidden="true">✓</span> ${work.mine.onTime ? 'Read on the day' : 'Caught up'}</span>` : `<button class="check-button" data-complete="${work.id}" ${state.pending.has(work.id) ? 'disabled' : ''}><span class="checkbox" aria-hidden="true"></span>Check off as read</button>`}
     </div>
     ${reading ? `<div class="reading-status"><span>${work.mine.joinedOnDay ? 'You joined this day’s reading group.' : 'Catch up whenever you’re ready.'}</span><button class="text-button" data-withdraw="${work.id}">Not reading today</button></div>` : ''}
+    ${done ? ratingControl(work, state.pending.has(work.id)) : ''}
     ${done ? `<form class="comment-form" data-comment-form="${work.id}"><label for="comment-${work.id}">Your thought <span>${work.revealed ? 'Shared with the club' : 'Private until the reveal'}</span></label><textarea id="comment-${work.id}" data-draft="${work.id}" rows="2" placeholder="What stayed with you?" aria-describedby="count-${work.id}">${esc(draft)}</textarea><div class="comment-controls"><span id="count-${work.id}" class="char-count ${count > 140 ? 'over' : ''}">${count} / 140</span><button class="save-button" type="submit" ${count > 140 || state.pending.has(work.id) ? 'disabled' : ''}>Save thought</button></div></form>` : ''}
     <div class="reveal-section">${work.revealed ? `<div class="reveal-heading"><span class="eyebrow">THE CLUB’S THOUGHTS</span><span>${collective.onTime} on time · ${collective.catchUp} caught up</span></div>
-      ${collective.readers.length ? `<details class="reader-stats"><summary>Who read this?</summary><ul>${collective.readers.map(r => `<li><span>${esc(r.name)}</span><span>${r.onTime ? 'On the day' : 'Catch-up'}</span></li>`).join('')}</ul></details>` : ''}
+      ${sharedRatings(collective)}
+      ${collective.readers.length ? `<details class="reader-stats"><summary>Who read this?</summary><ul>${collective.readers.map(r => `<li><span>${esc(r.name)}</span><span class="reader-rating">${r.rating == null ? 'Not rated' : `${r.rating} / 5 ★`}</span><span>${r.onTime ? 'On the day' : 'Catch-up'}</span></li>`).join('')}</ul></details>` : ''}
       ${collective.comments.map(c => `<div class="tweet"><span class="avatar" aria-hidden="true">${esc(c.name.slice(0,1))}</span><div><div class="tweet-meta"><strong>${esc(c.name)}</strong><span>${c.onTime ? 'On the day' : 'Catch-up'}</span></div><p>${esc(c.text)}</p></div></div>`).join('') || '<p class="empty-thoughts">No thoughts yet. A few words are enough.</p>'}`
       : `<p class="locked"><span aria-hidden="true">◇</span>${work.revealReason === 'day-open' ? 'Thoughts stay private until the day is over and its readers finish.' : 'Waiting for this day’s reading group to finish. Thoughts and stats stay private.'}</p>`}</div>
   </article>`;
@@ -154,6 +157,7 @@ async function act(id, payload) {
     await refresh();
     if (payload.action === 'complete') notify('Checked off. Your reading time is saved.');
     if (payload.action === 'comment') notify(payload.comment.trim() ? 'Thought saved.' : 'Thought removed.');
+    if (payload.action === 'rate') notify(payload.rating === null ? 'Rating cleared.' : `Rating saved: ${payload.rating} / 5.`);
     if (payload.action === 'withdraw') notify('You’ve left this reading group. You can catch up later.');
   } finally { state.pending.delete(id); render(); }
 }
@@ -189,6 +193,12 @@ async function run(event) {
   if (button.dataset.read) return openReading(button.dataset.read);
   if (button.dataset.complete) return act(button.dataset.complete, { action: 'complete' });
   if (button.dataset.withdraw) return act(button.dataset.withdraw, { action: 'withdraw' });
+  if (button.dataset.rate) {
+    const id = button.dataset.rate, value = button.dataset.rating;
+    await act(id, { action: 'rate', rating: value === 'clear' ? null : Number(value) });
+    document.querySelector(`[data-rate="${id}"][data-rating="${value === 'clear' ? '0' : value}"]`)?.focus({ preventScroll: true });
+    return;
+  }
   if (button.dataset.readerComplete) {
     if (currentWork(button.dataset.readerComplete)?.mine?.status !== 'done') await act(button.dataset.readerComplete, { action: 'complete' });
     reader.close(); return;

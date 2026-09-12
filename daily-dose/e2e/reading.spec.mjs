@@ -40,3 +40,30 @@ test('another participant cannot see today’s comment; yesterday unlocks when l
   await expect(yesterday).toContainText('1 on time');
   await page.screenshot({ path: 'test-results/desktop-feed.png', fullPage: true });
 });
+
+test('zero-to-five stars save, survive reload, can be cleared and remain private', async ({ page }) => {
+  await page.setViewportSize({width:390,height:844});
+  await enter(page,'demo-alex');
+  const card = page.locator('.reading-card').first();
+  await expect(card.locator('.rating-control')).toHaveCount(0);
+  await card.getByRole('button',{name:'Check off as read'}).click();
+  await expect(card.locator('.rating-value')).toHaveText('Not rated');
+  await card.getByRole('button',{name:'0 stars',exact:true}).click();
+  await expect(card.locator('.rating-value')).toHaveText('0 / 5');
+  await expect(card.getByRole('button',{name:'0 stars',exact:true})).toHaveAttribute('aria-pressed','true');
+  await enter(page,'demo-alex');
+  await expect(card.locator('.rating-value')).toHaveText('0 / 5');
+  await card.getByRole('button',{name:'5 stars',exact:true}).click();
+  await expect(card.locator('.rating-button.is-filled')).toHaveCount(5);
+  await expect(card.locator('.rating-control')).toContainText('Private until the reveal');
+  await expect(card.locator('.rating-summary')).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/mobile-rating.png',fullPage:true});
+  await card.getByRole('button',{name:'Clear rating'}).click();
+  await expect(card.locator('.rating-value')).toHaveText('Not rated');
+  const yesterday = page.locator('.day-group').nth(1).locator('.reading-card').first();
+  await yesterday.getByRole('button',{name:'Check off as read'}).click();
+  await yesterday.getByRole('button',{name:'0 stars',exact:true}).click();
+  await expect(yesterday.locator('.rating-summary')).toContainText('0.0 / 5');
+  await expect(yesterday.locator('.rating-summary')).toContainText('1 rating');
+});

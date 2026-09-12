@@ -24,6 +24,10 @@ harness. In the rules below, server time/access control means Firebase's
 - One optional comment of at most 140 Unicode code points per person/piece,
   after checking it off. It may be edited/removed; editing does not change
   the original completion time. Comments are newest-edit first.
+- One optional integer 0–5-star rating per person/piece after completion.
+  Zero is distinct from unrated. Ratings can be edited or cleared without
+  changing reading or comment timestamps. They remain private until the same
+  reveal as comments; then individual ratings and an average/count are shown.
 - Reveal requires BOTH the local day to have ended AND everyone who started
   that piece on its day to have checked it off or explicitly withdrawn.
   This is the working interpretation of the user's “all who have read” rule:

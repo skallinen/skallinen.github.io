@@ -121,6 +121,26 @@ test('calendar follows local midnight through both Helsinki DST transitions', ()
   assert.equal(autumn[2] - autumn[1], 25 * 3600000);
 });
 
+test('ratings are optional 0–5 integers, owner-only, private and cannot change reading/comment times', async () => {
+  await action('bob','today','reading');
+  await assertFails(updateDoc(rowRef(db('bob'),'today','bob'),{rating:5,updatedAt:serverTimestamp()}));
+  await action('bob','today','done');
+  const ref = rowRef(db('bob'),'today','bob');
+  const before = (await getDoc(ref)).data();
+  for (const rating of [0,5,null]) await assertSucceeds(updateDoc(ref,{rating,updatedAt:serverTimestamp()}));
+  for (const rating of [-1,6,2.5,'5',false]) await assertFails(updateDoc(ref,{rating,updatedAt:serverTimestamp()}));
+  await updateDoc(ref,{rating:0,updatedAt:serverTimestamp()});
+  await assertFails(getDoc(rowRef(db('alice'),'today','bob')));
+  await assertFails(updateDoc(rowRef(db('alice'),'today','bob'),{rating:5,updatedAt:serverTimestamp()}));
+  const after = (await getDoc(ref)).data();
+  assert.equal(after.rating,0);
+  assert.ok(after.completedAt.isEqual(before.completedAt));
+  assert.equal(after.commentAt,before.commentAt);
+  await env.withSecurityRulesDisabled(ctx => updateDoc(workRef(ctx.firestore(),'today'),{closeAt:Timestamp.fromMillis(Date.now()-1000)}));
+  await updateDoc(workRef(db('alice'),'today'),{revealedAt:serverTimestamp()});
+  assert.equal((await getDoc(rowRef(db('alice'),'today','bob'))).data().rating,0);
+});
+
 test('real browser adapter uses Firebase for feed, checkmark, comment, catch-up and private disclosure', { timeout: 15000 }, async () => {
   const aliceDb = db('alice'), bobDb = db('bob');
   const alice = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'Alice' }), aliceDb._delegate);
@@ -141,8 +161,16 @@ test('real browser adapter uses Firebase for feed, checkmark, comment, catch-up 
     await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'comment', comment: 'PRIVATE ADAPTER THOUGHT' } });
     f = await alice.request('/clubs/club/feed');
     assert.equal(f.days.flatMap(d => d.works).find(w => w.id === 'today').mine.comment, 'PRIVATE ADAPTER THOUGHT');
+    const original = (await getDoc(rowRef(aliceDb, 'today', 'alice'))).data();
+    await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'rate', rating: 0 } });
+    f = await alice.request('/clubs/club/feed');
+    assert.equal(f.days.flatMap(d => d.works).find(w => w.id === 'today').mine.rating, 0);
+    const rated = (await getDoc(rowRef(aliceDb, 'today', 'alice'))).data();
+    assert.ok(rated.completedAt.isEqual(original.completedAt));
+    assert.ok(rated.commentAt.isEqual(original.commentAt));
     const other = await bob.request('/clubs/club/feed');
     assert.equal(JSON.stringify(other).includes('PRIVATE ADAPTER THOUGHT'), false);
+    assert.equal('collective' in other.days.flatMap(d => d.works).find(w => w.id === 'today'), false);
     await alice.request('/clubs/club/works/past', { method: 'POST', body: { action: 'complete' } });
     const row = (await getDoc(rowRef(aliceDb, 'past', 'alice'))).data();
     assert.equal(row.joinedOnDay, false);
