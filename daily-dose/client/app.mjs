@@ -102,7 +102,7 @@ function render() {
     <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > 50 ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
     <div class="day-seal"><span>DAY</span><strong>${idNumber(activeDay)}</strong><small>OF 50</small></div></section>
     <section class="personal-strip" aria-label="Your reading progress"><span>${today ? `<strong>${done} / 3</strong> read today` : '<strong>Your reading</strong>'}</span><span><strong>${feed.personal.onTime}</strong> on time</span><span><strong>${feed.personal.catchUp}</strong> caught up</span><span class="timezone">${esc(campaign.timezone)}</span></section>
-    <details class="help"><summary>How the daily reveal works</summary><p>Opening today’s piece joins its reading group. After the day ends, comments and reader stats appear when everyone in that group has checked it off. If you don’t finish, choose “Not reading today”. A later checkmark counts as catch-up. Reading missed pieces never blocks an old day’s discussion.</p><p>Only your own activity is visible before the reveal. A checkmark records when you finish and cannot be backdated or undone.</p></details>
+    <details class="help"><summary>How the reveal works</summary><p>For each text, check it off as read, choose 0–5 stars and write a thought of up to 140 characters. Choose “Finish & reveal” to share your response and immediately see other members who have submitted theirs. There is no shared deadline and nobody blocks anyone else.</p><p>An accidental checkmark can be corrected with “Mark as unread”. Your response returns to a private draft and the discussion is hidden again; anything already seen cannot be unseen. Checking off later records a new reading time, with late reads counted as catch-up.</p></details>
     ${feed.organizer && campaign.editable ? scheduleForm(campaign) : ''}
     ${state.config.demo ? `<div class="demo-tools"><span>Preview the reveal with another participant.</span><button class="text-button" data-action="logout">Switch person</button>${feed.organizer ? '<button class="text-button" data-action="advance">Advance demo one day →</button>' : ''}</div>` : ''}
     <div class="feed-toolbar"><div class="filters" role="group" aria-label="Filter readings">${[['all','All readings'],['unread','Unread'],['poem','Poems'],['story','Stories'],['essay','Essays']].map(([key,label]) => `<button data-filter="${key}" class="filter ${state.filter === key ? 'active' : ''}" aria-pressed="${state.filter === key}">${label}</button>`).join('')}</div><button class="text-button" data-action="refresh" aria-label="Refresh readings">Refresh ↻</button></div>
@@ -125,16 +125,16 @@ function workCard(work) {
     <h3><button class="title-button" data-read="${work.id}">${esc(work.title)}</button></h3>
     <p class="byline">${esc(work.author)} <span>${esc(work.country)} · ${esc(work.year)}</span></p>
     <div class="work-actions"><button class="read-button" data-read="${work.id}">${done ? 'Read again' : reading ? 'Continue reading' : 'Read the '+category[work.category].toLowerCase()} <span aria-hidden="true">↗</span></button>
-      ${done ? `<span class="completion"><span aria-hidden="true">✓</span> ${work.mine.onTime ? 'Read on the day' : 'Caught up'}</span>` : `<button class="check-button" data-complete="${work.id}" ${state.pending.has(work.id) ? 'disabled' : ''}><span class="checkbox" aria-hidden="true"></span>Check off as read</button>`}
+      ${done ? `<span class="completion"><span aria-hidden="true">✓</span> ${work.mine.onTime ? 'Read on the day' : 'Caught up'}</span><button class="text-button" data-unread="${work.id}" ${state.pending.has(work.id) ? 'disabled' : ''}>Mark as unread</button>` : `<button class="check-button" data-complete="${work.id}" ${state.pending.has(work.id) ? 'disabled' : ''}><span class="checkbox" aria-hidden="true"></span>Check off as read</button>`}
     </div>
-    ${reading ? `<div class="reading-status"><span>${work.mine.joinedOnDay ? 'You joined this day’s reading group.' : 'Catch up whenever you’re ready.'}</span><button class="text-button" data-withdraw="${work.id}">Not reading today</button></div>` : ''}
+    ${reading ? '<div class="reading-status"><span>Continue whenever you’re ready. Nobody is waiting on you.</span></div>' : ''}
     ${done ? ratingControl(work, state.pending.has(work.id)) : ''}
-    ${done ? `<form class="comment-form" data-comment-form="${work.id}"><label for="comment-${work.id}">Your thought <span>${work.revealed ? 'Shared with the club' : 'Private until the reveal'}</span></label><textarea id="comment-${work.id}" data-draft="${work.id}" rows="2" placeholder="What stayed with you?" aria-describedby="count-${work.id}">${esc(draft)}</textarea><div class="comment-controls"><span id="count-${work.id}" class="char-count ${count > 140 ? 'over' : ''}">${count} / 140</span><button class="save-button" type="submit" ${count > 140 || state.pending.has(work.id) ? 'disabled' : ''}>Save thought</button></div></form>` : ''}
+    ${done ? `<form class="comment-form" data-comment-form="${work.id}"><label for="comment-${work.id}">Your thought <span>${work.revealed ? 'Shared with finished readers' : 'Private until you submit'}</span></label><textarea id="comment-${work.id}" data-draft="${work.id}" rows="2" required placeholder="What stayed with you?" aria-describedby="count-${work.id}">${esc(draft)}</textarea><div class="comment-controls"><span id="count-${work.id}" class="char-count ${count > 140 ? 'over' : ''}">${count} / 140</span><button class="save-button" type="submit" ${count > 140 || !draft.trim() || work.mine.rating == null || state.pending.has(work.id) ? 'disabled' : ''}>${work.revealed ? 'Save changes' : 'Finish & reveal'}</button></div></form>` : ''}
     <div class="reveal-section">${work.revealed ? `<div class="reveal-heading"><span class="eyebrow">THE CLUB’S THOUGHTS</span><span>${collective.onTime} on time · ${collective.catchUp} caught up</span></div>
       ${sharedRatings(collective)}
       ${collective.readers.length ? `<details class="reader-stats"><summary>Who read this?</summary><ul>${collective.readers.map(r => `<li><span>${esc(r.name)}</span><span class="reader-rating">${r.rating == null ? 'Not rated' : `${r.rating} / 5 ★`}</span><span>${r.onTime ? 'On the day' : 'Catch-up'}</span></li>`).join('')}</ul></details>` : ''}
       ${collective.comments.map(c => `<div class="tweet"><span class="avatar" aria-hidden="true">${esc(c.name.slice(0,1))}</span><div><div class="tweet-meta"><strong>${esc(c.name)}</strong><span>${c.onTime ? 'On the day' : 'Catch-up'}</span></div><p>${esc(c.text)}</p></div></div>`).join('') || '<p class="empty-thoughts">No thoughts yet. A few words are enough.</p>'}`
-      : `<p class="locked"><span aria-hidden="true">◇</span>${work.revealReason === 'day-open' ? 'Thoughts stay private until the day is over and its readers finish.' : 'Waiting for this day’s reading group to finish. Thoughts and stats stay private.'}</p>`}</div>
+      : '<p class="locked"><span aria-hidden="true">◇</span>Read, rate and write a thought, then finish to see other submitted responses to this text.</p>'}</div>
   </article>`;
 }
 
@@ -153,12 +153,13 @@ async function act(id, payload) {
   state.pending.add(id);
   try {
     await api(`/clubs/${state.clubId}/works/${id}`, { method: 'POST', body: payload });
-    if (payload.action === 'comment') state.drafts.delete(id);
+    if (['comment', 'submit'].includes(payload.action)) state.drafts.delete(id);
     await refresh();
     if (payload.action === 'complete') notify('Checked off. Your reading time is saved.');
     if (payload.action === 'comment') notify(payload.comment.trim() ? 'Thought saved.' : 'Thought removed.');
     if (payload.action === 'rate') notify(payload.rating === null ? 'Rating cleared.' : `Rating saved: ${payload.rating} / 5.`);
-    if (payload.action === 'withdraw') notify('You’ve left this reading group. You can catch up later.');
+    if (payload.action === 'submit') notify('Response shared. Other finished readers’ responses are now visible.');
+    if (payload.action === 'unread') notify('Marked as unread. Your response is a private draft again.');
   } finally { state.pending.delete(id); render(); }
 }
 
@@ -173,7 +174,7 @@ function blockHtml(block) {
 async function openReading(id) {
   const generation = state.generation;
   const clubId = state.clubId;
-  // Explicit button gesture enrols the reader. GET alone never records a read.
+  // Opening records only private progress, never a completed read or submission.
   await act(id, { action: 'start' });
   const work = await api(`/clubs/${clubId}/works/${id}`);
   if (generation !== state.generation || clubId !== state.clubId) return;
@@ -192,7 +193,10 @@ async function run(event) {
   if (button.dataset.close !== undefined) { reader.close(); return; }
   if (button.dataset.read) return openReading(button.dataset.read);
   if (button.dataset.complete) return act(button.dataset.complete, { action: 'complete' });
-  if (button.dataset.withdraw) return act(button.dataset.withdraw, { action: 'withdraw' });
+  if (button.dataset.unread) {
+    if (currentWork(button.dataset.unread)?.revealed && !confirm('Mark as unread? Your response will become a private draft and the discussion will be hidden again. Other readers may already have seen your response.')) return;
+    return act(button.dataset.unread, { action: 'unread' });
+  }
   if (button.dataset.rate) {
     const id = button.dataset.rate, value = button.dataset.rating;
     await act(id, { action: 'rate', rating: value === 'clear' ? null : Number(value) });
@@ -231,7 +235,7 @@ document.addEventListener('input', event => {
   const form = event.target.closest('form');
   form.querySelector('.char-count').textContent = `${count} / 140`;
   form.querySelector('.char-count').classList.toggle('over', count > 140);
-  form.querySelector('button[type="submit"]').disabled = count > 140;
+  form.querySelector('button[type="submit"]').disabled = count > 140 || !event.target.value.trim() || currentWork(id)?.mine?.rating == null || state.pending.has(id);
 });
 document.addEventListener('change', event => {
   if (event.target.id !== 'club-select') return;
@@ -244,7 +248,7 @@ document.addEventListener('submit', async event => {
   try {
     if (event.target.dataset.commentForm) {
       const id = event.target.dataset.commentForm;
-      await act(id, { action: 'comment', comment: state.drafts.get(id) ?? currentWork(id).mine.comment });
+      await act(id, { action: 'submit', comment: state.drafts.get(id) ?? currentWork(id).mine.comment });
     } else if (event.target.id === 'schedule') {
       const form = new FormData(event.target);
       await api(`/clubs/${state.clubId}/schedule`, { method: 'PUT', body: { startDate: form.get('startDate'), timezone: form.get('timezone') } });

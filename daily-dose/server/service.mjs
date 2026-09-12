@@ -1,5 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
-import { Problem, addDays, dayNumber, localDate, validateSchedule, validateComment, validateRating, ratingSummary, released, gateOpen } from './domain.mjs';
+import { Problem, addDays, dayNumber, localDate, validateSchedule, validateComment, validateRating, ratingSummary, released } from './domain.mjs';
 
 const clean = html => sanitizeHtml(html, {
   allowedTags: ['i', 'b', 'em', 'strong', 'br', 'sup', 'sub', 'u'], allowedAttributes: {},
@@ -21,23 +21,19 @@ export function createService(store, anthology, clock = () => Date.now()) {
   function projection(user, club, work, campaign) {
     const rows = store.reads(club.id, work.id);
     const own = rows.find(r => r.uid === user.uid);
-    let reveal = store.db.prepare('SELECT revealed_at FROM reveals WHERE club_id=? AND work_id=?').get(club.id, work.id);
-    if (!reveal && gateOpen(work, campaign, rows, club.members, clock())) {
-      store.db.prepare('INSERT OR IGNORE INTO reveals VALUES (?,?,?)').run(club.id, work.id, clock());
-      reveal = store.db.prepare('SELECT revealed_at FROM reveals WHERE club_id=? AND work_id=?').get(club.id, work.id);
-    }
+    const reveal = own?.status === 'done' && own.submitted_at != null;
     const date = addDays(campaign.start_date, work.day - 1);
     const result = { ...meta(work), date, mine: own ? {
       status: own.status, onTime: Boolean(own.on_time), completedAt: own.completed_at,
-      comment: own.comment, rating: own.rating ?? null, joinedOnDay: Boolean(own.joined_on_day),
+      comment: own.comment, rating: own.rating ?? null, submittedAt: own.submitted_at, joinedOnDay: Boolean(own.joined_on_day),
     } : null, revealed: Boolean(reveal),
-    revealReason: reveal ? null : localDate(clock(), campaign.timezone) <= date ? 'day-open' : 'readers-finishing' };
-    // Single gate: private rows never enter the response before publication.
+    revealReason: reveal ? null : 'submit-your-response' };
+    // Each reader unlocks only submitted responses by submitting their own.
     if (reveal) {
-      const completed = rows.filter(r => r.status === 'done' && club.members.has(r.uid));
+      const completed = rows.filter(r => r.status === 'done' && r.submitted_at != null && club.members.has(r.uid));
       result.collective = {
         ratings: ratingSummary(completed),
-        revealedAt: reveal.revealed_at,
+        revealedAt: own.submitted_at,
         onTime: completed.filter(r => r.on_time).length,
         catchUp: completed.filter(r => !r.on_time).length,
         readers: completed.map(r => ({ uid: r.uid, name: club.members.get(r.uid).name,
@@ -99,7 +95,7 @@ export function createService(store, anthology, clock = () => Date.now()) {
     },
     act(user, club, workId, payload) {
       const { action } = payload;
-      if (!['start', 'complete', 'withdraw', 'comment', 'rate'].includes(action)) throw new Problem(400, 'Unknown reading action.');
+      if (!['start', 'complete', 'unread', 'comment', 'rate', 'submit'].includes(action)) throw new Problem(400, 'Unknown reading action.');
       // Reject time/status/UID injection instead of silently accepting backdating.
       if (Object.keys(payload).some(k => !['action', 'comment', 'rating'].includes(k)) || ('rating' in payload && action !== 'rate')) throw new Problem(400, 'Unexpected reading fields.');
       const comment = 'comment' in payload ? validateComment(payload.comment) : undefined;
@@ -125,19 +121,25 @@ export function createService(store, anthology, clock = () => Date.now()) {
           }
           if (comment !== undefined) store.db.prepare('UPDATE reads SET comment=?,comment_at=? WHERE club_id=? AND work_id=? AND uid=?')
             .run(comment, now, club.id, workId, user.uid);
-        } else if (action === 'withdraw') {
-          if (row?.status === 'done') throw new Problem(409, 'A recorded read cannot be undone or backdated.');
-          if (row) store.db.prepare("UPDATE reads SET status='withdrawn' WHERE club_id=? AND work_id=? AND uid=?")
+        } else if (action === 'unread') {
+          if (row?.status === 'done') store.db.prepare("UPDATE reads SET status='reading',completed_at=NULL,on_time=0,submitted_at=NULL WHERE club_id=? AND work_id=? AND uid=?")
             .run(club.id, workId, user.uid);
         } else if (action === 'rate') {
           if (row?.status !== 'done') throw new Problem(409, 'Check off the reading before rating it.');
           store.db.prepare('UPDATE reads SET rating=? WHERE club_id=? AND work_id=? AND uid=?').run(rating, club.id, workId, user.uid);
+        } else if (action === 'submit') {
+          if (row?.status !== 'done') throw new Problem(409, 'Check off the reading before finishing.');
+          if (row.rating == null || !comment) throw new Problem(400, 'Choose 0–5 stars and write a short thought before revealing responses.');
+          store.db.prepare('UPDATE reads SET comment=?,comment_at=?,submitted_at=? WHERE club_id=? AND work_id=? AND uid=?')
+            .run(comment, comment === row.comment ? row.comment_at : now, row.submitted_at ?? now, club.id, workId, user.uid);
         } else {
           if (row?.status !== 'done') throw new Problem(409, 'Check off the reading before posting a comment.');
           if (comment === undefined) throw new Problem(400, 'A comment is required.');
           store.db.prepare('UPDATE reads SET comment=?,comment_at=? WHERE club_id=? AND work_id=? AND uid=?')
             .run(comment, now, club.id, workId, user.uid);
         }
+        store.db.prepare("UPDATE reads SET submitted_at=NULL WHERE club_id=? AND work_id=? AND uid=? AND (rating IS NULL OR trim(comment)='')")
+          .run(club.id, workId, user.uid);
         return projection(user, club, work, campaign);
       });
     },

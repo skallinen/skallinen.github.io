@@ -42,53 +42,77 @@ test('on-day checkmarks stay private even when everyone finished', t => {
   assert.equal(f.work(f.b).mine.comment, 'SECRET BOB COMMENT');
 });
 
-test('midnight AND all started readers must finish; nobody else blocks', t => {
+
+function finish(f, user, comment, work = 'p1', rating = 4) {
+  f.service.act(user, f.club, work, {action:'complete'});
+  f.service.act(user, f.club, work, {action:'rate',rating});
+  return f.service.act(user, f.club, work, {action:'submit',comment});
+}
+
+test('submission immediately unlocks only other submitted responses, independently per text', t => {
   const f = fixture(); t.after(() => f.store.close());
-  f.service.act(f.a, f.club, 'p1', { action: 'complete', comment: 'Alice thought' });
-  f.service.act(f.b, f.club, 'p1', { action: 'start' });
-  f.setTime('2026-09-12T21:00:00Z');
-  assert.equal(f.work().revealReason, 'readers-finishing');
-  f.service.act(f.b, f.club, 'p1', { action: 'complete', comment: 'Bob caught up' });
-  const w = f.work();
-  assert.equal(w.revealed, true);
-  assert.equal(w.collective.onTime, 1);
-  assert.equal(w.collective.catchUp, 1);
-  assert.deepEqual(w.collective.comments.map(c => c.name), ['Bob', 'Alice']);
-  assert.equal(w.collective.readers.some(r => r.uid === f.c.uid), false);
+  finish(f, f.b, 'Bob finished');
+  f.service.act(f.c, f.club, 'p1', {action:'start'});
+  f.service.act(f.a, f.club, 'p1', {action:'complete',comment:'Alice draft'});
+  assert.equal(f.work().revealed,false);
+  assert.equal(f.work(f.b).collective.readers.length,1);
+  f.service.act(f.a, f.club, 'p1', {action:'rate',rating:0});
+  assert.equal(f.work().revealed,false);
+  f.service.act(f.a, f.club, 'p1', {action:'submit',comment:'Alice finished'});
+  assert.equal(f.work().revealed,true);
+  assert.deepEqual(f.work().collective.readers.map(r=>r.uid).sort(),['a','b']);
+  assert.equal(f.work(f.c).revealed,false);
+  assert.equal(f.work(f.a,'s1').revealed,false);
 });
 
-test('withdrawal releases the gate but does not count as reading', t => {
-  const f = fixture(); t.after(() => f.store.close());
-  f.service.act(f.b, f.club, 'p1', { action: 'start' });
-  f.setTime('2026-09-13T10:00:00Z');
-  assert.equal(f.work().revealed, false);
-  f.service.act(f.b, f.club, 'p1', { action: 'withdraw' });
-  assert.equal(f.work().revealed, true);
-  assert.equal(f.work().collective.readers.length, 0);
+test('submission requires a checkmark, zero-to-five rating and nonblank 140-character thought', t => {
+  const f=fixture(); t.after(()=>f.store.close());
+  const submit=comment=>f.service.act(f.a,f.club,'p1',{action:'submit',comment});
+  assert.throws(()=>submit('Thought'),/Check off/);
+  f.service.act(f.a,f.club,'p1',{action:'complete'});
+  assert.throws(()=>submit('Thought'),/stars/);
+  f.service.act(f.a,f.club,'p1',{action:'rate',rating:0});
+  for(const comment of ['', '   ', '\n\t']) assert.throws(()=>submit(comment),/thought/);
+  assert.throws(()=>submit('🙂'.repeat(141)),/140/);
+  submit('🙂'.repeat(140));
+  assert.equal(f.work().collective.ratings.average,0);
 });
 
-test('late readers do not close a published gate; completion is immutable', t => {
-  const f = fixture(); t.after(() => f.store.close());
-  f.service.act(f.a, f.club, 'p1', { action: 'complete' });
-  const firstTime = f.work().mine.completedAt;
+test('unread removes submission, preserves drafts and records a fresh catch-up time on recheck', t => {
+  const f=fixture(); t.after(()=>f.store.close());
+  finish(f,f.a,'Alice finished'); finish(f,f.b,'Bob finished');
+  const first=f.work().mine.completedAt;
+  f.service.act(f.a,f.club,'p1',{action:'unread'});
+  assert.equal(f.work().revealed,false);
+  assert.equal(f.work().mine.completedAt,null);
+  assert.equal(f.work().mine.comment,'Alice finished');
+  assert.equal(f.work().mine.rating,4);
+  assert.equal(f.work(f.b).collective.readers.length,1);
+  assert.equal(f.service.feed(f.a,f.club).personal.completed,0);
   f.setTime('2026-09-14T10:00:00Z');
-  assert.equal(f.work().revealed, true);
-  f.service.act(f.c, f.club, 'p1', { action: 'start' });
-  assert.equal(f.work().revealed, true);
-  assert.equal(f.work(f.c).mine.joinedOnDay, false);
-  f.service.act(f.a, f.club, 'p1', { action: 'complete' });
-  assert.equal(f.work().mine.completedAt, firstTime);
-  assert.equal(f.work().mine.onTime, true);
-  assert.throws(() => f.service.act(f.a, f.club, 'p1', { action: 'withdraw' }), /cannot be undone/);
+  f.service.act(f.a,f.club,'p1',{action:'complete'});
+  assert.ok(f.work().mine.completedAt>first);
+  assert.equal(f.work().mine.onTime,false);
+  assert.equal(f.work().revealed,false);
+  f.service.act(f.a,f.club,'p1',{action:'submit',comment:'Alice finished'});
+  assert.equal(f.work(f.b).collective.catchUp,1);
+  const reread=f.work().mine.completedAt;
+  f.service.act(f.a,f.club,'p1',{action:'complete'});
+  assert.equal(f.work().mine.completedAt,reread);
+  assert.throws(()=>f.service.act(f.a,f.club,'p1',{action:'withdraw'}),/Unknown/);
 });
 
-test('member removal stops blocking; rejoin cannot re-hide publication', t => {
-  const f = fixture(); t.after(() => f.store.close());
-  f.service.act(f.b, f.club, 'p1', { action: 'start' });
+test('past days also require submission, old common reveals are ignored and departures are filtered', t => {
+  const f=fixture(); t.after(()=>f.store.close());
+  finish(f,f.b,'Bob finished');
   f.setTime('2026-09-14T10:00:00Z');
-  assert.equal(f.work().revealed, false);
-  f.club.members.delete('b'); assert.equal(f.work().revealed, true);
-  f.club.members.set('b', { name: 'Bob' }); assert.equal(f.work().revealed, true);
+  f.store.db.prepare('INSERT INTO reveals VALUES (?,?,?)').run('club','p1',Date.now());
+  assert.equal(f.work().revealed,false);
+  finish(f,f.a,'Alice catch-up');
+  f.club.members.delete('b');
+  assert.deepEqual(f.work().collective.readers.map(r=>r.uid),['a']);
+  f.club.members.set('b',{name:'Bob'});
+  assert.equal(f.work().collective.readers.length,2);
 });
 
 test('comments are limited to 140 Unicode code points, optional and require completion', t => {

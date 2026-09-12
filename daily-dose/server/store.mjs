@@ -23,6 +23,9 @@ export function createStore(filename = ':memory:') {
   if (!db.prepare('PRAGMA table_info(reads)').all().some(c => c.name === 'rating')) {
     db.exec('ALTER TABLE reads ADD COLUMN rating INTEGER CHECK(rating IS NULL OR (typeof(rating) = \'integer\' AND rating BETWEEN 0 AND 5))');
   }
+  if (!db.prepare('PRAGMA table_info(reads)').all().some(c => c.name === 'submitted_at')) {
+    db.exec('ALTER TABLE reads ADD COLUMN submitted_at INTEGER');
+  }
   return {
     db,
     campaign: club => db.prepare('SELECT * FROM campaigns WHERE club_id=?').get(club),

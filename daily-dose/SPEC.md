@@ -2,51 +2,44 @@
 
 See [README.md](README.md) for operation and integration.
 
-Production uses GitHub Pages + direct Firebase Auth/Firestore, like Bookrank and
-Family Agenda. The Node/SQLite version is retained only as a local demo/test
-harness. In the rules below, server time/access control means Firebase's
-`request.time` and deployed Firestore security rules.
+Production uses GitHub Pages and direct Firebase Auth/Firestore, like Bookrank
+and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
 
-- Same Google identity and existing club membership as Bookrank; no new signup,
-  roster, invitation system or changes to Bookrank data.
-- An organiser selects a club, Day 1 date and IANA timezone (default
-  Europe/Helsinki). Fifty consecutive calendar days follow. Date/timezone can
-  be changed only before the programme begins and before any reading activity.
-- Released days appear newest first, with poem, story and essay in book order.
-  Future texts are inaccessible, including direct API requests. Missed days
-  remain readable indefinitely after release.
-- Opening a piece on its assigned day enters its “reading today” group.
-  Checking it off records the server time once, irreversibly. A checkmark on
-  its assigned local date is on time; a later checkmark is catch-up. Opening
-  a piece is not proof of finishing. A participant may leave an unfinished
-  group with “Not reading today”; this does not count as a read.
-- A physical-book reader can check a piece off without opening its web text.
-- One optional comment of at most 140 Unicode code points per person/piece,
-  after checking it off. It may be edited/removed; editing does not change
-  the original completion time. Comments are newest-edit first.
-- One optional integer 0–5-star rating per person/piece after completion.
-  Zero is distinct from unrated. Ratings can be edited or cleared without
-  changing reading or comment timestamps. They remain private until the same
-  reveal as comments; then individual ratings and an average/count are shown.
-- Reveal requires BOTH the local day to have ended AND everyone who started
-  that piece on its day to have checked it off or explicitly withdrawn.
-  This is the working interpretation of the user's “all who have read” rule:
-  completion cannot be known without a participant signal. Non-readers do not
-  block publication. New catch-up readers do not join an old day's gate.
-- Before reveal, only one's own status/comment are returned. Other people's
-  statistics, completion times, identities, comments and pending counts are
-  withheld by the server. After reveal, member read statistics and comments
-  become available. Reveal is permanent; late reading adds catch-up activity
-  without concealing already published comments. Removed members lose access
-  immediately; their pending entries stop blocking when the organiser next opens
-  the app and synchronises the programme roster with Bookrank. New club members
-  are admitted at that sync. Membership remains owned by Bookrank.
-- On-day means the server received the checkmark on that date. No backdating,
-  offline completion claims or client-provided timestamps. No scheduling by
-  elapsed 24-hour intervals: daylight-saving days are still calendar days.
-- The website is a private reading companion, not a public anthology download.
-  Full text comes from the corrected review pipeline, including source notes
-  and outstanding editorial caveats. No claims of final print clearance.
+- Same Google identity and existing Bookrank club membership; no new signup.
+- Only the separately provisioned organiser selects Day 1 and the IANA timezone.
+  Fifty calendar days follow. Scheduling freezes when the programme starts.
+- Released days appear newest first; each contains poem, story and essay.
+  Future texts remain inaccessible. Missed days remain readable.
+- Opening a text records private progress, not a completed read or submission.
+  There is no shared group to join, no withdrawal, and nobody blocks anyone else.
+- Check off as read records server time. Completion on the assigned local day
+  is on time; a later completion is catch-up. No client timestamps or backdating.
+- To unlock responses for a text, complete it, select an integer 0–5-star rating,
+  write a nonblank thought of at most 140 Unicode code points and explicitly
+  choose “Finish & reveal”. Zero counts; an absent rating does not.
+- Before submission only one's own response is readable. Afterwards only other
+  submitted responses for the same text are readable. This is enforced by
+  Firestore, including direct reads and queries, not just hidden by the UI.
+  The organiser has no bypass. Midnight and other people's progress are irrelevant.
+- Shared views contain submitted reader names, completion times, on-time/catch-up
+  status, individual ratings, rating average/count and comments newest-edit first.
+  Other people's drafts, partial checkmarks and private progress are excluded.
+- Editing a submitted response preserves its completion and submission timestamps.
+  Removing required feedback revokes submission. The UI requires nonblank
+  comments and a rating to submit; clearing stars is available in draft mode.
+- “Mark as unread” clears completion/submission, removes the shared response and
+  relocks the discussion for its owner. Rating/comment drafts are retained.
+  Previously viewed information cannot be unseen. A subsequent checkmark uses
+  a new server timestamp and the reader must submit again.
+- Legacy checkmarks/ratings/comments remain intact as private, unsubmitted drafts.
+  Old shared-reveal fields and gate documents are ignored, never migrated into
+  automatic submissions. Deployments do not change the programme date or roster.
+- Departures lose access immediately through Bookrank membership enforcement.
+  Organiser-side roster sync admits new Bookrank members. Shared UI aggregates
+  include only current members.
+- The private text edition preserves formatting, source notes and editorial holds.
+  The website does not imply public distribution rights or final print clearance.
 
-The local demo uses fictional participants and a separate in-memory database.
-It cannot access real club data or become a production authentication fallback.
+The local demo uses fictional participants and separate in-memory storage,
+never real club data. Tests cover Firebase allow/deny decisions, the real browser
+adapter, local API parity, mobile submission and undo/re-submission.

@@ -3,12 +3,12 @@ import { esc } from './text.mjs';
 export function ratingControl(work, disabled = false) {
   const rating = work.mine?.rating ?? null;
   const button = (value, label, text, classes = '') => `<button type="button" class="rating-button ${classes}" data-rate="${esc(work.id)}" data-rating="${value}" aria-label="${label}" aria-pressed="${rating === value}" ${disabled ? 'disabled' : ''}>${text}</button>`;
-  return `<section class="rating-control" aria-label="Your rating for ${esc(work.title)}"><div class="rating-label">Your rating <span>${work.revealed ? 'Shared with the club' : 'Private until the reveal'}</span></div>
+  return `<section class="rating-control" aria-label="Your rating for ${esc(work.title)}"><div class="rating-label">Your rating <span>${work.revealed ? 'Shared with finished readers' : 'Private until you submit'}</span></div>
     <div class="rating-options" role="group" aria-label="Choose 0 to 5 stars">
       ${button(0, '0 stars', '0', 'rating-zero')}
       ${[1,2,3,4,5].map(n => button(n, `${n} ${n === 1 ? 'star' : 'stars'}`, '<span aria-hidden="true">★</span>', rating !== null && n <= rating ? 'is-filled' : '')).join('')}
       <span class="rating-value" aria-live="polite">${rating === null ? 'Not rated' : `${rating} / 5`}</span>
-      ${rating === null ? '' : `<button type="button" class="text-button rating-clear" data-rate="${esc(work.id)}" data-rating="clear" aria-label="Clear rating" ${disabled ? 'disabled' : ''}>Clear</button>`}
+      ${rating === null || work.revealed ? '' : `<button type="button" class="text-button rating-clear" data-rate="${esc(work.id)}" data-rating="clear" aria-label="Clear rating" ${disabled ? 'disabled' : ''}>Clear</button>`}
     </div></section>`;
 }
 

@@ -21,8 +21,9 @@ export function createDemo(store, anthology) {
   }
   const yesterday = anthology.works.find(w => w.day === 2 && w.category === 'poem');
   const when = Date.parse(`${addDays(start, 1)}T12:00:00Z`);
-  insert.run(id, yesterday.id, users[0].uid, 'done', 1, when, when, 1, 'A thought waiting for the last reader.', when);
+  insert.run(id, yesterday.id, users[0].uid, 'done', 1, when, when, 1, 'A thought shared without waiting for anyone.', when);
   insert.run(id, yesterday.id, users[1].uid, 'reading', 1, when, null, 0, '', null);
+  store.db.prepare("UPDATE reads SET rating=4,submitted_at=comment_at WHERE status='done'").run();
   return {
     users, clock,
     advance() { time += 86400000; },

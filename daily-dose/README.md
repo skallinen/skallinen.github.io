@@ -11,37 +11,48 @@ The earlier source-only push was not a deployment; this architecture replaces it
 
 Sign in with the same Google account as Bookrank. The initial programme uses the
 existing BBC club and its six members, with Sami as organiser. No accounts or
-Bookrank records are created or modified. Day 1 is deliberately unset.
-The organiser chooses the start date and timezone in the app.
+Bookrank records are created or modified. The organiser chooses the start date
+and timezone in the app; redeploying never changes those settings.
 
 Membership requires both a Bookrank member document and the admitted programme
 roster. When the organiser opens the app, that roster synchronises with the
-current Bookrank members. Departures lose access immediately; their pending gate
-entries cease to block after this organiser-side roster sync. Newly joined members
-are admitted by that sync. Organiser authority is separately provisioned, never
+current Bookrank members. Departures lose access immediately. Newly joined
+members are admitted by that sync. Organiser authority is separately provisioned, never
 taken from Bookrank's self-editable member role.
 
 ## Privacy and reveal
 
-Future texts are blocked by Firestore rules. Opening a piece on its day joins
-its reading group. Checkmarks use Firebase server timestamps and cannot be
-backdated or undone. A later checkmark is catch-up. After completion, each reader
-can write or edit one optional comment of at most 140 Unicode code points,
-and give an optional whole-star rating from 0 to 5. Zero is a real rating;
-“Clear” removes it. Ratings can be changed without changing reading timestamps.
+Future texts are blocked by Firestore rules. Opening a piece records only private
+progress. Checkmarks use Firebase server timestamps; checking off on the text's
+assigned local date counts as on time, and checking off later is catch-up.
 
-Comments, ratings and other readers' statistics become readable only after the day ends
-and all on-day starters have checked off or withdrawn with “Not reading today.”
-The pending-reader document itself is never readable by participants, including
-the organiser. Atomic writes and rules ensure a participant can alter only their
-own entry in that group. Once published, a discussion cannot be hidden again.
-After reveal, individual ratings and the average/count are shown; unrated texts
-are excluded from the average. Existing reading records need no data migration.
+For each text, a reader checks it off, chooses a whole-star rating from 0 to 5,
+writes a nonblank thought of at most 140 Unicode code points, then chooses
+**Finish & reveal**. This explicitly submits the response and immediately unlocks
+other submitted responses to that text for that reader. There is no midnight
+reveal, shared finish moment, pending-reader gate or “Not reading today” action.
+Reading a different text or another reader submitting does not grant access.
 
-Firestore listeners update cached data; the 30-second UI refresh does not
-re-download the whole collection each time. Publication is checked by active
-clients after midnight, with Firestore enforcing the conditions. There is no
-background job, and no need for one to enforce privacy.
+Zero is a real rating, distinct from unrated. Before submission, a rating may be
+cleared and responses are private drafts. After submission, ratings/comments can
+be edited while preserving the original reading time. Shared views contain only
+submitted responses, their average rating and read-on-day/catch-up statistics.
+Drafts never enter the shared query, even for the organiser.
+
+**Mark as unread** corrects accidental checkmarks. It clears the completion and
+submission timestamps, removes the response from shared views, hides the
+discussion for its owner and preserves the rating/comment as a private draft.
+A later checkmark records a fresh server timestamp; resubmission is required to
+unlock the discussion again. Previously seen information cannot be unseen.
+
+Firestore listeners cache data; the 30-second UI refresh picks up other readers'
+new submissions. Shared listeners are discarded when access is revoked.
+No background job or publication trigger is required.
+
+Existing Firestore rows without `submittedAt` remain private, with their old
+checkmarks, ratings and comments intact. No production data migration or automatic
+submission occurs. Old work-level `revealedAt` fields and `gates` documents are
+ignored and retained untouched; all client access to gates is denied.
 
 Full texts are stored privately under `dailyDose/{club}/texts/{work}`, outside
 GitHub and the JS bundle. They use the corrected review edition, preserving

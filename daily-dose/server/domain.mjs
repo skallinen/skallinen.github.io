@@ -52,9 +52,3 @@ export function ratingSummary(rows) {
 export function released(work, campaign, now) {
   return campaign && addDays(campaign.start_date, work.day - 1) <= localDate(now, campaign.timezone);
 }
-
-export function gateOpen(work, campaign, reads, members, now) {
-  const date = addDays(campaign.start_date, work.day - 1);
-  return localDate(now, campaign.timezone) > date
-    && !reads.some(r => members.has(r.uid) && r.joined_on_day && r.status === 'reading');
-}
