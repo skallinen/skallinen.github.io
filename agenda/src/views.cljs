@@ -638,6 +638,16 @@
   (state/add-subscription! (db/subscribe-coll! aid "anchors" state/anchors))
   (state/add-subscription! (db/subscribe-coll! aid "subscriptions" state/cal-subs))
   (state/add-subscription! (db/subscribe-notes! aid state/notes))
+  ;; the opening lens (slice 08): once the persons are known, the agenda
+  ;; opens on the reader's own Person alone; a view preference like any
+  ;; toggle, set once per agenda and then left to the chips
+  (add-watch state/persons :opening-lens
+             (fn [_ _ _ persons]
+               (when (seq persons)
+                 (remove-watch state/persons :opening-lens)
+                 (when-let [me @auth/user]
+                   (reset! state/hidden-persons
+                           (domain/opening-hidden persons (:display-name me)))))))
   (js/setTimeout
    (fn []
      (reset! state/agenda-loading false)

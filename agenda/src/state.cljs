@@ -48,6 +48,7 @@
 
 (defn reset-agenda-state! []
   (cleanup-subscriptions!)
+  (remove-watch persons :opening-lens)   ;; a lens not yet applied belongs to the old agenda
   (reset! agenda nil)
   (reset! members [])
   (reset! persons [])

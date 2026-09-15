@@ -20,6 +20,9 @@
 ;;   plates collide. Plates are placed here, drawn last by the
 ;;   renderer, so nothing overprints a label.
 ;; - Day marks: in-cell when the day is free, margin callout when busy.
+;;   A cell holds ONE in-cell mark; a second mark on the same free day,
+;;   or a mark whose cell the previous in-cell label overruns, takes the
+;;   margin too (the callout system already keeps same-day marks apart).
 ;; Geometry constants (viewBox units) live HERE — the renderer draws
 ;; what this plan says.
 ;; =============================================
@@ -40,6 +43,12 @@
 (def ^:private SLOT-AREA 19)      ;; person slots live in y 2.5..21.5
 (def ^:private GUEST-Y 23.6)
 (def ^:private GUEST-H 1.8)
+;; in-cell mark: diamond center and label start, relative to the day's
+;; left edge (design 4.3: diamond radius 4, label beside it)
+(def CELL-GLYPH-DX 9)
+(def CELL-TEXT-DX (+ CELL-GLYPH-DX 8))
+(def ^:private CELL-GLYPH-R 4)
+(def ^:private CHAR-W 6.3)        ;; the label-width estimate place-labels uses too
 
 (defn- lane-sorted [periods]
   (sort-by (juxt :start-ed :id) periods))
@@ -150,16 +159,34 @@
         ;; callouts on busy ones
         active    (fn [ed] (some #(domain/active-on? % ed) wps))
         busy-days (set (for [[i ed] (map-indexed vector days) :when (active ed)] i))
-        wmarks    (filterv #(<= d0 (:date-ed %) d6) marks)
-        mark-day  (fn [m] (- (:date-ed m) d0))
-        {cell-marks false callouts true}
-        (group-by #(contains? busy-days (mark-day %)) wmarks)]
+        wmarks    (->> marks
+                       (filter #(<= d0 (:date-ed %) d6))
+                       (sort-by (juxt :date-ed :id))
+                       (map #(assoc % :day (- (:date-ed %) d0))))
+        ;; left to right: a mark stays in its cell only when nothing
+        ;; already occupies that ink; the previous in-cell label's right
+        ;; edge (an overrun into the next day, or a same-day sibling)
+        ;; sends it to the margin, where dots sit side by side and the
+        ;; capacity rule applies
+        {:keys [cell-marks callouts]}
+        (reduce (fn [{:keys [ink-right] :as acc} m]
+                  (let [dx         (day-x (:day m))
+                        glyph-left (+ dx (- CELL-GLYPH-DX CELL-GLYPH-R))]
+                    (if (or (contains? busy-days (:day m))
+                            (< glyph-left ink-right))
+                      (update acc :callouts conj m)
+                      (-> acc
+                          (update :cell-marks conj m)
+                          (assoc :ink-right
+                                 (+ dx CELL-TEXT-DX (* (count (:label m)) CHAR-W)))))))
+                {:cell-marks [] :callouts [] :ink-right -1}   ;; no ink yet (x is never negative)
+                wmarks)]
     {:week       week
      :strokes    person-strokes
      :guests     guest-strokes
      :labels     labels
-     :cell-marks (vec (map #(assoc % :day (mark-day %)) cell-marks))
-     :callouts   (vec (sort-by :date-ed (map #(assoc % :day (mark-day %)) callouts)))
+     :cell-marks cell-marks
+     :callouts   (vec (sort-by :date-ed callouts))
      :busy-days  busy-days
      :periods    wps}))
 

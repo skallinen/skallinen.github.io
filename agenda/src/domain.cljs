@@ -162,6 +162,28 @@
           :when (<= from-ed (:date-ed m) to-ed)]
       m)))
 
+;; -- The reader's own Person (slice 08, opening lens) --
+;; Persons are not accounts, so nothing links a member to a Person
+;; except the name. The agenda opens with only the reader's own Person
+;; visible when exactly that can be told: a Person whose name equals
+;; the member's display name, or its first word, case-folded. No match
+;; (or several) means the whole family stays visible.
+
+(defn opening-hidden
+  "The hidden set the agenda opens with: everyone but the reader's own
+   Person (and :others), or empty when no Person is the reader."
+  [persons display-name]
+  (let [fold       (fn [s] (str/lower-case (str/trim (or s ""))))
+        full       (fold display-name)
+        first-word (or (first (str/split full #"\s+")) "")
+        mine       (filter (fn [p] (let [n (fold (:name p))]
+                                     (or (= n full) (= n first-word))))
+                           persons)]
+    (if (or (str/blank? first-word) (not= 1 (count mine)))
+      #{}
+      (-> (into #{} (comp (remove #(= (:id %) (:id (first mine)))) (map :id)) persons)
+          (conj :others)))))
+
 ;; -- Label ink: black or white by contrast with the band color --
 
 (defn- hex->rgb [hex]

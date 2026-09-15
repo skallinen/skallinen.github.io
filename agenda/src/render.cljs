@@ -140,11 +140,12 @@
       (diamond cx cy 4 {:fill c}))))
 
 (defn- cell-mark [m colors]
-  (let [cx (+ (day-x (:day m)) 9)
+  (let [dx (day-x (:day m))
+        cx (+ dx layout/CELL-GLYPH-DX)
         cy (/ ROW-H 2)]
     [:g {:role "img" :aria-label (:label (interactions/day-mark (:label m)))}
      (mark-glyph m colors cx cy)
-     (label-text (+ cx 8) (+ cy (* FONT 0.36)) :start (:label m))]))
+     (label-text (+ dx layout/CELL-TEXT-DX) (+ cy (* FONT 0.36)) :start (:label m))]))
 
 (defn- day-dot
   "Neutral origin dot on the day: dark core + white ring, visible on
