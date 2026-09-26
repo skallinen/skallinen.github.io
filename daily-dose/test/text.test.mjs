@@ -9,3 +9,12 @@ test('table rendering preserves merged manuscript cells and escapes literal text
   assert.ok(html.includes('&lt;script&gt;'));
   assert.equal(esc('A & B "quoted"'), 'A &amp; B &quot;quoted&quot;');
 });
+
+test('source notes link only http(s) URLs, escaped, in a new tab without opener', async () => {
+  const { linkify } = await import('../client/text.mjs');
+  const html = linkify('See https://example.org/a?b=1&c=<x>. Not javascript:alert(1) or ftp://x.');
+  assert.match(html, /<a href="https:\/\/example.org\/a\?b=1&amp;c=" target="_blank" rel="noopener noreferrer">/);
+  assert.equal(html.includes('<x>'), false);
+  assert.equal((html.match(/<a /g) || []).length, 1);
+  assert.match(linkify('(http://example.com).'), /<a href="http:\/\/example.com"[^>]*>http:\/\/example.com<\/a>\)\./);
+});

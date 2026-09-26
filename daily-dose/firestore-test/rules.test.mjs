@@ -2,7 +2,7 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, collection, getDoc, getDocs, setDoc, updateDoc, writeBatch, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
+import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
 import { scheduleDates } from '../client/calendar.mjs';
 import { createFirestoreBackend } from '../client/firestore.mjs';
 
@@ -86,6 +86,29 @@ test('submission immediately unlocks only submitted peers; checkmarks and comple
   await assertFails(updateDoc(workRef(db('alice'),'today'),{revealedAt:serverTimestamp()}));
 });
 
+// Round 2, privacy check: one member shares a response, another then writes a
+// private draft on the same text. The sharer (and the organiser) must not be
+// able to read that draft by get, by the reveal query or by any other query.
+test('a member who has shared cannot read a later member draft by get or by any query', async () => {
+  await submit('alice', 'today', "I read this at my mother's funeral. Still true: better to forget and smile.");
+  await action('bob', 'today', 'done');
+  const ref = rowRef(db('bob'), 'today', 'bob');
+  await updateDoc(ref, { rating: 5, comment: "I read this at my mother's funeral. Still true.", commentAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  const reads = d => collection(d, `${base}/works/today/reads`);
+  for (const reader of ['alice', 'cara']) {
+    await assertFails(getDoc(rowRef(db(reader), 'today', 'bob')));
+    await assertFails(getDocs(reads(db(reader))));
+    await assertFails(getDocs(query(reads(db(reader)), where('status', '==', 'done'))));
+    await assertFails(getDocs(query(reads(db(reader)), where('comment', '>=', ''))));
+    await assertFails(getDocs(query(reads(db(reader)), where('submittedAt', '==', null))));
+  }
+  // The sharer's reveal query returns only submitted rows: her own.
+  assert.deepEqual((await shared('alice')).docs.map(d => d.id), ['alice']);
+  // Bob's own row is readable to him; Alice's shared row is not, until he finishes.
+  await assertSucceeds(getDoc(ref));
+  await assertFails(getDoc(rowRef(db('bob'), 'today', 'alice')));
+});
+
 test('old revealed flags and midnight grant no access; catch-up submission works independently', async () => {
   await env.withSecurityRulesDisabled(ctx=>updateDoc(workRef(ctx.firestore(),'past'),{revealedAt:Timestamp.now()}));
   await assertFails(shared('alice','past'));
@@ -128,6 +151,30 @@ test('unread revokes access and peer visibility, preserves drafts, and recheck c
   await updateDoc(ref,{submittedAt:serverTimestamp(),updatedAt:serverTimestamp()});
   assert.equal((await shared('bob')).size,2);
   await assertFails(action('bob','today','withdrawn'));
+});
+
+test('Undo of Mark as unread restores the original checkmark time, only its own and only for five minutes', async () => {
+  await action('bob', 'today', 'done');
+  const ref = rowRef(db('bob'), 'today', 'bob');
+  const original = (await getDoc(ref)).data().completedAt;
+  const unread = { status: 'reading', completedAt: null, submittedAt: null, updatedAt: serverTimestamp() };
+  // Unread may set aside only the checkmark it clears.
+  await assertFails(updateDoc(ref, { ...unread, undoCompletedAt: Timestamp.fromMillis(original.toMillis() - 86400000) }));
+  await assertSucceeds(updateDoc(ref, { ...unread, undoCompletedAt: original }));
+  // Restore: exactly that time, nothing else.
+  const restore = at => ({ status: 'done', completedAt: at, undoCompletedAt: null, updatedAt: serverTimestamp() });
+  await assertFails(updateDoc(ref, restore(Timestamp.fromMillis(original.toMillis() - 60000))));
+  await assertFails(updateDoc(ref, { ...restore(original), undoCompletedAt: original }));
+  await assertSucceeds(updateDoc(ref, restore(original)));
+  assert.ok((await getDoc(ref)).data().completedAt.isEqual(original));
+  // After five minutes Undo is gone: only a fresh checkmark.
+  await assertSucceeds(updateDoc(ref, { ...unread, undoCompletedAt: original }));
+  await env.withSecurityRulesDisabled(ctx => updateDoc(rowRef(ctx.firestore(), 'today', 'bob'), { updatedAt: Timestamp.fromMillis(Date.now() - 6 * 60000) }));
+  await assertFails(updateDoc(ref, restore(original)));
+  await assertSucceeds(updateDoc(ref, { status: 'done', completedAt: serverTimestamp(), undoCompletedAt: null, updatedAt: serverTimestamp() }));
+  // A new row cannot bring its own time to restore.
+  await assertFails(setDoc(rowRef(db('cara'), 'today', 'cara'), { status: 'reading', startedAt: serverTimestamp(), completedAt: null, joinedOnDay: true,
+    comment: '', commentAt: null, undoCompletedAt: Timestamp.fromMillis(Date.now() - 86400000), updatedAt: serverTimestamp() }));
 });
 
 test('organiser-only atomic calendar setup; 151-write schedule batch fits rule access limits', async () => {
@@ -221,5 +268,109 @@ test('real browser adapter uses Firebase for feed, checkmark, comment, catch-up 
     const row = (await getDoc(rowRef(aliceDb, 'past', 'alice'))).data();
     assert.equal(row.joinedOnDay, false);
     await assertFails(alice.request('/clubs/club/works/future'));
+  } finally { alice.reset(); bob.reset(); }
+});
+
+const checksRef = (d, u) => doc(d, `${base}/completions/${u}`);
+async function checkOff(uid, work = 'today') {
+  const d = db(uid), b = writeBatch(d), old = await getDoc(checksRef(d, uid));
+  const row = await getDoc(rowRef(d, work, uid)).catch(() => null);
+  if (row?.exists()) b.update(rowRef(d, work, uid), { status: 'done', completedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  else b.set(rowRef(d, work, uid), { status: 'done', startedAt: serverTimestamp(), completedAt: serverTimestamp(), joinedOnDay: work !== 'past', comment: '', commentAt: null, updatedAt: serverTimestamp() });
+  b.set(checksRef(d, uid), { works: { ...(old.exists() ? old.data().works : {}), [work]: serverTimestamp() }, last: work });
+  return b.commit();
+}
+test('organiser reads completion records only; members cannot read others; drafts stay with their owner', async () => {
+  await assertSucceeds(checkOff('bob'));
+  await updateDoc(rowRef(db('bob'), 'today', 'bob'), { rating: 2, comment: 'BOB PRIVATE DRAFT', commentAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  const seen = await assertSucceeds(getDoc(checksRef(db('alice'), 'bob')));
+  assert.deepEqual(Object.keys(seen.data()).sort(), ['last', 'works']);
+  assert.deepEqual(Object.keys(seen.data().works), ['today']);
+  assert.equal(JSON.stringify(seen.data()).includes('PRIVATE'), false);
+  assert.equal((await assertSucceeds(getDocs(collection(db('alice'), `${base}/completions`)))).size, 1);
+  await assertFails(getDoc(checksRef(db('cara'), 'bob')));
+  await assertFails(getDocs(collection(db('cara'), `${base}/completions`)));
+  await assertFails(getDocs(query(collection(db('cara'), `${base}/completions`), where('last', '==', 'today'))));
+  await assertSucceeds(getDoc(checksRef(db('cara'), 'cara')));
+  await assertSucceeds(getDoc(checksRef(db('bob'), 'bob')));
+  await assertFails(getDoc(checksRef(db('outsider'), 'bob')));
+  // Nobody but the owner reads a draft, the organiser included.
+  for (const uid of ['alice', 'cara']) {
+    await assertFails(getDoc(rowRef(db(uid), 'today', 'bob')));
+    await assertFails(getDocs(collection(db(uid), `${base}/works/today/reads`)));
+  }
+  await assertSucceeds(getDoc(rowRef(db('bob'), 'today', 'bob')));
+});
+
+test('completion records cannot be forged: only the owner, only matching their own checkmark', async () => {
+  const ts = Timestamp.fromMillis(Date.now() - 60000);
+  // Another member's record, in any shape.
+  await assertFails(setDoc(checksRef(db('cara'), 'bob'), { works: { today: serverTimestamp() }, last: 'today' }));
+  await assertFails(setDoc(checksRef(db('alice'), 'bob'), { works: { today: serverTimestamp() }, last: 'today' }));
+  // Own record without a checkmark behind it.
+  await assertFails(setDoc(checksRef(db('cara'), 'cara'), { works: { today: serverTimestamp() }, last: 'today' }));
+  await action('cara', 'today', 'reading');
+  await assertFails(setDoc(checksRef(db('cara'), 'cara'), { works: { today: serverTimestamp() }, last: 'today' }));
+  await assertSucceeds(checkOff('cara'));
+  const row = (await getDoc(rowRef(db('cara'), 'today', 'cara'))).data();
+  // A different time, a second text at once, extra fields, a hidden key: all refused.
+  await assertFails(updateDoc(checksRef(db('cara'), 'cara'), { 'works.today': ts, last: 'today' }));
+  await assertFails(updateDoc(checksRef(db('cara'), 'cara'), { 'works.past': row.completedAt, last: 'past' }));
+  await assertFails(updateDoc(checksRef(db('cara'), 'cara'), { 'works.past': row.completedAt, 'works.future': row.completedAt, last: 'past' }));
+  await assertFails(updateDoc(checksRef(db('cara'), 'cara'), { rating: 5 }));
+  await assertFails(setDoc(checksRef(db('cara'), 'cara'), { works: {}, last: 'today' }));
+  // Rewriting the true value is harmless and allowed (legacy repair).
+  await assertSucceeds(setDoc(checksRef(db('cara'), 'cara'), { works: { today: row.completedAt }, last: 'today' }));
+  // Mark as unread clears it, together with the private row.
+  const d = db('cara'), b = writeBatch(d);
+  b.update(rowRef(d, 'today', 'cara'), { status: 'reading', completedAt: null, submittedAt: null, updatedAt: serverTimestamp() });
+  b.set(checksRef(d, 'cara'), { works: {}, last: 'today' });
+  await assertSucceeds(b.commit());
+  await assertFails(setDoc(checksRef(db('cara'), 'cara'), { works: { today: row.completedAt }, last: 'today' }));
+  // Records are never deleted, and a future text cannot be claimed.
+  await assertFails(deleteDoc(checksRef(db('cara'), 'cara')));
+  await assertFails(checkOff('cara', 'future'));
+});
+
+test('browser adapter writes and clears the completion record with the checkmark; organiser view is organiser-only', { timeout: 15000 }, async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const d = ctx.firestore(), now = Date.now();
+    await updateDoc(doc(d, base), { startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC', boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)) });
+    await updateDoc(workRef(d, 'today'), { category: 'poem', title: 'Test poem', author: 'Author', country: 'Finland', year: '2026', minutes: 1 });
+  });
+  const alice = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'Alice' }), db('alice')._delegate);
+  const bob = createFirestoreBackend(null, () => ({ uid: 'bob', displayName: 'Bob' }), db('bob')._delegate);
+  const act = (client, body) => client.request('/clubs/club/works/today', { method: 'POST', body });
+  try {
+    await act(bob, { action: 'complete' });
+    await act(bob, { action: 'rate', rating: 3 });
+    await act(bob, { action: 'comment', comment: 'BOB DRAFT' });
+    const view = await alice.request('/clubs/club/organiser');
+    assert.ok(view.checks.bob.today.at > 0);
+    assert.equal(view.checks.bob.today.onTime, true);
+    assert.deepEqual(view.roster.map(r => r.uid), ['alice', 'bob', 'cara']);
+    assert.equal(JSON.stringify(view).includes('BOB DRAFT'), false);
+    assert.equal(JSON.stringify(view).includes('"rating"'), false);
+    await assert.rejects(bob.request('/clubs/club/organiser'));
+    const first = (await getDoc(rowRef(db('bob'), 'today', 'bob'))).data().completedAt;
+    await act(bob, { action: 'unread' });
+    await act(bob, { action: 'restore' });
+    const restored = (await getDoc(rowRef(db('bob'), 'today', 'bob'))).data();
+    assert.ok(restored.completedAt.isEqual(first));
+    assert.equal(restored.status, 'done');
+    assert.ok((await getDoc(checksRef(db('alice'), 'bob'))).data().works.today.isEqual(first));
+    await act(bob, { action: 'unread' });
+    const fresh = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'Alice' }), db('alice')._delegate);
+    const after = await fresh.request('/clubs/club/organiser');
+    fresh.reset();
+    assert.equal(after.checks.bob?.today, undefined);
+    // A legacy checkmark with no record is repaired when its owner opens the feed.
+    await action('cara', 'today', 'done');
+    const cara = createFirestoreBackend(null, () => ({ uid: 'cara', displayName: 'Cara' }), db('cara')._delegate);
+    await cara.request('/clubs/club/feed');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const repaired = (await getDoc(checksRef(db('alice'), 'cara'))).data();
+    assert.ok(repaired.works.today.isEqual((await getDoc(rowRef(db('cara'), 'today', 'cara'))).data().completedAt));
+    cara.reset();
   } finally { alice.reset(); bob.reset(); }
 });

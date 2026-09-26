@@ -59,7 +59,8 @@
         match /reads/{uid} {
           function rowShape(d) {
             return d.keys().hasAll(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
-              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt'])
+              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'undoCompletedAt'])
+              && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt is timestamp)
               && d.status in ['reading', 'done'] && d.startedAt is timestamp
               && d.joinedOnDay is bool && d.comment is string && d.comment.matches('(?s)^.{0,140}$')
               && (d.get('rating', null) == null || (d.rating is int && d.rating >= 0 && d.rating <= 5))
@@ -73,16 +74,23 @@
               && d.joinedOnDay == (request.time < doseWork(club, work).closeAt)
               && d.comment == '' && d.commentAt == null
               && d.get('rating', null) == null && d.get('submittedAt', null) == null
+              && d.get('undoCompletedAt', null) == null
               && ((d.status == 'reading' && d.completedAt == null) || (d.status == 'done' && d.completedAt == request.time));
           }
           function changes(d, old) {
             return (old.status == 'withdrawn' && starts(d))
               || (old.status == 'reading' && d.status == 'done'
                 && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
-                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt'])
-                && d.completedAt == request.time && d.get('submittedAt', null) == null)
+                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt'])
+                && d.get('submittedAt', null) == null && d.get('undoCompletedAt', null) == null
+                // A fresh checkmark, or Undo of "Mark as unread" within five minutes,
+                // which restores the checkmark time that unread set aside.
+                && (d.completedAt == request.time
+                  || (old.get('undoCompletedAt', null) is timestamp && d.completedAt == old.undoCompletedAt
+                    && request.time < old.updatedAt + duration.value(5, 'm'))))
               || (old.status == 'done' && d.status == 'reading' && d.completedAt == null && d.get('submittedAt', null) == null
-                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt']))
+                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt'])
+                && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt == old.completedAt))
               || (old.status == 'done' && d.status == 'done' && d.completedAt == old.completedAt
                 && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
                 && d.diff(old).affectedKeys().hasOnly(['comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt'])
@@ -101,6 +109,32 @@
             && rowShape(request.resource.data) && changes(request.resource.data, resource.data);
           allow delete: if false;
         }
+      }
+      // Completion records: one per member, a map of work id to checkmark time.
+      // The organiser may read them to see who has checked which text off and
+      // when; they never contain ratings, thoughts, drafts or reading progress.
+      // Every change must equal the owner's own private row after the write.
+      match /completions/{uid} {
+        function doseRowAfter(w) {
+          return getAfter(/databases/$(database)/documents/dailyDose/$(club)/works/$(w)/reads/$(uid)).data;
+        }
+        function doseChecks() {
+          return resource == null ? {} : resource.data.works;
+        }
+        allow get: if doseMember(club) && (request.auth.uid == uid || doseOrganizer(club));
+        allow list: if doseOrganizer(club);
+        allow create, update: if doseMember(club) && request.auth.uid == uid
+          && request.resource.data.keys().hasAll(['works', 'last'])
+          && request.resource.data.keys().hasOnly(['works', 'last'])
+          && request.resource.data.works is map && request.resource.data.works.size() <= 150
+          && request.resource.data.last is string && request.resource.data.last.matches('^[A-Za-z0-9-]{1,40}$')
+          && request.resource.data.works.diff(doseChecks()).affectedKeys().hasOnly([request.resource.data.last])
+          && ((request.resource.data.last in request.resource.data.works
+              && doseRowAfter(request.resource.data.last).status == 'done'
+              && request.resource.data.works[request.resource.data.last] == doseRowAfter(request.resource.data.last).completedAt)
+            || (!(request.resource.data.last in request.resource.data.works)
+              && doseRowAfter(request.resource.data.last).status != 'done'));
+        allow delete: if false;
       }
       match /gates/{work} {
         // Retired shared gates remain untouched, inaccessible and unused.

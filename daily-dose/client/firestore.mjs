@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, Timestamp } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
@@ -8,7 +8,7 @@ const noAccess = e => e.code === 'permission-denied';
 // Firestore enforces per-reader disclosure. Only a submitted reader can query
 // other submitted responses; drafts never enter that query or its snapshots.
 export function createFirestoreBackend(app, user, db = getFirestore(app)) {
-  const watches = new Map(), clocks = new Map();
+  const watches = new Map(), clocks = new Map(), healed = new Set();
   function unwatch(key) { watches.get(key)?.stop(); watches.delete(key); }
   function watch(key, ref) {
     if (!watches.has(key)) {
@@ -27,6 +27,9 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   const programRef = c => doc(db, 'dailyDose', c);
   const workRef = (c, w) => doc(programRef(c), 'works', w);
   const ownRef = (c, w) => doc(workRef(c, w), 'reads', user().uid);
+  // The organiser-visible completion record: only whether and when each text
+  // was checked off. Ratings, thoughts and progress stay in the private row.
+  const completionRef = (c, uid = user().uid) => doc(programRef(c), 'completions', uid);
   async function clock(c, fresh = false) {
     if (fresh || !clocks.has(c)) {
       const ref = doc(programRef(c), 'sessions', user().uid);
@@ -43,11 +46,13 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const p = ps.data(), members = new Map(ms.docs.map(d => [d.id, { name: d.data().display_name || 'Book club member' }]));
     const organizer = p.organizerUids.includes(user().uid);
     const ids = [...members.keys()].sort();
+    const before = [...p.participantUids];
     // Only the trusted organiser synchronises admission / departures from Bookrank.
     if (organizer && JSON.stringify(ids) !== JSON.stringify([...p.participantUids].sort())) {
-      await updateDoc(programRef(c), { participantUids: ids }); p.participantUids = ids;
+      try { await updateDoc(programRef(c), { participantUids: ids }); p.participantUids = ids; }
+      catch (e) { if (!noAccess(e)) throw e; }
     }
-    return { p, members, organizer, club: { id: c, name: cs.data().name }, now: await clock(c) };
+    return { p, members, organizer, before, club: { id: c, name: cs.data().name }, now: await clock(c) };
   }
   const submittedQuery = (c, id) => query(collection(workRef(c, id), 'reads'), where('submittedAt', '>=', Timestamp.fromMillis(0)));
   const mine = (r, w) => r ? { status: r.status, onTime: r.completedAt != null && millis(r.completedAt) < millis(w.closeAt), completedAt: millis(r.completedAt), comment: r.comment, rating: r.rating ?? null, submittedAt: millis(r.submittedAt), joinedOnDay: r.joinedOnDay } : null;
@@ -73,10 +78,13 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       }
       const done = rows.docs.map(d => ({ uid: d.id, ...d.data() })).filter(r => r.status === 'done' && r.submittedAt != null && ctx.members.has(r.uid));
       const onTime = r => millis(r.completedAt) < millis(closeAt);
+      // Stable order: newest first submission first. Later edits never reorder the list.
+      done.sort((a, b) => millis(b.submittedAt) - millis(a.submittedAt) || a.uid.localeCompare(b.uid));
+      const edited = r => millis(r.commentAt) > millis(r.submittedAt);
       result.collective = { ratings: ratingSummary(done), revealedAt: millis(ownData.submittedAt), onTime: done.filter(onTime).length, catchUp: done.filter(r => !onTime(r)).length,
         readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(r.completedAt), onTime: onTime(r), rating: r.rating ?? null })),
-        comments: done.filter(r => r.comment).sort((a, b) => millis(b.commentAt) - millis(a.commentAt) || a.uid.localeCompare(b.uid))
-          .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), onTime: onTime(r) })) };
+        comments: done.filter(r => r.comment)
+          .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), submittedAt: millis(r.submittedAt), edited: edited(r), onTime: onTime(r) })) };
     }
     return result;
   }
@@ -90,10 +98,65 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const cutoff = p.boundaries[Math.min(day, 50) - 1];
     const snapshot = await watch(`works:${c}:${millis(cutoff)}`, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff)));
     const works = await Promise.all(snapshot.docs.map(d => project(c, d.data(), ctx)));
+    heal(c, snapshot.docs.map(d => d.data())).catch(e => console.warn('Completion record not repaired', e));
     for (let n = Math.min(50, day); n >= 1; n--) {
       const entries = works.filter(w => w.day === n).sort((a, b) => ['poem','story','essay'].indexOf(a.category) - ['poem','story','essay'].indexOf(b.category));
       if (entries.length) base.days.push({ number: n, date: entries[0].date, today: n === day, works: entries });
       for (const w of entries) if (w.mine?.status === 'done') { base.personal.completed++; base.personal[w.mine.onTime ? 'onTime' : 'catchUp']++; }
+    }
+    return base;
+  }
+  // Rows written before completion records existed (or by an older client)
+  // get their record here, from the owner's own checkmarks. Rules only accept
+  // values equal to the private row, so this cannot forge anything.
+  async function heal(c, works) {
+    if (healed.has(c)) return;
+    healed.add(c);
+    const snap = await getDocFromServer(completionRef(c));
+    let exists = snap.exists();
+    const record = { ...(exists ? snap.data().works || {} : {}) };
+    for (const w of works) {
+      const row = watches.get(`own:${c}:${w.id}`)?.snap;
+      const data = row?.exists() ? row.data() : null;
+      const want = data?.status === 'done' ? data.completedAt : null;
+      const have = record[w.id] ?? null;
+      if (want ? have?.isEqual?.(want) : have == null) continue;
+      if (!data) continue; // the rules verify every change against the private row
+      if (!exists) { await setDoc(completionRef(c), { works: { [w.id]: want }, last: w.id }); exists = true; }
+      else await updateDoc(completionRef(c), { [`works.${w.id}`]: want ?? deleteField(), last: w.id });
+      if (want) record[w.id] = want; else delete record[w.id];
+    }
+  }
+  // Organiser only: the roster and who has checked each released text off, and
+  // when. Never ratings, thoughts, drafts or reading progress (see the rules).
+  async function organiser(c) {
+    const ctx = await context(c), p = ctx.p;
+    if (!ctx.organizer) throw new Error('Only the organiser can see club progress.');
+    const roster = [...ctx.members].map(([uid, m]) => ({ uid, name: m.name, admitted: p.participantUids.includes(uid),
+      justAdmitted: !ctx.before.includes(uid) && p.participantUids.includes(uid), organizer: p.organizerUids.includes(uid) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const base = { club: ctx.club, roster, campaign: null, days: [], checks: {} };
+    if (!p.startDate) return base;
+    const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
+    base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: 50, editable: ctx.now < millis(p.boundaries[0]) };
+    if (day < 1) return base;
+    const cutoff = p.boundaries[Math.min(day, 50) - 1];
+    const [works, records] = await Promise.all([
+      getDocsFromServer(query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff))),
+      getDocsFromServer(collection(programRef(c), 'completions'))]);
+    const byId = new Map(works.docs.map(d => [d.id, d.data()]));
+    for (let n = Math.min(50, day); n >= 1; n--) {
+      const entries = [...byId.values()].filter(w => w.day === n).sort((a, b) => ['poem','story','essay'].indexOf(a.category) - ['poem','story','essay'].indexOf(b.category));
+      if (entries.length) base.days.push({ number: n, date: localDate(millis(entries[0].openAt), p.timezone), today: n === day,
+        works: entries.map(w => ({ id: w.id, title: w.title, category: w.category })) });
+    }
+    for (const r of records.docs) {
+      if (!ctx.members.has(r.id)) continue;
+      const checks = base.checks[r.id] = {};
+      for (const [id, at] of Object.entries(r.data().works || {})) {
+        const w = byId.get(id);
+        if (w && at) checks[id] = { at: millis(at), onTime: millis(at) < millis(w.closeAt) };
+      }
     }
     return base;
   }
@@ -109,7 +172,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     if (watches.has(`p:${c}`)) watches.get(`p:${c}`).snap = latest;
   }
   async function act(c, id, payload, retry = true) {
-    if (!['start','complete','unread','comment','rate','submit'].includes(payload.action)) throw new Error('Unknown reading action.');
+    if (!['start','complete','restore','unread','comment','rate','submit'].includes(payload.action)) throw new Error('Unknown reading action.');
     if (Object.keys(payload).some(k => !['action','comment','rating'].includes(k)) || ('rating' in payload && payload.action !== 'rate')) throw new Error('Unexpected reading fields.');
     const comment = ['comment','submit'].includes(payload.action) ? validateComment(payload.comment) : null;
     const rating = payload.action === 'rate' ? validateRating(payload.rating) : null;
@@ -117,7 +180,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     unwatch(`shared:${c}:${id}`);
     try {
       await runTransaction(db, async tx => {
-        const [ws, rs] = await Promise.all([tx.get(workRef(c, id)), tx.get(ownRef(c, id))]);
+        const [ws, rs, cs] = await Promise.all([tx.get(workRef(c, id)), tx.get(ownRef(c, id)), tx.get(completionRef(c))]);
         const w = ws.data(), row = rs.exists() ? rs.data() : null;
         let next;
         if (payload.action === 'start' || (payload.action === 'complete' && (!row || row.status === 'withdrawn'))) {
@@ -126,10 +189,16 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
             joinedOnDay: now < millis(w.closeAt), comment: '', commentAt: null, submittedAt: null };
         } else if (payload.action === 'complete') {
           if (row?.status === 'done') return;
-          next = { ...row, status: 'done', completedAt: serverTimestamp() };
+          next = { ...row, status: 'done', completedAt: serverTimestamp(), undoCompletedAt: null };
+        } else if (payload.action === 'restore') {
+          // Undo of "Mark as unread": the original checkmark time comes back, so
+          // "on the day" stays on the day. Rules allow it for five minutes.
+          if (row?.status === 'done') return;
+          if (!row?.undoCompletedAt) throw new Error('This checkmark can no longer be restored. Check the text off again.');
+          next = { ...row, status: 'done', completedAt: row.undoCompletedAt, undoCompletedAt: null };
         } else if (payload.action === 'unread') {
           if (row?.status !== 'done') return;
-          next = { ...row, status: 'reading', completedAt: null, submittedAt: null };
+          next = { ...row, status: 'reading', completedAt: null, submittedAt: null, undoCompletedAt: row.completedAt };
         } else if (payload.action === 'rate') {
           if (row?.status !== 'done') throw new Error('Check off the reading before rating it.');
           next = { ...row, rating };
@@ -143,6 +212,13 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
         }
         if (next.rating == null || !next.comment.trim()) next.submittedAt = null;
         next.updatedAt = serverTimestamp(); tx.set(ownRef(c, id), next);
+        // Written together with the checkmark and cleared by Mark as unread.
+        const wasDone = row?.status === 'done', isDone = next.status === 'done';
+        if (wasDone !== isDone || (isDone && next.completedAt !== row.completedAt)) {
+          const record = { ...(cs.exists() ? cs.data().works || {} : {}) };
+          if (next.status === 'done') record[id] = next.completedAt; else delete record[id];
+          tx.set(completionRef(c), { works: record, last: id });
+        }
       });
     } catch (e) {
       if (retry && noAccess(e)) { await clock(c, true); return act(c, id, payload, false); }
@@ -154,7 +230,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     if (watches.has(`own:${c}:${id}`)) watches.get(`own:${c}:${id}`).snap = own;
   }
   return {
-    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); },
+    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -169,6 +245,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       const parts = url.split('/').filter(Boolean), c = parts[1], id = parts[3];
       if (parts[0] !== 'clubs') throw new Error('Unknown request.');
       if (parts[2] === 'feed') return feed(c);
+      if (parts[2] === 'organiser') return organiser(c);
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
       if (parts[2] === 'works' && options.method === 'POST') return act(c, id, options.body);
       if (parts[2] === 'works') return JSON.parse((await getDocFromServer(doc(programRef(c), 'texts', id))).data().json);

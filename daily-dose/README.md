@@ -24,7 +24,19 @@ taken from Bookrank's self-editable member role.
 
 Future texts are blocked by Firestore rules. Opening a piece records only private
 progress. Checkmarks use Firebase server timestamps; checking off on the text's
-assigned local date counts as on time, and checking off later is catch-up.
+assigned local date counts as "on the day", and checking off later is "catch-up".
+
+**What the organiser sees.** The organiser (programme `organizerUids`) has an
+Organiser page with the roster and, per released text, whether and when each
+member checked it off. That comes only from `dailyDose/{club}/completions/{uid}`,
+a map of text id to checkmark time, written in the same transaction as the
+checkmark and cleared by Mark as unread. Rules let the owner and the organiser
+read it, and accept a change only when it equals the owner's own private row
+after the write, so nobody can forge or hide another member's checkmark.
+Ratings, thoughts, drafts and reader progress stay in the private rows, which
+the organiser cannot read. Rows from before this record existed are repaired
+the next time their owner opens the app (older checkmarks by members who never
+return will not show). Members are told this in "How it works".
 
 For each text, a reader checks it off, chooses a whole-star rating from 0 to 5,
 writes a nonblank thought of at most 140 Unicode code points, then chooses
@@ -34,15 +46,19 @@ reveal, shared finish moment, pending-reader gate or “Not reading today” act
 Reading a different text or another reader submitting does not grant access.
 
 Zero is a real rating, distinct from unrated. Before submission, a rating may be
-cleared and responses are private drafts. After submission, ratings/comments can
-be edited while preserving the original reading time. Shared views contain only
+cleared and responses are private drafts, saved to the private row as they are
+typed. Edits to a submitted thought stay on the device (localStorage, keyed by
+account, club and text) until Save changes, because the row is shared. After submission, ratings/comments can
+be edited while preserving the original reading time; both a new rating and a new
+thought are shared only by Save changes. Shared views contain only
 submitted responses, their average rating and read-on-day/catch-up statistics.
 Drafts never enter the shared query, even for the organiser.
 
 **Mark as unread** corrects accidental checkmarks. It clears the completion and
 submission timestamps, removes the response from shared views, hides the
 discussion for its owner and preserves the rating/comment as a private draft.
-A later checkmark records a fresh server timestamp; resubmission is required to
+Undo within five minutes restores the original checkmark time (rules check it
+against the time unread set aside in the private row). Any later checkmark records a fresh server timestamp; resubmission is required to
 unlock the discussion again. Previously seen information cannot be unseen.
 
 Firestore listeners cache data; the 30-second UI refresh picks up other readers'

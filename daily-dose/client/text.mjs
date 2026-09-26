@@ -9,3 +9,14 @@ export function tableHtml(rows, spans = []) {
     return `<td${attributes}>${esc(cell)}</td>`;
   }).join('')}</tr>`).join('')}</table></div>`;
 }
+
+// Escapes text, then turns http(s) URLs into safe links that open in a new tab.
+export function linkify(text) {
+  return String(text ?? '').split(/(https?:\/\/[^\s<>"']+)/g).map((part, i) => {
+    if (i % 2 === 0) return esc(part);
+    const trail = part.match(/[.,;:!?)\]]+$/)?.[0] || '';
+    const url = trail ? part.slice(0, -trail.length) : part;
+    try { if (!['http:', 'https:'].includes(new URL(url).protocol)) return esc(part); } catch { return esc(part); }
+    return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>${esc(trail)}`;
+  }).join('');
+}

@@ -11,6 +11,7 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
 - Released days appear newest first; each contains poem, story and essay.
   Future texts remain inaccessible. Missed days remain readable.
 - Opening a text records private progress, not a completed read or submission.
+  The reader remembers the scroll position per text on the device.
   There is no shared group to join, no withdrawal, and nobody blocks anyone else.
 - Check off as read records server time. Completion on the assigned local day
   is on time; a later completion is catch-up. No client timestamps or backdating.
@@ -20,15 +21,41 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
 - Before submission only one's own response is readable. Afterwards only other
   submitted responses for the same text are readable. This is enforced by
   Firestore, including direct reads and queries, not just hidden by the UI.
-  The organiser has no bypass. Midnight and other people's progress are irrelevant.
-- Shared views contain submitted reader names, completion times, on-time/catch-up
-  status, individual ratings, rating average/count and comments newest-edit first.
+  The organiser has no bypass to responses or drafts; organiser access is limited
+  to completion records. Midnight and other people's progress are irrelevant.
+- Shared views contain submitted reader names, completion times, on-the-day/catch-up
+  status, individual ratings, rating average/count and comments, newest first
+  submission first. Edits never reorder the list; an edited comment says "edited".
   Other people's drafts, partial checkmarks and private progress are excluded.
+- Timing words: "on the day" = checked off on the text's own date in the club's
+  timezone; "catch-up" = checked off later. Used everywhere, defined in "How it works".
+- Unsent thoughts are saved as they are typed: before submission to the private
+  row (a private draft that follows the account), after submission on the device
+  only until "Save changes". One rule after submission: a new star choice also
+  waits for "Save changes" (kept on the device until then); before submission,
+  stars save privately at once, with Undo. Zero stars is a separate choice below
+  the rating status, never next to the stars.
+- "Continue reading" reopens a text where it was left (saved while reading, on
+  Close, Back, Escape, hiding the page and reload); a reload while reading reopens
+  the reader. Filters replace the history entry; phone Back closes the reader or
+  an open question before it changes anything behind them.
+- The organiser sees an Organiser page: the roster, the start date and timezone
+  (read-only once started), and who has checked each released text off and when
+  (on the day or catch-up). Nothing else: no ratings, thoughts, drafts or reader
+  progress. This comes from a per-member completion record
+  (`completions/{uid}`: text id to checkmark time) written with each checkmark and
+  cleared by "Mark as unread"; rules accept only values equal to the owner's own
+  private row, and only the owner and the organiser may read it. Members are told
+  in "How it works" that the organiser can see who has checked texts off.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
 - “Mark as unread” clears completion/submission, removes the shared response and
   relocks the discussion for its owner. Rating/comment drafts are retained.
+  Before finishing it acts at once with an Undo. Undo restores the original
+  checkmark time (so on the day stays on the day): unread sets the cleared time
+  aside in the private row (`undoCompletedAt`), and rules accept restoring exactly
+  that time within five minutes; a new row can never carry one.
   Previously viewed information cannot be unseen. A subsequent checkmark uses
   a new server timestamp and the reader must submit again.
 - Legacy checkmarks/ratings/comments remain intact as private, unsubmitted drafts.

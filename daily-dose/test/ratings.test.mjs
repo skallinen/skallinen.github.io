@@ -9,8 +9,8 @@ test('ratings accept only integers 0–5 or null; zero is not an absent rating',
   for (const value of [-1,6,2.5,'5',false,undefined,NaN,{},[]]) assert.throws(() => validateRating(value));
   assert.deepEqual(ratingSummary([{rating:0},{rating:5},{rating:null},{}]), { count:2, average:2.5 });
   const html = ratingControl({ id:'p1', title:'Poem', mine:{rating:0} });
-  assert.match(html, /aria-label="0 stars" aria-pressed="true"/);
-  assert.match(html, /0 \/ 5/);
+  assert.match(html, /class="rating-button rating-zero"[^>]*aria-pressed="true"/);
+  assert.match(html, /<strong>0 \/ 5<\/strong>/);
   assert.doesNotMatch(html, /Not rated/);
 });
 
@@ -36,4 +36,30 @@ test('ratings require completion, stay private, preserve timestamps and publish 
   assert.equal(after.comment,before.comment);
   f.service.act(f.b,f.club,'p1',{action:'rate',rating:null});
   assert.deepEqual(f.work(f.a).collective.ratings,{count:1,average:0});
+});
+
+test('the five star buttons are stars 1 to 5; zero is a separate labelled control', () => {
+  const html = ratingControl({ id:'p1', title:'Poem', mine:{rating:null} });
+  const stars = html.split('class="rating-stars"')[1].split('</div>')[0];
+  assert.deepEqual([...stars.matchAll(/data-rating="(\d)"/g)].map(m => m[1]), ['1','2','3','4','5']);
+  // Zero is named by its visible words (no aria-label), sits after the status line, and says it is a choice.
+  assert.match(html, /class="rating-button rating-zero"[^>]*aria-pressed="false" ><span class="choice-dot" aria-hidden="true"><\/span>0 stars: did not work for me<\/button>/);
+  assert.doesNotMatch(html.split('rating-zero')[0].split('rating-status')[1], /data-rating="0"/);
+  assert.ok(html.indexOf('rating-status') < html.indexOf('rating-zero'));
+  // One state word at a time: "Not rated" and no remove button, or "N / 5" and a remove button.
+  assert.match(html, /<strong>Not rated<\/strong>/);
+  assert.doesNotMatch(html, /Remove rating|Clear/);
+  const rated = ratingControl({ id:'p1', title:'Poem', mine:{rating:4} });
+  assert.match(rated, /<strong>4 \/ 5<\/strong>/);
+  assert.match(rated, /data-rating="clear"[^>]*>Remove rating<\/button>/);
+  assert.doesNotMatch(rated, /Not rated/);
+});
+
+test('after finishing, a new star choice is shown as not saved yet and cannot be removed', () => {
+  const html = ratingControl({ id:'p1', title:'Poem', revealed:true, mine:{rating:4} }, false, 2);
+  assert.match(html, /<strong>2 \/ 5<\/strong> <span class="rating-unsaved">\(not saved yet\)<\/span>/);
+  assert.match(html, /data-rating="2" aria-label="2 stars" aria-pressed="true"/);
+  assert.doesNotMatch(html, /Remove rating/);
+  const same = ratingControl({ id:'p1', title:'Poem', revealed:true, mine:{rating:4} });
+  assert.doesNotMatch(same, /not saved yet/);
 });
