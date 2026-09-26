@@ -12,17 +12,30 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   function unwatch(key) { watches.get(key)?.stop(); watches.delete(key); }
   function watch(key, ref) {
     if (!watches.has(key)) {
-      const e = {};
+      const e = { waiters: new Set() };
       e.ready = new Promise((resolve, reject) => {
         e.stop = onSnapshot(ref, { includeMetadataChanges: true }, snap => {
           if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
           e.snap = snap; resolve();
-        }, error => { e.error = error; reject(error); });
+          for (const w of e.waiters) if (w.test(snap)) w.done();
+        }, error => { e.error = error; reject(error); for (const w of e.waiters) w.done(); });
       });
       watches.set(key, e);
     }
     const e = watches.get(key);
     return e.ready.then(() => { if (e.error) throw e.error; return e.snap; });
+  }
+  // Resolves once the listener has delivered a server snapshot passing `test`
+  // (true), or false if none arrives in time or the listener is gone.
+  function settled(key, test, ms = 4000) {
+    const e = watches.get(key);
+    if (!e || e.error) return Promise.resolve(false);
+    if (e.snap && test(e.snap)) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const w = { test, done: () => { clearTimeout(t); e.waiters.delete(w); resolve(!e.error && watches.get(key) === e); } };
+      const t = setTimeout(() => { e.waiters.delete(w); resolve(false); }, ms);
+      e.waiters.add(w);
+    });
   }
   const programRef = c => doc(db, 'dailyDose', c);
   const workRef = (c, w) => doc(programRef(c), 'works', w);
@@ -61,7 +74,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const own = await watch(`own:${c}:${w.id}`, ownRef(c, w.id));
     const ownData = own.exists() ? own.data() : null;
     const revealed = ownData?.status === 'done' && ownData.submittedAt != null;
-    const result = { ...meta, date: localDate(millis(openAt), ctx.p.timezone), mine: mine(ownData, w), revealed, revealReason: revealed ? null : 'submit-your-response' };
+    const result = { ...meta, closeAt: millis(closeAt), date: localDate(millis(openAt), ctx.p.timezone), mine: mine(ownData, w), revealed, revealReason: revealed ? null : 'submit-your-response' };
     if (!revealed) unwatch(`shared:${c}:${w.id}`);
     else {
       let rows;
@@ -177,11 +190,14 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const comment = ['comment','submit'].includes(payload.action) ? validateComment(payload.comment) : null;
     const rating = payload.action === 'rate' ? validateRating(payload.rating) : null;
     const now = await clock(c) + 1000;
-    unwatch(`shared:${c}:${id}`);
+    // What the committed attempt saw and wrote (a transaction may run twice).
+    let seen = null, wrote = false, wasShared = false, isShared = false;
     try {
       await runTransaction(db, async tx => {
         const [ws, rs, cs] = await Promise.all([tx.get(workRef(c, id)), tx.get(ownRef(c, id)), tx.get(completionRef(c))]);
         const w = ws.data(), row = rs.exists() ? rs.data() : null;
+        seen = row?.updatedAt ?? null; wrote = false;
+        wasShared = row?.status === 'done' && row.submittedAt != null;
         let next;
         if (payload.action === 'start' || (payload.action === 'complete' && (!row || row.status === 'withdrawn'))) {
           if (payload.action === 'start' && row && row.status !== 'withdrawn') return;
@@ -212,6 +228,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
         }
         if (next.rating == null || !next.comment.trim()) next.submittedAt = null;
         next.updatedAt = serverTimestamp(); tx.set(ownRef(c, id), next);
+        wrote = true; isShared = next.status === 'done' && next.submittedAt != null;
         // Written together with the checkmark and cleared by Mark as unread.
         const wasDone = row?.status === 'done', isDone = next.status === 'done';
         if (wasDone !== isDone || (isDone && next.completedAt !== row.completedAt)) {
@@ -224,10 +241,23 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       if (retry && noAccess(e)) { await clock(c, true); return act(c, id, payload, false); }
       throw e;
     }
-    // A completed write can resolve before an existing listener delivers its
-    // snapshot. Read our committed row so the immediate UI refresh is current.
-    const own = await getDocFromServer(ownRef(c, id));
-    if (watches.has(`own:${c}:${id}`)) watches.get(`own:${c}:${id}`).snap = own;
+    if (!wrote) return;
+    // A completed write can resolve before the listeners deliver its snapshot,
+    // and the next feed() reads the listeners. So wait here until they carry
+    // this write (its updatedAt replaces the one the transaction read): the
+    // listener is already open, so this costs no extra round trip. Only if it
+    // stays silent is the row read from the server, as before.
+    const fresh = d => d?.exists() && !(seen && d.data().updatedAt?.isEqual?.(seen));
+    const ownKey = `own:${c}:${id}`, sharedKey = `shared:${c}:${id}`;
+    const shared = !wasShared || !isShared ? unwatch(sharedKey)
+      // Still shared (a rating or Save changes): the open query updates itself.
+      : settled(sharedKey, q => fresh(q.docs.find(d => d.id === user().uid))).then(ok => { if (!ok) unwatch(sharedKey); });
+    const own = settled(ownKey, fresh).then(async ok => {
+      if (ok || !watches.has(ownKey)) return;
+      const latest = await getDocFromServer(ownRef(c, id));
+      if (watches.has(ownKey)) watches.get(ownKey).snap = latest;
+    });
+    await Promise.all([shared, own]);
   }
   return {
     reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); },

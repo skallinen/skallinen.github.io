@@ -5,6 +5,7 @@ import { firebaseConfig } from './firebase-config.mjs';
 import { createFirestoreBackend } from './firestore.mjs';
 import { ratingControl, sharedRatings } from './ratings.mjs';
 import { addDays } from './calendar.mjs';
+import { ratingSummary } from '../server/domain.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -13,7 +14,11 @@ const firestoreMode = document.querySelector('meta[name="daily-dose-backend"]')?
 let backend;
 const FILTERS = ['all', 'unread', 'poem', 'story', 'essay'];
 const state = { config: null, auth: null, user: null, demoToken: null, clubs: [], clubId: null,
-  feed: null, organiser: null, view: 'feed', filter: 'all', drafts: new Map(), ratingDrafts: new Map(), pending: new Set(), generation: 0,
+  feed: null, organiser: null, view: 'feed', filter: 'all', drafts: new Map(), ratingDrafts: new Map(), generation: 0,
+  // Texts whose "Finish & reveal" / "Save changes" is on its way to the server.
+  pending: new Set(),
+  // The checkmark "Mark as unread" cleared, per text, for the optimistic Undo.
+  undone: new Map(), clockOffset: 0,
   // Cards kept in the Unread view after check-off, until the filter changes.
   sticky: new Set(), openDetails: new Set(), confirmUnread: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
@@ -220,6 +225,7 @@ async function signedIn(user, demoToken = null) {
   reader.innerHTML = '';
   state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.organiser = null;
   state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
+  queues.clear(); state.pending.clear(); state.undone.clear();
   if (!user) { state.clubs = []; state.clubId = null; login(); return; }
   shell('<section class="loading">Finding your book club…</section>');
   try {
@@ -286,23 +292,33 @@ function render() {
   }
   const campaign = feed.campaign, zone = zoneLabel(campaign.timezone);
   const activeDay = Math.max(0, Math.min(50, campaign.currentDay));
-  const unreadCount = allWorks().filter(w => w.mine?.status !== 'done').length;
   const hero = campaign.currentDay < 1 ? `We begin ${dateLabel(campaign.startDate)}.` : campaign.currentDay > 50 ? 'The pages stay open.' : 'Make a little room.';
-  const filteredDays = feed.days.map(d => ({ ...d, works: d.works.filter(w => state.filter === 'all' ||
-    (state.filter === 'unread' ? w.mine?.status !== 'done' || state.sticky.has(w.id) : w.category === state.filter)) })).filter(d => d.works.length);
+  const filteredDays = feed.days.map(d => ({ ...d, works: d.works.filter(shown) })).filter(d => d.works.length);
   const next = campaign.currentDay >= 1 && campaign.currentDay < 50 && ['all', 'unread'].includes(state.filter)
     ? `<section class="day-group upcoming" aria-labelledby="day-next"><div class="day-heading"><h2 id="day-next">Day ${idNumber(campaign.currentDay + 1)} <span>${dateLabel(addDays(campaign.today, 1))}</span></h2>
       <span><span aria-hidden="true">◷ </span>Opens tomorrow at 00:00, ${esc(zone)}</span></div></section>` : '';
-  const labels = { all: 'All readings', unread: `Unread (${unreadCount})`, poem: 'Poems', story: 'Stories', essay: 'Essays' };
   shell(`<section class="feed-intro"><div><p class="eyebrow">${esc(feed.club.name)}</p><h1>${hero}</h1>
     <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > 50 ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
     <div class="day-seal" aria-label="Day ${activeDay} of 50"><span>DAY</span><strong>${idNumber(activeDay)}</strong><small>OF 50</small></div></section>
-    <section class="personal-strip" aria-label="Your progress">${campaign.currentDay >= 1 ? progressLines(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zone)}.</p></section>
+    ${personalStrip(feed)}
     ${howItWorks(zone)}
     ${feed.organizer && campaign.editable ? scheduleForm(campaign) : ''}
     ${state.config.demo ? `<div class="demo-tools"><span>Preview the reveal with another participant.</span><button class="text-button" data-action="logout">Switch person</button>${feed.organizer ? '<button class="text-button" data-action="advance">Advance demo one day →</button>' : ''}</div>` : ''}
-    <div class="feed-toolbar"><div class="filters" role="group" aria-label="Filter readings">${FILTERS.map(key => `<button data-filter="${key}" class="filter ${state.filter === key ? 'active' : ''}" aria-pressed="${state.filter === key}">${labels[key]}</button>`).join('')}</div><button class="text-button refresh" data-action="refresh">Refresh</button></div>
+    <div class="feed-toolbar">${filterBar()}<button class="text-button refresh" data-action="refresh">Refresh</button></div>
     <div class="feed">${next}${filteredDays.map(daySection).join('') || `<section class="empty compact"><h2>${campaign.currentDay < 1 ? 'Your reading room is ready.' : state.filter === 'unread' ? 'Nothing left to read.' : 'Nothing here yet.'}</h2><p>${campaign.currentDay < 1 ? `Day 1 opens on ${dateLabel(campaign.startDate)}, ${esc(zone)}.` : state.filter === 'unread' ? 'You have checked off every open text. Choose All readings to revisit one.' : 'Choose another filter.'}</p></section>`}</div>`);
+}
+
+// Which cards the current filter shows. Checked-off cards stay in Unread
+// until the filter changes (state.sticky).
+const shown = w => state.filter === 'all' ||
+  (state.filter === 'unread' ? w.mine?.status !== 'done' || state.sticky.has(w.id) : w.category === state.filter);
+function personalStrip(feed) {
+  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
+}
+function filterBar() {
+  const unreadCount = allWorks().filter(w => w.mine?.status !== 'done').length;
+  const labels = { all: 'All readings', unread: `Unread (${unreadCount})`, poem: 'Poems', story: 'Stories', essay: 'Essays' };
+  return `<div class="filters" role="group" aria-label="Filter readings">${FILTERS.map(key => `<button data-filter="${key}" class="filter ${state.filter === key ? 'active' : ''}" aria-pressed="${state.filter === key}">${labels[key]}</button>`).join('')}</div>`;
 }
 
 function daySection(day) {
@@ -364,7 +380,7 @@ function lockedHint(work) {
 
 function reveal(work) {
   const collective = work.collective;
-  if (!work.revealed) return `<p class="locked" id="locked-${work.id}"><span aria-hidden="true">◇</span><span class="locked-text">${esc(lockedHint(work))}</span></p>`;
+  if (!work.revealed) return `<p class="locked" id="locked-${work.id}"><span aria-hidden="true">◇</span><span class="locked-text">${esc(state.pending.has(work.id) ? 'Sharing your response…' : lockedHint(work))}</span></p>`;
   const others = collective.readers.filter(r => r.uid !== state.feed.me.uid).length;
   const detailsKey = `readers:${work.id}`;
   // "Finished" here, "checked off" on the organiser page: different measures, different words.
@@ -379,17 +395,16 @@ function workCard(work) {
   const done = work.mine?.status === 'done';
   const reading = work.mine?.status === 'reading';
   const keptDraft = reading && (work.mine.rating != null || (work.mine.comment ?? '').trim());
-  const pending = state.pending.has(work.id);
   return `<article class="reading-card ${done ? 'is-done' : ''}" data-work="${work.id}" tabindex="-1">
     <div class="work-top"><span class="genre ${work.category}"><span aria-hidden="true">${icons[work.category]}</span>${category[work.category]}</span><span class="reading-time">${work.minutes} min read</span></div>
     <h3><button class="title-button" data-read="${work.id}">${esc(work.title)}</button></h3>
     <p class="byline">${esc(work.author)} <span>${esc(work.country)} · ${esc(work.year)}</span></p>
     <div class="work-actions"><div class="read-group"><button class="read-button" data-read="${work.id}">${readLabel(work)}</button>${timeLeft(work)}</div>
-      ${done ? `<span class="completion"><span aria-hidden="true">✓</span> Checked off ${work.mine.onTime ? 'on the day' : 'as catch-up'}</span><button class="unread-button" data-unread="${work.id}" ${pending ? 'disabled' : ''}>Mark as unread</button>`
-        : `<button class="check-button" data-complete="${work.id}" ${pending ? 'disabled' : ''}><span class="checkbox" aria-hidden="true"></span>Check off as read</button>`}
+      ${done ? `<span class="completion"><span aria-hidden="true">✓</span> Checked off ${work.mine.onTime ? 'on the day' : 'as catch-up'}</span><button class="unread-button" data-unread="${work.id}">Mark as unread</button>`
+        : `<button class="check-button" data-complete="${work.id}"><span class="checkbox" aria-hidden="true"></span>Check off as read</button>`}
     </div>
     ${keptDraft ? '<p class="reading-status">Your rating and thought are kept as a private draft. Check the text off again to finish.</p>' : ''}
-    ${done ? ratingControl(work, pending, ratingDraft(work.id)) : ''}
+    ${done ? ratingControl(work, false, ratingDraft(work.id)) : ''}
     ${done ? commentForm(work) : ''}
     <div class="reveal-section">${reveal(work)}</div>
   </article>`;
@@ -464,13 +479,19 @@ function settle(a) {
   if (el) window.scrollBy(0, el.getBoundingClientRect().top - a.top);
 }
 
+// A refresh that started earlier never overwrites the result of a later one.
+let refreshSeq = 0, refreshShown = 0;
 async function refresh({ quiet = false, render: draw = true } = {}) {
   if (!state.clubId) return;
   const generation = state.generation;
-  const clubId = state.clubId;
+  const clubId = state.clubId, seq = ++refreshSeq;
   const feed = await api(`/clubs/${clubId}/feed`);
-  if (generation !== state.generation || clubId !== state.clubId) return;
+  if (generation !== state.generation || clubId !== state.clubId || seq < refreshShown) return;
+  refreshShown = seq;
   state.feed = feed;
+  if (Number.isFinite(feed.now)) state.clockOffset = feed.now - Date.now();
+  // Writes still on their way stay visible over the server's older state.
+  for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
   if (!draw || state.view === 'organiser') return;
   if (!quiet || !document.activeElement?.matches('textarea,input,select')) {
     const a = anchor(document.activeElement?.closest('[data-work]')?.dataset.work);
@@ -483,42 +504,191 @@ function focusAfter(id, selector) {
   (card?.querySelector(selector) || card)?.focus({ preventScroll: true });
 }
 
+// ---------- redrawing one card in place
+// Patch `from` to match `to`, keeping every element that is still there, so
+// focus, the caret in the thought box and open <details> survive a redraw.
+function morph(from, to) {
+  if (from.nodeType !== to.nodeType || from.nodeName !== to.nodeName) { from.replaceWith(to); return; }
+  if (from.nodeType === Node.TEXT_NODE) { if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue; return; }
+  if (from.nodeType !== Node.ELEMENT_NODE) { from.replaceWith(to); return; }
+  for (const { name } of [...from.attributes]) if (!to.hasAttribute(name)) from.removeAttribute(name);
+  for (const { name, value } of [...to.attributes]) if (from.getAttribute(name) !== value) from.setAttribute(name, value);
+  // The text being typed is never touched; state.drafts already holds it.
+  if (from.tagName === 'TEXTAREA') { if (from !== document.activeElement && from.value !== to.value) from.value = to.value; return; }
+  const a = [...from.childNodes], b = [...to.childNodes];
+  b.forEach((node, i) => { if (i < a.length) morph(a[i], node); else from.append(node); });
+  for (const node of a.slice(b.length)) node.remove();
+}
+const fragment = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+
+// Redraw one card and the counts in the header, not the whole feed. When the
+// filter now shows or hides the card, fall back to a full render.
+function redrawCard(id, { focus } = {}) {
+  if (state.view !== 'feed' || !state.feed?.campaign || !root.querySelector('.feed')) return;
+  const work = currentWork(id), card = root.querySelector(`[data-work="${CSS.escape(id)}"]`);
+  if (!work || !card !== !shown(work)) {
+    const a = anchor(id); render(); settle(a);
+    if (focus) focusAfter(id, focus);
+    return;
+  }
+  if (card) {
+    const top = card.getBoundingClientRect().top;
+    morph(card, fragment(workCard(work)));
+    for (const el of card.querySelectorAll('textarea[data-draft]')) fitTextarea(el);
+    const moved = card.getBoundingClientRect().top - top;
+    if (moved) window.scrollBy(0, moved);
+    if (focus) focusAfter(id, focus);
+  }
+  const strip = root.querySelector('.personal-strip'), filters = root.querySelector('.feed-toolbar .filters');
+  if (strip) morph(strip, fragment(personalStrip(state.feed)));
+  if (filters) morph(filters, fragment(filterBar()));
+}
+
+// ---------- saving: a tap shows its result at once, the write follows
+// One queue per text, so its writes reach the server one at a time, in tap
+// order. A rating still waiting behind another write is replaced by a newer
+// one: the last choice wins and nothing is reordered. Each write carries
+// `apply`, which puts its expected result on a work; it is applied again after
+// every refresh until the server has confirmed it. When a write fails, it and
+// everything queued after it are dropped, the card goes back to the server's
+// state, and the error is shown.
+const queues = new Map();
+const queuedOps = id => { const q = queues.get(id); return q ? [q.running, ...q.waiting].filter(Boolean) : []; };
+
+function enqueue(id, payload, apply) {
+  let q = queues.get(id);
+  if (!q) queues.set(id, q = { running: null, waiting: [] });
+  const tail = q.waiting.at(-1);
+  if (payload.action === 'rate' && tail?.payload.action === 'rate') { tail.payload = payload; tail.apply = apply; return tail.done; }
+  const op = { payload, apply, clubId: state.clubId, generation: state.generation };
+  op.done = new Promise((resolve, reject) => { op.resolve = resolve; op.reject = reject; });
+  q.waiting.push(op);
+  if (!q.running) drain(id, q);
+  return op.done;
+}
+
+async function drain(id, q) {
+  while (q.waiting.length) {
+    const op = q.running = q.waiting.shift();
+    const current = () => op.generation === state.generation && op.clubId === state.clubId;
+    try {
+      await api(`/clubs/${op.clubId}/works/${id}`, { method: 'POST', body: op.payload });
+      // The last write in the queue brings the server's view back: the real
+      // checkmark time, the club's responses after Finish & reveal.
+      if (!q.waiting.length && current()) {
+        await refresh({ render: false }).catch(() => {});
+        if (!q.waiting.length) { q.running = null; redrawCard(id); }
+      }
+      q.running = null;
+      op.resolve();
+    } catch (error) {
+      const dropped = q.waiting.splice(0);
+      if (current()) { await refresh({ render: false }).catch(() => {}); q.running = null; redrawCard(id); }
+      q.running = null;
+      op.reject(error);
+      for (const d of dropped) d.reject(error);
+    }
+  }
+  if (queues.get(id) === q) queues.delete(id);
+}
+
+// The server clock as the backend last measured it: only for the expected
+// "on the day" / "catch-up" of a checkmark, which the server then confirms.
+const serverNow = () => Date.now() + state.clockOffset;
+const expectOnTime = w => w.closeAt != null ? serverNow() < w.closeAt : !!state.feed?.days.find(d => d.works.some(x => x.id === w.id))?.today;
+function hideShared(w) { w.revealed = false; w.revealReason = 'submit-your-response'; delete w.collective; }
+// After finishing, one's own entry in the club's view changes with one's own
+// rating and thought; everybody else's stays as the server sent it.
+function patchShared(w) {
+  const c = w.collective, me = state.feed?.me?.uid;
+  if (!c || !me) return;
+  const readers = c.readers.map(r => r.uid === me ? { ...r, rating: w.mine.rating } : r);
+  const comments = c.comments.map(x => x.uid === me ? { ...x, text: w.mine.comment, edited: x.edited || x.text !== w.mine.comment } : x);
+  w.collective = { ...c, readers, comments, ratings: ratingSummary(readers) };
+}
+
+// What a reading action will do to a work, as the server's transaction does it.
+function expectation(id, payload) {
+  const w0 = currentWork(id);
+  switch (payload.action) {
+    case 'start':
+      return w => { if (w.mine == null) w.mine = { status: 'reading', onTime: false, completedAt: null, comment: '', rating: null, submittedAt: null }; };
+    case 'complete':
+    case 'restore': {
+      const back = payload.action === 'restore' ? state.undone.get(id) : null;
+      const completedAt = back?.completedAt ?? serverNow(), onTime = back ? back.onTime : w0 ? expectOnTime(w0) : false;
+      return w => {
+        if (w.mine?.status === 'done') return;
+        const kept = w.mine?.status === 'reading' ? w.mine : { comment: '', rating: null };
+        w.mine = { ...kept, status: 'done', completedAt, onTime, submittedAt: null };
+      };
+    }
+    case 'unread':
+      return w => {
+        if (w.mine?.status !== 'done') return;
+        w.mine = { ...w.mine, status: 'reading', completedAt: null, onTime: false, submittedAt: null };
+        hideShared(w);
+      };
+    case 'rate':
+      return w => {
+        if (w.mine?.status !== 'done') return;
+        w.mine = { ...w.mine, rating: payload.rating };
+        if (payload.rating == null) { w.mine.submittedAt = null; hideShared(w); } else patchShared(w);
+      };
+    case 'submit': {
+      const comment = String(payload.comment ?? '').trim(), at = serverNow();
+      return w => {
+        if (w.mine?.status !== 'done') return;
+        w.mine = { ...w.mine, comment, submittedAt: w.mine.submittedAt ?? at };
+        patchShared(w);
+      };
+    }
+    default: return () => {};
+  }
+}
+
 const hasDraft = id => { const m = currentWork(id)?.mine; return m?.status !== 'done' && (m?.rating != null || !!(m?.comment ?? '').trim()); };
 const draftNote = id => hasDraft(id) ? ' Your rating and thought are kept as a private draft.' : '';
 
-// `undo: false` for actions that are themselves an Undo (no Undo of the Undo).
-async function act(id, payload, { focus, undo = true, message } = {}) {
-  if (state.pending.has(id)) return;
-  const before = currentWork(id);
-  const wasRevealed = before?.revealed, oldRating = before?.mine?.rating ?? null;
+// The card changes at once; the returned promise settles when the server has
+// the write (and rejects after the card has gone back, so callers show the error).
+// `undo: false` for actions that are themselves an Undo (no Undo of the Undo);
+// `quiet` for a step of "Save changes", which has its own message.
+function act(id, payload, { focus, undo = true, message, quiet = false } = {}) {
+  const before = currentWork(id), generation = state.generation;
+  const wasRevealed = before?.revealed, oldRating = before?.mine?.rating ?? null, wasDone = before?.mine?.status === 'done';
   if (['complete', 'restore'].includes(payload.action) && state.filter === 'unread') state.sticky.add(id);
-  state.pending.add(id);
-  const a = anchor(id);
-  let ok = false;
-  try {
-    await api(`/clubs/${state.clubId}/works/${id}`, { method: 'POST', body: payload });
-    ok = true;
-    if (payload.action === 'submit') { state.drafts.delete(id); store.del(localKey('draft', id)); }
-    if (payload.action === 'rate' || payload.action === 'submit') { state.ratingDrafts.delete(id); store.del(localKey('rating', id)); }
-    await refresh({ render: false });
-  } finally {
-    state.pending.delete(id);
-    if (state.view === 'feed') { render(); settle(a); if (focus) focusAfter(id, focus); }
-  }
-  if (!ok) return;
+  if (payload.action === 'unread' && wasDone) state.undone.set(id, { ...before.mine });
+  const apply = expectation(id, payload);
+  if (payload.action === 'submit') state.pending.add(id);
+  const saved = enqueue(id, payload, apply);
+  if (before) apply(before);
+  redrawCard(id, { focus });
+
   const undoWith = (label, next, text) => undo ? { action: { label, run: () => act(id, next, { undo: false, message: text }).catch(e => notify(e.message, true)) } } : {};
-  if (message) { notify(typeof message === 'function' ? message() : message); return; }
-  if (payload.action === 'complete') {
-    const onTime = currentWork(id)?.mine?.onTime;
-    notify(`Checked off ${onTime ? 'on the day' : 'as catch-up'}.`, undoWith('Undo', { action: 'unread' }, () => `Undone. Not checked off.${draftNote(id)}`));
-  }
-  if (payload.action === 'rate') {
+  if (quiet) { /* the caller speaks */ }
+  else if (message) notify(typeof message === 'function' ? message() : message);
+  else if (payload.action === 'complete' && !wasDone) {
+    notify(`Checked off ${currentWork(id)?.mine?.onTime ? 'on the day' : 'as catch-up'}.`, undoWith('Undo', { action: 'unread' }, () => `Undone. Not checked off.${draftNote(id)}`));
+  } else if (payload.action === 'rate') {
     const text = payload.rating === null ? 'Rating removed.' : `Rating saved: ${plural(payload.rating, 'star')}.`;
     notify(text, undoWith('Undo', { action: 'rate', rating: oldRating }, oldRating === null ? 'Undone. Not rated.' : `Undone. Back to ${plural(oldRating, 'star')}.`));
+  } else if (payload.action === 'unread' && wasDone) {
+    // After finishing, the dialog was the question; before finishing, Undo is enough.
+    notify(`Marked as unread.${draftNote(id)}`, wasRevealed ? {} : { action: { label: 'Undo', run: () => restoreCheck(id) } });
   }
-  if (payload.action === 'submit') notify(wasRevealed ? 'Changes saved and shared.' : 'Response shared. Other finished readers’ responses are now visible.');
-  // After finishing, the dialog was the question; before finishing, Undo is enough.
-  if (payload.action === 'unread') notify(`Marked as unread.${draftNote(id)}`, wasRevealed ? {} : { action: { label: 'Undo', run: () => restoreCheck(id) } });
+
+  return saved.then(() => {
+    if (generation !== state.generation || payload.action !== 'submit') return;
+    state.pending.delete(id);
+    // A thought typed while this one was being sent stays as the newer draft.
+    if (state.drafts.get(id) === payload.comment) { state.drafts.delete(id); store.del(localKey('draft', id)); }
+    redrawCard(id);
+    if (!quiet) notify(wasRevealed ? 'Changes saved and shared.' : 'Response shared. Other finished readers’ responses are now visible.');
+  }, error => {
+    if (payload.action === 'submit' && generation === state.generation) { state.pending.delete(id); redrawCard(id); }
+    throw error;
+  });
 }
 
 // Undo of "Mark as unread" puts back the original checkmark, time and all, so a
@@ -539,19 +709,21 @@ function chooseRatingDraft(id, value) {
   const saved = currentWork(id)?.mine?.rating ?? null;
   if (value === saved) { state.ratingDrafts.delete(id); store.del(localKey('rating', id)); }
   else { state.ratingDrafts.set(id, value); store.set(localKey('rating', id), JSON.stringify(value)); }
-  const a = anchor(id); render(); settle(a);
-  focusAfter(id, `[data-rate][data-rating="${value}"]`);
+  redrawCard(id, { focus: `[data-rate][data-rating="${value}"]` });
   notify(value === saved ? `Back to ${plural(saved, 'star')}, as shared.` : `${plural(value, 'star')} chosen. Choose Save changes to share it.`);
 }
 
-// "Save changes" after finishing: the rating, then the thought.
+// "Save changes" after finishing: the rating, then the thought, queued
+// together. Both show as saved at once; the unsaved choices stay on this
+// device until the server has them, so a failed save loses nothing.
 async function saveChanges(id) {
-  const work = currentWork(id), draft = draftText(work);
-  if (ratingChanged(id)) {
-    await api(`/clubs/${state.clubId}/works/${id}`, { method: 'POST', body: { action: 'rate', rating: state.ratingDrafts.get(id) } });
-    state.ratingDrafts.delete(id); store.del(localKey('rating', id));
-  }
-  await act(id, { action: 'submit', comment: state.drafts.get(id) ?? work.mine.comment });
+  const work = currentWork(id);
+  const rating = ratingChanged(id) ? state.ratingDrafts.get(id) : undefined;
+  const steps = [];
+  if (rating !== undefined) steps.push(act(id, { action: 'rate', rating }, { quiet: true }));
+  steps.push(act(id, { action: 'submit', comment: state.drafts.get(id) ?? work.mine.comment }));
+  await Promise.all(steps);
+  if (rating !== undefined && state.ratingDrafts.get(id) === rating) { state.ratingDrafts.delete(id); store.del(localKey('rating', id)); redrawCard(id); }
 }
 
 // ---------- the reader
@@ -589,7 +761,7 @@ async function openReading(id, { push = true } = {}) {
   const generation = state.generation;
   const clubId = state.clubId;
   // Opening records only private progress, never a completed read or submission.
-  if (currentWork(id)?.mine == null) await act(id, { action: 'start' });
+  if (currentWork(id)?.mine == null) act(id, { action: 'start' }).catch(e => notify(e.message, true));
   const work = await api(`/clubs/${clubId}/works/${id}`);
   if (generation !== state.generation || clubId !== state.clubId) return;
   const done = currentWork(id)?.mine?.status === 'done';
@@ -669,16 +841,16 @@ async function run(event) {
   if (button.dataset.rate) {
     const id = button.dataset.rate, value = button.dataset.rating;
     if (currentWork(id)?.revealed) { if (value !== 'clear') chooseRatingDraft(id, Number(value)); return; }
-    await act(id, { action: 'rate', rating: value === 'clear' ? null : Number(value) });
-    document.querySelector(`[data-rate="${CSS.escape(id)}"][data-rating="${value === 'clear' ? '1' : value}"]`)?.focus({ preventScroll: true });
-    return;
+    return act(id, { action: 'rate', rating: value === 'clear' ? null : Number(value) }, { focus: `[data-rating="${value === 'clear' ? '1' : value}"]` });
   }
   if (button.dataset.readerComplete) {
     const id = button.dataset.readerComplete;
     saveProgress({ finished: true });
     if (currentWork(id)?.mine?.status !== 'done') {
       if (state.filter === 'unread') state.sticky.add(id);
-      await act(id, { action: 'complete' });
+      const saved = act(id, { action: 'complete' });
+      closeReader();
+      return saved;
     }
     closeReader(); return;
   }
@@ -747,6 +919,7 @@ document.addEventListener('change', event => {
   if (event.target.id !== 'club-select') return;
   flushDrafts().finally(() => {
     state.generation++; state.clubId = event.target.value; state.drafts.clear(); state.ratingDrafts.clear(); state.organiser = null; closeReader();
+    queues.clear(); state.pending.clear(); state.undone.clear();
     store.set(`daily-dose-club:${state.user.uid}`, state.clubId);
     refresh({ render: false }).then(() => { restoreDrafts(); applyRoute(); }).catch(error => notify(error.message, true));
   });
@@ -775,12 +948,12 @@ document.addEventListener('submit', async event => {
     }
   } catch (error) { notify(error.message, true); }
 });
-// Warn before leaving while a save is under way, or with changes to a shared
+// Warn before leaving while a save is under way (a draft or a reading action), or with changes to a shared
 // response (thought or stars) that are not saved, or a thought too long to save.
 window.addEventListener('beforeunload', event => {
   saveProgress();
   const unsent = allWorks().some(w => unsavedShared(w.id) || (!w.revealed && Array.from(state.drafts.get(w.id) ?? '').length > 140));
-  if (!saveTimers.size && !saving.size && !unsent) return;
+  if (!saveTimers.size && !saving.size && !queues.size && !unsent) return;
   for (const id of [...saveTimers.keys()]) saveDraft(id);
   event.preventDefault(); event.returnValue = '';
 });
