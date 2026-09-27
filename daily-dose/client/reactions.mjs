@@ -68,3 +68,44 @@ export function reactionBar(workId, comment, { open = false, me = null } = {}) {
   }).join('')}</div>` : '';
   return `<div class="reactions">${pills}<button type="button" class="reaction-add" data-react-open="${esc(workId)}" data-author="${esc(comment.uid)}" aria-expanded="${open}"${open ? ` aria-controls="${esc(panel)}"` : ''} aria-label="${comment.uid === me ? 'React to your own thought' : `React to ${esc(comment.name)}’s thought`}"><span aria-hidden="true">☺</span> React</button>${choices}</div>`;
 }
+
+// ---------- the count on your name: new reactions to your own thoughts
+// A reaction is one pair "reactorUid:key". The pairs on one thought, from
+// other current members only (your own reactions to your own thought are not
+// news), sorted so they compare and store the same way everywhere.
+export function reactionsTo(docs, author, members) {
+  const pairs = new Set();
+  for (const { uid, on } of docs) {
+    if (uid === author || !members.has(uid)) continue;
+    const keys = Array.isArray(on?.[author]) ? on[author] : [];
+    for (const key of keys) if (byKey.has(key)) pairs.add(`${uid}:${key}`);
+  }
+  return [...pairs].sort();
+}
+
+// New = on your thought now and not in what you had seen of that text. The
+// count comes from the reactions as they are now, so a reaction taken back
+// leaves no count behind. `seen` is any number of { workId: [pairs] } maps
+// (your account's and this device's); a pair seen in any of them is seen.
+// Returns the texts with news, in feed order (newest day first).
+export function newReactions(works, ...seen) {
+  const out = [];
+  for (const w of works) {
+    const pairs = w.collective?.toMe;
+    if (!Array.isArray(pairs) || !pairs.length) continue;
+    const known = new Set(seen.flatMap(s => Array.isArray(s?.[w.id]) ? s[w.id] : []));
+    const count = pairs.filter(p => !known.has(p)).length;
+    if (count) out.push({ id: w.id, count });
+  }
+  return out;
+}
+
+export const newsLabel = n => `${n} new ${n === 1 ? 'reaction' : 'reactions'} to your thoughts`;
+
+// Your initial in the header; with news, a button carrying the count, which
+// takes you to the thought that got them.
+export function meMarker(name, count) {
+  const initial = esc(Array.from(String(name || '?').trim())[0] || '?');
+  if (!count) return `<span class="me-marker" aria-hidden="true">${initial}</span>`;
+  return `<button type="button" class="me-marker has-news" data-news aria-label="${newsLabel(count)}" title="${newsLabel(count)}"><span aria-hidden="true">${initial}</span><span class="news-count" aria-hidden="true">${count > 9 ? '9+' : count}</span></button>`;
+}

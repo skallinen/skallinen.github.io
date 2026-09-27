@@ -42,6 +42,32 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   Stored per text and reacting member (`works/{work}/reactions/{uid}`:
   `on` = author uid to a list of keys), so nobody can write another's.
   If the deployed rules predate reactions, the thoughts show without them.
+- New reactions to your thoughts: your initial sits next to your name at the
+  top; when other members have reacted to your own thoughts since you last
+  looked, it becomes a button with the count on its corner (9+ above nine),
+  labelled for screen readers "3 new reactions to your thoughts".
+  What counts as new: a reaction (one member, one emoji) by another current
+  member that is on your thought now and was not there when you last looked at
+  that text. Your own reactions never count. The count is taken from the
+  reactions as they are now, so a reaction taken back leaves no count behind
+  (and one taken back and added again after you looked is not new again).
+  Only texts you have finished count, as only those show reactions.
+  What looking means, per text: your thought on that text was on screen (at
+  least 60% of it, for a second, with the reader closed), or the count took you
+  there. Opening the feed alone clears nothing. Your thought says "2 new
+  reactions" under your name until the card is next redrawn.
+  Tapping the count opens the newest day's text with news (switching to All
+  readings or leaving the Organiser page if needed), scrolls your thought into
+  view, moves focus to it, marks that text as looked at and says which text in
+  a message. With news on several texts, each tap leads to the next.
+  Stored per member as `seen/{uid}`: `works` = text id to the list of reactions
+  ("reactorUid:key") on your thought when you last looked. Only you can read or
+  write it, one text per write, at most 600 per text (Firestore-enforced). It
+  follows your account across devices; this device also keeps a copy, and a
+  reaction seen in either is not new. Until the rules for `seen` are deployed,
+  the device copy alone is used. Cost: no extra reads of reactions (the feed
+  already listens to them for every finished text), one listener on your own
+  `seen` document, one write per text you look at while it has news.
 - Timing words: "on the day" = checked off on the text's own date in the club's
   timezone; "catch-up" = checked off later. Used everywhere, defined in "How it works".
 - Unsent thoughts are saved as they are typed: before submission to the private

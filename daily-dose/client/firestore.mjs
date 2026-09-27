@@ -1,6 +1,6 @@
 import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
-import { isReaction, tally } from './reactions.mjs';
+import { isReaction, tally, reactionsTo } from './reactions.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
@@ -13,6 +13,10 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   // Set when the deployed rules refuse reactions (rules older than the
   // client): the thoughts then show without them, and nobody can react.
   let reactionsOff = false;
+  // Likewise for the record of which reactions to one's own thoughts one has
+  // seen (seen/{uid}): until those rules are deployed, the app keeps it on
+  // the device only.
+  let seenOff = false;
   function unwatch(key) { watches.get(key)?.stop(); watches.delete(key); }
   function watch(key, ref) {
     if (!watches.has(key)) {
@@ -47,6 +51,8 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   // The organiser-visible completion record: only whether and when each text
   // was checked off. Ratings, thoughts and progress stay in the private row.
   const completionRef = (c, uid = user().uid) => doc(programRef(c), 'completions', uid);
+  // Private to its owner: per text, the reactions to one's own thought already seen.
+  const seenRef = c => doc(programRef(c), 'seen', user().uid);
   async function clock(c, fresh = false) {
     if (fresh || !clocks.has(c)) {
       const ref = doc(programRef(c), 'sessions', user().uid);
@@ -104,7 +110,9 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
         comments: done.filter(r => r.comment)
           .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), submittedAt: millis(r.submittedAt), edited: edited(r), onTime: onTime(r),
             ...(reactions ? { reactions: tally(reactions, r.uid, ctx.members, user().uid) } : {}) })),
-        reactable: !!reactions };
+        reactable: !!reactions,
+        // Other members' reactions to one's own thought ("uid:key"), for the count on one's name.
+        ...(reactions ? { toMe: reactionsTo(reactions, user().uid, ctx.members) } : {}) };
     }
     return result;
   }
@@ -141,9 +149,36 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const has = snap => !!snap.docs.find(d => d.id === user().uid)?.data().on?.[author]?.includes(emoji);
     if (!await settled(key, snap => has(snap) === on)) unwatch(key);
   }
+  // Which reactions to one's own thoughts one has seen, per text: { workId: [pairs] }.
+  // One listener on one's own document; null while the rules do not allow it.
+  async function seenWorks(c) {
+    if (seenOff) return null;
+    try { const snap = await watch(`seen:${c}`, seenRef(c)); return snap.exists() ? snap.data().works || {} : {}; }
+    catch (e) {
+      if (!noAccess(e)) throw e;
+      unwatch(`seen:${c}`); seenOff = true;
+      return null;
+    }
+  }
+  // One has looked at the reactions to one's thought on one text: store
+  // exactly the pairs there now, so a reaction taken back is dropped too.
+  async function markSeen(c, { work, pairs } = {}) {
+    if (typeof work !== 'string' || !/^[A-Za-z0-9-]{1,40}$/.test(work) || !Array.isArray(pairs) || pairs.length > 600
+      || !pairs.every(p => typeof p === 'string' && /^[A-Za-z0-9_-]{1,128}:[a-z]{1,16}$/.test(p))) throw new Error('Unknown reactions.');
+    if (seenOff) throw new Error('Not available here yet.');
+    try { await setDoc(seenRef(c), { works: { [work]: [...pairs] }, last: work, updatedAt: serverTimestamp() }, { merge: true }); }
+    catch (e) {
+      if (noAccess(e)) { seenOff = true; unwatch(`seen:${c}`); throw new Error('Not available here yet.'); }
+      throw e;
+    }
+    // Wait until the open listener carries the write, so the next feed shows it.
+    const want = JSON.stringify(pairs);
+    if (!await settled(`seen:${c}`, snap => JSON.stringify(snap.data()?.works?.[work]) === want)) unwatch(`seen:${c}`);
+  }
   async function feed(c) {
     const ctx = await context(c), p = ctx.p;
     const base = { club: ctx.club, me: { uid: user().uid, name: user().displayName }, organizer: ctx.organizer, now: ctx.now, edition: p.edition, days: [], personal: { completed: 0, onTime: 0, catchUp: 0 } };
+    base.seen = await seenWorks(c);
     if (!p.startDate) return { ...base, campaign: null };
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
     base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: 50, editable: ctx.now < millis(p.boundaries[0]) };
@@ -305,7 +340,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     await Promise.all([shared, own]);
   }
   return {
-    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); reactionsOff = false; },
+    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); reactionsOff = false; seenOff = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -322,6 +357,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       if (parts[2] === 'feed') return feed(c);
       if (parts[2] === 'organiser') return organiser(c);
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
+      if (parts[2] === 'seen' && options.method === 'POST') return markSeen(c, options.body);
       if (parts[2] === 'works' && parts[4] === 'reactions' && options.method === 'POST') return react(c, id, options.body);
       if (parts[2] === 'works' && options.method === 'POST') return act(c, id, options.body);
       if (parts[2] === 'works') return JSON.parse((await getDocFromServer(doc(programRef(c), 'texts', id))).data().json);

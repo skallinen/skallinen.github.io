@@ -102,7 +102,8 @@ private anthology at `~/common/projects/daily-dose/webapp/data/anthology.json`
 
 The beats, in order: sign in, the feed and day seal, today versus catch-up,
 open, read, check off, 0 stars, remove and 4 stars, a thought, Finish & reveal,
-the club's thoughts, react with an emoji, edit after sharing, Mark as unread, tomorrow; then the
+the club's thoughts, react with an emoji, the count on your initial (the peer
+the reader reacted to reacts back, written straight into the emulator), edit after sharing, Mark as unread, tomorrow; then the
 organiser: sign in, the Organiser page (and what it cannot see), the read-only
 start date and timezone, today's who-has-checked-off, the earlier days (one
 block per day; none yet on Day 1, which the caption says), the roster, sign out.
@@ -202,3 +203,30 @@ including the new "react" beat. The rules suite (21 tests, run with the
 emulator on 8189 via `firebase emulators:exec`) passed. The legacy Node demo
 e2e (`npm run test:e2e`) fails 4 of 4 at its first step both with and without
 this change (it expects "Day 03" first); not looked into.
+
+## Count on your name check
+
+`testbed/check-news.mjs` checks the count of new reactions to your own
+thoughts at 360 px (`CHECK_WIDTH` to change) on a running bed seeded with
+`TOUR_SEED=1`:
+
+```sh
+TOUR_SEED=1 scripts/testbed.sh start
+node testbed/check-news.mjs                 # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Mikko finishes today's poem and hearts his own thought (no count); Grace and
+Oskar react (3, labelled "3 new reactions to your thoughts", 44 px target,
+initial, name and Sign out in one row, no sideways scrolling); Grace takes one
+back (2); with the Stories filter on, a tap on the count goes back to All
+readings, shows and focuses his thought ("2 new reactions"), names the text in
+a message and clears the count; it stays clear after a reload and on a second
+device; Oskar's next reaction (1) clears when Mikko scrolls to his thought; the
+second device agrees. Like the reactions check it writes to the bed: reseed
+before a rerun.
+
+2026-09-27, count on your name: `check-news.mjs` all green at 360 px;
+`check-reactions.mjs` still green at 390 and 360 px; `scripts/tour.sh --reset`
+headless at 390x844 ran 23 of 23 beats, including the new "news" beat; the
+rules suite (24 tests, 3 new for `seen`) and the unit tests (36) passed.

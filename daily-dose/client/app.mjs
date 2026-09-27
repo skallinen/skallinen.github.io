@@ -7,7 +7,7 @@ import { ratingControl, sharedRatings } from './ratings.mjs';
 import { addDays } from './calendar.mjs';
 import { ratingSummary } from '../server/domain.mjs';
 import { episodeFor, chapterAt, clock } from './podcast.mjs';
-import { reactionBar, setReaction } from './reactions.mjs';
+import { reactionBar, setReaction, newReactions, meMarker } from './reactions.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -209,9 +209,72 @@ function shell(content) {
   root.innerHTML = `${state.config?.demo ? '<div class="demo-banner">LOCAL DEMO · fictional participants · no real club data</div>' : ''}
     <header class="site-header">${brand}${state.user ? `<nav aria-label="Account">
     ${state.clubs.length > 1 ? `<label class="sr-only" for="club-select">Book club</label><select id="club-select">${state.clubs.map(c => `<option value="${esc(c.id)}" ${c.id === state.clubId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
-    ${views}<div class="account"><span class="user-name">Signed in as <strong>${name}</strong></span><button class="nav-button sign-out" data-action="logout">Sign out</button></div></nav>` : ''}</header>
+    ${views}<div class="account"><span class="me">${meMarker(state.user.displayName || state.user.name || 'you', newsCount())}<span class="user-name"><span class="signed-in-as">Signed in as </span><strong>${name}</strong></span></span><button class="nav-button sign-out" data-action="logout">Sign out</button></div></nav>` : ''}</header>
     <main id="main">${content}</main><footer class="site-footer"><span>One poem. One story. One essay.</span><span>Read at your own pace. Come back tomorrow.</span></footer>`;
   fitTextareas();
+  watchNews();
+}
+
+// ---------- the count on your name: new reactions to your own thoughts
+// (see client/reactions.mjs and SPEC.md). What you have seen is kept per text
+// in your account (seen/{uid}, when the rules allow it) and on this device;
+// a reaction seen in either is not new. Looking means your thought on that
+// text was on screen for a second, or the count took you there.
+let seenHere = { key: null, works: {} };
+function deviceSeen() {
+  const key = state.user && state.clubId ? `daily-dose-seen:${state.user.uid}:${state.clubId}` : null;
+  if (seenHere.key !== key) seenHere = { key, works: (key && store.json(key)) || {} };
+  return seenHere.works;
+}
+const news = () => state.feed ? newReactions(allWorks(), state.feed.seen, deviceSeen()) : [];
+const newsCount = () => news().reduce((n, x) => n + x.count, 0);
+const newsFor = id => news().find(x => x.id === id)?.count || 0;
+function paintMe() {
+  const el = root.querySelector('.me-marker'), name = state.user ? state.user.displayName || state.user.name || 'you' : '';
+  if (el) morph(el, fragment(meMarker(name, newsCount())));
+}
+function markSeen(id) {
+  const pairs = currentWork(id)?.collective?.toMe;
+  if (!Array.isArray(pairs) || !newsFor(id)) return;
+  const works = deviceSeen();
+  works[id] = [...pairs];
+  if (seenHere.key) store.set(seenHere.key, JSON.stringify(works));
+  // Your account's copy, so your other devices know too; if it fails, this device still knows.
+  if (state.feed?.seen) api(`/clubs/${state.clubId}/seen`, { method: 'POST', body: { work: id, pairs: [...pairs] } }).catch(() => {});
+  paintMe();
+}
+// Your thought with new reactions, on screen for a second, counts as seen.
+let newsObserver = null;
+const newsTimers = new Map();
+function watchNews() {
+  if (!('IntersectionObserver' in window)) return;
+  newsObserver ||= new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const id = e.target.dataset.ownThought;
+      clearTimeout(newsTimers.get(id)); newsTimers.delete(id);
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) newsTimers.set(id, setTimeout(() => {
+        newsTimers.delete(id);
+        if (!document.hidden && !reader.open) markSeen(id);
+      }, 1000));
+    }
+  }, { threshold: [0, 0.6, 1] });
+  newsObserver.disconnect();
+  for (const t of newsTimers.values()) clearTimeout(t);
+  newsTimers.clear();
+  for (const el of root.querySelectorAll('.tweet.has-new[data-own-thought]')) newsObserver.observe(el);
+}
+// The count takes you to the newest text with news: your thought there, in view.
+function showNews() {
+  const next = news()[0];
+  if (!next) { paintMe(); return; }
+  const work = currentWork(next.id);
+  if (state.view !== 'feed' || !shown(work)) navigate('', { replace: state.view === 'feed' });
+  const el = root.querySelector(`[data-own-thought="${CSS.escape(next.id)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ block: 'center' });
+  el.focus({ preventScroll: true });
+  markSeen(next.id);
+  notify(`${next.count === 1 ? 'A new reaction' : `${next.count} new reactions`} to your thought on “${work.title}”.`);
 }
 
 function login() {
@@ -272,7 +335,7 @@ function howItWorks(zone) {
     <p><strong>On the day</strong> means you checked a text off on its own date; <strong>catch-up</strong> means later. Both count.</p>
     <p>Before you finish, your stars and thought are private and saved as you go. After you finish, changes are shared only when you choose “Save changes”.</p>
     <p>“Mark as unread” corrects a checkmark. After you have finished, your response becomes a private draft again and the others’ responses hide. What you have seen cannot be unseen.</p>
-    <p>After you finish, you can react to the thoughts (your own too) with one of six emojis. Tap an emoji again to take yours back. Only readers who have finished the text see reactions; hold a finger on one (or point at it) to see who reacted.</p>
+    <p>After you finish, you can react to the thoughts (your own too) with one of six emojis. Tap an emoji again to take yours back. Only readers who have finished the text see reactions; hold a finger on one (or point at it) to see who reacted. When others react to your thought, a number appears on your initial at the top; tap it to go to that thought.</p>
     <p>The organiser can see who has checked each text off, and when. The organiser cannot see your ratings, thoughts or drafts.</p></details>`;
 }
 
@@ -395,7 +458,11 @@ function reveal(work) {
     ${sharedRatings(collective)}
     ${collective.readers.length ? `<details class="reader-stats" data-details="${detailsKey}" ${state.openDetails.has(detailsKey) ? 'open' : ''}><summary>Finished readers (${collective.readers.length})</summary><ul>${collective.readers.map(r => `<li><span class="reader-name">${esc(r.name)}</span><span class="reader-rating">${r.rating == null ? 'Not rated' : `${r.rating} / 5 ★`}</span><span class="reader-timing">${timing(r.onTime)}</span></li>`).join('')}</ul></details>` : ''}
     ${others ? '' : '<p class="empty-thoughts">Nobody else has finished this yet. Their responses appear here when they do.</p>'}
-    ${collective.comments.map(c => `<div class="tweet"><span class="avatar" aria-hidden="true">${esc(c.name.slice(0, 1))}</span><div><div class="tweet-meta"><strong>${esc(c.name)}</strong><span>${timing(c.onTime)}${c.edited ? ' · edited' : ''}</span></div><p>${esc(c.text)}</p>${collective.reactable ? reactionBar(work.id, c, { open: state.reactOpen === `${work.id}|${c.uid}`, me: state.feed.me.uid }) : ''}</div></div>`).join('')}`;
+    ${collective.comments.map(c => {
+      // Your own thought carries what is new on it; the count on your name leads here.
+      const own = c.uid === state.feed.me.uid, fresh = own ? newsFor(work.id) : 0;
+      return `<div class="tweet${fresh ? ' has-new' : ''}"${own ? ` data-own-thought="${esc(work.id)}" tabindex="-1"` : ''}><span class="avatar" aria-hidden="true">${esc(c.name.slice(0, 1))}</span><div><div class="tweet-meta"><strong>${esc(c.name)}</strong><span>${timing(c.onTime)}${c.edited ? ' · edited' : ''}</span>${fresh ? `<span class="new-reactions">${plural(fresh, 'new reaction')}</span>` : ''}</div><p>${esc(c.text)}</p>${collective.reactable ? reactionBar(work.id, c, { open: state.reactOpen === `${work.id}|${c.uid}`, me: state.feed.me.uid }) : ''}</div></div>`;
+    }).join('')}`;
 }
 
 function workCard(work) {
@@ -550,6 +617,7 @@ function redrawCard(id, { focus } = {}) {
   const strip = root.querySelector('.personal-strip'), filters = root.querySelector('.feed-toolbar .filters');
   if (strip) morph(strip, fragment(personalStrip(state.feed)));
   if (filters) morph(filters, fragment(filterBar()));
+  paintMe(); watchNews();
 }
 
 // ---------- saving: a tap shows its result at once, the write follows
@@ -1040,6 +1108,7 @@ async function run(event) {
   if (button.dataset.read) return openReading(button.dataset.read);
   if (button.dataset.playDay) return listen(Number(button.dataset.playDay), button.dataset.playWork || null);
   if (button.dataset.playerClose !== undefined) { stopPlayer(); return; }
+  if (button.dataset.news !== undefined) { showNews(); return; }
   if (button.dataset.reactOpen) {
     const id = button.dataset.reactOpen, author = button.dataset.author, key = `${id}|${author}`;
     state.reactOpen = state.reactOpen === key ? null : key;

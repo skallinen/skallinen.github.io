@@ -22,6 +22,8 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import readline from 'node:readline';
+import { projectId, host, ports } from '../testbed/config.mjs';
+import { club } from '../testbed/personas.mjs';
 
 // ---------------------------------------------------------------- captions
 // [main line, sub line]. {reader} and {organiser} are replaced by first names.
@@ -48,6 +50,8 @@ const CAPTIONS = {
     'Only members who have finished this text appear here.'],
   react: ['React to a thought, as in Slack: six emojis, and tap one again to take yours back.',
     'Everyone who has finished the text sees the counts. Point at one, or hold a finger on it, to see who reacted.'],
+  news: ['When someone reacts to your thought, a number appears on your initial at the top.',
+    'Tap it to go straight to that thought. Your own reactions never count, and one taken back comes off the number.'],
   edit: ['You can still edit after sharing.', 'Your original reading time is kept.'],
   unread: ['Checked it off by mistake? Mark it as unread.',
     'Your response becomes a private draft again and the discussion hides. What you saw cannot be unseen.'],
@@ -90,6 +94,9 @@ const LABELS = {
   saveChanges: 'Save changes',
   react: /^React to .+’s thought$/,                                  // under each thought, opens the six emojis
   reactHeart: 'heart',                                              // one of the six
+  news: /^\d+ new reactions? to your thoughts$/,                    // the count on your initial, top of the page
+  newOnThought: /^\d+ new reactions?$/,                              // under your name on your thought
+  refresh: 'Refresh',
   clubThoughts: /THE CLUB.S THOUGHTS/,
   whoRead: /Finished readers|Who read this\?|Who has read|Who read|Readers/,     // expander in the club's thoughts
   markUnread: 'Mark as unread',
@@ -262,6 +269,19 @@ async function signOut() {
   await page.getByRole('button', { name: LABELS.signIn }).waitFor({ timeout: 15000 });
 }
 
+// One peer's reaction, written as the Admin SDK on the test bed's emulator
+// (a demo-* project, so it can never reach production).
+let adminDb = null;
+async function peerReacts(workId, peer, author, key) {
+  if (!projectId.startsWith('demo-')) throw new Error('not a demo project');
+  process.env.FIRESTORE_EMULATOR_HOST = `${host}:${ports.firestore}`;
+  const { initializeApp } = await import('firebase-admin/app');
+  const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
+  adminDb ||= getFirestore(initializeApp({ projectId }, 'tour'));
+  await adminDb.doc(`dailyDose/${club.id}/works/${workId}/reactions/${peer}`)
+    .set({ on: { [author]: FieldValue.arrayUnion(key) }, last: author, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+
 const todayGroup = () => page.locator('section').filter({ has: page.getByRole('heading', { name: LABELS.todayHeading }) });
 const card = () => { if (!ctx.card) throw new Error('no text was chosen'); return ctx.card; };
 
@@ -347,6 +367,23 @@ const beats = [
     const pill = thought.locator('button.reaction[data-emoji="heart"][aria-pressed="true"]');
     await pill.waitFor({ timeout: 10000 });
     await point(pill, { click: false });
+    ctx.peer = author;
+  } },
+  { key: 'news', run: async () => {
+    // Behind the scenes, the peer whose thought got the heart reacts to the
+    // reader's thought (straight into the emulator, as that peer's own tap would).
+    const mineAdd = card().locator('.reaction-add[aria-label="React to your own thought"]');
+    const [workId, me] = [await card().getAttribute('data-work'), await mineAdd.getAttribute('data-author')];
+    if (!ctx.peer) throw new Error('no other reader to react');
+    await peerReacts(workId, ctx.peer, me, 'heart');
+    // From the top of the page, so the thought itself is not on screen yet.
+    await page.evaluate(() => scrollTo({ top: 0, behavior: 'smooth' }));
+    await page.waitForFunction(() => scrollY === 0, null, { timeout: 5000 }).catch(() => {});
+    await page.evaluate(() => document.querySelector('button[data-action="refresh"]').click());
+    const count = page.getByRole('button', { name: LABELS.news });
+    await count.waitFor({ timeout: 15000 });
+    await point(count);
+    await point(card().locator('[data-own-thought]').getByText(LABELS.newOnThought), { click: false });
   } },
   { key: 'edit', run: async () => {
     await type(card().getByRole('textbox'), THOUGHT_EDIT);

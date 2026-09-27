@@ -99,6 +99,19 @@ it is deployed, the reactions listener is refused, the client stops asking for
 the session, and the thoughts show exactly as before with no reaction controls.
 Deploy the fragment with `scripts/update-rules.mjs` (below).
 
+### The count on your name
+
+When other members react to your own thoughts, your initial next to your name
+at the top shows how many reactions are new (SPEC.md defines new and looked).
+Tap it to go to the thought; scrolling to the thought yourself clears it too,
+per text. Data: `dailyDose/{club}/seen/{uid}`, private to its owner,
+`{ works: { workId: ['reactorUid:key'] }, last, updatedAt }`, one text per
+write (merge). The feed computes the count from the reaction listeners it
+already has, so it costs one extra listener (your own `seen` document) and a
+write per text you look at. Until the `seen` rules are deployed, the client
+keeps the record on the device only (`localStorage`); it always keeps that copy
+too, and counts a reaction as seen if either copy has it.
+
 ## Podcast: each day read aloud
 
 The club has a private podcast (RSS, one episode per day: the poem, story and

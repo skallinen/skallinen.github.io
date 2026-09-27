@@ -167,6 +167,27 @@
               && doseRowAfter(request.resource.data.last).status != 'done'));
         allow delete: if false;
       }
+      // Which reactions to one's own thoughts one has seen: one private
+      // document per member, { works: { workId: ["reactorUid:key"] }, last,
+      // updatedAt }, for the count on one's name (client/reactions.mjs).
+      // Only the owner reads or writes it, one text per write (`last`). It
+      // holds no reactions itself, only which ones the owner has looked at.
+      match /seen/{uid} {
+        function seenBefore() {
+          return resource == null ? {} : resource.data.works;
+        }
+        allow get: if doseMember(club) && request.auth.uid == uid;
+        allow list, delete: if false;
+        allow create, update: if doseMember(club) && request.auth.uid == uid
+          && request.resource.data.keys().hasAll(['works', 'last', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['works', 'last', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.works is map && request.resource.data.works.size() <= 150
+          && request.resource.data.last is string && request.resource.data.last.matches('^[A-Za-z0-9-]{1,40}$')
+          && request.resource.data.works.diff(seenBefore()).affectedKeys().hasOnly([request.resource.data.last])
+          && request.resource.data.works.get(request.resource.data.last, []) is list
+          && request.resource.data.works.get(request.resource.data.last, []).size() <= 600;
+      }
       match /gates/{work} {
         // Retired shared gates remain untouched, inaccessible and unused.
         allow read, write: if false;

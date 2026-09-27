@@ -520,3 +520,105 @@ test('browser adapter without reaction rules: thoughts still show, reactions are
     } finally { alice.reset(); }
   } finally { await old.cleanup(); }
 });
+
+// Seen: which reactions to one's own thoughts one has looked at, private to its owner.
+const seenRef = (d, u) => doc(d, `${base}/seen/${u}`);
+const see = (uid, work, pairs, owner = uid) =>
+  setDoc(seenRef(db(uid), owner), { works: { [work]: pairs }, last: work, updatedAt: serverTimestamp() }, { merge: true });
+
+test('seen record: only its owner reads and writes it, one text at a time, in shape', async () => {
+  await assertSucceeds(see('alice', 'today', ['bob:heart', 'cara:think']));
+  await assertSucceeds(see('alice', 'past', ['bob:laugh']));
+  await assertSucceeds(see('alice', 'today', []));                    // everything taken back: an empty list
+  assert.deepEqual((await getDoc(seenRef(db('alice'), 'alice'))).data().works, { today: [], past: ['bob:laugh'] });
+  // Nobody else, the organiser included, reads, lists or writes it.
+  await assertFails(getDoc(seenRef(db('bob'), 'alice')));
+  await assertFails(getDocs(collection(db('alice'), `${base}/seen`)));
+  await assertFails(see('bob', 'today', [], 'alice'));
+  await assertFails(see('alice', 'today', [], 'bob'));                // Alice is the organiser
+  await assertFails(deleteDoc(seenRef(db('alice'), 'alice')));
+  // Bad shapes: two texts at once, a wrong `last`, not a list, too long, extra fields, a client time.
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { today: [], past: [] }, last: 'today', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { today: [] }, last: 'past', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { today: 'alice:heart' }, last: 'today', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { today: Array.from({ length: 601 }, (_, i) => `u${i}:heart`) }, last: 'today', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { today: [] }, last: 'today', updatedAt: serverTimestamp(), extra: 1 }));
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { today: [] }, last: 'today', updatedAt: Timestamp.now() }));
+  await assertFails(setDoc(seenRef(db('bob'), 'bob'), { works: { 'no/slash': [] }, last: 'no/slash', updatedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(seenRef(db('bob'), 'bob'), { works: { today: Array.from({ length: 600 }, (_, i) => `u${i}:heart`) }, last: 'today', updatedAt: serverTimestamp() }));
+  // Signed out, outsiders and departed members: nothing.
+  for (const uid of [null, 'outsider']) {
+    await assertFails(getDoc(seenRef(db(uid), 'alice')));
+    await assertFails(see(uid, 'today', [], uid || 'anon'));
+  }
+  await env.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), 'clubs/club/members/bob')));
+  await assertFails(getDoc(seenRef(db('bob'), 'bob')));
+  await assertFails(see('bob', 'today', []));
+});
+
+test('browser adapter: reactions to your thought and what you have seen, across devices', { timeout: 20000 }, async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const d = ctx.firestore(), now = Date.now();
+    await updateDoc(doc(d, base), { startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC', boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)) });
+    await updateDoc(workRef(d, 'today'), { category: 'poem', title: 'Test poem', author: 'Author', country: 'Finland', year: '2026', minutes: 1 });
+  });
+  const client = uid => createFirestoreBackend(null, () => ({ uid, displayName: uid }), db(uid)._delegate);
+  const alice = client('alice'), bob = client('bob'), cara = client('cara'), alice2 = client('alice');
+  const act = (c, body) => c.request('/clubs/club/works/today', { method: 'POST', body });
+  const rx = (c, body) => c.request('/clubs/club/works/today/reactions', { method: 'POST', body });
+  const today = async c => { const f = await c.request('/clubs/club/feed'); return { seen: f.seen, w: f.days.flatMap(d => d.works).find(w => w.id === 'today') }; };
+  const eventually = async (c, test) => {
+    for (let i = 0; i < 60; i++) { if (test(await today(c))) return; await new Promise(r => setTimeout(r, 50)); }
+    assert.ok(test(await today(c)), JSON.stringify(await today(c)));
+  };
+  try {
+    for (const [c, text] of [[alice, 'ALICE'], [bob, 'BOB'], [cara, 'CARA']]) {
+      await act(c, { action: 'complete' }); await act(c, { action: 'rate', rating: 3 }); await act(c, { action: 'submit', comment: text });
+    }
+    let t = await today(alice);
+    assert.deepEqual(t.seen, {}, 'nothing seen yet: an empty record, not "unavailable"');
+    assert.deepEqual(t.w.collective.toMe, []);
+    await rx(bob, { author: 'alice', emoji: 'heart', on: true });
+    await rx(cara, { author: 'alice', emoji: 'think', on: true });
+    await rx(alice, { author: 'alice', emoji: 'laugh', on: true });     // her own: not news
+    await rx(bob, { author: 'cara', emoji: 'heart', on: true });        // someone else's thought
+    await eventually(alice, x => JSON.stringify(x.w.collective.toMe) === '["bob:heart","cara:think"]');
+    await alice.request('/clubs/club/seen', { method: 'POST', body: { work: 'today', pairs: ['bob:heart', 'cara:think'] } });
+    assert.deepEqual((await today(alice)).seen, { today: ['bob:heart', 'cara:think'] });
+    // Her other device knows too.
+    await eventually(alice2, x => JSON.stringify(x.seen) === '{"today":["bob:heart","cara:think"]}');
+    // Bob takes his back: the pair leaves what is on her thought.
+    await rx(bob, { author: 'alice', emoji: 'heart', on: false });
+    await eventually(alice, x => JSON.stringify(x.w.collective.toMe) === '["cara:think"]');
+    await assert.rejects(alice.request('/clubs/club/seen', { method: 'POST', body: { work: 'today', pairs: ['<b>'] } }), /Unknown reactions/);
+    await assert.rejects(alice.request('/clubs/club/seen', { method: 'POST', body: { work: '../x', pairs: [] } }), /Unknown reactions/);
+    // Another member never sees her record, through the adapter either.
+    assert.deepEqual((await today(bob)).seen, {});
+  } finally { alice.reset(); bob.reset(); cara.reset(); alice2.reset(); }
+});
+
+test('browser adapter without seen rules: the feed says so (null) and a write is refused', { timeout: 15000 }, async () => {
+  const withoutSeen = fullRules.replace(/match \/seen\/\{uid\} \{[\s\S]*?size\(\) <= 600;\n      \}/, '');
+  assert.doesNotMatch(withoutSeen, /seen\/\{uid\}/);
+  const old = await initializeTestEnvironment({ projectId: 'demo-daily-dose-noseen', firestore: { host: '127.0.0.1', port: 8189, rules: withoutSeen } });
+  try {
+    await old.withSecurityRulesDisabled(async ctx => {
+      const d = ctx.firestore(), now = Date.now();
+      await setDoc(doc(d, 'clubs/club'), { name: 'Test club', member_uids: ['alice'] });
+      await setDoc(doc(d, 'clubs/club/members/alice'), { display_name: 'alice' });
+      await setDoc(doc(d, base), { organizerUids: ['alice'], participantUids: ['alice'], startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC',
+        boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)), dayWorkIds: [{ ids: ['today'] }] });
+      await setDoc(doc(d, `${base}/works/today`), { id: 'today', day: 1, category: 'poem', title: 'Test poem', openAt: Timestamp.fromMillis(now - 3600000), closeAt: Timestamp.fromMillis(now + 3600000) });
+    });
+    const alice = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'alice' }), old.authenticatedContext('alice').firestore()._delegate);
+    try {
+      const act = body => alice.request('/clubs/club/works/today', { method: 'POST', body });
+      await act({ action: 'complete' }); await act({ action: 'rate', rating: 2 }); await act({ action: 'submit', comment: 'STILL SHOWN' });
+      const feed = await alice.request('/clubs/club/feed');
+      assert.equal(feed.seen, null);
+      assert.equal(feed.days[0].works[0].collective.comments[0].text, 'STILL SHOWN');
+      assert.deepEqual(feed.days[0].works[0].collective.toMe, []);
+      await assert.rejects(alice.request('/clubs/club/seen', { method: 'POST', body: { work: 'today', pairs: [] } }), /Not available/);
+    } finally { alice.reset(); }
+  } finally { await old.cleanup(); }
+});
