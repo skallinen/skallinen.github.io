@@ -107,6 +107,10 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     if (!p.startDate) return { ...base, campaign: null };
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
     base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: 50, editable: ctx.now < millis(p.boundaries[0]) };
+    // The private podcast (see client/podcast.mjs): members only, released days only.
+    const pod = p.podcast;
+    if (typeof pod?.feed === 'string') base.podcast = { feed: pod.feed, pattern: typeof pod.pattern === 'string' ? pod.pattern : null,
+      episodes: (Array.isArray(pod.episodes) ? pod.episodes : []).filter(e => Number.isInteger(e?.day) && e.day <= Math.min(day, 50)) };
     if (day < 1) return base;
     const cutoff = p.boundaries[Math.min(day, 50) - 1];
     const snapshot = await watch(`works:${c}:${millis(cutoff)}`, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff)));

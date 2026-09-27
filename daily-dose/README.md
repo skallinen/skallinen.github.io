@@ -75,6 +75,44 @@ GitHub and the JS bundle. They use the corrected review edition, preserving
 formatting and outstanding source notes. This does not resolve editorial holds
 or grant distribution rights.
 
+## Podcast: each day read aloud
+
+The club has a private podcast (RSS, one episode per day: the poem, story and
+essay read in that order, with chapter times in the show notes). Its feed
+address carries a private token, and this repo and `assets/app.js` are public,
+so **the address is never committed or bundled.** It is stored on the programme
+document as `podcast` (`feed`, `pattern`, `episodes[{day, url, duration,
+chapters[{work, at}], closing}]`), which the existing rules let only admitted
+members read. No rules change was needed.
+
+The feed host sends no CORS headers, so the browser cannot read the feed.
+`scripts/sync-podcast.mjs` reads it with the operator credential, matches each
+chapter to the day's text by title (falling back to poem, story, essay order)
+and writes the one field:
+
+```sh
+node scripts/sync-podcast.mjs 'https://.../feed.xml'           # dry run
+node scripts/sync-podcast.mjs 'https://.../feed.xml' --apply   # first time
+node scripts/sync-podcast.mjs --apply                          # later, reuses the stored feed
+```
+
+Re-run it after new episodes appear, for their chapter buttons. Until then the
+app derives a new day's address from `pattern` and shows it (whole day, no
+jumps) only after the browser has loaded the file's metadata; a missing
+episode shows nothing. Where the feed is generated and hosted
+(daily.pojubot.org, behind Cloudflare) is not in this repo; if that host ever
+sends `Access-Control-Allow-Origin: https://1-bit-wonder.net`, the client
+could read chapters itself.
+
+In the app: each day with an episode gets a Listen button, the length, and
+one button per text (Poem 0:20, Story 1:05, Essay 25:25). The reader's toolbar
+has Listen/Pause for that text. One `<audio>` element lives outside `#app` in a
+bar at the bottom, so re-renders never stop it; the card being read aloud is
+outlined. "Subscribe" under the progress lines copies the feed address
+(Clipboard API, `execCommand('copy')` outside secure contexts, a prompt as the
+last resort); it is also a plain link, so long-press shows the address.
+Parsing and matching are tested in `test/podcast.test.mjs`.
+
 ## Build and verify
 
 Requires Node 22.13+ for the retained local test/demo tools.

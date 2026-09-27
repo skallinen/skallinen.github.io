@@ -6,6 +6,7 @@ import { createFirestoreBackend } from './firestore.mjs';
 import { ratingControl, sharedRatings } from './ratings.mjs';
 import { addDays } from './calendar.mjs';
 import { ratingSummary } from '../server/domain.mjs';
+import { episodeFor, chapterAt, clock } from './podcast.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -223,6 +224,7 @@ async function signedIn(user, demoToken = null) {
   backend?.reset();
   if (reader.open) reader.close();
   reader.innerHTML = '';
+  stopPlayer();
   state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.organiser = null;
   state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
   queues.clear(); state.pending.clear(); state.undone.clear();
@@ -301,6 +303,7 @@ function render() {
     <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > 50 ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
     <div class="day-seal" aria-label="Day ${activeDay} of 50"><span>DAY</span><strong>${idNumber(activeDay)}</strong><small>OF 50</small></div></section>
     ${personalStrip(feed)}
+    ${podcastLine(feed)}
     ${howItWorks(zone)}
     ${feed.organizer && campaign.editable ? scheduleForm(campaign) : ''}
     ${state.config.demo ? `<div class="demo-tools"><span>Preview the reveal with another participant.</span><button class="text-button" data-action="logout">Switch person</button>${feed.organizer ? '<button class="text-button" data-action="advance">Advance demo one day →</button>' : ''}</div>` : ''}
@@ -322,7 +325,7 @@ function filterBar() {
 }
 
 function daySection(day) {
-  return `<section class="day-group" aria-labelledby="day-${day.number}"><div class="day-heading"><h2 id="day-${day.number}">Day ${idNumber(day.number)} <span>${day.today ? 'Today' : dateLabel(day.date)}</span></h2><span>${day.today ? 'On the day until midnight' : 'Catch-up'}</span></div>${day.works.map(workCard).join('')}</section>`;
+  return `<section class="day-group" aria-labelledby="day-${day.number}"><div class="day-heading"><h2 id="day-${day.number}">Day ${idNumber(day.number)} <span>${day.today ? 'Today' : dateLabel(day.date)}</span></h2><span>${day.today ? 'On the day until midnight' : 'Catch-up'}</span></div>${listenBar(day.number)}${day.works.map(workCard).join('')}</section>`;
 }
 
 // "Read again" only for a text that is checked off; a text read to its end but
@@ -395,7 +398,7 @@ function workCard(work) {
   const done = work.mine?.status === 'done';
   const reading = work.mine?.status === 'reading';
   const keptDraft = reading && (work.mine.rating != null || (work.mine.comment ?? '').trim());
-  return `<article class="reading-card ${done ? 'is-done' : ''}" data-work="${work.id}" tabindex="-1">
+  return `<article class="reading-card ${done ? 'is-done' : ''}${playingWork() === work.id ? ' is-playing' : ''}" data-work="${work.id}" tabindex="-1">
     <div class="work-top"><span class="genre ${work.category}"><span aria-hidden="true">${icons[work.category]}</span>${category[work.category]}</span><span class="reading-time">${work.minutes} min read</span></div>
     <h3><button class="title-button" data-read="${work.id}">${esc(work.title)}</button></h3>
     <p class="byline">${esc(work.author)} <span>${esc(work.country)} · ${esc(work.year)}</span></p>
@@ -726,6 +729,154 @@ async function saveChanges(id) {
   if (rating !== undefined && state.ratingDrafts.get(id) === rating) { state.ratingDrafts.delete(id); store.del(localKey('rating', id)); redrawCard(id); }
 }
 
+// ---------- the podcast: each day read aloud (see client/podcast.mjs)
+// One <audio> for the whole app, outside #app, so a re-render never stops it.
+// The feed and audio addresses are private: they come from the programme
+// document (members only), never from this public bundle.
+const probes = new Map();
+const player = { el: null, audio: null, episode: null, work: undefined, paused: true };
+const podcastEpisode = day => episodeFor(state.feed?.podcast, day);
+// A day's episode shows only once it is known to exist: synced, or confirmed
+// by the browser loading the file's metadata. A missing file shows nothing.
+function availableEpisode(day) {
+  const ep = podcastEpisode(day);
+  if (!ep) return null;
+  if (ep.confirmed) return ep;
+  const p = probes.get(ep.url);
+  if (!p) probe(ep.url);
+  return p?.ok ? { ...ep, duration: p.duration } : null;
+}
+function probe(url) {
+  probes.set(url, { ok: false });
+  const a = new Audio();
+  a.preload = 'metadata';
+  const done = ok => {
+    probes.set(url, { ok, duration: ok && Number.isFinite(a.duration) ? a.duration : null });
+    a.removeAttribute('src'); a.load();
+    if (ok) paintListen();
+  };
+  a.addEventListener('loadedmetadata', () => done(true), { once: true });
+  a.addEventListener('error', () => done(false), { once: true });
+  a.src = url;
+}
+const loaded = ep => !!ep && player.episode?.url === ep.url;
+const playingWork = () => player.episode && !player.paused ? player.work : null;
+const minutesLabel = s => s ? `${Math.max(1, Math.round(s / 60))} min` : '';
+
+function listenBar(day) {
+  const ep = availableEpisode(day);
+  if (!ep) return `<div class="listen" data-listen-day="${day}" hidden></div>`;
+  const here = loaded(ep), playing = here && !player.paused;
+  const label = playing ? 'Pause' : here && player.audio.currentTime > 0 ? 'Resume' : 'Listen';
+  const works = state.feed?.days.find(d => d.number === day)?.works || [];
+  const chapters = ep.chapters.map(c => ({ ...c, w: works.find(w => w.id === c.work) })).filter(c => c.w);
+  return `<div class="listen" data-listen-day="${day}"><button class="listen-button" data-play-day="${day}"><span aria-hidden="true">${playing ? '❚❚' : '▶'}</span>${label}</button>
+    <span class="listen-length">Read aloud${ep.duration ? `, ${minutesLabel(ep.duration)}` : ''}</span>
+    ${chapters.length ? `<span class="chapters" role="group" aria-label="Jump to a text">${chapters.map(c => {
+      const now = here && player.work === c.work;
+      return `<button class="chapter${now ? ' current' : ''}" data-play-day="${day}" data-play-work="${esc(c.work)}" aria-pressed="${now && playing}" aria-label="Play from ${esc(c.w.title)}, at ${clock(c.at)}">${category[c.w.category]} <span>${clock(c.at)}</span></button>`;
+    }).join('')}</span>` : ''}</div>`;
+}
+
+// Inside the reader: listen to this text, from where its reading starts.
+function readerListen(work) {
+  const ep = availableEpisode(work.day), c = ep?.chapters.find(x => x.work === work.id);
+  if (!c) return '<span data-reader-listen hidden></span>';
+  const playing = loaded(ep) && !player.paused && player.work === work.id;
+  return `<button class="nav-button listen-inline" data-reader-listen data-play-day="${work.day}" data-play-work="${esc(work.id)}"><span aria-hidden="true">${playing ? '❚❚' : '▶'}</span> ${playing ? 'Pause' : 'Listen'}</button>`;
+}
+
+function ensurePlayer() {
+  if (player.el) return;
+  const el = document.createElement('section');
+  el.className = 'player'; el.hidden = true; el.setAttribute('aria-label', 'Reading aloud');
+  el.innerHTML = '<div class="player-row"><p class="player-now" aria-live="polite"></p><button type="button" class="text-button player-close" data-player-close>Close</button></div><audio controls preload="none"></audio>';
+  document.body.append(el);
+  const audio = el.querySelector('audio');
+  Object.assign(player, { el, audio });
+  const sync = () => {
+    const work = chapterAt(player.episode, audio.currentTime);
+    if (work === player.work && audio.paused === player.paused) return;
+    player.work = work; player.paused = audio.paused;
+    paintListen();
+  };
+  for (const type of ['play', 'pause', 'ended', 'seeked', 'timeupdate']) audio.addEventListener(type, sync);
+  audio.addEventListener('error', () => { if (player.episode) notify('The reading could not be played. Try again later.', true); });
+}
+
+function listen(day, workId) {
+  const ep = availableEpisode(day);
+  if (!ep) return;
+  ensurePlayer();
+  const { audio } = player, at = workId ? ep.chapters.find(c => c.work === workId)?.at : null;
+  if (loaded(ep) && (workId ? player.work === workId : true) && (!workId || !audio.paused || audio.currentTime > 0)) {
+    // The same button again: pause, or carry on from where it stopped.
+    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+    return;
+  }
+  if (!loaded(ep)) { player.episode = ep; player.work = undefined; audio.src = ep.url; }
+  const seek = () => { if (at != null) audio.currentTime = at; };
+  if (audio.readyState >= 1) seek(); else audio.addEventListener('loadedmetadata', seek, { once: true });
+  player.el.hidden = false;
+  document.documentElement.classList.add('has-player');
+  audio.play().catch(error => { if (error.name !== 'AbortError') notify('The reading could not be played. Try again later.', true); });
+  if ('mediaSession' in navigator && globalThis.MediaMetadata) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: `Day ${idNumber(day)}`, artist: 'Daily Dose', album: state.feed?.club?.name || 'Daily Dose' });
+  }
+  paintListen();
+}
+
+function stopPlayer() {
+  if (!player.audio) return;
+  player.audio.pause(); player.audio.removeAttribute('src'); player.audio.load();
+  Object.assign(player, { episode: null, work: undefined, paused: true });
+  player.el.hidden = true;
+  document.documentElement.classList.remove('has-player');
+  paintListen();
+}
+
+// Redraw only the listening controls and the highlighted card.
+function paintListen() {
+  for (const el of document.querySelectorAll('[data-listen-day]')) morph(el, fragment(listenBar(Number(el.dataset.listenDay))));
+  const inReader = reader.querySelector('[data-reader-listen]'), work = readerId && currentWork(readerId);
+  if (inReader && work) morph(inReader, fragment(readerListen(work)));
+  for (const card of document.querySelectorAll('.reading-card')) card.classList.toggle('is-playing', card.dataset.work === playingWork());
+  if (player.el && player.episode) {
+    const w = player.work && currentWork(player.work);
+    player.el.querySelector('.player-now').innerHTML = `<strong>Day ${idNumber(player.episode.day)}</strong>${w ? ` · ${category[w.category]}: ${esc(w.title)}` : ''}`;
+    if (w && 'mediaSession' in navigator && navigator.mediaSession.metadata) navigator.mediaSession.metadata.title = `${w.title} (Day ${idNumber(player.episode.day)})`;
+  }
+}
+
+// The subscribe link copies the private feed address for a podcast app. It is
+// a real link too: long-press or right-click shows and copies the address.
+function podcastLine(feed) {
+  if (!feed.podcast?.feed || !/^https?:\/\//.test(feed.podcast.feed)) return '';
+  return `<p class="podcast-line">Every day is also read aloud as a private podcast. <a class="subscribe" href="${esc(feed.podcast.feed)}" data-subscribe rel="noreferrer">Subscribe</a><span class="subscribe-hint">copies the link for your podcast app</span></p>`;
+}
+async function copyText(text) {
+  try { if (window.isSecureContext && navigator.clipboard) { await navigator.clipboard.writeText(text); return true; } } catch { /* fall through */ }
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.append(ta); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  ta.remove();
+  return ok;
+}
+document.addEventListener('click', async event => {
+  const link = event.target.closest?.('a[data-subscribe]');
+  if (!link) return;
+  event.preventDefault();
+  const url = link.href;
+  if (await copyText(url)) {
+    link.textContent = 'Copied';
+    clearTimeout(link.timer);
+    link.timer = setTimeout(() => { link.textContent = 'Subscribe'; }, 2000);
+    notify('Podcast link copied. In your podcast app, choose to add a show by URL and paste it.');
+  } else window.prompt('Copy this podcast link into your podcast app:', url);
+});
+
 // ---------- the reader
 function blockHtml(block) {
   if (block.type === 'table') return tableHtml(block.rows, block.spans);
@@ -766,7 +917,7 @@ async function openReading(id, { push = true } = {}) {
   if (generation !== state.generation || clubId !== state.clubId) return;
   const done = currentWork(id)?.mine?.status === 'done';
   const minutes = plural(work.minutes, 'MINUTE', 'MINUTES');
-  reader.innerHTML = `<div class="reader-toolbar"><span>${category[work.category]} · Day ${idNumber(work.day)}</span><button class="nav-button" data-close>Close ×</button>
+  reader.innerHTML = `<div class="reader-toolbar"><span>${category[work.category]} · Day ${idNumber(work.day)}</span><div class="reader-tools">${readerListen(work)}<button class="nav-button" data-close>Close ×</button></div>
       <div class="reader-progress" role="progressbar" aria-label="How far you have read" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
     <div class="reader-inner"><p class="eyebrow">${category[work.category]} · ${minutes}</p><h2 id="reader-title">${esc(work.title)}</h2><p class="reader-byline">${esc(work.author)}<span>${esc(work.country)} · ${esc(work.year)}</span></p>
     ${work.editorialHold ? `<p class="editorial-warning">Review note: ${linkify(work.editorialHold)}</p>` : ''}
@@ -831,6 +982,8 @@ async function run(event) {
   if (!button || button.disabled || button.closest('dialog.confirm') || button.classList.contains('toast-action')) return;
   if (button.dataset.close !== undefined) { closeReader(); return; }
   if (button.dataset.read) return openReading(button.dataset.read);
+  if (button.dataset.playDay) return listen(Number(button.dataset.playDay), button.dataset.playWork || null);
+  if (button.dataset.playerClose !== undefined) { stopPlayer(); return; }
   if (button.dataset.complete) return act(button.dataset.complete, { action: 'complete' }, { focus: '.rating-button' });
   if (button.dataset.unread) {
     const id = button.dataset.unread;

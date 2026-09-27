@@ -72,6 +72,14 @@ const base = `dailyDose/${club.id}`;
 set(base, { organizerUids: [organizer.uid], participantUids: memberUids, startDate, timezone, boundaries: boundaries.map(ts),
   updatedAt: ts(Date.now()), edition: anthology.edition,
   dayWorkIds: Array.from({ length: 50 }, (_, i) => ({ ids: anthology.works.filter(w => w.day === i + 1).map(w => w.id) })) });
+// The private podcast (client/podcast.mjs), as scripts/sync-podcast.mjs stores it, served by
+// testbed/serve.mjs: Days 1 to 3 synced with chapters, Day 4 only through the
+// pattern (no chapters), Day 5 and later missing (the file answers 404).
+const podBase = `http://${host}:${ports.page}/podcast`, podDays = [1, 2, 3];
+const podcast = { feed: `${podBase}/feed.xml`, pattern: `${podBase}/episodes/daily-dose-day-{NN}.wav`, syncedAt: new Date().toISOString(),
+  episodes: podDays.map(day => ({ day, url: `${podBase}/episodes/daily-dose-day-${String(day).padStart(2, '0')}.wav`, duration: 60, closing: 55,
+    chapters: ['poem', 'story', 'essay'].map((c, i) => ({ work: anthology.works.find(w => w.day === day && w.category === c).id, at: [5, 20, 40][i] })) })) };
+if (process.env.TESTBED_PODCAST !== '0') writes.find(([p]) => p === base)[1].podcast = podcast;
 for (const raw of anthology.works) {
   const w = service.read({ uid: organizer.uid }, { id: club.id }, raw.id);
   const { blocks, sourceNote, editorialHold, ...meta } = w;

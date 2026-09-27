@@ -61,6 +61,10 @@ Oskar's is catch-up), so a tester who finishes those texts sees peers.
 - All 150 texts from the private anthology (first found of `$ANTHOLOGY`,
   `data/anthology.json`, `~/common/projects/daily-dose/webapp/data/anthology.json`).
   Seeding 465 documents takes a couple of seconds.
+- Podcast: the programme gets a `podcast` record whose files `testbed/serve.mjs`
+  serves as quiet 60-second WAVs: Days 1 to 3 synced with chapters (0:05, 0:20,
+  0:40), Day 4 only through the pattern, Day 5 on answering 404 (no player).
+  `TESTBED_PODCAST=0` leaves it out.
 - Rules: the full live rules as last reviewed (private backup in the editorial
   workspace, Daily Dose fragment swapped for `firestore/daily-dose.rules`, as
   `scripts/update-rules.mjs` does). Without the backup, the minimal Bookrank wrapper
