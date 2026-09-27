@@ -29,12 +29,14 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   Other people's drafts, partial checkmarks and private progress are excluded.
 - Reactions, as in Slack: under each shared thought (one's own included), a
   reader who can see it may add or remove their own reactions from a fixed set
-  of six, no free emoji picker: ❤️ heart (loved it), 👍 thumbs up (agree),
+  of seven, no free emoji picker: ❤️ heart (loved it), 👍 thumbs up (agree),
+  👆 this (this, exactly: Slack's pointing finger),
   😂 laughing, 😮 surprised, 😢 moved, 🤔 made me think. Chosen for reading:
   what a text or a thought did to you, not just approval. Each emoji in use
   shows its count; one's own are highlighted and a tap takes them back;
   hovering or a long press shows who reacted (display names, "you" last).
-  "React" opens the six. Reactions follow the thoughts' privacy exactly: only
+  "React" opens the seven (one row from 390 px; rows of four and three at
+  360 px). Reactions follow the thoughts' privacy exactly: only
   members who have submitted their own response to that text can read or add
   them (Firestore-enforced), and Mark as unread hides them again with the
   thoughts. A reaction can be added only to a thought that is currently

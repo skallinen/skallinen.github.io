@@ -23,7 +23,7 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   undone: new Map(), clockOffset: 0,
   // Cards kept in the Unread view after check-off, until the filter changes.
   sticky: new Set(), openDetails: new Set(), confirmUnread: null,
-  // The thought whose six reaction choices are open (`work|author`), one at a time.
+  // The thought whose seven reaction choices are open (`work|author`), one at a time.
   reactOpen: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
@@ -335,7 +335,7 @@ function howItWorks(zone) {
     <p><strong>On the day</strong> means you checked a text off on its own date; <strong>catch-up</strong> means later. Both count.</p>
     <p>Before you finish, your stars and thought are private and saved as you go. After you finish, changes are shared only when you choose “Save changes”.</p>
     <p>“Mark as unread” corrects a checkmark. After you have finished, your response becomes a private draft again and the others’ responses hide. What you have seen cannot be unseen.</p>
-    <p>After you finish, you can react to the thoughts (your own too) with one of six emojis. Tap an emoji again to take yours back. Only readers who have finished the text see reactions; hold a finger on one (or point at it) to see who reacted. When others react to your thought, a number appears on your initial at the top; tap it to go to that thought.</p>
+    <p>After you finish, you can react to the thoughts (your own too) with one of seven emojis. Tap an emoji again to take yours back. Only readers who have finished the text see reactions; hold a finger on one (or point at it) to see who reacted. When others react to your thought, a number appears on your initial at the top; tap it to go to that thought.</p>
     <p>The organiser can see who has checked each text off, and when. The organiser cannot see your ratings, thoughts or drafts.</p></details>`;
 }
 

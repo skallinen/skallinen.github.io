@@ -5,9 +5,11 @@ import { REACTIONS, isReaction, tally, setReaction, whoReacted, reactionBar, rea
 
 const members = new Map([['a', { name: 'Alice' }], ['b', { name: 'Bob' }], ['c', { name: 'Cara' }]]);
 
-test('six fixed reactions; the rules allow exactly the same keys', () => {
-  assert.deepEqual(REACTIONS.map(r => r.key), ['heart', 'like', 'laugh', 'wow', 'moved', 'think']);
-  assert.deepEqual(REACTIONS.map(r => r.emoji), ['❤️', '👍', '😂', '😮', '😢', '🤔']);
+test('seven fixed reactions, 👆 this after thumbs up; the rules allow exactly the same keys', () => {
+  assert.deepEqual(REACTIONS.map(r => r.key), ['heart', 'like', 'this', 'laugh', 'wow', 'moved', 'think']);
+  assert.deepEqual(REACTIONS.map(r => r.emoji), ['❤️', '👍', '👆', '😂', '😮', '😢', '🤔']);
+  assert.equal(REACTIONS[2].label, 'this');
+  assert.match(readFileSync(new URL('../firestore/daily-dose.rules', import.meta.url), 'utf8'), /reactionList\(request\.resource\.data\)\.size\(\) <= 7\n/, 'the size cap is the number of reactions');
   for (const r of REACTIONS) assert.ok(isReaction(r.key));
   for (const x of ['❤️', 'fire', '', null, undefined, 'HEART', 'toString']) assert.equal(isReaction(x), false);
   const rules = readFileSync(new URL('../firestore/daily-dose.rules', import.meta.url), 'utf8');
@@ -64,7 +66,7 @@ test('the bar: pills with counts, yours pressed, names on hover, choices only wh
   assert.doesNotMatch(html, /reaction-choice|aria-controls/);
   const open = reactionBar('p1', comment, { open: true, me: 'b' });
   const choices = [...open.matchAll(/class="reaction-choice( mine)?"[^>]*data-emoji="(\w+)" aria-pressed="(\w+)"/g)].map(m => [m[2], m[3]]);
-  assert.deepEqual(choices, [['heart', 'true'], ['like', 'false'], ['laugh', 'false'], ['wow', 'false'], ['moved', 'false'], ['think', 'false']]);
+  assert.deepEqual(choices, [['heart', 'true'], ['like', 'false'], ['this', 'false'], ['laugh', 'false'], ['wow', 'false'], ['moved', 'false'], ['think', 'false']]);
   assert.match(open, /aria-expanded="true" aria-controls="reactions-p1-b" aria-label="React to your own thought"/);
   // Nobody has reacted yet: only "React".
   assert.doesNotMatch(reactionBar('p1', { uid: 'b', name: 'Bob' }), /class="reaction[ "]/);

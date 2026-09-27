@@ -48,7 +48,7 @@ const CAPTIONS = {
     'There is no deadline, and nobody waits for anybody.'],
   others: ['Now you see the club: the average rating, who read it on the day, and each thought.',
     'Only members who have finished this text appear here.'],
-  react: ['React to a thought, as in Slack: six emojis, and tap one again to take yours back.',
+  react: ['React to a thought, as in Slack: seven emojis, and tap one again to take yours back.',
     'Everyone who has finished the text sees the counts. Point at one, or hold a finger on it, to see who reacted.'],
   news: ['When someone reacts to your thought, a number appears on your initial at the top.',
     'Tap it to go straight to that thought. Your own reactions never count, and one taken back comes off the number.'],
@@ -92,8 +92,8 @@ const LABELS = {
   notRated: 'Not rated',
   finish: 'Finish & reveal',
   saveChanges: 'Save changes',
-  react: /^React to .+’s thought$/,                                  // under each thought, opens the six emojis
-  reactHeart: 'heart',                                              // one of the six
+  react: /^React to .+’s thought$/,                                  // under each thought, opens the seven emojis
+  reactHeart: 'heart',                                              // one of the seven
   news: /^\d+ new reactions? to your thoughts$/,                    // the count on your initial, top of the page
   newOnThought: /^\d+ new reactions?$/,                              // under your name on your thought
   refresh: 'Refresh',
@@ -358,7 +358,7 @@ const beats = [
     await sleep(FAST ? 300 : 800);
   } },
   { key: 'react', run: async () => {
-    // The first thought by somebody else: open the six, pick the heart, point at the count.
+    // The first thought by somebody else: open the seven, pick the heart, point at the count.
     const add = card().getByRole('button', { name: LABELS.react }).first();
     const author = await add.getAttribute('data-author');
     const thought = card().locator('.tweet').filter({ has: page.locator(`[data-react-open][data-author="${author}"]`) });

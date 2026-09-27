@@ -187,8 +187,9 @@ node testbed/check-reactions.mjs            # CHECK_SHOTS=dir keeps screenshots
 scripts/testbed.sh stop
 ```
 
-Mikko finishes today's poem, opens "React" under Grace's thought (six choices,
-one row, each at least 44 px), reacts with a heart (count 1, highlighted), takes
+Mikko finishes today's poem, opens "React" under Grace's thought (seven choices,
+one row at 390 px, rows of four and three at 360 px, each at least 44 px, the
+third one 👆 "this"), reacts with a heart (count 1, highlighted), takes
 it back (gone), reacts again and reloads; Grace, in her own browser, sees the
 heart with Mikko's name on hover, a long press shows the names without toggling,
 she adds her own (2); Mikko's Refresh shows 2; Leena, not finished, sees no
@@ -230,3 +231,7 @@ before a rerun.
 `check-reactions.mjs` still green at 390 and 360 px; `scripts/tour.sh --reset`
 headless at 390x844 ran 23 of 23 beats, including the new "news" beat; the
 rules suite (24 tests, 3 new for `seen`) and the unit tests (36) passed.
+
+2026-09-28, 👆 "this" as the seventh reaction: `check-reactions.mjs` green at
+360 px (rows of four and three) and 390 px (one row), `check-news.mjs` green,
+the tour 23 of 23, rules suite 25 of 25, unit tests 36 of 36.

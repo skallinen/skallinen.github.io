@@ -55,16 +55,19 @@ try {
   await graceThought(mikko).waitFor();
   expect(await graceThought(mikko).locator('button.reaction').count() === 0, 'nobody has reacted yet: no pills, only "React"');
 
-  // React: open the six choices, pick the heart.
+  // React: open the seven choices, pick the heart.
   const add = graceThought(mikko).getByRole('button', { name: 'React to Grace Okafor’s thought' });
   await add.scrollIntoViewIfNeeded();
   await add.tap();
   const choices = graceThought(mikko).locator('.reaction-choice');
   await choices.first().waitFor();
-  expect(await choices.count() === 6, 'React opens six choices');
+  expect(await choices.count() === 7, 'React opens seven choices');
+  expect(await choices.nth(2).getAttribute('aria-label') === 'this' && (await choices.nth(2).innerText()).includes('👆'), 'the third is 👆 this, after thumbs up');
   const boxes = await choices.evaluateAll(els => els.map(e => e.getBoundingClientRect()).map(r => ({ top: Math.round(r.top), w: r.width, h: r.height })));
   expect(boxes.every(b => b.w >= 44 && b.h >= 44), 'every choice is at least 44 px square');
-  expect(new Set(boxes.map(b => b.top)).size === 1, 'the six choices fit one row');
+  const rows = [...new Set(boxes.map(b => b.top))];
+  if (WIDTH >= 390) expect(rows.length === 1, 'the seven choices fit one row');
+  else expect(rows.length === 2 && boxes.filter(b => b.top === rows[0]).length === 4, 'the seven choices wrap cleanly: a row of four, then three');
   expect(await noSideways(mikko), 'no sideways scrolling with the choices open');
   await shot(mikko, 'mikko-choices');
   await graceThought(mikko).getByRole('button', { name: 'heart', exact: true }).tap();

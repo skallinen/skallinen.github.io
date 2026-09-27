@@ -7,6 +7,7 @@ import { esc } from './text.mjs';
 export const REACTIONS = [
   { key: 'heart', emoji: '❤️', label: 'heart' },
   { key: 'like', emoji: '👍', label: 'thumbs up' },
+  { key: 'this', emoji: '👆', label: 'this' },
   { key: 'laugh', emoji: '😂', label: 'laughing' },
   { key: 'wow', emoji: '😮', label: 'surprised' },
   { key: 'moved', emoji: '😢', label: 'moved' },
@@ -51,7 +52,7 @@ export function whoReacted(r) {
 }
 
 // Under one thought: the emojis in use (tap to add or remove your own), and
-// "React", which opens the six choices. Hover shows who reacted (title);
+// "React", which opens the seven choices. Hover shows who reacted (title);
 // a long press does the same on a phone (app.mjs).
 export function reactionBar(workId, comment, { open = false, me = null } = {}) {
   const list = comment.reactions || [];

@@ -417,6 +417,17 @@ test('reactions: nobody touches another member\'s reactions', async () => {
   assert.deepEqual((await getDoc(rxRef(db('bob'), 'alice'))).data().on, { bob: ['heart'] });
 });
 
+test('reactions: 👆 this is the seventh key; all seven at once fit, nothing else does', async () => {
+  await submit('alice'); await submit('bob');
+  await assertSucceeds(react('alice', 'bob', 'this'));
+  const all = ['heart', 'like', 'this', 'laugh', 'wow', 'moved', 'think'];
+  await assertSucceeds(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: all }, last: 'alice', updatedAt: serverTimestamp() }));
+  assert.deepEqual((await getDoc(rxRef(db('bob'), 'bob'))).data().on.alice, all);
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: [...all, 'fire'] }, last: 'alice', updatedAt: serverTimestamp() }));
+  await assertFails(react('bob', 'alice', 'point'));
+  await assertSucceeds(react('alice', 'bob', 'this', false));
+});
+
 test('reactions: non-members and signed-out visitors are refused', async () => {
   await submit('alice'); await submit('bob');
   await react('alice', 'bob', 'heart');

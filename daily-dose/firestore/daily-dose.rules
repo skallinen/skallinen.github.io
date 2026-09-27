@@ -133,8 +133,8 @@
             && request.resource.data.last is string && request.resource.data.last.matches('^[A-Za-z0-9_-]{1,128}$')
             && request.resource.data.on.diff(reactionsBefore()).affectedKeys().hasOnly([request.resource.data.last])
             && reactionList(request.resource.data) is list
-            && reactionList(request.resource.data).size() <= 6
-            && reactionList(request.resource.data).hasOnly(['heart', 'like', 'laugh', 'wow', 'moved', 'think'])
+            && reactionList(request.resource.data).size() <= 7
+            && reactionList(request.resource.data).hasOnly(['heart', 'like', 'this', 'laugh', 'wow', 'moved', 'think'])
             && reactionList(request.resource.data).toSet().size() == reactionList(request.resource.data).size()
             && (reactionList(request.resource.data).toSet().difference(reactionsBefore().get(request.resource.data.last, []).toSet()).size() == 0
               || get(/databases/$(database)/documents/dailyDose/$(club)/works/$(work)/reads/$(request.resource.data.last)).data.get('submittedAt', null) is timestamp);

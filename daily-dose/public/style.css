@@ -184,7 +184,7 @@ textarea::placeholder { color: #6d6a60; }
 .tweet-meta span { color: var(--muted); font-size: 1rem; }
 .tweet p { font: 1.125rem/1.55 var(--serif); margin: .3rem 0 .6rem; overflow-wrap: anywhere; white-space: pre-wrap; }
 /* Reactions under a thought: pills with a count (yours outlined in the accent),
-   then "React", which opens the six choices. Every one is a full tap target;
+   then "React", which opens the seven choices. Every one is a full tap target;
    a long press on a pill says who reacted, so no callout or text selection. */
 .reactions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: -.1rem 0 .7rem; }
 .reaction, .reaction-add { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: var(--tap); min-width: var(--tap); padding: .2rem .75rem;
@@ -324,8 +324,13 @@ dialog.confirm p { font-size: 1.125rem; line-height: 1.55; margin: 0 0 1.25rem; 
   .empty h1 { font-size: 2.2rem; }
   .schedule-form { padding: 1.1rem; }
   .confirm-actions button { flex: 1 1 100%; }
-  /* The six choices use the width under the avatar too, so they stay one row at 360 px. */
+  /* The seven choices use the width under the avatar too, so they stay one row from 390 px. */
   .reaction-choices { margin-left: -2.75rem; gap: 0; }
+}
+/* Narrower than that (360 px) seven full 44 px targets do not fit one row:
+   two even rows of four and three instead of six and a lonely seventh. */
+@media (max-width: 24rem) {
+  .reaction-choices { display: grid; grid-template-columns: repeat(4, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 

@@ -78,7 +78,7 @@ or grant distribution rights.
 ## Reactions
 
 Finished readers can react to the club's thoughts (their own too) with one of
-six emojis, like Slack: ❤️ 👍 😂 😮 😢 🤔 (see SPEC.md for why these). Under a
+seven emojis, like Slack: ❤️ 👍 👆 😂 😮 😢 🤔 (see SPEC.md for why these). Under a
 thought, each emoji in use shows its count, yours highlighted; tap it to take
 yours back, or "React" to add one. Hover (desktop) or a long press (phone)
 shows who reacted.
@@ -88,7 +88,7 @@ per text, `{ on: { authorUid: ['heart', 'think'] }, last, updatedAt }`, written
 with `arrayUnion` / `arrayRemove` and a merge, so each write changes only the
 writer's own list for one author (`last`). Rules: read and write only for
 members who have submitted their own response to that text (the same test as
-reading the thoughts), only one's own document, only the six keys without
+reading the thoughts), only one's own document, only the seven keys without
 repeats, a new reaction only on a thought that is submitted now, never a
 delete. The client reads one listener per revealed text. Keys and emojis live
 in `client/reactions.mjs` (the rules repeat the keys; `test/reactions.test.mjs`
