@@ -4,7 +4,7 @@ import path from 'node:path';
 export const project = 'book-club-e4916';
 // Operator-only tooling. Credentials never enter the browser bundle or repo.
 const config = JSON.parse(readFileSync(path.join(homedir(), '.config/configstore/firebase-tools.json'), 'utf8'));
-if (!config.tokens?.access_token || config.tokens.expires_at < Date.now() + 30000) throw new Error('Refresh operator login first with: firebase projects:list');
+if (!config.tokens?.access_token || config.tokens.expires_at < Date.now() + 30000) throw new Error('Refresh operator login first with: npx -y firebase-tools@15.23.0 projects:list');
 export async function operatorRequest(url, body, method = body ? 'POST' : 'GET') {
   const response = await fetch(url, { method, headers: { Authorization: `Bearer ${config.tokens.access_token}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(60000) });
   const data = await response.json();
