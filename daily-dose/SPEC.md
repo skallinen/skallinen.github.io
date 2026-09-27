@@ -27,6 +27,21 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   status, individual ratings, rating average/count and comments, newest first
   submission first. Edits never reorder the list; an edited comment says "edited".
   Other people's drafts, partial checkmarks and private progress are excluded.
+- Reactions, as in Slack: under each shared thought (one's own included), a
+  reader who can see it may add or remove their own reactions from a fixed set
+  of six, no free emoji picker: ❤️ heart (loved it), 👍 thumbs up (agree),
+  😂 laughing, 😮 surprised, 😢 moved, 🤔 made me think. Chosen for reading:
+  what a text or a thought did to you, not just approval. Each emoji in use
+  shows its count; one's own are highlighted and a tap takes them back;
+  hovering or a long press shows who reacted (display names, "you" last).
+  "React" opens the six. Reactions follow the thoughts' privacy exactly: only
+  members who have submitted their own response to that text can read or add
+  them (Firestore-enforced), and Mark as unread hides them again with the
+  thoughts. A reaction can be added only to a thought that is currently
+  submitted; removing one's own is always possible. Only current members count.
+  Stored per text and reacting member (`works/{work}/reactions/{uid}`:
+  `on` = author uid to a list of keys), so nobody can write another's.
+  If the deployed rules predate reactions, the thoughts show without them.
 - Timing words: "on the day" = checked off on the text's own date in the club's
   timezone; "catch-up" = checked off later. Used everywhere, defined in "How it works".
 - Unsent thoughts are saved as they are typed: before submission to the private

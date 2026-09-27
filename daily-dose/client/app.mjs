@@ -7,6 +7,7 @@ import { ratingControl, sharedRatings } from './ratings.mjs';
 import { addDays } from './calendar.mjs';
 import { ratingSummary } from '../server/domain.mjs';
 import { episodeFor, chapterAt, clock } from './podcast.mjs';
+import { reactionBar, setReaction } from './reactions.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -21,7 +22,9 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // The checkmark "Mark as unread" cleared, per text, for the optimistic Undo.
   undone: new Map(), clockOffset: 0,
   // Cards kept in the Unread view after check-off, until the filter changes.
-  sticky: new Set(), openDetails: new Set(), confirmUnread: null };
+  sticky: new Set(), openDetails: new Set(), confirmUnread: null,
+  // The thought whose six reaction choices are open (`work|author`), one at a time.
+  reactOpen: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -227,7 +230,7 @@ async function signedIn(user, demoToken = null) {
   stopPlayer();
   state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.organiser = null;
   state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
-  queues.clear(); state.pending.clear(); state.undone.clear();
+  queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
   if (!user) { state.clubs = []; state.clubId = null; login(); return; }
   shell('<section class="loading">Finding your book club…</section>');
   try {
@@ -269,6 +272,7 @@ function howItWorks(zone) {
     <p><strong>On the day</strong> means you checked a text off on its own date; <strong>catch-up</strong> means later. Both count.</p>
     <p>Before you finish, your stars and thought are private and saved as you go. After you finish, changes are shared only when you choose “Save changes”.</p>
     <p>“Mark as unread” corrects a checkmark. After you have finished, your response becomes a private draft again and the others’ responses hide. What you have seen cannot be unseen.</p>
+    <p>After you finish, you can react to the thoughts (your own too) with one of six emojis. Tap an emoji again to take yours back. Only readers who have finished the text see reactions; hold a finger on one (or point at it) to see who reacted.</p>
     <p>The organiser can see who has checked each text off, and when. The organiser cannot see your ratings, thoughts or drafts.</p></details>`;
 }
 
@@ -391,7 +395,7 @@ function reveal(work) {
     ${sharedRatings(collective)}
     ${collective.readers.length ? `<details class="reader-stats" data-details="${detailsKey}" ${state.openDetails.has(detailsKey) ? 'open' : ''}><summary>Finished readers (${collective.readers.length})</summary><ul>${collective.readers.map(r => `<li><span class="reader-name">${esc(r.name)}</span><span class="reader-rating">${r.rating == null ? 'Not rated' : `${r.rating} / 5 ★`}</span><span class="reader-timing">${timing(r.onTime)}</span></li>`).join('')}</ul></details>` : ''}
     ${others ? '' : '<p class="empty-thoughts">Nobody else has finished this yet. Their responses appear here when they do.</p>'}
-    ${collective.comments.map(c => `<div class="tweet"><span class="avatar" aria-hidden="true">${esc(c.name.slice(0, 1))}</span><div><div class="tweet-meta"><strong>${esc(c.name)}</strong><span>${timing(c.onTime)}${c.edited ? ' · edited' : ''}</span></div><p>${esc(c.text)}</p></div></div>`).join('')}`;
+    ${collective.comments.map(c => `<div class="tweet"><span class="avatar" aria-hidden="true">${esc(c.name.slice(0, 1))}</span><div><div class="tweet-meta"><strong>${esc(c.name)}</strong><span>${timing(c.onTime)}${c.edited ? ' · edited' : ''}</span></div><p>${esc(c.text)}</p>${collective.reactable ? reactionBar(work.id, c, { open: state.reactOpen === `${work.id}|${c.uid}`, me: state.feed.me.uid }) : ''}</div></div>`).join('')}`;
 }
 
 function workCard(work) {
@@ -495,6 +499,7 @@ async function refresh({ quiet = false, render: draw = true } = {}) {
   if (Number.isFinite(feed.now)) state.clockOffset = feed.now - Date.now();
   // Writes still on their way stay visible over the server's older state.
   for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
+  for (const w of allWorks()) applyReactions(w);
   if (!draw || state.view === 'organiser') return;
   if (!quiet || !document.activeElement?.matches('textarea,input,select')) {
     const a = anchor(document.activeElement?.closest('[data-work]')?.dataset.work);
@@ -728,6 +733,57 @@ async function saveChanges(id) {
   await Promise.all(steps);
   if (rating !== undefined && state.ratingDrafts.get(id) === rating) { state.ratingDrafts.delete(id); store.del(localKey('rating', id)); redrawCard(id); }
 }
+
+// ---------- reactions to the club's thoughts (see client/reactions.mjs)
+// A tap shows at once; the write follows, one at a time per thought and emoji,
+// and the choice stays on top of every refresh until the server has it.
+const reacting = new Map();
+let reactSeq = 0;
+function applyReactions(w) {
+  if (!w.collective?.reactable) return;
+  for (const [key, p] of reacting) {
+    const [id, author, emoji] = key.split('|');
+    const c = id === w.id && w.collective.comments.find(x => x.uid === author);
+    if (c) c.reactions = setReaction(c.reactions || [], emoji, p.on);
+  }
+}
+function toggleReaction(id, author, emoji) {
+  const work = currentWork(id), c = work?.collective?.reactable && work.collective.comments.find(x => x.uid === author);
+  if (!c) return;
+  const on = !c.reactions?.find(r => r.key === emoji)?.mine;
+  const key = `${id}|${author}|${emoji}`, token = ++reactSeq, clubId = state.clubId, generation = state.generation;
+  const chain = (reacting.get(key)?.chain || Promise.resolve()).catch(() => {})
+    .then(() => api(`/clubs/${clubId}/works/${id}/reactions`, { method: 'POST', body: { author, emoji, on } }));
+  reacting.set(key, { on, token, chain });
+  c.reactions = setReaction(c.reactions || [], emoji, on);
+  state.reactOpen = null;
+  const who = `[data-author="${CSS.escape(author)}"]`;
+  redrawCard(id, { focus: `.reaction${who}[data-emoji="${emoji}"], .reaction-add${who}` });
+  const settleWith = async error => {
+    if (generation !== state.generation || reacting.get(key)?.token !== token) return;
+    reacting.delete(key);
+    await refresh({ render: false }).catch(() => {});
+    redrawCard(id);
+    if (error) notify(error.message, true);
+  };
+  chain.then(() => settleWith(null), settleWith);
+}
+// On a phone there is no hover: a long press on a reaction says who reacted.
+let pressTimer = 0, pressEl = null, pressShown = null;
+document.addEventListener('pointerdown', event => {
+  const b = event.target.closest?.('button.reaction');
+  clearTimeout(pressTimer); pressShown = null; pressEl = b;
+  if (b) pressTimer = setTimeout(() => { pressShown = b; notify(b.title); }, 500);
+});
+for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, () => clearTimeout(pressTimer));
+document.addEventListener('pointerleave', event => { if (event.target === pressEl) clearTimeout(pressTimer); }, true);
+document.addEventListener('contextmenu', event => { if (event.target.closest?.('button.reaction')) event.preventDefault(); });
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !state.reactOpen) return;
+  const [id, author] = state.reactOpen.split('|');
+  state.reactOpen = null;
+  redrawCard(id, { focus: `.reaction-add[data-author="${CSS.escape(author)}"]` });
+});
 
 // ---------- the podcast: each day read aloud (see client/podcast.mjs)
 // One <audio> for the whole app, outside #app, so a re-render never stops it.
@@ -984,6 +1040,17 @@ async function run(event) {
   if (button.dataset.read) return openReading(button.dataset.read);
   if (button.dataset.playDay) return listen(Number(button.dataset.playDay), button.dataset.playWork || null);
   if (button.dataset.playerClose !== undefined) { stopPlayer(); return; }
+  if (button.dataset.reactOpen) {
+    const id = button.dataset.reactOpen, author = button.dataset.author, key = `${id}|${author}`;
+    state.reactOpen = state.reactOpen === key ? null : key;
+    redrawCard(id, { focus: `${state.reactOpen ? '.reaction-choice' : '.reaction-add'}[data-author="${CSS.escape(author)}"]` });
+    return;
+  }
+  if (button.dataset.react) {
+    // The press that just showed who reacted is not also a tap.
+    if (pressShown === button) { pressShown = null; return; }
+    return toggleReaction(button.dataset.react, button.dataset.author, button.dataset.emoji);
+  }
   if (button.dataset.complete) return act(button.dataset.complete, { action: 'complete' }, { focus: '.rating-button' });
   if (button.dataset.unread) {
     const id = button.dataset.unread;
@@ -1072,7 +1139,7 @@ document.addEventListener('change', event => {
   if (event.target.id !== 'club-select') return;
   flushDrafts().finally(() => {
     state.generation++; state.clubId = event.target.value; state.drafts.clear(); state.ratingDrafts.clear(); state.organiser = null; closeReader();
-    queues.clear(); state.pending.clear(); state.undone.clear();
+    queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
     store.set(`daily-dose-club:${state.user.uid}`, state.clubId);
     refresh({ render: false }).then(() => { restoreDrafts(); applyRoute(); }).catch(error => notify(error.message, true));
   });
@@ -1106,7 +1173,7 @@ document.addEventListener('submit', async event => {
 window.addEventListener('beforeunload', event => {
   saveProgress();
   const unsent = allWorks().some(w => unsavedShared(w.id) || (!w.revealed && Array.from(state.drafts.get(w.id) ?? '').length > 140));
-  if (!saveTimers.size && !saving.size && !queues.size && !unsent) return;
+  if (!saveTimers.size && !saving.size && !queues.size && !reacting.size && !unsent) return;
   for (const id of [...saveTimers.keys()]) saveDraft(id);
   event.preventDefault(); event.returnValue = '';
 });

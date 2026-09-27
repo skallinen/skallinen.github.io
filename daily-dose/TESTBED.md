@@ -102,7 +102,7 @@ private anthology at `~/common/projects/daily-dose/webapp/data/anthology.json`
 
 The beats, in order: sign in, the feed and day seal, today versus catch-up,
 open, read, check off, 0 stars, remove and 4 stars, a thought, Finish & reveal,
-the club's thoughts, edit after sharing, Mark as unread, tomorrow; then the
+the club's thoughts, react with an emoji, edit after sharing, Mark as unread, tomorrow; then the
 organiser: sign in, the Organiser page (and what it cannot see), the read-only
 start date and timezone, today's who-has-checked-off, the earlier days (one
 block per day; none yet on Day 1, which the caption says), the roster, sign out.
@@ -174,3 +174,31 @@ now scrolls to the top before pointing. `scripts/tour.sh` headless with shots:
 21 of 21 beats on a private bed (Day 1 = today) and again with `--reset` on a
 running bed; the earlier-days beat was also checked on a Day 3 bed. Bed stopped
 afterwards.
+
+## Reactions check
+
+`testbed/check-reactions.mjs` is a headless Playwright check at phone width
+(390 px, or `CHECK_WIDTH=360`) on a running bed seeded with `TOUR_SEED=1`:
+
+```sh
+TOUR_SEED=1 scripts/testbed.sh start
+node testbed/check-reactions.mjs            # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Mikko finishes today's poem, opens "React" under Grace's thought (six choices,
+one row, each at least 44 px), reacts with a heart (count 1, highlighted), takes
+it back (gone), reacts again and reloads; Grace, in her own browser, sees the
+heart with Mikko's name on hover, a long press shows the names without toggling,
+she adds her own (2); Mikko's Refresh shows 2; Leena, not finished, sees no
+thoughts and no reactions. Exit 1 on the first failure or a console error (the
+404 of Day 5's missing podcast file is expected and ignored). It writes to the
+bed, so rerun it after a reseed (`TOUR_SEED=1 node testbed/seed.mjs && node
+testbed/completions.mjs`).
+
+2026-09-27, reactions: the check was all green at 390 and 360 px, and
+`scripts/tour.sh --reset --stop` headless at 390x844 ran 22 of 22 beats,
+including the new "react" beat. The rules suite (21 tests, run with the
+emulator on 8189 via `firebase emulators:exec`) passed. The legacy Node demo
+e2e (`npm run test:e2e`) fails 4 of 4 at its first step both with and without
+this change (it expects "Day 03" first); not looked into.

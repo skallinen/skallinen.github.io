@@ -2,7 +2,7 @@ import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
+import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion, arrayRemove, Timestamp, query, where } from 'firebase/firestore';
 import { scheduleDates } from '../client/calendar.mjs';
 import { createFirestoreBackend } from '../client/firestore.mjs';
 
@@ -373,4 +373,150 @@ test('browser adapter writes and clears the completion record with the checkmark
     assert.ok(repaired.works.today.isEqual((await getDoc(rowRef(db('cara'), 'today', 'cara'))).data().completedAt));
     cara.reset();
   } finally { alice.reset(); bob.reset(); }
+});
+
+// Reactions: one document per reacting member per text, { on: { author: [keys] }, last, updatedAt }.
+const rxRef = (d, u, w = 'today') => doc(d, `${base}/works/${w}/reactions/${u}`);
+const rxCol = (d, w = 'today') => collection(d, `${base}/works/${w}/reactions`);
+const react = (uid, author, key, on = true, owner = uid, w = 'today') =>
+  setDoc(rxRef(db(uid), owner, w), { on: { [author]: on ? arrayUnion(key) : arrayRemove(key) }, last: author, updatedAt: serverTimestamp() }, { merge: true });
+
+test('reactions: a finished reader adds and removes her own, on others\' thoughts and her own', async () => {
+  await submit('alice'); await submit('bob');
+  await assertSucceeds(react('alice', 'bob', 'heart'));
+  await assertSucceeds(react('alice', 'bob', 'think'));
+  await assertSucceeds(react('alice', 'alice', 'laugh'));
+  assert.deepEqual((await getDoc(rxRef(db('alice'), 'alice'))).data().on, { bob: ['heart', 'think'], alice: ['laugh'] });
+  await assertSucceeds(react('alice', 'bob', 'heart', false));
+  await assertSucceeds(react('alice', 'bob', 'heart', false));   // removing twice is harmless
+  assert.deepEqual((await getDoc(rxRef(db('alice'), 'alice'))).data().on.bob, ['think']);
+  // Bob, also finished, sees them.
+  const seen = await assertSucceeds(getDocs(rxCol(db('bob'))));
+  assert.deepEqual(seen.docs.map(d => d.id), ['alice']);
+  await assertSucceeds(react('bob', 'alice', 'moved'));
+  assert.equal((await getDocs(rxCol(db('alice')))).size, 2);
+});
+
+test('reactions: nobody touches another member\'s reactions', async () => {
+  await submit('alice'); await submit('bob'); await submit('cara');
+  await react('alice', 'bob', 'heart');
+  // Writing into Alice's document, adding or removing, as Bob or the organiser-less Cara.
+  await assertFails(react('bob', 'bob', 'heart', true, 'alice'));
+  await assertFails(react('cara', 'bob', 'heart', false, 'alice'));
+  await assertFails(updateDoc(rxRef(db('bob'), 'alice'), { on: {}, last: 'bob', updatedAt: serverTimestamp() }));
+  await assertFails(deleteDoc(rxRef(db('bob'), 'alice')));
+  await assertFails(deleteDoc(rxRef(db('alice'), 'alice')));
+  // Own document, but bad shapes: unknown emoji, two authors at once, duplicates, a wrong `last`, extra fields, a client time.
+  await assertFails(react('bob', 'alice', 'fire'));
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: ['heart'], cara: ['heart'] }, last: 'alice', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: ['heart', 'heart'] }, last: 'alice', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: ['heart'] }, last: 'cara', updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: ['heart'] }, last: 'alice', updatedAt: serverTimestamp(), rating: 5 }));
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: ['heart'] }, last: 'alice', updatedAt: Timestamp.now() }));
+  await assertFails(setDoc(rxRef(db('bob'), 'bob'), { on: { alice: 'heart' }, last: 'alice', updatedAt: serverTimestamp() }));
+  assert.deepEqual((await getDoc(rxRef(db('bob'), 'alice'))).data().on, { bob: ['heart'] });
+});
+
+test('reactions: non-members and signed-out visitors are refused', async () => {
+  await submit('alice'); await submit('bob');
+  await react('alice', 'bob', 'heart');
+  for (const uid of [null, 'outsider']) {
+    await assertFails(getDocs(rxCol(db(uid))));
+    await assertFails(getDoc(rxRef(db(uid), 'alice')));
+    await assertFails(react(uid, 'bob', 'heart', true, uid || 'anon'));
+  }
+  // A departed member (still in the programme roster, no Bookrank member document) too.
+  await submit('cara');
+  await env.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), 'clubs/club/members/cara')));
+  await assertFails(getDocs(rxCol(db('cara'))));
+  await assertFails(react('cara', 'bob', 'heart'));
+});
+
+test('reactions: a member who cannot see the thoughts yet can neither see nor add reactions', async () => {
+  await submit('alice'); await submit('bob');
+  await react('alice', 'bob', 'heart');
+  // Cara has checked off and written a complete draft, but not submitted.
+  await action('cara', 'today', 'done');
+  await updateDoc(rowRef(db('cara'), 'today', 'cara'), { rating: 3, comment: 'Draft', commentAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await assertFails(getDocs(rxCol(db('cara'))));
+  await assertFails(getDoc(rxRef(db('cara'), 'alice')));
+  await assertFails(getDoc(rxRef(db('cara'), 'cara')));
+  await assertFails(react('cara', 'bob', 'heart'));
+  await assertFails(react('cara', 'cara', 'heart'));
+  // Only on a submitted thought, and only on a released text.
+  await assertFails(react('alice', 'cara', 'heart'));
+  await assertFails(react('alice', 'nobody', 'heart'));
+  await assertFails(react('alice', 'alice', 'heart', true, 'alice', 'future'));
+  await assertFails(getDocs(rxCol(db('alice'), 'past')));   // Alice has not finished that one
+  await assertSucceeds(react('bob', 'alice', 'think'));
+  // After Mark as unread the discussion hides again, reactions with it; her own stay in place.
+  await updateDoc(rowRef(db('alice'), 'today', 'alice'), { status: 'reading', completedAt: null, submittedAt: null, updatedAt: serverTimestamp() });
+  await assertFails(getDocs(rxCol(db('alice'))));
+  await assertFails(react('alice', 'bob', 'heart', false));
+  await assertSucceeds(getDocs(rxCol(db('bob'))));
+  // Bob can take back a reaction on a thought that is no longer shared, but not add one.
+  await assertFails(react('bob', 'alice', 'laugh'));
+  await assertSucceeds(react('bob', 'alice', 'think', false));
+});
+
+test('browser adapter: react, count, un-react, and another finished reader sees it', { timeout: 15000 }, async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const d = ctx.firestore(), now = Date.now();
+    await updateDoc(doc(d, base), { startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC', boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)) });
+    await updateDoc(workRef(d, 'today'), { category: 'poem', title: 'Test poem', author: 'Author', country: 'Finland', year: '2026', minutes: 1 });
+  });
+  const alice = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'alice' }), db('alice')._delegate);
+  const bob = createFirestoreBackend(null, () => ({ uid: 'bob', displayName: 'bob' }), db('bob')._delegate);
+  const cara = createFirestoreBackend(null, () => ({ uid: 'cara', displayName: 'cara' }), db('cara')._delegate);
+  const act = (client, body) => client.request('/clubs/club/works/today', { method: 'POST', body });
+  const rx = (client, body) => client.request('/clubs/club/works/today/reactions', { method: 'POST', body });
+  const thought = async (client, author) => (await client.request('/clubs/club/feed')).days.flatMap(d => d.works).find(w => w.id === 'today').collective?.comments.find(c => c.uid === author);
+  // Another member's reaction reaches an open listener a moment later, as in the app.
+  const eventually = async (client, author, want) => {
+    for (let i = 0; i < 40; i++) { const t = await thought(client, author); if (JSON.stringify(t.reactions) === JSON.stringify(want)) return; await new Promise(r => setTimeout(r, 50)); }
+    assert.deepEqual((await thought(client, author)).reactions, want);
+  };
+  try {
+    for (const [client, text] of [[alice, 'ALICE THOUGHT'], [bob, 'BOB THOUGHT']]) {
+      await act(client, { action: 'complete' }); await act(client, { action: 'rate', rating: 4 }); await act(client, { action: 'submit', comment: text });
+    }
+    assert.deepEqual((await thought(alice, 'bob')).reactions, []);
+    await rx(alice, { author: 'bob', emoji: 'heart', on: true });
+    assert.deepEqual((await thought(alice, 'bob')).reactions, [{ key: 'heart', count: 1, mine: true, names: [] }]);
+    await rx(bob, { author: 'bob', emoji: 'heart', on: true });
+    await eventually(alice, 'bob', [{ key: 'heart', count: 2, mine: true, names: ['bob'] }]);
+    await eventually(bob, 'bob', [{ key: 'heart', count: 2, mine: true, names: ['alice'] }]);
+    await rx(alice, { author: 'bob', emoji: 'heart', on: false });
+    await eventually(bob, 'bob', [{ key: 'heart', count: 1, mine: true, names: [] }]);
+    await assert.rejects(rx(alice, { author: 'bob', emoji: 'fire', on: true }), /Unknown reaction/);
+    // Cara has not finished: no thoughts, no reactions, and her attempt is refused.
+    assert.equal(await thought(cara, 'bob'), undefined);
+    await assert.rejects(rx(cara, { author: 'bob', emoji: 'heart', on: true }), /not available/);
+  } finally { alice.reset(); bob.reset(); cara.reset(); }
+});
+
+test('browser adapter without reaction rules: thoughts still show, reactions are simply absent', { timeout: 15000 }, async () => {
+  const old = await initializeTestEnvironment({ projectId: 'demo-daily-dose-old', firestore: { host: '127.0.0.1', port: 8189,
+    rules: fullRules.replace(/match \/reactions\/\{uid\} \{[\s\S]*?allow delete: if false;\n        \}/, '') } });
+  try {
+    assert.doesNotMatch(fullRules.replace(/match \/reactions\/\{uid\} \{[\s\S]*?allow delete: if false;\n        \}/, ''), /reactions\/\{uid\}/);
+    await old.withSecurityRulesDisabled(async ctx => {
+      const d = ctx.firestore(), now = Date.now();
+      await setDoc(doc(d, 'clubs/club'), { name: 'Test club', member_uids: ['alice'] });
+      await setDoc(doc(d, 'clubs/club/members/alice'), { display_name: 'alice' });
+      await setDoc(doc(d, base), { organizerUids: ['alice'], participantUids: ['alice'], startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC',
+        boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)), dayWorkIds: [{ ids: ['today'] }] });
+      await setDoc(doc(d, `${base}/works/today`), { id: 'today', day: 1, category: 'poem', title: 'Test poem', openAt: Timestamp.fromMillis(now - 3600000), closeAt: Timestamp.fromMillis(now + 3600000) });
+    });
+    const alice = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'alice' }), old.authenticatedContext('alice').firestore()._delegate);
+    try {
+      const act = body => alice.request('/clubs/club/works/today', { method: 'POST', body });
+      await act({ action: 'complete' }); await act({ action: 'rate', rating: 2 }); await act({ action: 'submit', comment: 'STILL SHOWN' });
+      const w = (await alice.request('/clubs/club/feed')).days[0].works[0];
+      assert.equal(w.collective.comments[0].text, 'STILL SHOWN');
+      assert.equal(w.collective.reactable, false);
+      assert.equal('reactions' in w.collective.comments[0], false);
+      await assert.rejects(alice.request('/clubs/club/works/today/reactions', { method: 'POST', body: { author: 'alice', emoji: 'heart', on: true } }), /not available/);
+    } finally { alice.reset(); }
+  } finally { await old.cleanup(); }
 });

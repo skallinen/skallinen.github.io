@@ -1,5 +1,6 @@
-import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
+import { isReaction, tally } from './reactions.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
@@ -9,6 +10,9 @@ const noAccess = e => e.code === 'permission-denied';
 // other submitted responses; drafts never enter that query or its snapshots.
 export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   const watches = new Map(), clocks = new Map(), healed = new Set();
+  // Set when the deployed rules refuse reactions (rules older than the
+  // client): the thoughts then show without them, and nobody can react.
+  let reactionsOff = false;
   function unwatch(key) { watches.get(key)?.stop(); watches.delete(key); }
   function watch(key, ref) {
     if (!watches.has(key)) {
@@ -75,7 +79,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const ownData = own.exists() ? own.data() : null;
     const revealed = ownData?.status === 'done' && ownData.submittedAt != null;
     const result = { ...meta, closeAt: millis(closeAt), date: localDate(millis(openAt), ctx.p.timezone), mine: mine(ownData, w), revealed, revealReason: revealed ? null : 'submit-your-response' };
-    if (!revealed) unwatch(`shared:${c}:${w.id}`);
+    if (!revealed) { unwatch(`shared:${c}:${w.id}`); unwatch(`rx:${c}:${w.id}`); }
     else {
       let rows;
       try { rows = await watch(`shared:${c}:${w.id}`, submittedQuery(c, w.id)); }
@@ -94,12 +98,48 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       // Stable order: newest first submission first. Later edits never reorder the list.
       done.sort((a, b) => millis(b.submittedAt) - millis(a.submittedAt) || a.uid.localeCompare(b.uid));
       const edited = r => millis(r.commentAt) > millis(r.submittedAt);
+      const reactions = await reactionDocs(c, w.id);
       result.collective = { ratings: ratingSummary(done), revealedAt: millis(ownData.submittedAt), onTime: done.filter(onTime).length, catchUp: done.filter(r => !onTime(r)).length,
         readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(r.completedAt), onTime: onTime(r), rating: r.rating ?? null })),
         comments: done.filter(r => r.comment)
-          .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), submittedAt: millis(r.submittedAt), edited: edited(r), onTime: onTime(r) })) };
+          .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), submittedAt: millis(r.submittedAt), edited: edited(r), onTime: onTime(r),
+            ...(reactions ? { reactions: tally(reactions, r.uid, ctx.members, user().uid) } : {}) })),
+        reactable: !!reactions };
     }
     return result;
+  }
+  // Everyone's reaction documents for one text, readable exactly when the
+  // shared responses are. Null when reactions are unavailable (see reactionsOff).
+  async function reactionDocs(c, id) {
+    if (reactionsOff) return null;
+    const key = `rx:${c}:${id}`;
+    try { return (await watch(key, collection(workRef(c, id), 'reactions'))).docs.map(d => ({ uid: d.id, on: d.data().on || {} })); }
+    catch (e) {
+      if (!noAccess(e)) throw e;
+      // A listener that never delivered anything was refused outright: the
+      // deployed rules do not know reactions yet. One that worked before lost
+      // access (another tab marked the text unread): just skip it this time.
+      const before = watches.get(key)?.snap;
+      unwatch(key);
+      if (!before) reactionsOff = true;
+      return null;
+    }
+  }
+  // Add or remove one's own reaction to one thought. Only one's own document
+  // is written, and only the list for that author (the rules check both).
+  async function react(c, id, { author, emoji, on }) {
+    if (!isReaction(emoji) || typeof author !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(author) || typeof on !== 'boolean') throw new Error('Unknown reaction.');
+    try {
+      await setDoc(doc(workRef(c, id), 'reactions', user().uid),
+        { on: { [author]: on ? arrayUnion(emoji) : arrayRemove(emoji) }, last: author, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      if (noAccess(e)) throw new Error('Reactions are not available here yet.');
+      throw e;
+    }
+    // Wait until the open listener carries the write, so the next feed shows it.
+    const key = `rx:${c}:${id}`;
+    const has = snap => !!snap.docs.find(d => d.id === user().uid)?.data().on?.[author]?.includes(emoji);
+    if (!await settled(key, snap => has(snap) === on)) unwatch(key);
   }
   async function feed(c) {
     const ctx = await context(c), p = ctx.p;
@@ -253,6 +293,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     // stays silent is the row read from the server, as before.
     const fresh = d => d?.exists() && !(seen && d.data().updatedAt?.isEqual?.(seen));
     const ownKey = `own:${c}:${id}`, sharedKey = `shared:${c}:${id}`;
+    if (!isShared) unwatch(`rx:${c}:${id}`);
     const shared = !wasShared || !isShared ? unwatch(sharedKey)
       // Still shared (a rating or Save changes): the open query updates itself.
       : settled(sharedKey, q => fresh(q.docs.find(d => d.id === user().uid))).then(ok => { if (!ok) unwatch(sharedKey); });
@@ -264,7 +305,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     await Promise.all([shared, own]);
   }
   return {
-    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); },
+    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); reactionsOff = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -281,6 +322,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       if (parts[2] === 'feed') return feed(c);
       if (parts[2] === 'organiser') return organiser(c);
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
+      if (parts[2] === 'works' && parts[4] === 'reactions' && options.method === 'POST') return react(c, id, options.body);
       if (parts[2] === 'works' && options.method === 'POST') return act(c, id, options.body);
       if (parts[2] === 'works') return JSON.parse((await getDocFromServer(doc(programRef(c), 'texts', id))).data().json);
       throw new Error('Unknown request.');

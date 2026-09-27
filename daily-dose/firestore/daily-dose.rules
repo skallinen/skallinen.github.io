@@ -109,6 +109,37 @@
             && rowShape(request.resource.data) && changes(request.resource.data, resource.data);
           allow delete: if false;
         }
+        // Emoji reactions to the submitted thoughts on this text: one document
+        // per reacting member, { on: { authorUid: [keys] }, last, updatedAt }.
+        // Visible exactly where the thoughts are: to members who have
+        // submitted their own response to this text. Each write is the
+        // member's own document and changes one author's list (`last`); a new
+        // reaction needs that author's thought to be submitted now. Removing
+        // is always possible. The keys repeat client/reactions.mjs.
+        match /reactions/{uid} {
+          function reactionsBefore() {
+            return resource == null ? {} : resource.data.on;
+          }
+          function reactionList(d) {
+            return d.on.get(d.last, []);
+          }
+          allow read: if doseMember(club) && doseReleased(club, work) && doseSubmitted(club, work);
+          allow create, update: if doseMember(club) && request.auth.uid == uid
+            && doseReleased(club, work) && doseSubmitted(club, work)
+            && request.resource.data.keys().hasAll(['on', 'last', 'updatedAt'])
+            && request.resource.data.keys().hasOnly(['on', 'last', 'updatedAt'])
+            && request.resource.data.updatedAt == request.time
+            && request.resource.data.on is map && request.resource.data.on.size() <= 100
+            && request.resource.data.last is string && request.resource.data.last.matches('^[A-Za-z0-9_-]{1,128}$')
+            && request.resource.data.on.diff(reactionsBefore()).affectedKeys().hasOnly([request.resource.data.last])
+            && reactionList(request.resource.data) is list
+            && reactionList(request.resource.data).size() <= 6
+            && reactionList(request.resource.data).hasOnly(['heart', 'like', 'laugh', 'wow', 'moved', 'think'])
+            && reactionList(request.resource.data).toSet().size() == reactionList(request.resource.data).size()
+            && (reactionList(request.resource.data).toSet().difference(reactionsBefore().get(request.resource.data.last, []).toSet()).size() == 0
+              || get(/databases/$(database)/documents/dailyDose/$(club)/works/$(work)/reads/$(request.resource.data.last)).data.get('submittedAt', null) is timestamp);
+          allow delete: if false;
+        }
       }
       // Completion records: one per member, a map of work id to checkmark time.
       // The organiser may read them to see who has checked which text off and

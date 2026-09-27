@@ -75,6 +75,30 @@ GitHub and the JS bundle. They use the corrected review edition, preserving
 formatting and outstanding source notes. This does not resolve editorial holds
 or grant distribution rights.
 
+## Reactions
+
+Finished readers can react to the club's thoughts (their own too) with one of
+six emojis, like Slack: ❤️ 👍 😂 😮 😢 🤔 (see SPEC.md for why these). Under a
+thought, each emoji in use shows its count, yours highlighted; tap it to take
+yours back, or "React" to add one. Hover (desktop) or a long press (phone)
+shows who reacted.
+
+Data: `dailyDose/{club}/works/{work}/reactions/{uid}`, one document per member
+per text, `{ on: { authorUid: ['heart', 'think'] }, last, updatedAt }`, written
+with `arrayUnion` / `arrayRemove` and a merge, so each write changes only the
+writer's own list for one author (`last`). Rules: read and write only for
+members who have submitted their own response to that text (the same test as
+reading the thoughts), only one's own document, only the six keys without
+repeats, a new reaction only on a thought that is submitted now, never a
+delete. The client reads one listener per revealed text. Keys and emojis live
+in `client/reactions.mjs` (the rules repeat the keys; `test/reactions.test.mjs`
+checks they agree).
+
+**Rules first, or nothing shows.** The client needs the new rules fragment. Until
+it is deployed, the reactions listener is refused, the client stops asking for
+the session, and the thoughts show exactly as before with no reaction controls.
+Deploy the fragment with `scripts/update-rules.mjs` (below).
+
 ## Podcast: each day read aloud
 
 The club has a private podcast (RSS, one episode per day: the poem, story and

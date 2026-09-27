@@ -46,6 +46,8 @@ const CAPTIONS = {
     'There is no deadline, and nobody waits for anybody.'],
   others: ['Now you see the club: the average rating, who read it on the day, and each thought.',
     'Only members who have finished this text appear here.'],
+  react: ['React to a thought, as in Slack: six emojis, and tap one again to take yours back.',
+    'Everyone who has finished the text sees the counts. Point at one, or hold a finger on it, to see who reacted.'],
   edit: ['You can still edit after sharing.', 'Your original reading time is kept.'],
   unread: ['Checked it off by mistake? Mark it as unread.',
     'Your response becomes a private draft again and the discussion hides. What you saw cannot be unseen.'],
@@ -64,7 +66,7 @@ const CAPTIONS = {
     'It follows the book club’s member list: someone who joins is added the next time the organiser opens the app.'],
   signOut: ['Sign out from the top corner.', ''],
   closing: ['Daily Dose in one breath:',
-    'three texts a day · read on the day or catch up · 0 to 5 stars and one thought · finish to reveal the club · edit or mark as unread · tomorrow stays locked'],
+    'three texts a day · read on the day or catch up · 0 to 5 stars and one thought · finish to reveal the club · react with an emoji · edit or mark as unread · tomorrow stays locked'],
 };
 
 // ------------------------------------------------------------------ labels
@@ -86,6 +88,8 @@ const LABELS = {
   notRated: 'Not rated',
   finish: 'Finish & reveal',
   saveChanges: 'Save changes',
+  react: /^React to .+’s thought$/,                                  // under each thought, opens the six emojis
+  reactHeart: 'heart',                                              // one of the six
   clubThoughts: /THE CLUB.S THOUGHTS/,
   whoRead: /Finished readers|Who read this\?|Who has read|Who read|Readers/,     // expander in the club's thoughts
   markUnread: 'Mark as unread',
@@ -332,6 +336,17 @@ const beats = [
     if (await who.count()) await point(who);
     await card().getByText(LABELS.clubThoughts).evaluate(e => scrollBy({ top: e.getBoundingClientRect().top - 110, behavior: 'smooth' }));
     await sleep(FAST ? 300 : 800);
+  } },
+  { key: 'react', run: async () => {
+    // The first thought by somebody else: open the six, pick the heart, point at the count.
+    const add = card().getByRole('button', { name: LABELS.react }).first();
+    const author = await add.getAttribute('data-author');
+    const thought = card().locator('.tweet').filter({ has: page.locator(`[data-react-open][data-author="${author}"]`) });
+    await point(add);
+    await point(thought.getByRole('button', { name: LABELS.reactHeart, exact: true }));
+    const pill = thought.locator('button.reaction[data-emoji="heart"][aria-pressed="true"]');
+    await pill.waitFor({ timeout: 10000 });
+    await point(pill, { click: false });
   } },
   { key: 'edit', run: async () => {
     await type(card().getByRole('textbox'), THOUGHT_EDIT);
