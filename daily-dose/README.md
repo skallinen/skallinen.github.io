@@ -34,7 +34,10 @@ checkmark and cleared by Mark as unread. Rules let the owner and the organiser
 read it, and accept a change only when it equals the owner's own private row
 after the write, so nobody can forge or hide another member's checkmark.
 Ratings, thoughts, drafts and reader progress stay in the private rows, which
-the organiser cannot read. Rows from before this record existed are repaired
+the organiser cannot read. The roster draws the same record as a grid per
+member (50 day columns, rows poem, story, essay; on the day, catch-up, not
+checked off, coming), built in the client from `days` and `checks`, so no
+extra reads. Rows from before this record existed are repaired
 the next time their owner opens the app (older checkmarks by members who never
 return will not show). Members are told this in "How it works".
 

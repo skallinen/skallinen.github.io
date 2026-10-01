@@ -90,6 +90,12 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   cleared by "Mark as unread"; rules accept only values equal to the owner's own
   private row, and only the owner and the organiser may read it. Members are told
   in "How it works" that the organiser can see who has checked texts off.
+  The roster shows each member as a grid, like GitHub contributions: 50 day
+  columns (Day 1 to 50), rows P (poem), S (story), E (essay). Dark green =
+  checked off on the day, light green = catch-up, white with an outline = not
+  checked off (a past day or today), grey = a coming day. Same checkmark times
+  and the same on the day test as the rest of the page; the text "n of m
+  checked off" stays beside the name.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.

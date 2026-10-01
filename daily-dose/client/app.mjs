@@ -502,6 +502,39 @@ const orgMark = x => x
   ? `<span class="mark ${x.onTime ? 'on' : 'late'}" aria-hidden="true">✓</span><span class="sr-only">${x.onTime ? 'on the day' : 'catch-up'}</span>`
   : '<span class="mark none" aria-hidden="true"></span><span class="sr-only">not yet</span>';
 
+// The roster as a contribution grid, like GitHub's: one column per day (Day 1 to
+// 50), one row per text (P poem, S story, E essay). A cell is "on" (checked off
+// on the day), "late" (catch-up), "none" (released, not checked off; today too)
+// or "coming" (a later day). On the day and catch-up are the checkmark times the
+// organiser page already reads (server time against the day's local midnight).
+const GRID_ROWS = [['poem', 'P'], ['story', 'S'], ['essay', 'E']];
+const CELL_WORDS = { on: 'on the day', late: 'catch-up', none: 'not checked off', coming: 'coming' };
+function rosterCells(o, uid) {
+  const c = o.campaign, byDay = new Map(o.days.map(d => [d.number, d])), checks = o.checks[uid] || {};
+  return GRID_ROWS.map(([cat]) => Array.from({ length: 50 }, (_, i) => {
+    const n = i + 1;
+    if (!(c.currentDay >= n)) return { n, cat, kind: 'coming' };
+    const work = byDay.get(n)?.works.find(w => w.category === cat), x = work && checks[work.id];
+    return { n, cat, kind: x ? (x.onTime ? 'on' : 'late') : 'none' };
+  }));
+}
+function rosterGrid(o, r) {
+  const rows = rosterCells(o, r.uid), c = o.campaign;
+  const count = kind => rows.flat().filter(x => x.kind === kind).length;
+  const summary = ['on', 'late', 'none', 'coming'].map(k => `${count(k)} ${CELL_WORDS[k]}`).join(', ');
+  return `<div class="roster-grid" role="img" aria-label="${esc(r.name)}, texts by day: ${summary}">${rows.map((row, i) =>
+    `<span class="grid-label" aria-hidden="true">${GRID_ROWS[i][1]}</span>${row.map(x =>
+      `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}: ${CELL_WORDS[x.kind]}"></span>`).join('')}`).join('')}</div>`;
+}
+// The day axis (1, 10, 20 ... 50) sits once above the roster, on the same columns.
+function rosterLegend(c) {
+  const ticks = [1, 10, 20, 30, 40, 50].map(n => `<span class="tick${n === 50 ? ' end' : ''}" style="grid-column: ${n === 50 ? '48 / 52' : `${n + 1} / span 4`}">${n}</span>`).join('');
+  return `<p class="org-legend roster-legend">${['on', 'late', 'none', 'coming'].map(k =>
+      `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${CELL_WORDS[k]}</span>`).join('')}</p>
+    <p class="fine-print roster-key">One column per day, Day 1 to 50. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= 50 ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}</p>
+    <div class="roster-grid roster-axis" aria-hidden="true"><span class="grid-label"></span>${ticks}</div>`;
+}
+
 function renderOrganiser() {
   const o = state.organiser, c = o.campaign, zone = zoneLabel(c?.timezone);
   const members = o.roster.filter(r => r.admitted);
@@ -528,9 +561,9 @@ function renderOrganiser() {
   const grid = past.length ? `<h2>Earlier days</h2><p class="org-legend"><span class="legend-item"><span class="mark on" aria-hidden="true">✓</span> checked off on the day</span>
       <span class="legend-item"><span class="mark late" aria-hidden="true">✓</span> checked off as catch-up</span><span class="legend-item"><span class="mark none" aria-hidden="true"></span> not yet</span></p>
     ${past.map(dayTable).join('')}` : '';
-  const roster = `<h2>Roster</h2><ul class="org-list roster">${o.roster.map(r => {
+  const roster = `<h2>Roster</h2>${c ? rosterLegend(c) : ''}<ul class="org-list roster">${o.roster.map(r => {
     const total = Object.keys(o.checks[r.uid] || {}).length;
-    return `<li><span class="reader-name">${esc(r.name)}${r.organizer ? ' (organiser)' : ''}</span><span>${r.admitted ? `${total} of ${released} checked off${r.justAdmitted ? ' · added just now' : ''}` : 'In the book club, not added yet'}</span></li>`; }).join('')}</ul>
+    return `<li><span class="reader-name">${esc(r.name)}${r.organizer ? ' (organiser)' : ''}</span><span class="roster-count">${r.admitted ? `${total} of ${released} checked off${r.justAdmitted ? ' · added just now' : ''}` : 'In the book club, not added yet'}</span>${c && r.admitted ? rosterGrid(o, r) : ''}</li>`; }).join('')}</ul>
     <p class="fine-print">The members are the people in your book club. Someone who joins the book club is added here the next time you open this app.</p>`;
   shell(`<section class="feed-intro organiser"><div><p class="eyebrow">Organiser · ${esc(o.club.name)}</p><h1>Club progress</h1>
     <p class="intro-sub">You can see who has checked each text off, and when. You cannot see ratings, thoughts, drafts or reading progress; members are told this in “How it works”.</p></div></section>
