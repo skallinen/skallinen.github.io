@@ -23,6 +23,18 @@ runs the emulators inside `nix-shell -p jdk21_headless`), and `npx` fetches
 `firebase-tools@15.23.0` (override with `FIREBASE_TOOLS=...`). Nothing was installed
 globally; the JDK comes from the nix store and firebase-tools from the npx cache.
 
+On the utm-arch VM (Linux, repo on the Mac share): `node_modules` holds the
+macOS esbuild, so point it at a Linux one without touching the share:
+`npm install --prefix <scratch> @esbuild/linux-arm64@0.25.12`, then
+`ESBUILD_BINARY_PATH=<scratch>/node_modules/@esbuild/linux-arm64/bin/esbuild`.
+Set `ANTHOLOGY=~/mac/common/projects/daily-dose/webapp/data/anthology.json`
+(the default path assumes `~/common`). The first JDK fetch through nix-shell
+takes longer than the 120 s port wait; run `nix-shell -p jdk21_headless --run
+"java -version"` once first. Playwright has no browsers there; launch with
+`executablePath: ~/.nix-profile/bin/google-chrome-stable`. The rules suite:
+`firebase emulators:exec --only firestore` with a config putting Firestore
+on 8189 (2026-10-01, all green this way).
+
 ## Signing in
 
 Click **Sign in with Google**. The popup is the Auth emulator's account chooser;
