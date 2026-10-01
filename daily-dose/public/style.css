@@ -265,6 +265,10 @@ input, select { border: 1.5px solid var(--line-strong); background: #fff; border
 .roster-axis .tick.end { text-align: right; }
 .roster-legend .cell { width: .9375rem; height: .9375rem; border-radius: 2px; }
 .roster-key { margin: .25rem 0 0; }
+/* The member's own grid sits in the progress strip at the top of the reading page. */
+.my-grid { margin: .6rem 0 .5rem; font-size: 1rem; }
+.my-grid .org-legend { font-size: .9375rem; gap: .3rem 1rem; margin: 0; }
+.my-grid .roster-key { margin: .2rem 0 0; font-size: .9375rem; }
 @media (max-width: 40rem) { .roster-grid { gap: 1px; } .roster-grid .cell { border-radius: 1px; } }
 
 /* ---------- reader */

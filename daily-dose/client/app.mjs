@@ -383,7 +383,7 @@ function render() {
 const shown = w => state.filter === 'all' ||
   (state.filter === 'unread' ? w.mine?.status !== 'done' || state.sticky.has(w.id) : w.category === state.filter);
 function personalStrip(feed) {
-  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
+  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) + myGrid(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
 }
 function filterBar() {
   const unreadCount = allWorks().filter(w => w.mine?.status !== 'done').length;
@@ -509,8 +509,10 @@ const orgMark = x => x
 // organiser page already reads (server time against the day's local midnight).
 const GRID_ROWS = [['poem', 'P'], ['story', 'S'], ['essay', 'E']];
 const CELL_WORDS = { on: 'on the day', late: 'catch-up', none: 'not checked off', coming: 'coming' };
-function rosterCells(o, uid) {
-  const c = o.campaign, byDay = new Map(o.days.map(d => [d.number, d])), checks = o.checks[uid] || {};
+// One member's grid, shared by the organiser's roster and the member's own page:
+// `days` are the released days, `checks` maps a work id to { onTime }.
+function gridCells(c, days, checks) {
+  const byDay = new Map(days.map(d => [d.number, d]));
   return GRID_ROWS.map(([cat]) => Array.from({ length: 50 }, (_, i) => {
     const n = i + 1;
     if (!(c.currentDay >= n)) return { n, cat, kind: 'coming' };
@@ -518,13 +520,20 @@ function rosterCells(o, uid) {
     return { n, cat, kind: x ? (x.onTime ? 'on' : 'late') : 'none' };
   }));
 }
-function rosterGrid(o, r) {
-  const rows = rosterCells(o, r.uid), c = o.campaign;
+function progressGrid(c, days, checks, label) {
+  const rows = gridCells(c, days, checks);
   const count = kind => rows.flat().filter(x => x.kind === kind).length;
   const summary = ['on', 'late', 'none', 'coming'].map(k => `${count(k)} ${CELL_WORDS[k]}`).join(', ');
-  return `<div class="roster-grid" role="img" aria-label="${esc(r.name)}, texts by day: ${summary}">${rows.map((row, i) =>
+  return `<div class="roster-grid" role="img" aria-label="${esc(label)}, texts by day: ${summary}">${rows.map((row, i) =>
     `<span class="grid-label" aria-hidden="true">${GRID_ROWS[i][1]}</span>${row.map(x =>
       `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}: ${CELL_WORDS[x.kind]}"></span>`).join('')}`).join('')}</div>`;
+}
+const rosterGrid = (o, r) => progressGrid(o.campaign, o.days, o.checks[r.uid] || {}, r.name);
+// The member's own grid on the reading page, from the feed it already has: the
+// same on the day test (completedAt before the day's closeAt), no extra reads.
+function myGrid(feed) {
+  const checks = Object.fromEntries(feed.days.flatMap(d => d.works).filter(w => w.mine?.status === 'done').map(w => [w.id, { onTime: w.mine.onTime }]));
+  return `<div class="my-grid">${rosterLegend(feed.campaign)}${progressGrid(feed.campaign, feed.days, checks, 'You')}</div>`;
 }
 // The day axis (1, 10, 20 ... 50) sits once above the roster, on the same columns.
 function rosterLegend(c) {

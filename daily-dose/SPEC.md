@@ -96,6 +96,9 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   checked off (a past day or today), grey = a coming day. Same checkmark times
   and the same on the day test as the rest of the page; the text "n of m
   checked off" stays beside the name.
+  Each member sees the same grid for themselves (same legend and key) in the
+  progress strip near the top of the reading page, under "Today: n of 3 read",
+  from their own checkmarks in the feed; it updates as they check texts off.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
