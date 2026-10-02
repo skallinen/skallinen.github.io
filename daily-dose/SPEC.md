@@ -103,6 +103,7 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   viewer has not finished is a dark grey "you have not finished it" cell, so
   the organiser learns no rating a member would not. Beside each name: "n
   ratings you can see, average x.x". The choice is kept on the device.
+  Hovering a released cell names the text and its author (title, "by", author).
   Each member sees the same grid for themselves (same legend and key) in the
   progress strip near the top of the reading page, under "Today: n of 3 read",
   from their own checkmarks in the feed; it updates as they check texts off.

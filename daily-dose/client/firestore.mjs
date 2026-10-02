@@ -240,7 +240,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     for (let n = Math.min(50, day); n >= 1; n--) {
       const entries = [...byId.values()].filter(w => w.day === n).sort((a, b) => ['poem','story','essay'].indexOf(a.category) - ['poem','story','essay'].indexOf(b.category));
       if (entries.length) base.days.push({ number: n, date: localDate(millis(entries[0].openAt), p.timezone), today: n === day,
-        works: entries.map(w => ({ id: w.id, title: w.title, category: w.category })) });
+        works: entries.map(w => ({ id: w.id, title: w.title, author: w.author, category: w.category })) });
     }
     for (const r of records.docs) {
       if (!ctx.members.has(r.id)) continue;

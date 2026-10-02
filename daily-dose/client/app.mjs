@@ -532,14 +532,15 @@ function visibleStars(feed) {
 const starKind = (vis, uid) => work => !vis.seen.has(work.id) ? 'locked'
   : vis.stars[uid]?.[work.id] != null ? `s${vis.stars[uid][work.id]}` : 'none';
 // One member's grid, shared by the organiser's roster and the member's own page:
-// `days` are the released days, `kindOf` gives a released text's cell kind.
+// `days` are the released days, `kindOf` gives a released text's cell kind. The
+// tooltip names the text and its author.
 function gridCells(c, days, kindOf) {
   const byDay = new Map(days.map(d => [d.number, d]));
   return GRID_ROWS.map(([cat]) => Array.from({ length: 50 }, (_, i) => {
     const n = i + 1;
     if (!(c.currentDay >= n)) return { n, cat, kind: 'coming' };
     const work = byDay.get(n)?.works.find(w => w.category === cat);
-    return { n, cat, kind: work ? kindOf(work) : 'none' };
+    return { n, cat, work, kind: work ? kindOf(work) : 'none' };
   }));
 }
 function progressGrid(c, days, kindOf, label, words = CELL_WORDS) {
@@ -548,7 +549,7 @@ function progressGrid(c, days, kindOf, label, words = CELL_WORDS) {
   const summary = Object.keys(words).filter(k => count(k)).map(k => `${count(k)} ${words[k]}`).join(', ');
   return `<div class="roster-grid" role="img" aria-label="${esc(label)}, texts by day: ${summary}">${rows.map((row, i) =>
     `<span class="grid-label" aria-hidden="true">${GRID_ROWS[i][1]}</span>${row.map(x =>
-      `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}: ${words[x.kind]}"></span>`).join('')}`).join('')}</div>`;
+      `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}${x.work ? `, “${esc(x.work.title)}”${x.work.author ? ` by ${esc(x.work.author)}` : ''}` : ''}: ${words[x.kind]}"></span>`).join('')}`).join('')}</div>`;
 }
 const rosterGrid = (o, r, vis) => vis
   ? progressGrid(o.campaign, o.days, starKind(vis, r.uid), r.name, STAR_WORDS)
