@@ -39,7 +39,10 @@ member (50 day columns, rows poem, story, essay; on the day, catch-up, not
 checked off, coming), built in the client from `days` and `checks`, so no
 extra reads. Each member also sees their own grid, same code and legend, in
 the progress strip at the top of the reading page, built from their own feed
-(`mine.onTime`), so no extra reads there either. Rows from before this record
+(`mine.onTime`), so no extra reads there either. The roster's Stars switch colours the
+grid by the stars each member gave, only on texts the organiser has finished
+and revealed (the `collective.readers` already in their feed), so it shows no
+rating a member would not see and needs no rules change. Rows from before this record
 existed are repaired
 the next time their owner opens the app (older checkmarks by members who never
 return will not show). Members are told this in "How it works".

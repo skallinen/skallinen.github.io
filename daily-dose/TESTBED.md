@@ -247,3 +247,9 @@ rules suite (24 tests, 3 new for `seen`) and the unit tests (36) passed.
 2026-09-28, 👆 "this" as the seventh reaction: `check-reactions.mjs` green at
 360 px (rows of four and three) and 390 px (one row), `check-news.mjs` green,
 the tour 23 of 23, rules suite 25 of 25, unit tests 36 of 36.
+
+2026-10-02, the roster's Stars switch: `check-stars.mjs` green at 360 px
+against a fresh `start` (Aino finishes the Day 1 poem with 3 stars; her cell,
+Grace's 5 and Oskar's 3 show as stars, Grace's unfinished-by-Aino story is
+locked, the switch survives a reload, no sideways scrolling); unit tests passed.
+Like the others it writes to the bed: reseed before a rerun.

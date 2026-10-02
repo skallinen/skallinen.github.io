@@ -24,7 +24,9 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // Cards kept in the Unread view after check-off, until the filter changes.
   sticky: new Set(), openDetails: new Set(), confirmUnread: null,
   // The thought whose seven reaction choices are open (`work|author`), one at a time.
-  reactOpen: null };
+  reactOpen: null,
+  // The roster shows checkmarks or, for texts the viewer has finished, the stars given.
+  rosterView: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -486,6 +488,7 @@ function workCard(work) {
 
 // ---------- organiser page: roster and who has checked what off, never what they wrote
 async function loadOrganiser() {
+  state.rosterView ??= store.get('daily-dose-roster-view') === 'stars' ? 'stars' : 'checks';
   if (!state.organiser) shell('<section class="loading">Loading club progress…</section>');
   try {
     const generation = state.generation, clubId = state.clubId;
@@ -509,38 +512,63 @@ const orgMark = x => x
 // organiser page already reads (server time against the day's local midnight).
 const GRID_ROWS = [['poem', 'P'], ['story', 'S'], ['essay', 'E']];
 const CELL_WORDS = { on: 'on the day', late: 'catch-up', none: 'not checked off', coming: 'coming' };
+// The roster's Stars view: the same grid, a cell per text coloured by the stars
+// the member gave (0 to 5). Only texts the viewer has finished themselves show
+// stars, because only those reveal the others' ratings in the feed; the
+// organiser sees nothing a member would not. "locked" = you have not finished it.
+const STAR_WORDS = { s0: '0 stars', s1: '1 star', s2: '2 stars', s3: '3 stars', s4: '4 stars', s5: '5 stars',
+  none: 'not finished', locked: 'you have not finished it', coming: 'coming' };
+const checkKind = checks => work => { const x = checks[work.id]; return x ? (x.onTime ? 'on' : 'late') : 'none'; };
+// The ratings the viewer can see, uid -> work id -> stars, from the feed's revealed texts.
+function visibleStars(feed) {
+  const seen = new Map(), stars = {};
+  for (const w of feed.days.flatMap(d => d.works)) {
+    if (!w.revealed || !w.collective) continue;
+    seen.set(w.id, true);
+    for (const r of w.collective.readers) if (r.rating != null) (stars[r.uid] ??= {})[w.id] = r.rating;
+  }
+  return { seen, stars };
+}
+const starKind = (vis, uid) => work => !vis.seen.has(work.id) ? 'locked'
+  : vis.stars[uid]?.[work.id] != null ? `s${vis.stars[uid][work.id]}` : 'none';
 // One member's grid, shared by the organiser's roster and the member's own page:
-// `days` are the released days, `checks` maps a work id to { onTime }.
-function gridCells(c, days, checks) {
+// `days` are the released days, `kindOf` gives a released text's cell kind.
+function gridCells(c, days, kindOf) {
   const byDay = new Map(days.map(d => [d.number, d]));
   return GRID_ROWS.map(([cat]) => Array.from({ length: 50 }, (_, i) => {
     const n = i + 1;
     if (!(c.currentDay >= n)) return { n, cat, kind: 'coming' };
-    const work = byDay.get(n)?.works.find(w => w.category === cat), x = work && checks[work.id];
-    return { n, cat, kind: x ? (x.onTime ? 'on' : 'late') : 'none' };
+    const work = byDay.get(n)?.works.find(w => w.category === cat);
+    return { n, cat, kind: work ? kindOf(work) : 'none' };
   }));
 }
-function progressGrid(c, days, checks, label) {
-  const rows = gridCells(c, days, checks);
+function progressGrid(c, days, kindOf, label, words = CELL_WORDS) {
+  const rows = gridCells(c, days, kindOf);
   const count = kind => rows.flat().filter(x => x.kind === kind).length;
-  const summary = ['on', 'late', 'none', 'coming'].map(k => `${count(k)} ${CELL_WORDS[k]}`).join(', ');
+  const summary = Object.keys(words).filter(k => count(k)).map(k => `${count(k)} ${words[k]}`).join(', ');
   return `<div class="roster-grid" role="img" aria-label="${esc(label)}, texts by day: ${summary}">${rows.map((row, i) =>
     `<span class="grid-label" aria-hidden="true">${GRID_ROWS[i][1]}</span>${row.map(x =>
-      `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}: ${CELL_WORDS[x.kind]}"></span>`).join('')}`).join('')}</div>`;
+      `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}: ${words[x.kind]}"></span>`).join('')}`).join('')}</div>`;
 }
-const rosterGrid = (o, r) => progressGrid(o.campaign, o.days, o.checks[r.uid] || {}, r.name);
+const rosterGrid = (o, r, vis) => vis
+  ? progressGrid(o.campaign, o.days, starKind(vis, r.uid), r.name, STAR_WORDS)
+  : progressGrid(o.campaign, o.days, checkKind(o.checks[r.uid] || {}), r.name);
 // The member's own grid on the reading page, from the feed it already has: the
 // same on the day test (completedAt before the day's closeAt), no extra reads.
 function myGrid(feed) {
   const checks = Object.fromEntries(feed.days.flatMap(d => d.works).filter(w => w.mine?.status === 'done').map(w => [w.id, { onTime: w.mine.onTime }]));
-  return `<div class="my-grid">${rosterLegend(feed.campaign)}${progressGrid(feed.campaign, feed.days, checks, 'You')}</div>`;
+  return `<div class="my-grid">${rosterLegend(feed.campaign)}${progressGrid(feed.campaign, feed.days, checkKind(checks), 'You')}</div>`;
 }
 // The day axis (1, 10, 20 ... 50) sits once above the roster, on the same columns.
-function rosterLegend(c) {
+function rosterLegend(c, stars = false) {
   const ticks = [1, 10, 20, 30, 40, 50].map(n => `<span class="tick${n === 50 ? ' end' : ''}" style="grid-column: ${n === 50 ? '48 / 52' : `${n + 1} / span 4`}">${n}</span>`).join('');
-  return `<p class="org-legend roster-legend">${['on', 'late', 'none', 'coming'].map(k =>
-      `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${CELL_WORDS[k]}</span>`).join('')}</p>
-    <p class="fine-print roster-key">One column per day, Day 1 to 50. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= 50 ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}</p>
+  const words = stars ? STAR_WORDS : CELL_WORDS;
+  const legend = stars
+    ? `<span class="legend-item legend-scale">0 ${['s0', 's1', 's2', 's3', 's4', 's5'].map(k => `<span class="cell ${k}" aria-hidden="true"></span>`).join('')} 5 stars</span>${['none', 'locked', 'coming'].map(k =>
+      `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${words[k]}</span>`).join('')}`
+    : ['on', 'late', 'none', 'coming'].map(k => `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${words[k]}</span>`).join('');
+  return `<p class="org-legend roster-legend">${legend}</p>
+    <p class="fine-print roster-key">One column per day, Day 1 to 50. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= 50 ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}${stars ? ' Stars show only on texts you have finished yourself: the same ratings you see under each text.' : ''}</p>
     <div class="roster-grid roster-axis" aria-hidden="true"><span class="grid-label"></span>${ticks}</div>`;
 }
 
@@ -570,12 +598,20 @@ function renderOrganiser() {
   const grid = past.length ? `<h2>Earlier days</h2><p class="org-legend"><span class="legend-item"><span class="mark on" aria-hidden="true">✓</span> checked off on the day</span>
       <span class="legend-item"><span class="mark late" aria-hidden="true">✓</span> checked off as catch-up</span><span class="legend-item"><span class="mark none" aria-hidden="true"></span> not yet</span></p>
     ${past.map(dayTable).join('')}` : '';
-  const roster = `<h2>Roster</h2>${c ? rosterLegend(c) : ''}<ul class="org-list roster">${o.roster.map(r => {
+  const vis = state.rosterView === 'stars' && state.feed ? visibleStars(state.feed) : null;
+  const starCount = uid => {
+    const given = Object.values(vis.stars[uid] || {});
+    return given.length ? `${plural(given.length, 'rating')} you can see, average ${(given.reduce((a, b) => a + b, 0) / given.length).toFixed(1)}` : 'No ratings you can see';
+  };
+  const viewSwitch = c ? `<div class="filters roster-switch" role="group" aria-label="Roster shows">${[['checks', 'Checked off'], ['stars', 'Stars']].map(([key, label]) =>
+    `<button data-roster-view="${key}" class="filter ${(vis ? 'stars' : 'checks') === key ? 'active' : ''}" aria-pressed="${(vis ? 'stars' : 'checks') === key}">${label}</button>`).join('')}</div>` : '';
+  const roster = `<h2>Roster</h2>${viewSwitch}${c ? rosterLegend(c, !!vis) : ''}<ul class="org-list roster">${o.roster.map(r => {
     const total = Object.keys(o.checks[r.uid] || {}).length;
-    return `<li><span class="reader-name">${esc(r.name)}${r.organizer ? ' (organiser)' : ''}</span><span class="roster-count">${r.admitted ? `${total} of ${released} checked off${r.justAdmitted ? ' · added just now' : ''}` : 'In the book club, not added yet'}</span>${c && r.admitted ? rosterGrid(o, r) : ''}</li>`; }).join('')}</ul>
+    const count = vis ? starCount(r.uid) : `${total} of ${released} checked off`;
+    return `<li><span class="reader-name">${esc(r.name)}${r.organizer ? ' (organiser)' : ''}</span><span class="roster-count">${r.admitted ? `${count}${r.justAdmitted ? ' · added just now' : ''}` : 'In the book club, not added yet'}</span>${c && r.admitted ? rosterGrid(o, r, vis) : ''}</li>`; }).join('')}</ul>
     <p class="fine-print">The members are the people in your book club. Someone who joins the book club is added here the next time you open this app.</p>`;
   shell(`<section class="feed-intro organiser"><div><p class="eyebrow">Organiser · ${esc(o.club.name)}</p><h1>Club progress</h1>
-    <p class="intro-sub">You can see who has checked each text off, and when. You cannot see ratings, thoughts, drafts or reading progress; members are told this in “How it works”.</p></div></section>
+    <p class="intro-sub">You can see who has checked each text off, and when. You cannot see ratings, thoughts, drafts or reading progress; members are told this in “How it works”. The roster’s Stars view shows only the ratings you already see as a member, on texts you have finished.</p></div></section>
     <dl class="org-facts"><div><dt>Day 01</dt><dd>${c ? dateLabel(c.startDate) : 'Not set yet'}</dd></div><div><dt>Club timezone</dt><dd>${c ? `${esc(zone)} (${esc(c.timezone)})` : 'Not set yet'}</dd></div>
       <div><dt>Today</dt><dd>${c && c.currentDay >= 1 ? `Day ${idNumber(Math.min(c.currentDay, 50))} of 50` : 'Not started'}</dd></div><div><dt>Members</dt><dd>${members.length}</dd></div></dl>
     ${c && !c.editable ? '<p class="fine-print">The start date and timezone are fixed now that the programme has started.</p>' : ''}
@@ -1186,6 +1222,10 @@ async function run(event) {
     closeReader(); return;
   }
   if (button.dataset.filter) { navigate(button.dataset.filter === 'all' ? '' : button.dataset.filter, { replace: true }); return; }
+  if (button.dataset.rosterView) {
+    state.rosterView = button.dataset.rosterView; store.set('daily-dose-roster-view', state.rosterView);
+    renderOrganiser(); return;
+  }
   if (button.dataset.nav !== undefined) {
     if (button.dataset.nav === 'organiser') state.organiser = null;
     navigate(button.dataset.nav); window.scrollTo(0, 0); return;
