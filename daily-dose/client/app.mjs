@@ -26,7 +26,9 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // The thought whose seven reaction choices are open (`work|author`), one at a time.
   reactOpen: null,
   // The roster shows checkmarks or, for texts the viewer has finished, the stars given.
-  rosterView: null };
+  rosterView: null,
+  // The member's own grid shows their checkmarks or the stars they gave.
+  myGridView: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -531,6 +533,15 @@ function visibleStars(feed) {
 }
 const starKind = (vis, uid) => work => !vis.seen.has(work.id) ? 'locked'
   : vis.stars[uid]?.[work.id] != null ? `s${vis.stars[uid][work.id]}` : 'none';
+// The member's own Stars view: their own rating on each text they have finished.
+// Their own stars are never hidden from them, so there is no locked cell.
+const MY_STAR_WORDS = { s0: '0 stars', s1: '1 star', s2: '2 stars', s3: '3 stars', s4: '4 stars', s5: '5 stars',
+  none: 'no stars yet', coming: 'coming' };
+const myStarKind = work => work.mine?.status === 'done' && work.mine.rating != null ? `s${work.mine.rating}` : 'none';
+// The "Checked off" / "Stars" switch, shared by the roster and the member's own
+// grid; `attr` is the data attribute the click handler reads.
+const gridSwitch = (attr, stars) => `<div class="filters roster-switch" role="group" aria-label="${attr === 'roster-view' ? 'Roster shows' : 'Your grid shows'}">${[['checks', 'Checked off'], ['stars', 'Stars']].map(([key, label]) =>
+  `<button data-${attr}="${key}" class="filter ${(stars ? 'stars' : 'checks') === key ? 'active' : ''}" aria-pressed="${(stars ? 'stars' : 'checks') === key}">${label}</button>`).join('')}</div>`;
 // One member's grid, shared by the organiser's roster and the member's own page:
 // `days` are the released days, `kindOf` gives a released text's cell kind. The
 // tooltip names the text and its author.
@@ -557,19 +568,25 @@ const rosterGrid = (o, r, vis) => vis
 // The member's own grid on the reading page, from the feed it already has: the
 // same on the day test (completedAt before the day's closeAt), no extra reads.
 function myGrid(feed) {
+  state.myGridView ??= store.get('daily-dose-my-grid-view') === 'stars' ? 'stars' : 'checks';
+  const stars = state.myGridView === 'stars';
   const checks = Object.fromEntries(feed.days.flatMap(d => d.works).filter(w => w.mine?.status === 'done').map(w => [w.id, { onTime: w.mine.onTime }]));
-  return `<div class="my-grid">${rosterLegend(feed.campaign)}${progressGrid(feed.campaign, feed.days, checkKind(checks), 'You')}</div>`;
+  const grid = stars ? progressGrid(feed.campaign, feed.days, myStarKind, 'You', MY_STAR_WORDS)
+    : progressGrid(feed.campaign, feed.days, checkKind(checks), 'You');
+  return `<div class="my-grid">${gridSwitch('my-grid-view', stars)}${rosterLegend(feed.campaign, stars, true)}${grid}</div>`;
 }
 // The day axis (1, 10, 20 ... 50) sits once above the roster, on the same columns.
-function rosterLegend(c, stars = false) {
+// `own` is the member's own grid: their own stars, no locked cells.
+function rosterLegend(c, stars = false, own = false) {
   const ticks = [1, 10, 20, 30, 40, 50].map(n => `<span class="tick${n === 50 ? ' end' : ''}" style="grid-column: ${n === 50 ? '48 / 52' : `${n + 1} / span 4`}">${n}</span>`).join('');
-  const words = stars ? STAR_WORDS : CELL_WORDS;
+  const words = stars ? (own ? MY_STAR_WORDS : STAR_WORDS) : CELL_WORDS;
+  const starNote = own ? ' Stars are the ones you gave, on texts you have finished.' : ' Stars show only on texts you have finished yourself: the same ratings you see under each text.';
   const legend = stars
-    ? `<span class="legend-item legend-scale">0 ${['s0', 's1', 's2', 's3', 's4', 's5'].map(k => `<span class="cell ${k}" aria-hidden="true"></span>`).join('')} 5 stars</span>${['none', 'locked', 'coming'].map(k =>
+    ? `<span class="legend-item legend-scale">0 ${['s0', 's1', 's2', 's3', 's4', 's5'].map(k => `<span class="cell ${k}" aria-hidden="true"></span>`).join('')} 5 stars</span>${(own ? ['none', 'coming'] : ['none', 'locked', 'coming']).map(k =>
       `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${words[k]}</span>`).join('')}`
     : ['on', 'late', 'none', 'coming'].map(k => `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${words[k]}</span>`).join('');
   return `<p class="org-legend roster-legend">${legend}</p>
-    <p class="fine-print roster-key">One column per day, Day 1 to 50. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= 50 ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}${stars ? ' Stars show only on texts you have finished yourself: the same ratings you see under each text.' : ''}</p>
+    <p class="fine-print roster-key">One column per day, Day 1 to 50. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= 50 ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}${stars ? starNote : ''}</p>
     <div class="roster-grid roster-axis" aria-hidden="true"><span class="grid-label"></span>${ticks}</div>`;
 }
 
@@ -604,8 +621,7 @@ function renderOrganiser() {
     const given = Object.values(vis.stars[uid] || {});
     return given.length ? `${plural(given.length, 'rating')} you can see, average ${(given.reduce((a, b) => a + b, 0) / given.length).toFixed(1)}` : 'No ratings you can see';
   };
-  const viewSwitch = c ? `<div class="filters roster-switch" role="group" aria-label="Roster shows">${[['checks', 'Checked off'], ['stars', 'Stars']].map(([key, label]) =>
-    `<button data-roster-view="${key}" class="filter ${(vis ? 'stars' : 'checks') === key ? 'active' : ''}" aria-pressed="${(vis ? 'stars' : 'checks') === key}">${label}</button>`).join('')}</div>` : '';
+  const viewSwitch = c ? gridSwitch('roster-view', !!vis) : '';
   const roster = `<h2>Roster</h2>${viewSwitch}${c ? rosterLegend(c, !!vis) : ''}<ul class="org-list roster">${o.roster.map(r => {
     const total = Object.keys(o.checks[r.uid] || {}).length;
     const count = vis ? starCount(r.uid) : `${total} of ${released} checked off`;
@@ -1226,6 +1242,12 @@ async function run(event) {
   if (button.dataset.rosterView) {
     state.rosterView = button.dataset.rosterView; store.set('daily-dose-roster-view', state.rosterView);
     renderOrganiser(); return;
+  }
+  if (button.dataset.myGridView) {
+    state.myGridView = button.dataset.myGridView; store.set('daily-dose-my-grid-view', state.myGridView);
+    const strip = root.querySelector('.personal-strip');
+    if (strip) morph(strip, fragment(personalStrip(state.feed)));
+    return;
   }
   if (button.dataset.nav !== undefined) {
     if (button.dataset.nav === 'organiser') state.organiser = null;

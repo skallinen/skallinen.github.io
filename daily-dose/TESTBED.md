@@ -253,3 +253,9 @@ against a fresh `start` (Aino finishes the Day 1 poem with 3 stars; her cell,
 Grace's 5 and Oskar's 3 show as stars, Grace's unfinished-by-Aino story is
 locked, the switch survives a reload, no sideways scrolling); unit tests passed.
 Like the others it writes to the bed: reseed before a rerun.
+
+2026-10-03, the same Stars switch on the member's own grid: `check-my-stars.mjs`
+green at 360 and 1200 px against a fresh bed (Mikko finishes the Day 1 poem
+with 4 stars; that cell is s4, his unfinished texts are "no stars yet", no
+locked cells, the switch survives a reload); `check-stars.mjs` still green,
+unit tests 36 of 36. Reseed before a rerun.

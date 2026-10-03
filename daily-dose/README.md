@@ -42,7 +42,8 @@ the progress strip at the top of the reading page, built from their own feed
 (`mine.onTime`), so no extra reads there either. The roster's Stars switch colours the
 grid by the stars each member gave, only on texts the organiser has finished
 and revealed (the `collective.readers` already in their feed), so it shows no
-rating a member would not see and needs no rules change. Rows from before this record
+rating a member would not see and needs no rules change. The member's own grid has
+the same switch, coloured by their own stars (`mine.rating`). Rows from before this record
 existed are repaired
 the next time their owner opens the app (older checkmarks by members who never
 return will not show). Members are told this in "How it works".

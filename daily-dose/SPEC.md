@@ -107,6 +107,11 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   Each member sees the same grid for themselves (same legend and key) in the
   progress strip near the top of the reading page, under "Today: n of 3 read",
   from their own checkmarks in the feed; it updates as they check texts off.
+  The same "Checked off" / "Stars" switch sits above it. Stars colours each
+  text the member has finished by the stars they gave it (same 0 to 5 scale);
+  any other released text is "no stars yet". Their own stars are never hidden
+  from them, so there is no locked cell. The choice is kept on the device,
+  apart from the roster's.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
