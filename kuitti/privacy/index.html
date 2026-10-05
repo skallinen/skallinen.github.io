@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kuitti privacy policy / tietosuojaseloste</title>
+<meta name="description" content="What the kuitti receipt app keeps on your phone and what it sends, and to whom. English and Finnish.">
+<meta name="robots" content="index,follow">
+<style>
+  :root { --ink:#333333; --paper:#FFFFF0; --accent:#dc143c; --muted:#6b6754; --rule:#E5E0CC; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--paper); color:var(--ink);
+    font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; line-height:1.55; }
+  main { max-width: 42rem; margin: 0 auto; padding: 2rem 16px 4rem; }
+  h1 { font-size: 1.8rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
+  p, li { font-size: 1rem; }
+  a { color: var(--accent); }
+  nav { margin: 0 0 1.5rem; color: var(--muted); }
+  .meta { color: var(--muted); font-size: .9rem; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0 2rem; }
+</style>
+</head>
+<body>
+<main>
+<nav><a href="#en">English</a> | <a href="#fi">Suomi</a></nav>
+
+<section id="en" lang="en">
+<h1>kuitti privacy policy</h1>
+<p class="meta">Version 1, 5 October 2026. Draft for the first release.</p>
+
+<p><strong>kuitti</strong> is an app for photographing paper receipts. It is published by
+1-bit-wonder Oy (business ID 2999197-9), Soukantie 15 F 172, 02360 Espoo, Finland. 1-bit-wonder Oy is the
+controller of the personal data described here. Contact: <a href="mailto:sami@1-bit-wonder.net">sami@1-bit-wonder.net</a>.</p>
+
+<h2>What stays on your phone</h2>
+<p>Your saved receipts, their lines, categories, marks and photos are stored on your phone and
+nowhere else. kuitti has no account and no cloud copy. Exports (CSV files) are written on your
+phone and leave it only when you share them yourself.</p>
+
+<h2>What leaves your phone, and only after you agree</h2>
+<p>To read a receipt, kuitti sends <strong>the receipt photo</strong>, and nothing else, to be read by
+an AI model, <strong>Claude, made by Anthropic</strong>. Before the first reading kuitti asks for your
+agreement. You can withdraw it at any time in Settings, and then nothing more is sent. The legal
+basis is your consent (GDPR Article 6(1)(a)).</p>
+<ul>
+<li>With a connection code (the usual way), the photo goes over an encrypted connection to
+kuitti's reading service. The service runs on a server of 1-bit-wonder Oy in Finland, reached
+through a relay server in Helsinki, and it passes the photo to Anthropic and returns the
+reading. The reading service <strong>does not store the photo</strong> or the reading (it keeps a
+reading in memory for 24 hours only to answer a repeated request, and loses it on restart).</li>
+<li>For each request the service writes a short log line: time, the code's owner (a person's
+label), whether it succeeded, the size of the photo, the cost and the time taken. It is used to
+keep within each person's limits and to find faults. The relay server's connection log can also show
+your IP address and the time of a request, to defend against abuse.</li>
+<li>With your own Anthropic key (an option for developers), the photo goes straight to Anthropic.</li>
+</ul>
+<p>Anthropic processes the photo under its commercial API terms: it does not use it to train its
+models, and deletes it within 30 days. Anthropic may process data outside the European Economic
+Area, under the safeguards its terms describe.</p>
+<p>A receipt photo can show what you bought and part of a card number. Photograph only what you are
+happy to have read.</p>
+
+<h2>What kuitti does not do</h2>
+<p>No advertising, no analytics, no crash reports sent anywhere, no location, no contacts, no
+tracking, and no sale of data. The camera is used only to photograph a receipt, and photos only when
+you pick one.</p>
+
+<h2>Your choices and rights</h2>
+<ul>
+<li>Withdraw your agreement in Settings: no more photos are sent.</li>
+<li>Delete a receipt in the app: it and its photo are gone from your phone.</li>
+<li>Uninstall the app: everything kuitti stored on your phone is deleted.</li>
+<li>Write to the contact address to see, correct or have deleted the reading service's log lines
+for your connection code, or to stop your code.</li>
+<li>You may complain to the Finnish Data Protection Ombudsman (tietosuoja.fi).</li>
+</ul>
+
+<h2>Changes</h2>
+<p>If kuitti starts sending anything else, or to anyone else, this page and the agreement in the app
+change first, and you are asked again.</p>
+</section>
+
+<hr>
+
+<section id="fi" lang="fi">
+<h1>kuitin tietosuojaseloste</h1>
+<p class="meta">Versio 1, 5. lokakuuta 2026. Luonnos ensimmäistä julkaisua varten.</p>
+
+<p><strong>kuitti</strong> on sovellus paperikuittien kuvaamiseen. Sen julkaisee 1-bit-wonder Oy
+(Y-tunnus 2999197-9), Soukantie 15 F 172, 02360 Espoo. 1-bit-wonder Oy on tässä kuvattujen
+henkilötietojen rekisterinpitäjä. Yhteystiedot: <a href="mailto:sami@1-bit-wonder.net">sami@1-bit-wonder.net</a>.</p>
+
+<h2>Mitä jää puhelimeesi</h2>
+<p>Tallennetut kuitit, niiden rivit, luokat, merkinnät ja kuvat tallennetaan vain puhelimeesi.
+kuitissa ei ole tiliä eikä pilvikopiota. Viennit (CSV-tiedostot) kirjoitetaan puhelimeesi, ja ne
+lähtevät sieltä vain, jos jaat ne itse.</p>
+
+<h2>Mitä puhelimesta lähtee, ja vasta kun suostut</h2>
+<p>Kuitin lukemiseksi kuitti lähettää <strong>kuitin kuvan</strong>, eikä mitään muuta, tekoälymallin
+luettavaksi. Malli on <strong>Claude, jonka on tehnyt Anthropic</strong>. Ennen ensimmäistä lukemista
+kuitti pyytää suostumuksesi. Voit perua sen milloin tahansa asetuksissa, jolloin mitään ei lähetetä
+enää. Käsittelyn peruste on suostumuksesi (tietosuoja-asetuksen 6 artiklan 1 kohdan a alakohta).</p>
+<ul>
+<li>Yhteyskoodilla (tavallinen tapa) kuva kulkee salattua yhteyttä kuitin lukupalveluun. Palvelu
+toimii 1-bit-wonder Oy:n palvelimella Suomessa, ja siihen päästään Helsingissä olevan välityspalvelimen
+kautta. Palvelu välittää kuvan Anthropicille ja palauttaa luetut tiedot. Lukupalvelu
+<strong>ei tallenna kuvaa</strong> eikä luettuja tietoja (se pitää luetut tiedot muistissa
+24 tuntia vain toistetun pyynnön vastaamiseksi ja menettää ne uudelleenkäynnistyksessä).</li>
+<li>Jokaisesta pyynnöstä palvelu kirjoittaa lyhyen lokirivin: ajan, koodin omistajan (henkilön
+nimen), onnistuiko pyyntö, kuvan koon, kustannuksen ja kuluneen ajan. Lokia käytetään kunkin
+henkilön rajojen valvontaan ja vikojen etsimiseen. Välityspalvelimen yhteyslokista voivat lisäksi
+näkyä IP-osoitteesi ja pyynnön aika väärinkäytösten torjumiseksi.</li>
+<li>Omalla Anthropic-avaimellasi (kehittäjille tarkoitettu vaihtoehto) kuva menee suoraan Anthropicille.</li>
+</ul>
+<p>Anthropic käsittelee kuvan kaupallisten API-ehtojensa mukaisesti: se ei käytä kuvaa malliensa
+kouluttamiseen ja poistaa sen 30 päivän kuluessa. Anthropic voi käsitellä tietoja Euroopan
+talousalueen ulkopuolella ehtojensa kuvaamin suojatoimin.</p>
+<p>Kuitin kuvasta voi näkyä, mitä ostit, ja osa kortin numerosta. Kuvaa vain sellaisia kuitteja,
+jotka sopii antaa luettavaksi.</p>
+
+<h2>Mitä kuitti ei tee</h2>
+<p>Ei mainoksia, ei analytiikkaa, ei minnekään lähetettäviä kaatumisraportteja, ei sijaintia, ei
+yhteystietoja, ei seurantaa eikä tietojen myyntiä. Kameraa käytetään vain kuitin kuvaamiseen ja
+valokuvia vain, kun valitset kuvan.</p>
+
+<h2>Valintasi ja oikeutesi</h2>
+<ul>
+<li>Peru suostumus asetuksissa: kuvia ei enää lähetetä.</li>
+<li>Poista kuitti sovelluksessa: se ja sen kuva poistuvat puhelimestasi.</li>
+<li>Poista sovellus: kaikki, mitä kuitti on tallentanut puhelimeesi, poistuu.</li>
+<li>Kirjoita yhteysosoitteeseen, jos haluat nähdä yhteyskoodisi lokirivit, oikaista ne tai poistaa
+ne, tai jos haluat lopettaa koodisi.</li>
+<li>Voit tehdä valituksen tietosuojavaltuutetulle (tietosuoja.fi).</li>
+</ul>
+
+<h2>Muutokset</h2>
+<p>Jos kuitti alkaa lähettää jotain muuta tai jollekin muulle, tämä sivu ja sovelluksen suostumus
+muuttuvat ensin, ja sinulta kysytään uudelleen.</p>
+</section>
+</main>
+</body>
+</html>
