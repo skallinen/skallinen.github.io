@@ -188,6 +188,20 @@
           && request.resource.data.works.get(request.resource.data.last, []) is list
           && request.resource.data.works.get(request.resource.data.last, []).size() <= 600;
       }
+      // My ranking (SPEC.md): one private document per member, { order:
+      // [workId], updatedAt }, the member's own order of the texts they have
+      // rated. Only the owner reads or writes it; the organiser has no bypass.
+      // It holds no scores: the client computes them from the order.
+      match /rankings/{uid} {
+        allow get: if doseMember(club) && request.auth.uid == uid;
+        allow list, delete: if false;
+        allow create, update: if doseMember(club) && request.auth.uid == uid
+          && request.resource.data.keys().hasAll(['order', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['order', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.order is list && request.resource.data.order.size() <= 150
+          && request.resource.data.order.toSet().size() == request.resource.data.order.size();
+      }
       match /gates/{work} {
         // Retired shared gates remain untouched, inaccessible and unused.
         allow read, write: if false;

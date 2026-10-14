@@ -48,6 +48,20 @@ existed are repaired
 the next time their owner opens the app (older checkmarks by members who never
 return will not show). Members are told this in "How it works".
 
+**My ranking (organiser-only for now).** The organiser can order the texts
+they have checked off and rated in a private list, as in Bookrank (SPEC.md,
+"My ranking"); other members do not see the feature. The order is stored in
+`dailyDose/{club}/rankings/{uid}` (`{ order: [workId], updatedAt }`), which
+rules let only its owner read or write. The ranked score (2.0 to 5.0 on
+Bookrank's bell curve, average 3.5) is computed in the client from the order
+(`client/ranking.mjs`) and never stored. Saving the list (a drag, a keyboard
+move or "Save ranking"; never just opening it) sets each text's whole-star
+rating to that score rounded half up, through the same `rate` write as a star
+change, so the ratings other finished readers see change with it; only texts
+whose stars change are written, and those writes use the existing rules for
+one's own row. Until the `rankings` rules are deployed, the client keeps the
+order on the device only (`localStorage`).
+
 For each text, a reader checks it off, chooses a whole-star rating from 0 to 5,
 writes a nonblank thought of at most 140 Unicode code points, then chooses
 **Finish & reveal**. This explicitly submits the response and immediately unlocks

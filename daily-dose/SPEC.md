@@ -112,6 +112,49 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   any other released text is "no stars yet". Their own stars are never hidden
   from them, so there is no locked cell. The choice is kept on the device,
   apart from the roster's.
+- My ranking, as in Bookrank. Organiser-only for now: shown only to programme
+  organisers (`organizerUids`); other members see nothing of it. A private list
+  of every text the organiser has checked off and rated (whole stars 0 to 5,
+  submitted or still a private draft), opened from "My ranking" in the
+  progress strip (address `#ranking`), with "Back to readings".
+  Until the list has been saved once, the 5-star texts come first, then the 4s
+  and so on down to 0; inside a star group the order is random, fixed per
+  member (it does not reshuffle on a reload or another device). They drag a
+  text by its handle anywhere in the list, across star groups too, with a
+  finger or a mouse; on the keyboard, arrow keys on the handle move it one
+  place. The list saves itself half a second after the last move ("Saving…",
+  "Saved").
+  Each text shows a ranked score from its place, on Bookrank's bell curve
+  (Bookrank `docs/contexts/ranking/scoring.md` section 1: midpoint quantiles,
+  probit by Abramowitz & Stegun 26.2.23) but from 2 to 5 instead of 1 to 5:
+  score(i, n) = 2 + 3 (z(i) - z_min) / (z_max - z_min), position i from 0 at the
+  top, with probit(0.5) = 0 exactly. The top is 5.0, the bottom 2.0, a list of
+  one 3.5, shown with one decimal. Because the curve is symmetric, the scores
+  average exactly 3.5 for every list length. Scores are never stored, only the
+  order. Each rated card also says "Your ranking: ★ 3.7, 4th of 12".
+  The ranking sets the stars. Saving the list (after a drag or a keyboard move,
+  or with "Save ranking") makes each text's rating its ranked score rounded to
+  the nearest whole star, halves up (3.5 becomes 4), so 2 to 5 stars. It is
+  written exactly as a star change is (the same "rate" write as "Save changes"
+  after finishing, or a star tap before), so the other finished readers, the
+  average, the Stars grids and the organiser's roster all see the new whole
+  stars. Only texts whose whole stars change are written. So every text in a
+  saved list has 2 to 5 stars: a 0 or 1-star text becomes at least 2; the view
+  says so in one line. Opening the list never writes anything: "Save ranking"
+  appears, with how many ratings it would change, while the list's stars and
+  the ratings differ.
+  A text rated after the list was saved goes below the last ranked text with
+  as many stars or more (the bottom of its star group), so the starting rule
+  keeps holding; it keeps the stars it was given until the list is next saved.
+  A text whose rating is removed, or that is marked as unread, drops out.
+  Stored as `rankings/{uid}`: `order` = the list of text ids, top first, and
+  `updatedAt`. Only the owner reads or writes it, the organiser's own document
+  included (nobody reads anyone else's); at most 150 ids, no repeats
+  (Firestore-enforced). The rating writes use the existing rules for one's own
+  row. Until the `rankings` rules are deployed, the order is kept on this
+  device only; the device always keeps a copy, used when the account copy is
+  unavailable. Cost: one listener on one's own document; per save, one write
+  for the order and one per text whose stars change.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.

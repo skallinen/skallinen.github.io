@@ -8,6 +8,8 @@ import { addDays } from './calendar.mjs';
 import { ratingSummary } from '../server/domain.mjs';
 import { episodeFor, chapterAt, clock } from './podcast.mjs';
 import { reactionBar, setReaction, newReactions, meMarker } from './reactions.mjs';
+import { rankOrder, rankScores, starChanges, rankLine, rankItem } from './ranking.mjs';
+import { startDrag, step } from './drag.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -28,7 +30,10 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // The roster shows checkmarks or, for texts the viewer has finished, the stars given.
   rosterView: null,
   // The member's own grid shows their checkmarks or the stars they gave.
-  myGridView: null };
+  myGridView: null,
+  // My ranking (organiser-only for now): an order moved here and not saved yet,
+  // what the save line says, and whether a drag is under way.
+  rankPending: null, rankStatus: '', dragging: false };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -179,6 +184,7 @@ function draftStatus(id, text) {
 function routeFromUrl() {
   const h = decodeURIComponent(location.hash.slice(1));
   if (h === 'organiser') return { view: 'organiser', filter: 'all' };
+  if (h === 'ranking') return { view: 'ranking', filter: 'all' };
   return { view: 'feed', filter: FILTERS.includes(h) ? h : 'all' };
 }
 // Filters replace the current history entry (Back does not walk through them);
@@ -195,6 +201,10 @@ function applyRoute() {
   state.filter = route.filter; state.view = route.view;
   if (state.view === 'organiser') {
     if (state.feed?.organizer) return loadOrganiser();
+    state.view = 'feed';
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  if (state.view === 'ranking' && !rankingAllowed()) {
     state.view = 'feed';
     history.replaceState(null, '', location.pathname + location.search);
   }
@@ -298,6 +308,7 @@ async function signedIn(user, demoToken = null) {
   state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.organiser = null;
   state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
   queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
+  state.rankPending = null; state.rankStatus = ''; clearTimeout(rankTimer); rankTimer = 0;
   if (!user) { state.clubs = []; state.clubId = null; login(); return; }
   shell('<section class="loading">Finding your book club…</section>');
   try {
@@ -357,6 +368,7 @@ function render() {
   const feed = state.feed;
   if (!feed) return;
   if (state.view === 'organiser' && state.organiser) return renderOrganiser();
+  if (state.view === 'ranking' && feed.campaign) return renderRanking();
   if (!feed.campaign) {
     shell(`<section class="empty"><p class="eyebrow">${esc(feed.club.name)}</p><h1>Every story has<br>a beginning.</h1>
       ${feed.organizer ? scheduleForm(null) : '<p>Your organiser will set Day 1. Nothing is open yet.</p>'}
@@ -387,7 +399,7 @@ function render() {
 const shown = w => state.filter === 'all' ||
   (state.filter === 'unread' ? w.mine?.status !== 'done' || state.sticky.has(w.id) : w.category === state.filter);
 function personalStrip(feed) {
-  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) + myGrid(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
+  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) + rankingLink() + myGrid(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
 }
 function filterBar() {
   const unreadCount = allWorks().filter(w => w.mine?.status !== 'done').length;
@@ -483,6 +495,7 @@ function workCard(work) {
     </div>
     ${keptDraft ? '<p class="reading-status">Your rating and thought are kept as a private draft. Check the text off again to finish.</p>' : ''}
     ${done ? ratingControl(work, false, ratingDraft(work.id)) : ''}
+    ${done && rankingAllowed() ? rankLine(rankScores(currentRanking()).get(work.id)) : ''}
     ${done ? commentForm(work) : ''}
     <div class="reveal-section">${reveal(work)}</div>
   </article>`;
@@ -637,6 +650,108 @@ function renderOrganiser() {
     <p><button class="secondary" data-nav="">Back to readings</button></p>`);
 }
 
+// ---------- My ranking, as in Bookrank (client/ranking.mjs, SPEC.md "My
+// ranking"). Organiser-only for now. A private order of the texts one has
+// checked off and rated; each place gives a score from 2.0 to 5.0. Saving the
+// order (after a drag, a keyboard move or "Save ranking", never on opening)
+// sets each text's whole stars to its score rounded, with the same "rate"
+// write as a star change, only for texts whose stars change.
+const rankingAllowed = () => !!state.feed?.organizer;
+const rankable = () => allWorks().filter(w => w.mine?.status === 'done' && w.mine.rating != null).map(w => ({ id: w.id, rating: w.mine.rating }));
+// The order as last saved: in the account when the rules allow it, else on this device.
+function savedRanking() {
+  if (state.rankPending) return state.rankPending;
+  if (Array.isArray(state.feed?.ranking?.order)) return state.feed.ranking.order;
+  const local = store.json(localKey('ranking', 'order'));
+  return Array.isArray(local) ? local : null;
+}
+const currentRanking = () => rankOrder(rankable(), savedRanking(), state.feed?.me?.uid || '');
+const ratingOf = id => currentWork(id)?.mine?.rating ?? null;
+function rankingLink() {
+  if (!rankingAllowed()) return '';
+  const n = rankable().length;
+  return `<p class="rank-link"><button class="text-button" data-nav="ranking">My ranking</button> <span>${n ? `${plural(n, 'rated text')}, in your order` : 'Rate texts to rank them'}</span></p>`;
+}
+function rankingContent() {
+  const order = currentRanking(), scores = rankScores(order), changes = starChanges(order, ratingOf);
+  const items = order.map(id => rankItem(currentWork(id), scores.get(id), category[currentWork(id).category])).join('');
+  return `<section class="feed-intro ranking-intro"><div><p class="eyebrow">My ranking · only you see this list</p><h1>Your ranking</h1>
+    <p class="intro-sub">Drag the texts into your order, best at the top. Each place gives a score: the top is 5.0, the bottom 2.0, and the average is always 3.5.</p></div></section>
+    <p class="rank-note">Saving the list sets each text’s stars to its score rounded (3.5 becomes 4), so every text gets 2 to 5 stars: a 0 or 1-star text becomes at least 2. The other readers see those stars.</p>
+    <p id="rank-help" class="sr-only">Drag the handle up or down, or focus it and use the arrow keys. The list saves itself.</p>
+    <div class="rank-bar"><span class="rank-status" aria-live="polite">${esc(state.rankStatus)}</span>${changes.length && !state.rankPending ? `<button class="secondary" data-action="save-ranking">Save ranking (${plural(changes.length, 'rating')} change)</button>` : ''}</div>
+    ${order.length ? `<ol class="rank-list">${items}</ol>` : '<section class="empty compact"><h2>Nothing rated yet.</h2><p>Check a text off and give it stars; it appears here.</p></section>'}
+    <p><button class="secondary" data-nav="">Back to readings</button></p>`;
+}
+function renderRanking() { shell(rankingContent()); }
+// Redraw the list in place (the handle being moved keeps its focus).
+function paintRanking() {
+  const main = root.querySelector('#main');
+  if (state.view !== 'ranking' || !main || state.dragging) return;
+  morph(main, fragment(`<main id="main">${rankingContent()}</main>`));
+}
+// While a text is moved: the order on the page, its places and scores, at once.
+const domRanking = () => [...root.querySelectorAll('.rank-list > [data-rank-id]')].map(li => li.dataset.rankId);
+function paintPlaces() {
+  const order = domRanking(), scores = rankScores(order);
+  for (const li of root.querySelectorAll('.rank-list > [data-rank-id]')) {
+    const id = li.dataset.rankId, dragging = li.classList.contains('is-dragging');
+    morph(li, fragment(rankItem(currentWork(id), scores.get(id), category[currentWork(id).category])));
+    li.classList.toggle('is-dragging', dragging);
+  }
+}
+let rankTimer = 0, rankSeq = 0;
+function rankMoved() {
+  // A save still on its way must not put the older order back when it ends.
+  rankSeq++;
+  state.rankPending = domRanking();
+  state.rankStatus = 'Saving…';
+  const status = root.querySelector('.rank-status');
+  if (status) status.textContent = state.rankStatus;
+  root.querySelector('[data-action="save-ranking"]')?.remove();
+  clearTimeout(rankTimer);
+  rankTimer = setTimeout(() => saveRanking().catch(e => notify(e.message, true)), 500);
+}
+async function saveRanking() {
+  clearTimeout(rankTimer); rankTimer = 0;
+  const order = state.rankPending || currentRanking(), seq = ++rankSeq, clubId = state.clubId, generation = state.generation;
+  state.rankPending = order;
+  state.rankStatus = 'Saving…'; paintRanking();
+  store.set(localKey('ranking', 'order'), JSON.stringify(order));
+  // The stars: the same write as a star change, only where they change. A star
+  // choice waiting for "Save changes" on such a text gives way to the ranking.
+  const changes = starChanges(order, ratingOf);
+  const writes = changes.map(x => {
+    state.ratingDrafts.delete(x.id); store.del(localKey('rating', x.id));
+    return act(x.id, { action: 'rate', rating: x.rating }, { quiet: true });
+  });
+  let onDevice = !state.feed?.ranking;
+  const account = onDevice ? Promise.resolve() : api(`/clubs/${clubId}/ranking`, { method: 'POST', body: { order } })
+    .then(() => { if (state.feed?.ranking && clubId === state.clubId) state.feed.ranking = { order }; })
+    .catch(e => { if (!/Not available/.test(e.message)) throw e; onDevice = true; if (state.feed) state.feed.ranking = null; });
+  const results = await Promise.allSettled([account, ...writes]);
+  if (generation !== state.generation || seq !== rankSeq) return;
+  state.rankPending = null;
+  const failed = results.find(r => r.status === 'rejected');
+  state.rankStatus = failed ? 'Not all saved. Move a text to try again.' : onDevice ? 'Saved on this device.' : 'Saved.';
+  paintRanking();
+  if (failed) notify(failed.reason?.message || 'Could not save. Please try again.', true);
+  else notify(`Ranking saved${changes.length ? `; ${plural(changes.length, 'rating')} changed` : ''}.`);
+}
+// A finger, a pen or a mouse on the handle drags; the arrow keys move one place.
+document.addEventListener('pointerdown', event => {
+  const handle = event.target.closest?.('.rank-list [data-drag]');
+  if (!handle || state.view !== 'ranking' || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  state.dragging = true;
+  startDrag(event, handle.closest('[data-rank-id]'), { onMove: paintPlaces, onDrop: moved => { state.dragging = false; if (moved) rankMoved(); } });
+});
+document.addEventListener('keydown', event => {
+  const handle = event.target.closest?.('.rank-list [data-drag]');
+  if (!handle || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  if (step(handle.closest('[data-rank-id]'), event.key === 'ArrowUp' ? -1 : 1)) { paintPlaces(); handle.focus(); rankMoved(); }
+});
+
 // ---------- refresh and actions, keeping the page steady around the card in use
 function anchor(id) {
   const el = id ? document.querySelector(`[data-work="${CSS.escape(id)}"]`) : null;
@@ -662,7 +777,7 @@ async function refresh({ quiet = false, render: draw = true } = {}) {
   // Writes still on their way stay visible over the server's older state.
   for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
   for (const w of allWorks()) applyReactions(w);
-  if (!draw || state.view === 'organiser') return;
+  if (!draw || state.view === 'organiser' || (state.view === 'ranking' && state.dragging)) return;
   if (!quiet || !document.activeElement?.matches('textarea,input,select')) {
     const a = anchor(document.activeElement?.closest('[data-work]')?.dataset.work);
     render(); settle(a);
@@ -1274,6 +1389,7 @@ async function run(event) {
       return signOut(state.auth);
     }
     case 'retry': return signedIn(state.user, state.demoToken);
+    case 'save-ranking': return saveRanking();
     case 'refresh': { const a = anchor(null); await refresh(); settle(a); notify('Up to date: the latest responses are shown.'); return; }
     case 'advance': await api('/demo/advance', { method: 'POST' }); await refresh(); notify('Demo moved forward one day.'); return;
   }
@@ -1314,6 +1430,7 @@ document.addEventListener('change', event => {
   flushDrafts().finally(() => {
     state.generation++; state.clubId = event.target.value; state.drafts.clear(); state.ratingDrafts.clear(); state.organiser = null; closeReader();
     queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
+    state.rankPending = null; state.rankStatus = ''; clearTimeout(rankTimer); rankTimer = 0;
     store.set(`daily-dose-club:${state.user.uid}`, state.clubId);
     refresh({ render: false }).then(() => { restoreDrafts(); applyRoute(); }).catch(error => notify(error.message, true));
   });
@@ -1347,7 +1464,7 @@ document.addEventListener('submit', async event => {
 window.addEventListener('beforeunload', event => {
   saveProgress();
   const unsent = allWorks().some(w => unsavedShared(w.id) || (!w.revealed && Array.from(state.drafts.get(w.id) ?? '').length > 140));
-  if (!saveTimers.size && !saving.size && !queues.size && !reacting.size && !unsent) return;
+  if (!saveTimers.size && !saving.size && !queues.size && !reacting.size && !unsent && !rankTimer) return;
   for (const id of [...saveTimers.keys()]) saveDraft(id);
   event.preventDefault(); event.returnValue = '';
 });

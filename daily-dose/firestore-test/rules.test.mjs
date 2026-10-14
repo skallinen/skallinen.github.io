@@ -633,3 +633,67 @@ test('browser adapter without seen rules: the feed says so (null) and a write is
     } finally { alice.reset(); }
   } finally { await old.cleanup(); }
 });
+
+// My ranking: one private order per member, readable and writable only by its owner.
+const rankRef = (d, u) => doc(d, `${base}/rankings/${u}`);
+const rank = (uid, order, owner = uid) => setDoc(rankRef(db(uid), owner), { order, updatedAt: serverTimestamp() });
+
+test('ranking: only its owner reads and writes it, the organiser included in "nobody else", in shape', async () => {
+  await assertSucceeds(rank('bob', ['today', 'past']));
+  await assertSucceeds(rank('bob', ['past', 'today']));               // reordered: an update
+  await assertSucceeds(rank('bob', []));
+  await assertSucceeds(rank('alice', ['today']));                      // the organiser has her own
+  assert.deepEqual((await assertSucceeds(getDoc(rankRef(db('bob'), 'bob')))).data().order, []);
+  // Nobody else reads, lists or writes it: not another member, not the organiser.
+  await assertFails(getDoc(rankRef(db('alice'), 'bob')));
+  await assertFails(getDoc(rankRef(db('cara'), 'bob')));
+  await assertFails(getDoc(rankRef(db('bob'), 'alice')));
+  await assertFails(getDocs(collection(db('alice'), `${base}/rankings`)));
+  await assertFails(rank('alice', ['today'], 'bob'));
+  await assertFails(rank('cara', ['today'], 'bob'));
+  await assertFails(deleteDoc(rankRef(db('bob'), 'bob')));
+  // Bad shapes: not a list, repeats, too long, extra fields, a client time, no time.
+  await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: 'today', updatedAt: serverTimestamp() }));
+  await assertFails(rank('bob', ['today', 'today']));
+  await assertFails(rank('bob', Array.from({ length: 151 }, (_, i) => `w${i}`)));
+  await assertSucceeds(rank('bob', Array.from({ length: 150 }, (_, i) => `w${i}`)));
+  await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: [], updatedAt: serverTimestamp(), score: 5 }));
+  await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: [], updatedAt: Timestamp.now() }));
+  await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: [] }));
+  // Signed out, outsiders and departed members: nothing.
+  for (const uid of [null, 'outsider']) {
+    await assertFails(getDoc(rankRef(db(uid), 'bob')));
+    await assertFails(rank(uid, [], uid || 'anon'));
+  }
+  await env.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), 'clubs/club/members/bob')));
+  await assertFails(getDoc(rankRef(db('bob'), 'bob')));
+  await assertFails(rank('bob', []));
+});
+
+test('browser adapter: the organiser saves her ranking, her other device sees it, a member reads none', { timeout: 20000 }, async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const d = ctx.firestore(), now = Date.now();
+    await updateDoc(doc(d, base), { startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC', boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)) });
+    for (const [id, category] of [['today', 'poem'], ['past', 'story']]) await updateDoc(workRef(d, id), { category, title: `Test ${category}`, author: 'Author', country: 'Finland', year: '2026', minutes: 1 });
+  });
+  const client = uid => createFirestoreBackend(null, () => ({ uid, displayName: uid }), db(uid)._delegate);
+  const alice = client('alice'), alice2 = client('alice'), bob = client('bob');
+  const feed = c => c.request('/clubs/club/feed');
+  try {
+    assert.deepEqual((await feed(alice)).ranking, { order: null }, 'never saved: no order, not "unavailable"');
+    assert.equal((await feed(bob)).ranking, null, 'organiser-only for now: a member does not read one');
+    await alice.request('/clubs/club/ranking', { method: 'POST', body: { order: ['past', 'today'] } });
+    assert.deepEqual((await feed(alice)).ranking, { order: ['past', 'today'] });
+    for (let i = 0; i < 60 && JSON.stringify((await feed(alice2)).ranking) !== '{"order":["past","today"]}'; i++) await new Promise(r => setTimeout(r, 50));
+    assert.deepEqual((await feed(alice2)).ranking, { order: ['past', 'today'] });
+    // The stars the ranking sets go through the ordinary rate write.
+    const act = body => alice.request('/clubs/club/works/today', { method: 'POST', body });
+    await act({ action: 'complete' }); await act({ action: 'rate', rating: 1 }); await act({ action: 'submit', comment: 'RANKED' });
+    await act({ action: 'rate', rating: 4 });
+    const t = (await feed(alice)).days.flatMap(d => d.works).find(w => w.id === 'today');
+    assert.equal(t.mine.rating, 4);
+    assert.equal(t.collective.readers.find(r => r.uid === 'alice').rating, 4);
+    await assert.rejects(alice.request('/clubs/club/ranking', { method: 'POST', body: { order: ['today', 'today'] } }), /Unknown ranking/);
+    await assert.rejects(alice.request('/clubs/club/ranking', { method: 'POST', body: { order: ['../x'] } }), /Unknown ranking/);
+  } finally { alice.reset(); alice2.reset(); bob.reset(); }
+});

@@ -17,6 +17,9 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   // seen (seen/{uid}): until those rules are deployed, the app keeps it on
   // the device only.
   let seenOff = false;
+  // And for My ranking (rankings/{uid}): until its rules are deployed, the
+  // order lives on the device only.
+  let rankingOff = false;
   function unwatch(key) { watches.get(key)?.stop(); watches.delete(key); }
   function watch(key, ref) {
     if (!watches.has(key)) {
@@ -53,6 +56,8 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   const completionRef = (c, uid = user().uid) => doc(programRef(c), 'completions', uid);
   // Private to its owner: per text, the reactions to one's own thought already seen.
   const seenRef = c => doc(programRef(c), 'seen', user().uid);
+  // Private to its owner: My ranking, the order of the texts one has rated.
+  const rankingRef = c => doc(programRef(c), 'rankings', user().uid);
   async function clock(c, fresh = false) {
     if (fresh || !clocks.has(c)) {
       const ref = doc(programRef(c), 'sessions', user().uid);
@@ -175,10 +180,36 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     const want = JSON.stringify(pairs);
     if (!await settled(`seen:${c}`, snap => JSON.stringify(snap.data()?.works?.[work]) === want)) unwatch(`seen:${c}`);
   }
+  // My ranking: { order } (null when never saved), or null while the rules
+  // do not allow it. One listener on one's own document.
+  async function rankingDoc(c) {
+    if (rankingOff) return null;
+    try { const snap = await watch(`rank:${c}`, rankingRef(c)); return { order: snap.exists() && Array.isArray(snap.data().order) ? snap.data().order : null }; }
+    catch (e) {
+      if (!noAccess(e)) throw e;
+      unwatch(`rank:${c}`); rankingOff = true;
+      return null;
+    }
+  }
+  async function saveRanking(c, { order } = {}) {
+    if (!Array.isArray(order) || order.length > 150 || new Set(order).size !== order.length
+      || !order.every(id => typeof id === 'string' && /^[A-Za-z0-9-]{1,40}$/.test(id))) throw new Error('Unknown ranking.');
+    if (rankingOff) throw new Error('Not available here yet.');
+    try { await setDoc(rankingRef(c), { order: [...order], updatedAt: serverTimestamp() }); }
+    catch (e) {
+      if (noAccess(e)) { rankingOff = true; unwatch(`rank:${c}`); throw new Error('Not available here yet.'); }
+      throw e;
+    }
+    // Wait until the open listener carries the write, so the next feed shows it.
+    const want = JSON.stringify(order);
+    if (!await settled(`rank:${c}`, snap => JSON.stringify(snap.data()?.order) === want)) unwatch(`rank:${c}`);
+  }
   async function feed(c) {
     const ctx = await context(c), p = ctx.p;
     const base = { club: ctx.club, me: { uid: user().uid, name: user().displayName }, organizer: ctx.organizer, now: ctx.now, edition: p.edition, days: [], personal: { completed: 0, onTime: 0, catchUp: 0 } };
     base.seen = await seenWorks(c);
+    // My ranking is organiser-only for now (SPEC.md): nobody else even reads it.
+    base.ranking = ctx.organizer ? await rankingDoc(c) : null;
     if (!p.startDate) return { ...base, campaign: null };
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
     base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: 50, editable: ctx.now < millis(p.boundaries[0]) };
@@ -340,7 +371,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     await Promise.all([shared, own]);
   }
   return {
-    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); reactionsOff = false; seenOff = false; },
+    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); reactionsOff = false; seenOff = false; rankingOff = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -358,6 +389,7 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       if (parts[2] === 'organiser') return organiser(c);
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
       if (parts[2] === 'seen' && options.method === 'POST') return markSeen(c, options.body);
+      if (parts[2] === 'ranking' && options.method === 'POST') return saveRanking(c, options.body);
       if (parts[2] === 'works' && parts[4] === 'reactions' && options.method === 'POST') return react(c, id, options.body);
       if (parts[2] === 'works' && options.method === 'POST') return act(c, id, options.body);
       if (parts[2] === 'works') return JSON.parse((await getDocFromServer(doc(programRef(c), 'texts', id))).data().json);

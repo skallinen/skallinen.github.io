@@ -259,3 +259,34 @@ green at 360 and 1200 px against a fresh bed (Mikko finishes the Day 1 poem
 with 4 stars; that cell is s4, his unfinished texts are "no stars yet", no
 locked cells, the switch survives a reload); `check-stars.mjs` still green,
 unit tests 36 of 36. Reseed before a rerun.
+
+## My ranking check
+
+`testbed/check-ranking.mjs` checks My ranking (organiser-only for now) at
+360 px (`CHECK_WIDTH` to change) against a freshly started or reset bed:
+
+```sh
+scripts/testbed.sh start
+CHROME=~/.nix-profile/bin/google-chrome-stable node testbed/check-ranking.mjs   # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Aino checks off and rates four texts (5 shared, 0, 4 and 4 as drafts), opens
+My ranking from the progress strip (`#ranking`): 5 first, 0 last, scores 5.0
+to 2.0 averaging 3.5, and opening wrote no rating ("Save ranking" offered).
+A mouse drag (with the page scrolling at the window edge) puts the 0-star
+text on top, a finger (touch events through the DevTools protocol) puts it
+back, an arrow key moves another; after each save every text has the rounded
+score as its stars (5 4 3 2). The order survives a reload; the Day 1 poem
+card shows the new stars and "Your ranking"; Grace, who finished that poem,
+sees Aino's new stars; Grace has no My ranking and `#ranking` takes her back
+to the readings. It writes to the bed: reset before a rerun.
+
+The older checks launch Playwright's own Chromium, which the VM does not
+have; running them here needs a copy with `executablePath: process.env.CHROME`.
+
+2026-10-14, My ranking: `check-ranking.mjs` green at 360 px;
+`check-my-stars.mjs` and `check-stars.mjs` green on a reset bed;
+`check-reactions.mjs` (23 ok) and `check-news.mjs` (22 ok) green on
+`TOUR_SEED=1` beds; rules suite 27 of 27 (2 new for `rankings`); unit tests
+46 of 46 (10 new in `test/ranking.test.mjs`). The tour was not run.
