@@ -20,6 +20,7 @@ const { createStore } = await import('../server/store.mjs');
 const { createService } = await import('../server/service.mjs');
 const { midnight } = await import('../client/calendar.mjs');
 const { addDays, localDate } = await import('../server/domain.mjs');
+const { validDescription } = await import('../client/description.mjs');
 
 if (!projectId.startsWith('demo-')) throw new Error('Refusing to seed a non-demo project.');
 const here = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,11 @@ const anthologyPath = candidates.find(p => existsSync(p));
 if (!anthologyPath) throw new Error(`Private anthology not found; tried ${candidates.join(', ')}. Set ANTHOLOGY=...`);
 const anthology = JSON.parse(readFileSync(anthologyPath, 'utf8'));
 if (anthology.works.length !== 150) throw new Error('Expected the corrected 150-work export.');
+// The private descriptions (client/description.mjs), from the editorial
+// workspace next to the anthology, or DESCRIPTIONS=...; left out when absent.
+const descriptionsPath = process.env.DESCRIPTIONS || (/webapp\/data\/anthology\.json$/.test(anthologyPath)
+  ? resolve(dirname(anthologyPath), '../../descriptions.json') : join(homedir(), 'common/projects/daily-dose/descriptions.json'));
+const descriptions = existsSync(descriptionsPath) ? JSON.parse(readFileSync(descriptionsPath, 'utf8')) : {};
 
 // 1. Clear both emulators.
 for (const url of [`http://${host}:${ports.firestore}/emulator/v1/projects/${projectId}/databases/(default)/documents`,
@@ -83,7 +89,7 @@ if (process.env.TESTBED_PODCAST !== '0') writes.find(([p]) => p === base)[1].pod
 for (const raw of anthology.works) {
   const w = service.read({ uid: organizer.uid }, { id: club.id }, raw.id);
   const { blocks, sourceNote, editorialHold, ...meta } = w;
-  set(`${base}/works/${w.id}`, { ...meta, openAt: ts(boundaries[w.day - 1]), closeAt: ts(boundaries[w.day]), revealedAt: null });
+  set(`${base}/works/${w.id}`, { ...meta, ...(validDescription(descriptions[w.id]) ? { description: descriptions[w.id] } : {}), openAt: ts(boundaries[w.day - 1]), closeAt: ts(boundaries[w.day]), revealedAt: null });
   set(`${base}/texts/${w.id}`, { json: JSON.stringify(w) });
   set(`${base}/gates/${w.id}`, { pending: [], actor: null, updatedAt: null });
 }

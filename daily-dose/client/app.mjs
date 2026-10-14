@@ -9,6 +9,7 @@ import { ratingSummary } from '../server/domain.mjs';
 import { episodeFor, chapterAt, clock } from './podcast.mjs';
 import { reactionBar, setReaction, newReactions, meMarker } from './reactions.mjs';
 import { rankOrder, rankScores, starChanges, rankLine, rankItem } from './ranking.mjs';
+import { descriptionHtml } from './description.mjs';
 import { startDrag, step } from './drag.mjs';
 
 const root = document.querySelector('#app');
@@ -32,8 +33,9 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // The member's own grid shows their checkmarks or the stars they gave.
   myGridView: null,
   // My ranking (organiser-only for now): an order moved here and not saved yet,
-  // what the save line says, and whether a drag is under way.
-  rankPending: null, rankStatus: '', dragging: false };
+  // what the save line says, whether a drag is under way, and the text whose
+  // description a tap has opened.
+  rankPending: null, rankStatus: '', dragging: false, rankTip: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -489,6 +491,7 @@ function workCard(work) {
     <div class="work-top"><span class="genre ${work.category}"><span aria-hidden="true">${icons[work.category]}</span>${category[work.category]}</span><span class="reading-time">${work.minutes} min read</span></div>
     <h3><button class="title-button" data-read="${work.id}">${esc(work.title)}</button></h3>
     <p class="byline">${esc(work.author)} <span>${esc(work.country)} · ${esc(work.year)}</span></p>
+    ${descriptionHtml(work)}
     <div class="work-actions"><div class="read-group"><button class="read-button" data-read="${work.id}">${readLabel(work)}</button>${timeLeft(work)}</div>
       ${done ? `<span class="completion"><span aria-hidden="true">✓</span> Checked off ${work.mine.onTime ? 'on the day' : 'as catch-up'}</span><button class="unread-button" data-unread="${work.id}">Mark as unread</button>`
         : `<button class="check-button" data-complete="${work.id}"><span class="checkbox" aria-hidden="true"></span>Check off as read</button>`}
@@ -674,7 +677,7 @@ function rankingLink() {
 }
 function rankingContent() {
   const order = currentRanking(), scores = rankScores(order), changes = starChanges(order, ratingOf);
-  const items = order.map(id => rankItem(currentWork(id), scores.get(id), category[currentWork(id).category])).join('');
+  const items = order.map(id => rankItem(currentWork(id), scores.get(id), category[currentWork(id).category], state.rankTip === id)).join('');
   return `<section class="feed-intro ranking-intro"><div><p class="eyebrow">My ranking · only you see this list</p><h1>Your ranking</h1>
     <p class="intro-sub">Drag the texts into your order, best at the top. Each place gives a score: the top is 5.0, the bottom 2.0, and the average is always 3.5.</p></div></section>
     <p class="rank-note">Saving the list sets each text’s stars to its score rounded (3.5 becomes 4), so every text gets 2 to 5 stars: a 0 or 1-star text becomes at least 2. The other readers see those stars.</p>
@@ -696,7 +699,7 @@ function paintPlaces() {
   const order = domRanking(), scores = rankScores(order);
   for (const li of root.querySelectorAll('.rank-list > [data-rank-id]')) {
     const id = li.dataset.rankId, dragging = li.classList.contains('is-dragging');
-    morph(li, fragment(rankItem(currentWork(id), scores.get(id), category[currentWork(id).category])));
+    morph(li, fragment(rankItem(currentWork(id), scores.get(id), category[currentWork(id).category], state.rankTip === id)));
     li.classList.toggle('is-dragging', dragging);
   }
 }
@@ -738,10 +741,40 @@ async function saveRanking() {
   if (failed) notify(failed.reason?.message || 'Could not save. Please try again.', true);
   else notify(`Ranking saved${changes.length ? `; ${plural(changes.length, 'rating')} changed` : ''}.`);
 }
+// A tapped title shows its description until it is tapped again, another is
+// tapped, Escape, a tap elsewhere or a drag. Toggled in place, kept in
+// state.rankTip so a redraw keeps it.
+function setRankTip(id) {
+  state.rankTip = id;
+  for (const li of root.querySelectorAll('.rank-list > [data-rank-id]')) {
+    const open = li.dataset.rankId === id;
+    li.classList.toggle('tip-open', open);
+    li.classList.remove('tip-closed');
+    li.querySelector('[data-rank-tip]')?.setAttribute('aria-expanded', String(open));
+  }
+}
+document.addEventListener('click', event => {
+  if (!state.rankTip || event.target.closest?.('[data-rank-tip]')) return;
+  setRankTip(null);
+});
+// Escape also hides a tooltip shown by hover or focus (`tip-closed`) until the
+// title is entered or focused again.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || state.view !== 'ranking') return;
+  if (state.rankTip) setRankTip(null);
+  for (const t of root.querySelectorAll('.rank-list [data-rank-tip]:hover, .rank-list [data-rank-tip]:focus')) t.closest('li').classList.add('tip-closed');
+});
+const reopenTip = event => {
+  const t = event.target.closest?.('.rank-list [data-rank-tip]');
+  if (t && !t.contains(event.relatedTarget)) t.closest('li').classList.remove('tip-closed');
+};
+document.addEventListener('focusin', reopenTip);
+document.addEventListener('pointerover', reopenTip);
 // A finger, a pen or a mouse on the handle drags; the arrow keys move one place.
 document.addEventListener('pointerdown', event => {
   const handle = event.target.closest?.('.rank-list [data-drag]');
   if (!handle || state.view !== 'ranking' || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  if (state.rankTip) setRankTip(null);
   state.dragging = true;
   startDrag(event, handle.closest('[data-rank-id]'), { onMove: paintPlaces, onDrop: moved => { state.dragging = false; if (moved) rankMoved(); } });
 });
@@ -1319,6 +1352,7 @@ async function run(event) {
   if (button.dataset.playDay) return listen(Number(button.dataset.playDay), button.dataset.playWork || null);
   if (button.dataset.playerClose !== undefined) { stopPlayer(); return; }
   if (button.dataset.news !== undefined) { showNews(); return; }
+  if (button.dataset.rankTip) { setRankTip(state.rankTip === button.dataset.rankTip ? null : button.dataset.rankTip); return; }
   if (button.dataset.reactOpen) {
     const id = button.dataset.reactOpen, author = button.dataset.author, key = `${id}|${author}`;
     state.reactOpen = state.reactOpen === key ? null : key;

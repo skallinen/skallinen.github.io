@@ -155,6 +155,23 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   device only; the device always keeps a copy, used when the account copy is
   unavailable. Cost: one listener on one's own document; per save, one write
   for the order and one per text whose stars change.
+- Descriptions: each text has a short description, a refresher of at most
+  280 Unicode code points (one tweet) on what it is about and what stands
+  out, in English like the texts, written from the text itself. It is shown
+  only to a reader who has checked the text off: on the reading page, under
+  the byline of the text's card, from the moment of the checkmark (Mark as
+  unread hides it again); and on My ranking as a tooltip on each text's
+  title (marked ⓘ), so the list stays one line per text. The tooltip shows
+  on hover or keyboard focus, and a tap on the title opens it on a phone
+  and closes it again (as do Escape, a tap elsewhere, another title or a
+  drag); the drag handle stays the only way to start a drag. A text without
+  a description shows neither. The description is part of the text's
+  private record (`works/{work}.description`), so, like the text, members can
+  read it only once the text is released; nobody can read a coming text's
+  description. Before the checkmark it is hidden by the app, not by the rules
+  (a member could read a released text's description early with developer
+  tools; it gives away no more than the text, which they can already open).
+  Descriptions and texts are never in the public repository.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.

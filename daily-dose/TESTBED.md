@@ -290,3 +290,36 @@ have; running them here needs a copy with `executablePath: process.env.CHROME`.
 `check-reactions.mjs` (23 ok) and `check-news.mjs` (22 ok) green on
 `TOUR_SEED=1` beds; rules suite 27 of 27 (2 new for `rankings`); unit tests
 46 of 46 (10 new in `test/ranking.test.mjs`). The tour was not run.
+
+## Descriptions check
+
+`testbed/check-descriptions.mjs` checks the descriptions (SPEC.md,
+"Descriptions") at 360 px with touch (`CHECK_WIDTH` to change) and at
+1200 px with a mouse, against a freshly started or reset bed. The seed adds
+the private descriptions when it finds `descriptions.json` in the editorial
+workspace next to the anthology (or `DESCRIPTIONS=...`); without it no text
+has one and the check stops at once.
+
+```sh
+scripts/testbed.sh start
+CHROME=~/.nix-profile/bin/google-chrome-stable node testbed/check-descriptions.mjs   # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Aino's Day 1 poem card has no description until she checks it off, shows
+it (as written in the file) after, loses it on Mark as unread and gets it
+back on the next checkmark; texts not checked off show none. On My ranking
+nothing shows until a tap on a title opens its tooltip (`aria-expanded`
+true, nothing moved or saved, no sideways scrolling); a tap elsewhere, a tap
+on the tooltip itself (it lies over the row below), Escape and a second tap
+close it, another title switches to its own; the handle still drags, and the
+drag closes the tooltip. On the desktop, hover shows it, moving away hides
+it, keyboard focus shows it. It writes to the bed: reset before a rerun.
+
+2026-10-14, descriptions: `check-descriptions.mjs` green (28 ok);
+`check-ranking.mjs`, `check-my-stars.mjs` (14) and `check-stars.mjs` (14)
+green on reset beds; `check-reactions.mjs` (23) and `check-news.mjs` (22)
+green on `TOUR_SEED=1` beds; rules suite 28 of 28 (1 new: a coming text's
+description is unreadable, nobody writes one); unit tests 51 of 51 (4 new in
+`test/description.test.mjs`, one of which checks the private file). The tour
+was not run.

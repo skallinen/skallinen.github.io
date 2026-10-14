@@ -99,6 +99,21 @@ GitHub and the JS bundle. They use the corrected review edition, preserving
 formatting and outstanding source notes. This does not resolve editorial holds
 or grant distribution rights.
 
+**Descriptions.** Each text has a refresher of at most 280 Unicode code
+points (SPEC.md, "Descriptions"), shown under the byline once the reader has
+checked the text off, and as a tooltip on the title in My ranking. It is the
+field `description` on `dailyDose/{club}/works/{work}`, which the existing
+rules let members read only once the text is released, so no rules change was
+needed and the feed brings it at no extra read. The descriptions are written
+in the private editorial workspace (`descriptions.json`, text id to
+description, outside this repo) and stored by
+`scripts/sync-descriptions.mjs`, with the operator credential like the
+podcast sync: a dry run by default, `--apply` writes only that field on the
+texts whose description changed, in one commit. `client/description.mjs`
+holds the limit and the checks; `test/description.test.mjs` checks the
+private file too when the workspace is on the machine. The test bed seeds
+the descriptions when it finds that file (or `DESCRIPTIONS=...`).
+
 ## Reactions
 
 Finished readers can react to the club's thoughts (their own too) with one of

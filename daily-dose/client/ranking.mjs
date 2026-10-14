@@ -1,4 +1,5 @@
 import { esc } from './text.mjs';
+import { showDescription } from './description.mjs';
 
 // My ranking, as in Bookrank (SPEC.md "My ranking"): a member's private order
 // of the texts they have rated, and the stars that order gives each text.
@@ -81,14 +82,25 @@ export function rankLine(r) {
   return `<p class="rank-line"><span class="rank-line-text">Your ranking: <span class="rank-star" aria-hidden="true">★</span> <strong>${scoreLabel(r.score)}</strong>, ${ordinal(r.position)} of ${r.of}</span> <button type="button" class="text-button" data-nav="ranking">My ranking</button></p>`;
 }
 
-// One row of the ranking list. `work` has title, author, category, day and
-// mine.rating; `r` its place and score.
-export function rankItem(work, r, categoryLabel) {
+// The title of a ranking row. With a description (client/description.mjs) it
+// is a button that shows the description as a tooltip: on hover or keyboard
+// focus on a desktop, and toggled by a tap (`open`), since a phone has no
+// hover. Only the drag handle starts a drag, so the title never does.
+function rankTitle(work, open) {
+  if (!showDescription(work)) return `<span class="rank-title">${esc(work.title)}</span>`;
+  const tip = `tip-${esc(work.id)}`;
+  return `<button type="button" class="rank-title rank-tip-button" data-rank-tip="${esc(work.id)}" aria-expanded="${open}" aria-describedby="${tip}">${esc(work.title)}<span class="tip-mark" aria-hidden="true"> ⓘ</span></button><span class="rank-tip" role="tooltip" id="${tip}">${esc(work.description.trim())}</span>`;
+}
+
+// One row of the ranking list. `work` has title, author, category, day,
+// mine.rating and its description, if any; `r` its place and score; `open`
+// whether its description is shown (tapped open).
+export function rankItem(work, r, categoryLabel, open = false) {
   const stars = work.mine?.rating;
-  return `<li class="rank-item" data-rank-id="${esc(work.id)}">
+  return `<li class="rank-item${open && showDescription(work) ? ' tip-open' : ''}" data-rank-id="${esc(work.id)}">
     <button type="button" class="drag-handle" data-drag="${esc(work.id)}" aria-label="Move “${esc(work.title)}”, place ${r.position} of ${r.of}. Drag, or use the arrow keys." aria-describedby="rank-help"><span aria-hidden="true">⠿</span></button>
     <span class="rank-position">${r.position}</span>
-    <span class="rank-info"><span class="rank-title">${esc(work.title)}</span><span class="rank-meta">${esc(work.author)} · ${esc(categoryLabel)}, Day ${String(work.day).padStart(2, '0')} · ${stars === rankStars(r.score) ? `${stars} ★` : `${stars} ★ now, ${rankStars(r.score)} ★ when saved`}</span></span>
+    <span class="rank-info">${rankTitle(work, open)}<span class="rank-meta">${esc(work.author)} · ${esc(categoryLabel)}, Day ${String(work.day).padStart(2, '0')} · ${stars === rankStars(r.score) ? `${stars} ★` : `${stars} ★ now, ${rankStars(r.score)} ★ when saved`}</span></span>
     <span class="rank-score score-${scoreBand(r.score)}" aria-label="${scoreLabel(r.score)} stars"><span aria-hidden="true">★</span>${scoreLabel(r.score)}</span>
   </li>`;
 }

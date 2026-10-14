@@ -47,6 +47,14 @@
 .rank-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .rank-title { font-family: var(--serif, Georgia, serif); font-size: 1.125rem; line-height: 1.3; }
 .rank-meta { font-size: .9375rem; color: var(--muted, #4f4d44); }
+.rank-item { position: relative; }
+.rank-tip-button { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: var(--ink, #23231d); cursor: help; }
+.rank-tip-button .tip-mark { font-family: var(--sans, system-ui, sans-serif); font-size: .9375rem; color: var(--muted, #4f4d44); }
+.rank-item.tip-open .tip-mark { color: #9a3726; }
+.rank-tip { display: none; position: absolute; z-index: 5; left: .5rem; right: .5rem; top: calc(100% - .25rem); padding: .6rem .75rem; border: 1px solid var(--line-strong, #b9b19f); border-radius: .375rem; background: var(--card, #fffdf8); box-shadow: 0 .25rem 1rem #23231d26; font: .9375rem/1.45 var(--sans, system-ui, sans-serif); color: var(--ink, #23231d); }
+.rank-item.tip-open .rank-tip, .rank-tip-button:focus-visible + .rank-tip { display: block; }
+@media (hover: hover) { .rank-tip-button:hover + .rank-tip { display: block; } .rank-tip-button:hover { color: var(--accent, #9a3726); } }
+.rank-item.is-dragging .rank-tip, .rank-item.tip-closed .rank-tip { display: none; }
 .rank-score { flex: 0 0 auto; font-weight: 700; font-size: 1.125rem; font-variant-numeric: tabular-nums; padding: .15rem .5rem; border-radius: .375rem; }
 .rank-score > span { margin-right: .15rem; }
 .rank-score.score-high { color: #1f4a2c; background: #e3efe2; }

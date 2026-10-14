@@ -52,6 +52,22 @@ test('unauthenticated and nonmember access denied; future metadata and text stay
   await assertFails(getDocs(collection(db('alice'), `${base}/works`)));
 });
 
+test('descriptions: a released text\'s description is readable by members, a coming one\'s by nobody, and nobody writes them', async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    for (const id of ['today', 'future']) await updateDoc(workRef(ctx.firestore(), id), { description: `PRIVATE DESCRIPTION ${id}` });
+  });
+  const today = await assertSucceeds(getDoc(workRef(db('bob'), 'today')));
+  assert.equal(today.data().description, 'PRIVATE DESCRIPTION today');
+  await assertFails(getDoc(workRef(db('bob'), 'future')));
+  await assertFails(getDoc(workRef(db('outsider'), 'today')));
+  const listed = await getDocs(query(collection(db('bob'), `${base}/works`), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', Timestamp.fromMillis(Date.now() - 1000))));
+  assert.ok(!listed.docs.some(d => d.id === 'future'));
+  for (const uid of ['alice', 'bob']) {
+    await assertFails(updateDoc(workRef(db(uid), 'today'), { description: 'Changed.' }));
+    await assertFails(updateDoc(workRef(db(uid), 'future'), { description: 'Changed.' }));
+  }
+});
+
 const shared = (uid, w='today') => getDocs(query(collection(db(uid),base+'/works/'+w+'/reads'),where('submittedAt','>=',Timestamp.fromMillis(0))));
 async function submit(uid, work='today', comment=uid+' finished', rating=4) {
   await action(uid,work,'done',work!=='past');
