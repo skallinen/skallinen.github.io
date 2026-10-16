@@ -87,6 +87,10 @@ unlock the discussion again. Previously seen information cannot be unseen.
 
 Firestore listeners cache data; the 30-second UI refresh picks up other readers'
 new submissions. Shared listeners are discarded when access is revoked.
+The cache is in IndexedDB, shared by all tabs (memory if IndexedDB is missing),
+so a reload or a new tab within 30 minutes resumes its listeners and pays only
+for changed documents. A page hidden for five minutes closes its listeners and
+reopens them when shown again; each text is fetched once per page load.
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old

@@ -1,4 +1,4 @@
-import { getFirestore, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
 import { isReaction, tally, reactionsTo } from './reactions.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
@@ -6,10 +6,23 @@ import { dayNumber, validateComment, validateRating, ratingSummary } from '../se
 const millis = t => t?.toMillis?.() ?? null;
 const noAccess = e => e.code === 'permission-denied';
 
+// The cache lives in IndexedDB, shared by every tab, so a reload or a new tab
+// resumes its listeners and pays only for documents changed since (within
+// Firestore's 30-minute resume window) instead of re-reading everything.
+// Without IndexedDB (some private windows), or if the app already has a
+// Firestore instance, it is the in-memory cache as before.
+export function openFirestore(app) {
+  if (typeof indexedDB === 'undefined') return getFirestore(app);
+  try { return initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+  catch { return getFirestore(app); }
+}
+
 // Firestore enforces per-reader disclosure. Only a submitted reader can query
 // other submitted responses; drafts never enter that query or its snapshots.
-export function createFirestoreBackend(app, user, db = getFirestore(app)) {
-  const watches = new Map(), clocks = new Map(), healed = new Set();
+export function createFirestoreBackend(app, user, db = openFirestore(app)) {
+  const watches = new Map(), clocks = new Map(), healed = new Set(), texts = new Map();
+  // True while the page is hidden: listeners are closed (see pause).
+  let paused = false;
   // Set when the deployed rules refuse reactions (rules older than the
   // client): the thoughts then show without them, and nobody can react.
   let reactionsOff = false;
@@ -20,21 +33,38 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
   // And for My ranking (rankings/{uid}): until its rules are deployed, the
   // order lives on the device only.
   let rankingOff = false;
-  function unwatch(key) { watches.get(key)?.stop(); watches.delete(key); }
+  function unwatch(key) { watches.get(key)?.stop?.(); watches.delete(key); }
+  function listen(e) {
+    e.stop = onSnapshot(e.ref, { includeMetadataChanges: true }, snap => {
+      if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
+      e.snap = snap; e.resolve();
+      for (const w of e.waiters) if (w.test(snap)) w.done();
+    }, error => { e.error = error; e.stop = null; e.reject(error); for (const w of e.waiters) w.done(); });
+  }
   function watch(key, ref) {
     if (!watches.has(key)) {
-      const e = { waiters: new Set() };
-      e.ready = new Promise((resolve, reject) => {
-        e.stop = onSnapshot(ref, { includeMetadataChanges: true }, snap => {
-          if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
-          e.snap = snap; resolve();
-          for (const w of e.waiters) if (w.test(snap)) w.done();
-        }, error => { e.error = error; reject(error); for (const w of e.waiters) w.done(); });
-      });
+      const e = { ref, waiters: new Set(), stop: null };
+      e.ready = new Promise((resolve, reject) => { e.resolve = resolve; e.reject = reject; });
+      // A listener asked for while hidden opens on resume; until then the
+      // first read waits, as it would for a slow server.
+      if (!paused) listen(e);
       watches.set(key, e);
     }
     const e = watches.get(key);
     return e.ready.then(() => { if (e.error) throw e.error; return e.snap; });
+  }
+  // Close every listener while the page is hidden, keeping each one's last
+  // snapshot, and reopen them all when it is shown again. A reopened listener
+  // pays only for the documents changed meanwhile (within 30 minutes).
+  function pause() {
+    if (paused) return;
+    paused = true;
+    for (const e of watches.values()) { e.stop?.(); e.stop = null; }
+  }
+  function resume() {
+    if (!paused) return;
+    paused = false;
+    for (const e of watches.values()) if (!e.stop && !e.error) listen(e);
   }
   // Resolves once the listener has delivered a server snapshot passing `test`
   // (true), or false if none arrives in time or the listener is gone.
@@ -219,7 +249,10 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       episodes: (Array.isArray(pod.episodes) ? pod.episodes : []).filter(e => Number.isInteger(e?.day) && e.day <= Math.min(day, 50)) };
     if (day < 1) return base;
     const cutoff = p.boundaries[Math.min(day, 50) - 1];
-    const snapshot = await watch(`works:${c}:${millis(cutoff)}`, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff)));
+    // The released texts' query changes at midnight: close yesterday's.
+    const worksKey = `works:${c}:${millis(cutoff)}`;
+    for (const k of [...watches.keys()]) if (k.startsWith(`works:${c}:`) && k !== worksKey) unwatch(k);
+    const snapshot = await watch(worksKey, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff)));
     const works = await Promise.all(snapshot.docs.map(d => project(c, d.data(), ctx)));
     heal(c, snapshot.docs.map(d => d.data())).catch(e => console.warn('Completion record not repaired', e));
     for (let n = Math.min(50, day); n >= 1; n--) {
@@ -371,7 +404,8 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
     await Promise.all([shared, own]);
   }
   return {
-    reset() { for (const w of watches.values()) w.stop(); watches.clear(); clocks.clear(); healed.clear(); reactionsOff = false; seenOff = false; rankingOff = false; },
+    pause, resume,
+    reset() { for (const w of watches.values()) w.stop?.(); watches.clear(); clocks.clear(); healed.clear(); texts.clear(); reactionsOff = false; seenOff = false; rankingOff = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -392,7 +426,12 @@ export function createFirestoreBackend(app, user, db = getFirestore(app)) {
       if (parts[2] === 'ranking' && options.method === 'POST') return saveRanking(c, options.body);
       if (parts[2] === 'works' && parts[4] === 'reactions' && options.method === 'POST') return react(c, id, options.body);
       if (parts[2] === 'works' && options.method === 'POST') return act(c, id, options.body);
-      if (parts[2] === 'works') return JSON.parse((await getDocFromServer(doc(programRef(c), 'texts', id))).data().json);
+      // A text does not change while it is being read: fetch it once per page.
+      if (parts[2] === 'works') {
+        const key = `${c}:${id}`;
+        if (!texts.has(key)) texts.set(key, getDocFromServer(doc(programRef(c), 'texts', id)).then(t => t.data().json).catch(e => { texts.delete(key); throw e; }));
+        return JSON.parse(await texts.get(key));
+      }
       throw new Error('Unknown request.');
     },
   };

@@ -1521,3 +1521,12 @@ try {
   }
 } catch (error) { root.innerHTML = `<main class="empty"><h1>We couldn’t open the reading room.</h1><p>${esc(error.message)}</p><a href="./">Try again</a></main>`; }
 setInterval(() => { if (state.user && state.clubId && !document.hidden && !reader.open && state.view === 'feed') refresh({ quiet: true }).catch(() => {}); }, 30000);
+// A page hidden for five minutes closes its Firestore listeners, and showing
+// it reopens them; the feed keeps what it has meanwhile. Short tab switches
+// keep them open, because reopening costs at least a read per listener.
+let pauseTimer = 0;
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(pauseTimer);
+  if (document.hidden) pauseTimer = setTimeout(() => backend?.pause?.(), 5 * 60 * 1000);
+  else backend?.resume?.();
+});
