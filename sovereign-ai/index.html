@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Nine questions leading to twelve ways to run AI, from public frontier APIs to classified air-gapped systems, each with sovereignty, quality, monthly cost and investment.">
+<title>Sovereign AI Decision Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one reading column; the tree is a nested list whose left rules are the branches,
+     each leaf an outcome tile with two meters and the costs. House style, light only. */
+  :root {
+    --white: #ffffff; --black: #000000;
+    --rose: #E3CAC3; --linen: #EEE7E1; --peach: #F9EDDD;
+    --orange: #a9431e; --teal: #00879f; --amber: #c28e0e; --navy: #1f3a5f;
+    --ink-2: rgba(0,0,0,0.72); --ink-3: rgba(0,0,0,0.55); --hair: rgba(0,0,0,0.14);
+    --font: 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
+    color-scheme: light;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--linen); color: var(--black); font-family: var(--font); font-size: 16px; line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width: 56rem; margin: 0 auto; padding-block: 2.5rem 4rem; }
+  .label { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.35em 0.7em; background: var(--black); color: var(--white); }
+  h1 { font-size: clamp(2rem, 5.5vw, 3rem); font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0.7rem 0 0.8rem; text-wrap: balance; }
+  h2 { font-size: clamp(1.3rem, 3.4vw, 1.7rem); font-weight: 800; line-height: 1.15; margin: 3rem 0 0.8rem; text-wrap: balance; }
+  p { margin: 0 0 1rem; max-width: 65ch; }
+  .lead { font-size: 1.1rem; }
+  .meta { color: var(--ink-3); font-size: 0.88rem; }
+  .basis { background: var(--peach); padding: 1rem 1.2rem; margin: 1.2rem 0; font-size: 0.95rem; }
+  .basis p:last-child { margin-bottom: 0; }
+  strong { font-weight: 800; }
+
+  /* Tree */
+  .tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+  .tree ul { margin-left: 0.9rem; padding-left: 1.1rem; border-left: 2px solid var(--black); }
+  .tree li { position: relative; padding-top: 0.9rem; }
+  .tree ul > li::before { content: ""; position: absolute; left: -1.1rem; top: 1.85rem; width: 0.9rem; border-top: 2px solid var(--black); }
+  .tree ul > li:last-child::after { content: ""; position: absolute; left: calc(-1.1rem - 2px); top: calc(1.85rem + 2px); bottom: 0; width: 2px; background: var(--linen); }
+  .q { display: inline-block; background: var(--black); color: var(--white); font-weight: 700; padding: 0.55rem 0.8rem; max-width: 40rem; }
+  .q small { display: block; font-weight: 500; opacity: 0.75; font-size: 0.82rem; margin-top: 0.15rem; }
+  .ans { display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange); margin: 0.3rem 0 0.35rem; }
+  .ans span { color: var(--black); letter-spacing: 0; text-transform: none; font-weight: 600; font-size: 0.88rem; }
+
+  .leaf { background: var(--white); border-top: 3px solid var(--orange); padding: 0.9rem 1rem 1rem; max-width: 40rem; }
+  .leaf + .leaf { margin-top: 0.7rem; }
+  .leaf .t { font-weight: 800; font-size: 1.08rem; line-height: 1.25; }
+  .leaf .t b { color: var(--orange); margin-right: 0.35em; }
+  .leaf .ex { color: var(--ink-2); font-size: 0.9rem; margin: 0.15rem 0 0.7rem; }
+  .meters { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin-bottom: 0.7rem; }
+  .m { display: inline-flex; align-items: center; gap: 0.5em; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 0.8em; height: 0.8em; border: 2px solid var(--black); display: inline-block; }
+  .dots i.on { background: var(--black); }
+  .m.cap .dots i { border-color: var(--teal); }
+  .m.cap .dots i.on { background: var(--teal); }
+  .m em { font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+  .cost { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.25rem 0.8rem; font-size: 0.92rem; margin: 0; }
+  .cost dt { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding-top: 0.2em; }
+  .cost dd { margin: 0; font-variant-numeric: tabular-nums; min-width: 0; }
+  .cost dd strong { white-space: nowrap; }
+  .cons { margin: 0.7rem 0 0; font-size: 0.9rem; color: var(--ink-2); }
+  .cons b { color: var(--black); }
+  .warn { border-top-color: var(--amber); }
+  .nat { border-top-color: var(--navy); }
+  .nat .t b { color: var(--navy); }
+  .q.natq { background: var(--navy); }
+
+  /* Table */
+  .tablewrap { overflow-x: auto; margin: 0.6rem 0 1rem; }
+  table { border-collapse: collapse; width: 100%; min-width: 58rem; font-size: 0.88rem; background: var(--white); }
+  th, td { text-align: left; vertical-align: top; padding: 0.55em 0.65em; border-bottom: 1px solid var(--hair); }
+  th { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+  ul.lines { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.7em; max-width: 65ch; }
+  ul.lines li { padding-left: 1.3em; position: relative; }
+  ul.lines li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 0.42em; height: 0.42em; background: var(--orange); }
+  @media (max-width: 30rem) {
+    .tree ul { margin-left: 0.4rem; padding-left: 0.8rem; }
+    .tree ul > li::before { left: -0.8rem; width: 0.6rem; }
+    .tree ul > li:last-child::after { left: calc(-0.8rem - 2px); }
+    .cost { grid-template-columns: 1fr; gap: 0 0; }
+    .cost dd { margin-bottom: 0.4rem; }
+  }
+</style>
+
+</head>
+<body>
+<main>
+  <span class="label">AI sovereignty</span>
+  <h1>Sovereign AI decision tree</h1>
+  <p class="lead">Answer the questions from the top. Each end point shows how much control you get, what quality to expect, and what it costs.</p>
+  <p class="meta">29 October 2026. Fact-checked the same day against vendor pages, Artificial Analysis, Epoch AI, the CADA proposal and Finnish law. Costs marked "estimate" have no public price. What could not be confirmed is listed at the end.</p>
+
+  <div class="basis">
+    <p><strong>Cost basis:</strong> one mid-sized organisation using about 350 million tokens a month (11 million a day, 80% input). Euros at 1 USD = 0.86 EUR, before VAT, no caching discounts. Double the volume and the API rows roughly double; the server rows stay flat until the hardware is full.</p>
+    <p><span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> Sovereignty</span> how far foreign law and the vendor can reach your data and service (0 to 5). <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> Capability</span> model quality against today's best (5 = frontier).</p>
+  </div>
+
+  <ul class="tree">
+    <li>
+      <div class="q">1. What data goes into the model?<small>Classify each use case separately. Most organisations end up in two or three branches.</small></div>
+      <ul>
+        <li>
+          <div class="ans">Public or low-risk <span>(no personal or confidential data)</span></div>
+          <div class="leaf" id="a">
+            <div class="t"><b>A</b>Plain frontier API</div>
+            <div class="ex">Claude, Gemini or GPT, called directly from the US lab.</div>
+            <div class="meters">
+              <span class="m"><span class="dots"><i></i><i></i><i></i><i></i><i></i></span> 0 <em>US company; Anthropic's own API processes only globally or in the US</em></span>
+              <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span> 5</span>
+            </div>
+            <dl class="cost">
+              <dt>Monthly</dt><dd><strong>€1,100 to €2,200</strong> (Sonnet 5.5 at $2 / $10 to Opus 5.5 at $4 / $20 per million tokens)</dd>
+              <dt>Investment</dt><dd><strong>none</strong>, a few days to set up a gateway</dd>
+            </dl>
+            <p class="cons"><b>Quality:</b> the best available. On the Artificial Analysis index v5, Gemini 4 Carbon leads at 59 (released 28.10.), Opus 5.5 is 58 and GPT-6 Astra 57. New models arrive on launch day.</p>
+            <p class="cons"><b>Sovereignty:</b> prompts are visible to the vendor and reachable by US authorities. Fine for drafts, code and public material.</p>
+          </div>
+          <div class="leaf warn">
+            <div class="t"><b>A2</b>Cheap Chinese API (side branch)</div>
+            <div class="ex">Kimi K3.1 Pro, DeepSeek, GLM through their own APIs.</div>
+            <div class="meters">
+              <span class="m"><span class="dots"><i></i><i></i><i></i><i></i><i></i></span> 0 <em>Chinese jurisdiction</em></span>
+              <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4</span>
+            </div>
+            <dl class="cost">
+              <dt>Monthly</dt><dd><strong>€70 to €1,100</strong> (DeepSeek V4.1 Flash at off-peak rates to Kimi K3.1 Pro at $2 / $10)</dd>
+              <dt>Investment</dt><dd><strong>none</strong></dd>
+            </dl>
+            <p class="cons"><b>Quality:</b> Kimi K3.1 Pro scores 46. It beats Opus 5.5 on agentic terminal work (67% against 60%) but is far behind on coding (25% against 46%) and science. No independent data on Finnish.</p>
+            <p class="cons"><b>Sovereignty:</b> 2 to 30 times cheaper, but Chinese law and content rules apply. Not for public bodies, even for low-risk work. Use the same models self-hosted instead (G or H) once their weights are out.</p>
+          </div>
+        </li>
+        <li>
+          <div class="ans">Personal, confidential or official data</div>
+          <div class="q">2. Is US legal reach acceptable if the data stays in the EU?<small>The CLOUD Act lets US authorities order any provider under US jurisdiction to hand over data it controls, wherever it is stored. Contracts and the EU-US data deal reduce the risk; they do not remove it.</small></div>
+          <ul>
+            <li>
+              <div class="ans">Yes, with contracts and a data protection assessment</div>
+              <div class="q">3. Do you need EU-only staff and a separate EU control plane?<small>Higher assurance for public sector and regulated work.</small></div>
+              <ul>
+                <li>
+                  <div class="ans">No</div>
+                  <div class="leaf" id="b">
+                    <div class="t"><b>B</b>Frontier API with EU data residency</div>
+                    <div class="ex">Claude on AWS Bedrock EU (Frankfurt, Paris, Ireland, Stockholm), Azure OpenAI EU Data Zone, Gemini on Vertex AI EU. Anthropic's own API has no EU option.</div>
+                    <div class="meters">
+                      <span class="m"><span class="dots"><i class="on"></i><i></i><i></i><i></i><i></i></span> 1 <em>about CADA level 1</em></span>
+                      <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span> 5</span>
+                    </div>
+                    <dl class="cost">
+                      <dt>Monthly</dt><dd><strong>€1,200 to €2,400</strong> (list price plus 10% for regional processing on Bedrock, Vertex and Azure)</dd>
+                      <dt>Investment</dt><dd><strong>none</strong>, a cloud account, DPIA and gateway</dd>
+                    </dl>
+                    <p class="cons"><b>Quality:</b> the same models as A. Check the residency table per model: some Gemini versions were US-only at first, and new releases can reach EU regions later.</p>
+                    <p class="cons"><b>Sovereignty:</b> data is processed in the EU and stays out of training. The provider is still a US company. Where most Finnish public bodies can go today without losing quality.</p>
+                  </div>
+                </li>
+                <li>
+                  <div class="ans">Yes</div>
+                  <div class="leaf" id="c">
+                    <div class="t"><b>C</b>US provider's European sovereign cloud</div>
+                    <div class="ex">AWS European Sovereign Cloud (Brandenburg, open since January 2026), Microsoft Sovereign Cloud.</div>
+                    <div class="meters">
+                      <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span> 2 <em>CADA level 2 by default</em></span>
+                      <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span> 2 today</span>
+                    </div>
+                    <dl class="cost">
+                      <dt>Monthly</dt><dd><strong>€2,000 to €3,000</strong> (estimate: 10 to 30% over standard regions)</dd>
+                      <dt>Investment</dt><dd><strong>low</strong>, migration and new accounts</dd>
+                    </dl>
+                    <p class="cons"><b>Quality:</b> no frontier model confirmed. AWS's sovereign Bedrock offers Amazon Nova and Google's open Gemma 4; Claude there is not announced. Microsoft's frontier models sit in its public EU regions (that is branch B), not in its disconnected private cloud.</p>
+                    <p class="cons"><b>Sovereignty:</b> EU entity, EU staff, separate operations. The parent company is still under US law, so the proposed Cloud and AI Development Act puts it at level 2 of 4 unless an exception applies.</p>
+                  </div>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <div class="ans">No, it must be out of US reach</div>
+              <div class="q">4. Do you need frontier-level quality?<small>Hard reasoning, long documents, agents. Many classification and summary tasks do fine with a model months behind.</small></div>
+              <ul>
+                <li>
+                  <div class="ans">Yes</div>
+                  <div class="q">5. Large, security-critical organisation with a multi-year budget?<small>A ministry, a big bank, critical infrastructure. Classified data goes to branch N below.</small></div>
+                  <ul>
+                    <li>
+                      <div class="ans">No</div>
+                      <div class="leaf" id="d">
+                        <div class="t"><b>D</b>EU-run joint venture cloud</div>
+                        <div class="ex">S3NS (Thales and Google, SecNumCloud qualified since December 2025), Bleu (Orange and Capgemini on Microsoft, qualification expected end 2026). Both are French; Finland has none.</div>
+                        <div class="meters">
+                          <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> 3 <em>aims at CADA level 3</em></span>
+                          <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> 3 now, 4 to 5 later</span>
+                        </div>
+                        <dl class="cost">
+                          <dt>Monthly</dt><dd><strong>€2,500 to €4,000</strong> (estimate: no public prices, often a minimum commitment)</dd>
+                          <dt>Investment</dt><dd><strong>medium</strong>, contract and migration, tens of thousands in project work</dd>
+                        </dl>
+                        <p class="cons"><b>Quality:</b> not frontier yet. Gemini is not confirmed in S3NS's qualified scope; Thales plans Vertex AI within about a year, open models first. No OpenAI models confirmed on Bleu.</p>
+                        <p class="cons"><b>Sovereignty:</b> a European company operates the service and US law reaches it far less. The technology and updates still come from the US partner.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <div class="ans">Yes</div>
+                      <div class="leaf" id="e">
+                        <div class="t"><b>E</b>Frontier model in your own data centre</div>
+                        <div class="ex">Gemini on Google Distributed Cloud air-gapped; Cohere North (runs from two GPUs; Cohere is buying Germany's Aleph Alpha); Microsoft Foundry Local, disconnected.</div>
+                        <div class="meters">
+                          <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4 <em>data in your hall; vendor controls licence and updates</em></span>
+                          <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span> 4 to 5 with Gemini</span>
+                        </div>
+                        <dl class="cost">
+                          <dt>Monthly</dt><dd><strong>€30,000 and up</strong> (estimate: licence, support, power, staff)</dd>
+                          <dt>Investment</dt><dd><strong>€1 million and up</strong> (estimate: hardware, secure facility, multi-year contract)</dd>
+                        </dl>
+                        <p class="cons"><b>Quality:</b> near frontier with Gemini, but updates arrive in batches on physical media and trail the cloud. Cohere's and Microsoft's local models are a step below.</p>
+                        <p class="cons"><b>Sovereignty:</b> the only way to near-frontier quality with no data leaving your building. Slow to buy, and you depend on one vendor's roadmap.</p>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="ans">No, good enough is fine</div>
+                  <div class="q">6. Is your use steady and high, or must the hardware be your own?<small>For example 100 million tokens a day or more, or a rule that nothing runs outside your premises.</small></div>
+                  <ul>
+                    <li>
+                      <div class="ans">No</div>
+                      <div class="q">7. Do you need to pick and freeze the model yourself?<small>Control over weights, versions and fine-tuning, and no single vendor.</small></div>
+                      <ul>
+                        <li>
+                          <div class="ans">No</div>
+                          <div class="leaf" id="f">
+                            <div class="t"><b>F</b>European model as a service</div>
+                            <div class="ex">Mistral's API. Its own compute in France (Essonne) is being built during 2026 and 2027.</div>
+                            <div class="meters">
+                              <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4 <em>EU company, EU law</em></span>
+                              <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span> 2 to 3</span>
+                            </div>
+                            <dl class="cost">
+                              <dt>Monthly</dt><dd><strong>€600 to €800</strong> (Large 4 at $1.36 / $4.18, Medium 3.5 at $1.50 / $7.50)</dd>
+                              <dt>Investment</dt><dd><strong>none</strong>, gateway only</dd>
+                            </dl>
+                            <p class="cons"><b>Quality:</b> clearly behind the US frontier: Mistral Large 4 Preview scores 25 on the index against 59 at the top. Good for summaries, classification and drafting in the large European languages; weak on hard reasoning, coding and agents. Test Finnish on your own material.</p>
+                            <p class="cons"><b>Sovereignty:</b> cheap and under European jurisdiction. Large 4 is also open weights, so you can move it in-house later (G or H).</p>
+                          </div>
+                        </li>
+                        <li>
+                          <div class="ans">Yes</div>
+                          <div class="leaf" id="g">
+                            <div class="t"><b>G</b>Open weights on rented EU servers</div>
+                            <div class="ex">Gemma, Mistral, Qwen, DeepSeek or GLM on Hetzner, Scaleway, or Telia Sovereign AI Cloud in Helsinki.</div>
+                            <div class="meters">
+                              <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4 <em>your model on a European host</em></span>
+                              <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> 2 to 3</span>
+                            </div>
+                            <dl class="cost">
+                              <dt>Monthly</dt><dd><strong>€999</strong> for one 96 GB GPU server (Hetzner GEX63, mid-sized model); <strong>€17,000 to €21,000</strong> for 8 H100 GPUs at Scaleway (about €2.90 to €3.60 per GPU-hour, for the largest open models)</dd>
+                              <dt>Plus</dt><dd>a quarter to one person running it</dd>
+                              <dt>Investment</dt><dd><strong>none</strong>, setup work of a few weeks</dd>
+                            </dl>
+                            <p class="cons"><b>Quality:</b> Epoch AI measured open models about 4 months behind in May 2026. On the newer, harder index v5 the best downloadable models (DeepSeek V4.1 Flash, GLM-5.3) score 32 against 59. One 96 GB GPU runs only mid-sized models, a further step down. Fine-tuning can close the gap on narrow, repeated tasks.</p>
+                            <p class="cons"><b>Sovereignty:</b> you own the model choice and can switch hosts. Chinese weights need independent security testing first.</p>
+                          </div>
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <div class="ans">Yes</div>
+                      <div class="leaf" id="h">
+                        <div class="t"><b>H</b>Open weights on your own servers</div>
+                        <div class="ex">Bought hardware in your own or a colocation hall, or shared regionally between municipalities.</div>
+                        <div class="meters">
+                          <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span> 5 <em>full control</em></span>
+                          <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> 2 to 3</span>
+                        </div>
+                        <dl class="cost">
+                          <dt>Investment</dt><dd><strong>about €30,000</strong> for one 96 GB GPU server (the RTX Pro 6000 card alone is about €23,000 in Germany); <strong>€250,000 to €400,000</strong> for an 8-GPU H100 or B200 server</dd>
+                          <dt>Monthly</dt><dd><strong>about €1,100</strong> power for an 8-GPU H100 server (10 kW at €0.15 per kWh), plus colocation and one person</dd>
+                          <dt>Break-even</dt><dd>an 8-GPU server over three years is about €8,000 a month all in, so it beats branch A only at roughly four times this volume</dd>
+                        </dl>
+                        <p class="cons"><b>Quality:</b> as G, and fixed by the hardware you bought. As models grow, a server bought today may not fit the next generation, so quality can fall further behind over its life.</p>
+                        <p class="cons"><b>Sovereignty:</b> nobody outside can switch it off or read it. You carry the hardware risk, the security and the upgrades, and a small user leaves it idle. Pool it.</p>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="ans">Classified or national security <span>(TL IV to TL I, defence, intelligence, military-grade opsec)</span></div>
+          <div class="q natq">8. Which classification level?<small>Finland's levels (decree 1101/2019): TL IV Restricted, TL III Confidential, TL II Secret, TL I Top Secret. NCSA-FI at Traficom accredits systems; Katakri 2020 is the audit criteria.</small></div>
+          <ul>
+            <li>
+              <div class="ans">TL IV, Restricted <span>(NATO RESTRICTED)</span></div>
+              <div class="leaf nat" id="n1">
+                <div class="t"><b>N1</b>Accredited restricted environment</div>
+                <div class="ex">Open weights (G or H) in a Katakri-audited facility, for example the Katakri data centres CGI is buying from Telia. AWS is approved for NATO RESTRICTED (September 2026), but each nation still authorises its own systems.</div>
+                <div class="meters">
+                  <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4 <em>Finnish-controlled, audited</em></span>
+                  <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> 2 to 3</span>
+                </div>
+                <dl class="cost">
+                  <dt>Monthly</dt><dd><strong>€3,000 to €25,000</strong> (estimate: G or H costs plus audit, security staff and logging)</dd>
+                  <dt>Investment</dt><dd><strong>€50,000 to €500,000</strong> (estimate: Katakri audit by an accredited body, hardening, hardware if owned)</dd>
+                </dl>
+                <p class="cons"><b>Quality:</b> open-weight level, as G. Frontier APIs are out: Finland does not yet allow TL IV data in public cloud (a 2025 draft amendment would, not adopted).</p>
+                <p class="cons"><b>Sovereignty:</b> data stays under Finnish control and audit. Private auditors (such as Nixu, KPMG, Into) may audit at TL IV and III.</p>
+              </div>
+            </li>
+            <li>
+              <div class="ans">TL III and above <span>(Confidential, Secret, Top Secret)</span></div>
+              <div class="q natq">9. Is a near-frontier model worth a US vendor inside the wire?<small>Every option still runs on NVIDIA hardware and needs vendor updates carried in on physical media.</small></div>
+              <ul>
+                <li>
+                  <div class="ans">Yes</div>
+                  <div class="leaf nat" id="n2">
+                    <div class="t"><b>N2</b>Air-gapped vendor stack, nationally accredited</div>
+                    <div class="ex">Google Distributed Cloud air-gapped with Gemini (US Secret and Top Secret authorised; chosen by NATO for its JATEC centre, the Bundeswehr via BWI, and the UK MoD). Microsoft's disconnected Azure Local with Foundry Local. Accreditation in Europe is national, per deployment.</div>
+                    <div class="meters">
+                      <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4 <em>isolated, but vendor code and updates</em></span>
+                      <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span> 4 to 5 with Gemini</span>
+                    </div>
+                    <dl class="cost">
+                      <dt>Investment</dt><dd><strong>several million euros and up</strong> (estimate for a national agency). Public deals: UK MoD £400 million (2025); NATO JATEC "multi-million", not disclosed</dd>
+                      <dt>Monthly</dt><dd><strong>€50,000 and up</strong> (estimate: cleared staff, secure facility, support)</dd>
+                    </dl>
+                    <p class="cons"><b>Quality:</b> the best available inside a classified network, but behind the public frontier by each update cycle.</p>
+                    <p class="cons"><b>Sovereignty:</b> physically isolated, with approved crypto, TEMPEST zoning and cleared staff. Critics argue US law still reaches the vendor through its code and updates.</p>
+                  </div>
+                </li>
+                <li>
+                  <div class="ans">No, European or own models only</div>
+                  <div class="leaf nat" id="n3">
+                    <div class="t"><b>N3</b>Own isolated system with European or vetted open models</div>
+                    <div class="ex">Mistral deployed on the ministry's own infrastructure (France's armed forces ministry, framework of January 2026); open weights on owned, isolated hardware; Finnish partners such as NestAI, which works with the Defence Forces.</div>
+                    <div class="meters">
+                      <span class="m"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span> 5 <em>national control, apart from the chips</em></span>
+                      <span class="m cap"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span> 2 to 3</span>
+                    </div>
+                    <dl class="cost">
+                      <dt>Investment</dt><dd><strong>€1 to €5 million</strong> (estimate: hardware as H, secure facility, accreditation, crypto, model testing)</dd>
+                      <dt>Monthly</dt><dd><strong>€30,000 and up</strong> (estimate: cleared operators and security)</dd>
+                    </dl>
+                    <p class="cons"><b>Quality:</b> open-weight or Mistral level, months to a year behind. Fine-tuning on own data (as France does with Mistral) narrows the gap for specific military tasks.</p>
+                    <p class="cons"><b>Sovereignty:</b> the strongest available. Avoid Chinese weights here: China's National Intelligence Law and possible hidden triggers in weights are open risks, and no European authority has published a backdoor test regime yet.</p>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>All end points side by side</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>Option</th><th>Sovereignty</th><th>Capability</th><th>Quality in practice</th><th>Monthly (350 M tokens)</th><th>Investment</th></tr></thead>
+      <tbody>
+        <tr><td><b>A</b></td><td>Plain frontier API</td><td class="num">0</td><td class="num">5</td><td>best, newest first</td><td class="num">€1,100 to 2,200</td><td>none</td></tr>
+        <tr><td><b>A2</b></td><td>Chinese API</td><td class="num">0</td><td class="num">4</td><td>strong on agents, weak on coding</td><td class="num">€70 to 1,100</td><td>none</td></tr>
+        <tr><td><b>B</b></td><td>Frontier API, EU residency</td><td class="num">1</td><td class="num">5</td><td>as A, check per model</td><td class="num">€1,200 to 2,400</td><td>none</td></tr>
+        <tr><td><b>C</b></td><td>US sovereign cloud</td><td class="num">2</td><td class="num">2</td><td>no frontier model confirmed</td><td class="num">€2,000 to 3,000</td><td>low</td></tr>
+        <tr><td><b>D</b></td><td>EU joint venture cloud</td><td class="num">3</td><td class="num">3</td><td>open models now, Gemini planned</td><td class="num">€2,500 to 4,000</td><td>tens of thousands</td></tr>
+        <tr><td><b>E</b></td><td>Frontier model on premises</td><td class="num">4</td><td class="num">4 to 5</td><td>near frontier, batched updates</td><td class="num">€30,000+</td><td>€1 million+</td></tr>
+        <tr><td><b>F</b></td><td>European model API</td><td class="num">4</td><td class="num">2 to 3</td><td>routine text, weak on hard tasks</td><td class="num">€600 to 800</td><td>none</td></tr>
+        <tr><td><b>G</b></td><td>Open weights, rented EU GPUs</td><td class="num">4</td><td class="num">2 to 3</td><td>4 months behind (Epoch), wider on v5</td><td class="num">€999 to 21,000 + staff</td><td>none</td></tr>
+        <tr><td><b>H</b></td><td>Open weights, own servers</td><td class="num">5</td><td class="num">2 to 3</td><td>as G, ages with the hardware</td><td class="num">€1,100 power + staff</td><td>€30,000 to 400,000</td></tr>
+        <tr><td><b>N1</b></td><td>Restricted (TL IV), accredited</td><td class="num">4</td><td class="num">2 to 3</td><td>open-weight level</td><td class="num">€3,000 to 25,000</td><td>€50,000 to 500,000</td></tr>
+        <tr><td><b>N2</b></td><td>Classified, air-gapped vendor</td><td class="num">4</td><td class="num">4 to 5</td><td>near frontier inside the wire</td><td class="num">€50,000+</td><td>millions</td></tr>
+        <tr><td><b>N3</b></td><td>Classified, own system</td><td class="num">5</td><td class="num">2 to 3</td><td>open or Mistral level, fine-tuned</td><td class="num">€30,000+</td><td>€1 to 5 million</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Whatever the branch</h2>
+  <ul class="lines">
+    <li><strong>Put a gateway in front of every model.</strong> Access control, removal of personal data, an audit log, and the ability to switch model. Open source options cost little beyond setup.</li>
+    <li><strong>Mix branches by data class.</strong> A for public work, B for ordinary personal data, F to H for security and legal files is a common, affordable combination.</li>
+    <li><strong>Keep the way out open.</strong> Portable data, open interfaces and a tested exit plan matter more than the starting branch.</li>
+    <li><strong>The chips are American in every branch.</strong> Even N3 runs on NVIDIA hardware. US export rules for Finland are currently unrestricted, but a replacement framework is still in draft.</li>
+    <li><strong>The gap may shrink next week.</strong> Kimi K3.1 Pro's weights are promised by 4 November; if they ship, G and H gain a model about 13 points from the top instead of 27.</li>
+  </ul>
+
+  <h2>Not confirmed</h2>
+  <ul class="lines">
+    <li>Claude in the AWS European Sovereign Cloud (only a draft AWS page mentions it).</li>
+    <li>Gemini inside S3NS's qualified scope, and OpenAI models on Bleu.</li>
+    <li>OpenAI frontier models in Microsoft's disconnected private cloud.</li>
+    <li>A published German (BSI) or other European test regime for backdoors in Chinese weights.</li>
+    <li>Any public classified language model in Finland.</li>
+    <li>Scaleway's current H100 price (its page refused automated reading; trackers show about 3.6 per GPU-hour).</li>
+  </ul>
+</main>
+</body>
+</html>
