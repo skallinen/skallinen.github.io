@@ -323,3 +323,10 @@ green on `TOUR_SEED=1` beds; rules suite 28 of 28 (1 new: a coming text's
 description is unreadable, nobody writes one); unit tests 51 of 51 (4 new in
 `test/description.test.mjs`, one of which checks the private file). The tour
 was not run.
+
+## Volume Three
+
+`VOLUME3=1` on `start`/`reset` adds Days 51 to 75 from the private
+`webapp/data/volume-3.json` next to the anthology (or `VOLUME3=path`), with the
+same plan as `scripts/seed-volume-three.mjs`; `DAY1_OFFSET=52` makes today Day 53.
+Without it the bed stays at 50 days, which the checks above expect (`OF 50`).

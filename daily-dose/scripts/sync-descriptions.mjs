@@ -36,7 +36,8 @@ do {
     title: d.fields.title.stringValue, description: d.fields.description?.stringValue ?? null });
   pageToken = page.nextPageToken || '';
 } while (pageToken);
-if (works.length !== 150) throw new Error(`Expected 150 works, found ${works.length}.`);
+// 150 texts for Days 1 to 50, 225 once Volume Three (Days 51 to 75) is stored.
+if (![150, 225].includes(works.length)) throw new Error(`Expected 150 or 225 works, found ${works.length}.`);
 
 const problems = descriptionProblems(descriptions, works.map(w => w.id));
 if (problems.length) throw new Error(`The descriptions file is not ready:\n${problems.join('\n')}`);

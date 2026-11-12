@@ -91,7 +91,7 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   private row, and only the owner and the organiser may read it. Members are told
   in "How it works" that the organiser can see who has checked texts off.
   The roster shows each member as a grid, like GitHub contributions: 50 day
-  columns (Day 1 to 50), rows P (poem), S (story), E (essay). Dark green =
+  columns (Day 1 to 50; 75 once Volume Three is stored, Days 51 to 75 in slate blue under a "Volume Three" band), rows P (poem), S (story), E (essay). Dark green =
   checked off on the day, light green = catch-up, white with an outline = not
   checked off (a past day or today), grey = a coming day. Same checkmark times
   and the same on the day test as the rest of the page; the text "n of m
@@ -149,7 +149,7 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   A text whose rating is removed, or that is marked as unread, drops out.
   Stored as `rankings/{uid}`: `order` = the list of text ids, top first, and
   `updatedAt`. Only the owner reads or writes it, the organiser's own document
-  included (nobody reads anyone else's); at most 150 ids, no repeats
+  included (nobody reads anyone else's); at most 225 ids, no repeats
   (Firestore-enforced). The rating writes use the existing rules for one's own
   row. Until the `rankings` rules are deployed, the order is kept on this
   device only; the device always keeps a copy, used when the account copy is

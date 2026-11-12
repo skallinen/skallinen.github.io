@@ -55,14 +55,17 @@ test('descriptionProblems names missing, blank, long, em-dashed and unknown entr
 });
 
 // The private descriptions file, when this machine has the editorial
-// workspace: every one of the 150 texts has one, each within 280 code points.
+// workspace: every one of the 150 texts (225 with Volume Three, Days 51 to 75)
+// has one, each within 280 code points.
 const privateFile = [process.env.DESCRIPTIONS, path.join(homedir(), 'common/projects/daily-dose/descriptions.json'),
   path.join(homedir(), 'mac/common/projects/daily-dose/descriptions.json')].filter(Boolean).find(p => existsSync(p));
 const anthologyFile = privateFile && path.join(path.dirname(privateFile), 'webapp/data/anthology.json');
-test('the private descriptions file covers all 150 texts within the limit', { skip: !privateFile && 'no editorial workspace here' }, () => {
+const volumeThreeFile = privateFile && path.join(path.dirname(privateFile), 'webapp/data/volume-3.json');
+test('the private descriptions file covers all texts within the limit', { skip: !privateFile && 'no editorial workspace here' }, () => {
   const map = JSON.parse(readFileSync(privateFile, 'utf8'));
-  const ids = existsSync(anthologyFile) ? JSON.parse(readFileSync(anthologyFile, 'utf8')).works.map(w => w.id) : Object.keys(map);
-  assert.equal(ids.length, 150);
+  const exported = [anthologyFile, volumeThreeFile].filter(p => existsSync(p));
+  const ids = exported.length ? exported.flatMap(p => JSON.parse(readFileSync(p, 'utf8')).works.map(w => w.id)) : Object.keys(map);
+  assert.ok([150, 225].includes(ids.length), `${ids.length} texts`);
   assert.deepEqual(descriptionProblems(map, ids), []);
   for (const [id, d] of Object.entries(map)) assert.ok(codePoints(d) <= 280, `${id}: ${codePoints(d)}`);
 });

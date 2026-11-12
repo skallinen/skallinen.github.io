@@ -1,6 +1,7 @@
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
 import { isReaction, tally, reactionsTo } from './reactions.mjs';
+import { programmeDays, MAX_TEXTS } from './volumes.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
@@ -222,7 +223,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     }
   }
   async function saveRanking(c, { order } = {}) {
-    if (!Array.isArray(order) || order.length > 150 || new Set(order).size !== order.length
+    if (!Array.isArray(order) || order.length > MAX_TEXTS || new Set(order).size !== order.length
       || !order.every(id => typeof id === 'string' && /^[A-Za-z0-9-]{1,40}$/.test(id))) throw new Error('Unknown ranking.');
     if (rankingOff) throw new Error('Not available here yet.');
     try { await setDoc(rankingRef(c), { order: [...order], updatedAt: serverTimestamp() }); }
@@ -242,20 +243,20 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     base.ranking = ctx.organizer ? await rankingDoc(c) : null;
     if (!p.startDate) return { ...base, campaign: null };
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
-    base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: 50, editable: ctx.now < millis(p.boundaries[0]) };
+    base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: programmeDays(p), editable: ctx.now < millis(p.boundaries[0]) };
     // The private podcast (see client/podcast.mjs): members only, released days only.
     const pod = p.podcast;
     if (typeof pod?.feed === 'string') base.podcast = { feed: pod.feed, pattern: typeof pod.pattern === 'string' ? pod.pattern : null,
-      episodes: (Array.isArray(pod.episodes) ? pod.episodes : []).filter(e => Number.isInteger(e?.day) && e.day <= Math.min(day, 50)) };
+      episodes: (Array.isArray(pod.episodes) ? pod.episodes : []).filter(e => Number.isInteger(e?.day) && e.day <= Math.min(day, programmeDays(p))) };
     if (day < 1) return base;
-    const cutoff = p.boundaries[Math.min(day, 50) - 1];
+    const cutoff = p.boundaries[Math.min(day, programmeDays(p)) - 1];
     // The released texts' query changes at midnight: close yesterday's.
     const worksKey = `works:${c}:${millis(cutoff)}`;
     for (const k of [...watches.keys()]) if (k.startsWith(`works:${c}:`) && k !== worksKey) unwatch(k);
     const snapshot = await watch(worksKey, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff)));
     const works = await Promise.all(snapshot.docs.map(d => project(c, d.data(), ctx)));
     heal(c, snapshot.docs.map(d => d.data())).catch(e => console.warn('Completion record not repaired', e));
-    for (let n = Math.min(50, day); n >= 1; n--) {
+    for (let n = Math.min(programmeDays(p), day); n >= 1; n--) {
       const entries = works.filter(w => w.day === n).sort((a, b) => ['poem','story','essay'].indexOf(a.category) - ['poem','story','essay'].indexOf(b.category));
       if (entries.length) base.days.push({ number: n, date: entries[0].date, today: n === day, works: entries });
       for (const w of entries) if (w.mine?.status === 'done') { base.personal.completed++; base.personal[w.mine.onTime ? 'onTime' : 'catchUp']++; }
@@ -294,14 +295,14 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     const base = { club: ctx.club, roster, campaign: null, days: [], checks: {} };
     if (!p.startDate) return base;
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
-    base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: 50, editable: ctx.now < millis(p.boundaries[0]) };
+    base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: programmeDays(p), editable: ctx.now < millis(p.boundaries[0]) };
     if (day < 1) return base;
-    const cutoff = p.boundaries[Math.min(day, 50) - 1];
+    const cutoff = p.boundaries[Math.min(day, programmeDays(p)) - 1];
     const [works, records] = await Promise.all([
       getDocsFromServer(query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff))),
       getDocsFromServer(collection(programRef(c), 'completions'))]);
     const byId = new Map(works.docs.map(d => [d.id, d.data()]));
-    for (let n = Math.min(50, day); n >= 1; n--) {
+    for (let n = Math.min(programmeDays(p), day); n >= 1; n--) {
       const entries = [...byId.values()].filter(w => w.day === n).sort((a, b) => ['poem','story','essay'].indexOf(a.category) - ['poem','story','essay'].indexOf(b.category));
       if (entries.length) base.days.push({ number: n, date: localDate(millis(entries[0].openAt), p.timezone), today: n === day,
         works: entries.map(w => ({ id: w.id, title: w.title, author: w.author, category: w.category })) });

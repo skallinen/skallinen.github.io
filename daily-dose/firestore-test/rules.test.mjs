@@ -671,8 +671,8 @@ test('ranking: only its owner reads and writes it, the organiser included in "no
   // Bad shapes: not a list, repeats, too long, extra fields, a client time, no time.
   await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: 'today', updatedAt: serverTimestamp() }));
   await assertFails(rank('bob', ['today', 'today']));
-  await assertFails(rank('bob', Array.from({ length: 151 }, (_, i) => `w${i}`)));
-  await assertSucceeds(rank('bob', Array.from({ length: 150 }, (_, i) => `w${i}`)));
+  await assertFails(rank('bob', Array.from({ length: 226 }, (_, i) => `w${i}`)));
+  await assertSucceeds(rank('bob', Array.from({ length: 225 }, (_, i) => `w${i}`)));
   await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: [], updatedAt: serverTimestamp(), score: 5 }));
   await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: [], updatedAt: Timestamp.now() }));
   await assertFails(setDoc(rankRef(db('bob'), 'bob'), { order: [] }));

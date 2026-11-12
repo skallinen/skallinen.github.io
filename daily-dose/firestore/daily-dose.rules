@@ -157,7 +157,7 @@
         allow create, update: if doseMember(club) && request.auth.uid == uid
           && request.resource.data.keys().hasAll(['works', 'last'])
           && request.resource.data.keys().hasOnly(['works', 'last'])
-          && request.resource.data.works is map && request.resource.data.works.size() <= 150
+          && request.resource.data.works is map && request.resource.data.works.size() <= 225
           && request.resource.data.last is string && request.resource.data.last.matches('^[A-Za-z0-9-]{1,40}$')
           && request.resource.data.works.diff(doseChecks()).affectedKeys().hasOnly([request.resource.data.last])
           && ((request.resource.data.last in request.resource.data.works
@@ -182,7 +182,7 @@
           && request.resource.data.keys().hasAll(['works', 'last', 'updatedAt'])
           && request.resource.data.keys().hasOnly(['works', 'last', 'updatedAt'])
           && request.resource.data.updatedAt == request.time
-          && request.resource.data.works is map && request.resource.data.works.size() <= 150
+          && request.resource.data.works is map && request.resource.data.works.size() <= 225
           && request.resource.data.last is string && request.resource.data.last.matches('^[A-Za-z0-9-]{1,40}$')
           && request.resource.data.works.diff(seenBefore()).affectedKeys().hasOnly([request.resource.data.last])
           && request.resource.data.works.get(request.resource.data.last, []) is list
@@ -199,7 +199,7 @@
           && request.resource.data.keys().hasAll(['order', 'updatedAt'])
           && request.resource.data.keys().hasOnly(['order', 'updatedAt'])
           && request.resource.data.updatedAt == request.time
-          && request.resource.data.order is list && request.resource.data.order.size() <= 150
+          && request.resource.data.order is list && request.resource.data.order.size() <= 225
           && request.resource.data.order.toSet().size() == request.resource.data.order.size();
       }
       match /gates/{work} {

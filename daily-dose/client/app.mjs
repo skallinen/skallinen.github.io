@@ -11,6 +11,7 @@ import { reactionBar, setReaction, newReactions, meMarker } from './reactions.mj
 import { rankOrder, rankScores, starChanges, rankLine, rankItem } from './ranking.mjs';
 import { descriptionHtml } from './description.mjs';
 import { startDrag, step } from './drag.mjs';
+import { VOLUME_THREE, volumeThree } from './volumes.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -295,11 +296,11 @@ function showNews() {
 
 function login() {
   shell(`<section class="welcome"><p class="eyebrow">A BETTER BOOK CLUB ANTHOLOGY</p>
-    <h1>A little,<br><em>every day.</em></h1><p class="welcome-copy">Fifty days of poems, stories and essays.<br>A quiet place to read, reflect, and hear each other.</p>
+    <h1>A little,<br><em>every day.</em></h1><p class="welcome-copy">Seventy-five days of poems, stories and essays.<br>A quiet place to read, reflect, and hear each other.</p>
     <button class="primary google" data-action="login"><span aria-hidden="true">G</span>Sign in with Google</button>
     <p class="fine-print">Sign in with the Google account you use for the book club.</p>
     ${state.config.demo ? `<div class="demo-picker"><label for="demo-user">Try the local demo as</label><select id="demo-user">${state.config.demoUsers.map(u => `<option value="${u.uid}">${u.name}${u === state.config.demoUsers[0] ? ' · organiser' : ''}</option>`).join('')}</select><button class="secondary" data-action="demo-login">Enter demo →</button></div>` : ''}
-    <div class="welcome-rule"><span><strong>50</strong> days</span><span><strong>150</strong> readings</span><span><strong>140</strong> characters per thought</span></div></section>`);
+    <div class="welcome-rule"><span><strong>75</strong> days</span><span><strong>225</strong> readings</span><span><strong>140</strong> characters per thought</span></div></section>`);
 }
 
 async function signedIn(user, demoToken = null) {
@@ -378,15 +379,16 @@ function render() {
     return;
   }
   const campaign = feed.campaign, zone = zoneLabel(campaign.timezone);
-  const activeDay = Math.max(0, Math.min(50, campaign.currentDay));
-  const hero = campaign.currentDay < 1 ? `We begin ${dateLabel(campaign.startDate)}.` : campaign.currentDay > 50 ? 'The pages stay open.' : 'Make a little room.';
+  const total = campaign.totalDays ?? 50;
+  const activeDay = Math.max(0, Math.min(total, campaign.currentDay));
+  const hero = campaign.currentDay < 1 ? `We begin ${dateLabel(campaign.startDate)}.` : campaign.currentDay > total ? 'The pages stay open.' : 'Make a little room.';
   const filteredDays = feed.days.map(d => ({ ...d, works: d.works.filter(shown) })).filter(d => d.works.length);
-  const next = campaign.currentDay >= 1 && campaign.currentDay < 50 && ['all', 'unread'].includes(state.filter)
+  const next = campaign.currentDay >= 1 && campaign.currentDay < total && ['all', 'unread'].includes(state.filter)
     ? `<section class="day-group upcoming" aria-labelledby="day-next"><div class="day-heading"><h2 id="day-next">Day ${idNumber(campaign.currentDay + 1)} <span>${dateLabel(addDays(campaign.today, 1))}</span></h2>
       <span><span aria-hidden="true">◷ </span>Opens tomorrow at 00:00, ${esc(zone)}</span></div></section>` : '';
   shell(`<section class="feed-intro"><div><p class="eyebrow">${esc(feed.club.name)}</p><h1>${hero}</h1>
-    <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > 50 ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
-    <div class="day-seal" aria-label="Day ${activeDay} of 50"><span>DAY</span><strong>${idNumber(activeDay)}</strong><small>OF 50</small></div></section>
+    <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > total ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
+    <div class="day-seal${volumeThree(activeDay) ? ' v3' : ''}" aria-label="Day ${activeDay} of ${total}"><span>DAY</span><strong>${idNumber(activeDay)}</strong><small>OF ${total}</small></div></section>
     ${personalStrip(feed)}
     ${podcastLine(feed)}
     ${howItWorks(zone)}
@@ -524,7 +526,7 @@ const orgMark = x => x
   : '<span class="mark none" aria-hidden="true"></span><span class="sr-only">not yet</span>';
 
 // The roster as a contribution grid, like GitHub's: one column per day (Day 1 to
-// 50), one row per text (P poem, S story, E essay). A cell is "on" (checked off
+// 50, or 75 with Volume Three), one row per text (P poem, S story, E essay). A cell is "on" (checked off
 // on the day), "late" (catch-up), "none" (released, not checked off; today too)
 // or "coming" (a later day). On the day and catch-up are the checkmark times the
 // organiser page already reads (server time against the day's local midnight).
@@ -560,10 +562,16 @@ const gridSwitch = (attr, stars) => `<div class="filters roster-switch" role="gr
   `<button data-${attr}="${key}" class="filter ${(stars ? 'stars' : 'checks') === key ? 'active' : ''}" aria-pressed="${(stars ? 'stars' : 'checks') === key}">${label}</button>`).join('')}</div>`;
 // One member's grid, shared by the organiser's roster and the member's own page:
 // `days` are the released days, `kindOf` gives a released text's cell kind. The
-// tooltip names the text and its author.
+// tooltip names the text and its author. One column per programme day (50, or
+// 75 once Volume Three is stored); Volume Three's columns are drawn in blue.
+const gridDays = c => c.totalDays ?? 50;
+// With Volume Three a narrow empty track parts Day 50 from Day 51 (style.css
+// .with-v3), so a day's grid column is one further on from Day 51.
+const gridClass = c => `roster-grid${gridDays(c) >= VOLUME_THREE.firstDay ? ' with-v3' : ''}`;
+const gridColumn = n => n + 1 + (volumeThree(n) ? 1 : 0);
 function gridCells(c, days, kindOf) {
   const byDay = new Map(days.map(d => [d.number, d]));
-  return GRID_ROWS.map(([cat]) => Array.from({ length: 50 }, (_, i) => {
+  return GRID_ROWS.map(([cat]) => Array.from({ length: gridDays(c) }, (_, i) => {
     const n = i + 1;
     if (!(c.currentDay >= n)) return { n, cat, kind: 'coming' };
     const work = byDay.get(n)?.works.find(w => w.category === cat);
@@ -574,9 +582,10 @@ function progressGrid(c, days, kindOf, label, words = CELL_WORDS) {
   const rows = gridCells(c, days, kindOf);
   const count = kind => rows.flat().filter(x => x.kind === kind).length;
   const summary = Object.keys(words).filter(k => count(k)).map(k => `${count(k)} ${words[k]}`).join(', ');
-  return `<div class="roster-grid" role="img" aria-label="${esc(label)}, texts by day: ${summary}">${rows.map((row, i) =>
+  const gap = n => n === VOLUME_THREE.firstDay ? '<span class="volume-gap" aria-hidden="true"></span>' : '';
+  return `<div class="${gridClass(c)}" role="img" aria-label="${esc(label)}, texts by day: ${summary}">${rows.map((row, i) =>
     `<span class="grid-label" aria-hidden="true">${GRID_ROWS[i][1]}</span>${row.map(x =>
-      `<span class="cell ${x.kind}" title="Day ${idNumber(x.n)}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}${x.work ? `, “${esc(x.work.title)}”${x.work.author ? ` by ${esc(x.work.author)}` : ''}` : ''}: ${words[x.kind]}"></span>`).join('')}`).join('')}</div>`;
+      `${gap(x.n)}<span class="cell ${x.kind}${volumeThree(x.n) ? ' v3' : ''}" title="Day ${idNumber(x.n)}${volumeThree(x.n) ? ` (${VOLUME_THREE.name})` : ''}, ${dateLabel(addDays(c.startDate, x.n - 1))}, ${category[x.cat]}${x.work ? `, “${esc(x.work.title)}”${x.work.author ? ` by ${esc(x.work.author)}` : ''}` : ''}: ${words[x.kind]}"></span>`).join('')}`).join('')}</div>`;
 }
 const rosterGrid = (o, r, vis) => vis
   ? progressGrid(o.campaign, o.days, starKind(vis, r.uid), r.name, STAR_WORDS)
@@ -591,19 +600,24 @@ function myGrid(feed) {
     : progressGrid(feed.campaign, feed.days, checkKind(checks), 'You');
   return `<div class="my-grid">${gridSwitch('my-grid-view', stars)}${rosterLegend(feed.campaign, stars, true)}${grid}</div>`;
 }
-// The day axis (1, 10, 20 ... 50) sits once above the roster, on the same columns.
+// The day axis (1, 10, 20 ... 50, or to 75) sits once above the roster, on the
+// same columns; with Volume Three a blue band names days 51 to 75 above it.
 // `own` is the member's own grid: their own stars, no locked cells.
 function rosterLegend(c, stars = false, own = false) {
-  const ticks = [1, 10, 20, 30, 40, 50].map(n => `<span class="tick${n === 50 ? ' end' : ''}" style="grid-column: ${n === 50 ? '48 / 52' : `${n + 1} / span 4`}">${n}</span>`).join('');
+  const total = gridDays(c), v3 = total >= VOLUME_THREE.firstDay;
+  const marks = v3 ? [1, 10, 20, 30, 40, 50, 60, total] : [1, 10, 20, 30, 40, 50];
+  const ticks = marks.map(n => `<span class="tick${n === total ? ' end' : ''}${volumeThree(n) ? ' v3' : ''}" style="grid-column: ${n === total ? `${gridColumn(n) - (v3 ? 5 : 3)} / ${gridColumn(n) + 1}` : `${gridColumn(n)} / span 4`}">${n}</span>`).join('');
+  const band = v3 ? `<div class="${gridClass(c)} roster-axis volume-band" aria-hidden="true"><span class="grid-label"></span><span class="band" style="grid-column: ${gridColumn(VOLUME_THREE.firstDay)} / ${gridColumn(total) + 1}">${VOLUME_THREE.name}</span></div>` : '';
+  const v3Legend = !v3 ? '' : `<span class="legend-item"><span class="cell ${stars ? 'coming' : 'on'} v3" aria-hidden="true"></span>${stars ? '' : '<span class="cell late v3" aria-hidden="true"></span>'} ${VOLUME_THREE.name}, Days ${VOLUME_THREE.firstDay} to ${total}</span>`;
   const words = stars ? (own ? MY_STAR_WORDS : STAR_WORDS) : CELL_WORDS;
   const starNote = own ? ' Stars are the ones you gave, on texts you have finished.' : ' Stars show only on texts you have finished yourself: the same ratings you see under each text.';
   const legend = stars
     ? `<span class="legend-item legend-scale">0 ${['s0', 's1', 's2', 's3', 's4', 's5'].map(k => `<span class="cell ${k}" aria-hidden="true"></span>`).join('')} 5 stars</span>${(own ? ['none', 'coming'] : ['none', 'locked', 'coming']).map(k =>
       `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${words[k]}</span>`).join('')}`
     : ['on', 'late', 'none', 'coming'].map(k => `<span class="legend-item"><span class="cell ${k}" aria-hidden="true"></span> ${words[k]}</span>`).join('');
-  return `<p class="org-legend roster-legend">${legend}</p>
-    <p class="fine-print roster-key">One column per day, Day 1 to 50. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= 50 ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}${stars ? starNote : ''}</p>
-    <div class="roster-grid roster-axis" aria-hidden="true"><span class="grid-label"></span>${ticks}</div>`;
+  return `<p class="org-legend roster-legend">${legend}${v3Legend}</p>
+    <p class="fine-print roster-key">One column per day, Day 1 to ${total}${v3 ? `, ${VOLUME_THREE.name} (Days ${VOLUME_THREE.firstDay} to ${total}) in blue` : ''}. Rows: P poem, S story, E essay.${c.currentDay >= 1 && c.currentDay <= total ? ` Today is Day ${idNumber(c.currentDay)}.` : ''}${stars ? starNote : ''}</p>
+    ${band}<div class="${gridClass(c)} roster-axis" aria-hidden="true"><span class="grid-label"></span>${ticks}</div>`;
 }
 
 function renderOrganiser() {
@@ -646,7 +660,7 @@ function renderOrganiser() {
   shell(`<section class="feed-intro organiser"><div><p class="eyebrow">Organiser · ${esc(o.club.name)}</p><h1>Club progress</h1>
     <p class="intro-sub">You can see who has checked each text off, and when. You cannot see ratings, thoughts, drafts or reading progress; members are told this in “How it works”. The roster’s Stars view shows only the ratings you already see as a member, on texts you have finished.</p></div></section>
     <dl class="org-facts"><div><dt>Day 01</dt><dd>${c ? dateLabel(c.startDate) : 'Not set yet'}</dd></div><div><dt>Club timezone</dt><dd>${c ? `${esc(zone)} (${esc(c.timezone)})` : 'Not set yet'}</dd></div>
-      <div><dt>Today</dt><dd>${c && c.currentDay >= 1 ? `Day ${idNumber(Math.min(c.currentDay, 50))} of 50` : 'Not started'}</dd></div><div><dt>Members</dt><dd>${members.length}</dd></div></dl>
+      <div><dt>Today</dt><dd>${c && c.currentDay >= 1 ? `Day ${idNumber(Math.min(c.currentDay, gridDays(c)))} of ${gridDays(c)}` : 'Not started'}</dd></div><div><dt>Members</dt><dd>${members.length}</dd></div></dl>
     ${c && !c.editable ? '<p class="fine-print">The start date and timezone are fixed now that the programme has started.</p>' : ''}
     ${!c || c.editable ? scheduleForm(c) : ''}
     ${todayTable}${grid}${roster}

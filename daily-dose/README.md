@@ -35,7 +35,7 @@ read it, and accept a change only when it equals the owner's own private row
 after the write, so nobody can forge or hide another member's checkmark.
 Ratings, thoughts, drafts and reader progress stay in the private rows, which
 the organiser cannot read. The roster draws the same record as a grid per
-member (50 day columns, rows poem, story, essay; on the day, catch-up, not
+member (50 day columns, 75 with Volume Three, rows poem, story, essay; on the day, catch-up, not
 checked off, coming), built in the client from `days` and `checks`, so no
 extra reads. Each member also sees their own grid, same code and legend, in
 the progress strip at the top of the reading page, built from their own feed
@@ -236,6 +236,25 @@ remain in the private editorial workspace's ignored `data/` directory.
 - `scripts/seed-firestore.mjs`: prepares the BBC programme and 150 sanitised
   texts; `--apply` commits 451 create-only documents atomically. Existing data
   causes the entire operation to abort. Never overwrite a programme to redeploy.
+- `scripts/seed-volume-three.mjs`: adds Volume Three (Days 51 to 75) to the
+  running programme from the private export (`webapp/export_volume3.py` in the
+  workspace, `webapp/data/volume-3.json`) and `descriptions.json`. Dry run by
+  default (`--out FILE` keeps the plan); `--apply` commits 151 writes at once:
+  75 create-only works (with description, openAt, closeAt), 75 create-only
+  texts, and the programme's `boundaries` (51 to 76) and `dayWorkIds` (50 to
+  75) under an update mask and an update-time precondition. Nothing of Days 1
+  to 50 is written. The plan is `scripts/volume-three.mjs` (tested in
+  `test/volumes.test.mjs`); the test bed uses it with `VOLUME3=1`
+  (`DAY1_OFFSET=52` makes today Day 53).
+
+### Volume Three
+
+The client takes the programme's length from `boundaries` (`client/volumes.mjs`),
+so it shows 50 days until the seed runs and 75 after. The grids draw Days 51 to
+75 in slate blue after a narrow gap, under a "Volume Three" band; the Stars view
+keeps the rust scale on rated cells. The rules allow 225 texts in completions,
+seen and rankings (was 150); deploy them with `scripts/update-rules.mjs` before
+anyone can check off a 151st text, that is before Day 51.
 - `scripts/firebase-operator.mjs`: local operator tooling using the existing
   Firebase CLI credential in memory. It is not imported into the browser bundle.
 

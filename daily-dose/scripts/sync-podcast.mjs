@@ -33,7 +33,8 @@ do {
   for (const d of page.documents || []) works.push({ id: d.name.split('/').at(-1), day: Number(d.fields.day.integerValue), category: d.fields.category.stringValue, title: d.fields.title.stringValue });
   pageToken = page.nextPageToken || '';
 } while (pageToken);
-if (works.length !== 150) throw new Error(`Expected 150 works, found ${works.length}.`);
+// 150 texts for Days 1 to 50, 225 once Volume Three (Days 51 to 75) is stored.
+if (![150, 225].includes(works.length)) throw new Error(`Expected 150 or 225 works, found ${works.length}.`);
 
 const response = await fetch(feedUrl, { signal: AbortSignal.timeout(60000) });
 if (!response.ok) throw new Error(`Feed: HTTP ${response.status}`);

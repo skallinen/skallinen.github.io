@@ -95,6 +95,27 @@ for (const raw of anthology.works) {
 }
 store.close();
 
+// 4b. Volume Three (VOLUME3=1, or VOLUME3=path): Days 51 to 75 added the way
+// scripts/seed-volume-three.mjs adds them in production (same plan), from the
+// private export next to the anthology (webapp/data/volume-3.json). Off by
+// default, so the test bed stays at 50 days unless asked. With
+// DAY1_OFFSET=52 today is Day 53, three days into Volume Three.
+if (process.env.VOLUME3) {
+  const { planVolumeThree } = await import('../scripts/volume-three.mjs');
+  const volumePath = process.env.VOLUME3 !== '1' ? process.env.VOLUME3 : join(dirname(anthologyPath), 'volume-3.json');
+  const volume = JSON.parse(readFileSync(volumePath, 'utf8'));
+  const programme = writes.find(([p]) => p === base)[1];
+  const plan = planVolumeThree({ volume, descriptions, existingIds: anthology.works.map(w => w.id),
+    programme: { startDate, timezone, boundaries, dayWorkIds: programme.dayWorkIds } });
+  programme.boundaries = plan.boundaries.map(ts);
+  programme.dayWorkIds = plan.dayWorkIds;
+  for (const w of plan.works) {
+    set(`${base}/works/${w.id}`, { ...w.work, openAt: ts(w.openAt), closeAt: ts(w.closeAt), revealedAt: null });
+    set(`${base}/texts/${w.id}`, w.text);
+  }
+  anthology.works.push(...volume.works);
+}
+
 // 5. A little earlier activity by the background members, so a tester who
 // submits a response has peers to see. Shapes satisfy rowShape().
 const hour = 3600000;
