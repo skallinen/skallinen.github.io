@@ -17,18 +17,23 @@ export function probit(p) {
   return sign * (t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t));
 }
 
-// The ranked score of position i (0 = top) in a list of n: Bookrank's bell
-// curve (midpoint quantiles, docs/contexts/ranking/scoring.md section 1),
-// rescaled to 2..5 instead of 1..5. Top 5.0, bottom 2.0, n = 1 gives 3.5, and
-// the scores of a list average exactly 3.5. Null for an empty list.
-export const RANK_LOW = 2, RANK_HIGH = 5;
-export function rankScore(i, n) {
+// The score of position i (0 = top) in a list of n on Bookrank's bell curve
+// (midpoint quantiles, docs/contexts/ranking/scoring.md section 1), rescaled
+// to low..high: the top gets high, the bottom low, n = 1 the middle, and the
+// scores of a list average exactly the middle. A fractional i (the mean place
+// of a tie) is allowed. Null for an empty list. Desert island uses 1..5
+// (client/desert-island.mjs).
+export function quantileScore(i, n, low, high) {
   if (!(n > 0)) return null;
-  if (n === 1) return (RANK_LOW + RANK_HIGH) / 2;
+  if (n === 1) return (low + high) / 2;
   const z = probit(1 - (i + 0.5) / n), zMax = probit(1 - 0.5 / n), zMin = probit(0.5 / n);
-  const raw = RANK_LOW + (RANK_HIGH - RANK_LOW) * (z - zMin) / (zMax - zMin);
-  return Math.max(RANK_LOW, Math.min(RANK_HIGH, raw));
+  const raw = low + (high - low) * (z - zMin) / (zMax - zMin);
+  return Math.max(low, Math.min(high, raw));
 }
+// My ranking's score: the same curve on 2..5 instead of 1..5. Top 5.0,
+// bottom 2.0, n = 1 gives 3.5, and the scores of a list average exactly 3.5.
+export const RANK_LOW = 2, RANK_HIGH = 5;
+export const rankScore = (i, n) => quantileScore(i, n, RANK_LOW, RANK_HIGH);
 export const scoreLabel = s => s == null ? '' : s.toFixed(1);
 // The whole stars a ranked score sets: the nearest whole star, halves up
 // (3.5 becomes 4). The tiny allowance keeps a computed 3.4999999999 a half.

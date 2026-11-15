@@ -713,3 +713,94 @@ test('browser adapter: the organiser saves her ranking, her other device sees it
     await assert.rejects(alice.request('/clubs/club/ranking', { method: 'POST', body: { order: ['../x'] } }), /Unknown ranking/);
   } finally { alice.reset(); alice2.reset(); bob.reset(); }
 });
+
+// Desert island: one private list of pairwise choices per member, readable and
+// writable only by its owner; every member may have one, the organiser included.
+const islandRef = (d, u) => doc(d, `${base}/desertIsland/${u}`);
+const choose = (uid, choices, owner = uid) => setDoc(islandRef(db(uid), owner), { choices, updatedAt: serverTimestamp() });
+const pick = (w, l, at = 1) => ({ w, l, at });
+
+test('desert island: only its owner reads and writes it, any member may, in shape', async () => {
+  await assertSucceeds(choose('bob', []));
+  await assertSucceeds(choose('bob', [pick('today', 'past')]));
+  await assertSucceeds(choose('bob', [pick('today', 'past'), pick('past', 'today', Date.now())]));  // an update
+  await assertSucceeds(choose('bob', [pick('today', 'past')]));                                     // undo: the newest removed
+  await assertSucceeds(choose('cara', [pick('past', 'today')]));                                    // not organiser-only
+  await assertSucceeds(choose('alice', [pick('past', 'today')]));                                   // the organiser has her own
+  assert.deepEqual((await assertSucceeds(getDoc(islandRef(db('bob'), 'bob')))).data().choices, [pick('today', 'past')]);
+  // Nobody else reads, lists or writes it: not another member, not the organiser.
+  await assertFails(getDoc(islandRef(db('alice'), 'bob')));
+  await assertFails(getDoc(islandRef(db('cara'), 'bob')));
+  await assertFails(getDoc(islandRef(db('bob'), 'alice')));
+  await assertFails(getDocs(collection(db('alice'), `${base}/desertIsland`)));
+  await assertFails(getDocs(collection(db('bob'), `${base}/desertIsland`)));
+  await assertFails(choose('alice', [], 'bob'));
+  await assertFails(choose('cara', [pick('today', 'past')], 'bob'));
+  await assertFails(deleteDoc(islandRef(db('bob'), 'bob')));
+  // Bad shapes: not a list, too long, extra fields, a client or no time, a bad newest choice.
+  await assertFails(setDoc(islandRef(db('bob'), 'bob'), { choices: 'today>past', updatedAt: serverTimestamp() }));
+  await assertFails(choose('bob', Array.from({ length: 5001 }, (_, i) => pick('today', 'past', i))));
+  await assertSucceeds(choose('bob', Array.from({ length: 5000 }, (_, i) => pick('today', 'past', i))));
+  await assertFails(setDoc(islandRef(db('bob'), 'bob'), { choices: [], updatedAt: serverTimestamp(), stars: { today: 5 } }));
+  await assertFails(setDoc(islandRef(db('bob'), 'bob'), { choices: [], updatedAt: Timestamp.now() }));
+  await assertFails(setDoc(islandRef(db('bob'), 'bob'), { choices: [] }));
+  for (const bad of [pick('today', 'today'), pick('../x', 'past'), pick('today', 'past', 1.5), pick('today', 'past', '1'),
+    { w: 'today', l: 'past' }, { ...pick('today', 'past'), rating: 5 }, 'today>past', 7])
+    await assertFails(choose('bob', [pick('today', 'past'), bad]), JSON.stringify(bad));
+  // Signed out, outsiders and departed members: nothing.
+  for (const uid of [null, 'outsider']) {
+    await assertFails(getDoc(islandRef(db(uid), 'bob')));
+    await assertFails(choose(uid, [], uid || 'anon'));
+  }
+  await env.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), 'clubs/club/members/bob')));
+  await assertFails(getDoc(islandRef(db('bob'), 'bob')));
+  await assertFails(choose('bob', []));
+});
+
+test('browser adapter: a member saves desert island choices, her other device sees them, nobody else does, no rating changes', { timeout: 20000 }, async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const d = ctx.firestore(), now = Date.now();
+    await updateDoc(doc(d, base), { startDate: new Date(now).toISOString().slice(0, 10), timezone: 'UTC', boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 3600000 + i * 86400000)) });
+    for (const [id, category] of [['today', 'poem'], ['past', 'story']]) await updateDoc(workRef(d, id), { category, title: `Test ${category}`, author: 'Author', country: 'Finland', year: '2026', minutes: 1 });
+  });
+  const client = uid => createFirestoreBackend(null, () => ({ uid, displayName: uid }), db(uid)._delegate);
+  const bob = client('bob'), bob2 = client('bob'), alice = client('alice');
+  const feed = c => c.request('/clubs/club/feed');
+  try {
+    const act = body => bob.request('/clubs/club/works/today', { method: 'POST', body });
+    await act({ action: 'complete' }); await act({ action: 'rate', rating: 2 });
+    assert.deepEqual((await feed(bob)).desertIsland, { choices: null }, 'never saved: no choices, not "unavailable"');
+    assert.deepEqual((await feed(alice)).desertIsland, { choices: null }, 'the organiser sees only her own (none)');
+    const choices = [pick('today', 'past', 1), pick('past', 'today', 2)];
+    await bob.request('/clubs/club/desert-island', { method: 'POST', body: { choices } });
+    assert.deepEqual((await feed(bob)).desertIsland, { choices });
+    for (let i = 0; i < 60 && (await feed(bob2)).desertIsland?.choices?.length !== 2; i++) await new Promise(r => setTimeout(r, 50));
+    assert.deepEqual((await feed(bob2)).desertIsland, { choices });
+    assert.deepEqual((await feed(alice)).desertIsland, { choices: null });
+    // Choosing never touches the rating.
+    assert.equal((await feed(bob)).days.flatMap(d => d.works).find(w => w.id === 'today').mine.rating, 2);
+    await bob.request('/clubs/club/desert-island', { method: 'POST', body: { choices: choices.slice(0, 1) } });
+    assert.deepEqual((await feed(bob)).desertIsland, { choices: choices.slice(0, 1) });
+    await assert.rejects(bob.request('/clubs/club/desert-island', { method: 'POST', body: { choices: [pick('today', 'today')] } }), /Unknown choices/);
+    await assert.rejects(bob.request('/clubs/club/desert-island', { method: 'POST', body: { choices: [pick('../x', 'past')] } }), /Unknown choices/);
+  } finally { bob.reset(); bob2.reset(); alice.reset(); }
+});
+
+test('browser adapter without desert island rules: the feed says so (null) and a save is refused', { timeout: 15000 }, async () => {
+  const without = fullRules.replace(/match \/desertIsland\/\{uid\} \{[\s\S]*?newestChoice\(\)\.at is int\)\);\n      \}/, '');
+  assert.doesNotMatch(without, /desertIsland/);
+  const old = await initializeTestEnvironment({ projectId: 'demo-daily-dose-noisland', firestore: { host: '127.0.0.1', port: 8189, rules: without } });
+  try {
+    await old.withSecurityRulesDisabled(async ctx => {
+      const d = ctx.firestore();
+      await setDoc(doc(d, 'clubs/club'), { name: 'Test club', member_uids: ['alice'] });
+      await setDoc(doc(d, 'clubs/club/members/alice'), { display_name: 'alice' });
+      await setDoc(doc(d, base), { organizerUids: ['alice'], participantUids: ['alice'], startDate: null });
+    });
+    const alice = createFirestoreBackend(null, () => ({ uid: 'alice', displayName: 'alice' }), old.authenticatedContext('alice').firestore()._delegate);
+    try {
+      assert.equal((await alice.request('/clubs/club/feed')).desertIsland, null);
+      await assert.rejects(alice.request('/clubs/club/desert-island', { method: 'POST', body: { choices: [] } }), /Not available/);
+    } finally { alice.reset(); }
+  } finally { await old.cleanup(); }
+});

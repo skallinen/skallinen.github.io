@@ -10,6 +10,7 @@ import { episodeFor, chapterAt, clock } from './podcast.mjs';
 import { reactionBar, setReaction, newReactions, meMarker } from './reactions.mjs';
 import { rankOrder, rankScores, starChanges, rankLine, rankItem } from './ranking.mjs';
 import { descriptionHtml } from './description.mjs';
+import { results, nextPair, pairKey, addChoice, validChoice, drawSeed, islandCard, islandRow } from './desert-island.mjs';
 import { startDrag, step } from './drag.mjs';
 import { VOLUME_THREE, volumeThree } from './volumes.mjs';
 
@@ -36,7 +37,12 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // My ranking (organiser-only for now): an order moved here and not saved yet,
   // what the save line says, whether a drag is under way, and the text whose
   // description a tap has opened.
-  rankPending: null, rankStatus: '', dragging: false, rankTip: null };
+  rankPending: null, rankStatus: '', dragging: false, rankTip: null,
+  // Desert island: the pair on screen, the pair shown just before (never twice
+  // in a row), choices not yet saved to the account, the save line, the tab.
+  islandPair: null, islandLast: null, islandPending: null, islandStatus: '', islandTab: 'choose',
+  // The text whose description a tap on its ⓘ has opened in Desert island.
+  islandTip: null };
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -188,6 +194,7 @@ function routeFromUrl() {
   const h = decodeURIComponent(location.hash.slice(1));
   if (h === 'organiser') return { view: 'organiser', filter: 'all' };
   if (h === 'ranking') return { view: 'ranking', filter: 'all' };
+  if (h === 'desert-island') return { view: 'island', filter: 'all' };
   return { view: 'feed', filter: FILTERS.includes(h) ? h : 'all' };
 }
 // Filters replace the current history entry (Back does not walk through them);
@@ -312,6 +319,7 @@ async function signedIn(user, demoToken = null) {
   state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
   queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
   state.rankPending = null; state.rankStatus = ''; clearTimeout(rankTimer); rankTimer = 0;
+  state.islandPending = null; state.islandStatus = ''; state.islandPair = null; state.islandLast = null; state.islandTip = null; clearTimeout(islandTimer); islandTimer = 0;
   if (!user) { state.clubs = []; state.clubId = null; login(); return; }
   shell('<section class="loading">Finding your book club…</section>');
   try {
@@ -372,6 +380,7 @@ function render() {
   if (!feed) return;
   if (state.view === 'organiser' && state.organiser) return renderOrganiser();
   if (state.view === 'ranking' && feed.campaign) return renderRanking();
+  if (state.view === 'island' && feed.campaign) return renderIsland();
   if (!feed.campaign) {
     shell(`<section class="empty"><p class="eyebrow">${esc(feed.club.name)}</p><h1>Every story has<br>a beginning.</h1>
       ${feed.organizer ? scheduleForm(null) : '<p>Your organiser will set Day 1. Nothing is open yet.</p>'}
@@ -403,7 +412,7 @@ function render() {
 const shown = w => state.filter === 'all' ||
   (state.filter === 'unread' ? w.mine?.status !== 'done' || state.sticky.has(w.id) : w.category === state.filter);
 function personalStrip(feed) {
-  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) + rankingLink() + myGrid(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
+  return `<section class="personal-strip" aria-label="Your progress">${feed.campaign.currentDay >= 1 ? progressLines(feed) + rankingLink() + islandLink() + myGrid(feed) : ''}<p class="timezone">Days change at midnight, ${esc(zoneLabel(feed.campaign.timezone))}.</p></section>`;
 }
 function filterBar() {
   const unreadCount = allWorks().filter(w => w.mine?.status !== 'done').length;
@@ -798,6 +807,159 @@ document.addEventListener('keydown', event => {
   event.preventDefault();
   if (step(handle.closest('[data-rank-id]'), event.key === 'ArrowUp' ? -1 : 1)) { paintPlaces(); handle.focus(); rankMoved(); }
 });
+
+// ---------- Desert island (client/desert-island.mjs, SPEC.md "Desert
+// island"). For every member: of two texts they have checked off, which one
+// would they take to a desert island? The choices build a Bayesian ranking
+// that suggests stars from 1 to 5 next to their own. Nothing here writes a
+// rating. The choices are kept in the account (desertIsland/{uid}) when the
+// rules allow it, and always on this device.
+const islandPool = () => allWorks().filter(w => w.mine?.status === 'done');
+function savedChoices() {
+  if (state.islandPending) return state.islandPending;
+  const account = state.feed?.desertIsland?.choices;
+  if (Array.isArray(account)) return account.filter(validChoice);
+  const local = store.json(localKey('island', 'choices'));
+  return Array.isArray(local) ? local.filter(validChoice) : [];
+}
+// The fit and its draws take a few to tens of milliseconds: once per history.
+let islandMemo = { key: null, value: null };
+function islandModel() {
+  const pool = islandPool().map(w => w.id), choices = savedChoices(), last = choices.at(-1);
+  const key = `${pool.join(',')}|${choices.length}|${last ? `${last.w}>${last.l}@${last.at}` : ''}`;
+  if (islandMemo.key !== key) islandMemo = { key, value: results(pool, choices, { seed: drawSeed(state.feed?.me?.uid, choices, pool) }) };
+  return { pool, choices, ...islandMemo.value };
+}
+// The pair on screen stays until it is answered or skipped.
+function islandPair(m) {
+  const [a, b] = state.islandPair || [];
+  if (a && b && a !== b && m.pool.includes(a) && m.pool.includes(b)) return state.islandPair;
+  state.islandPair = nextPair(m.pool, m.choices, { last: state.islandLast, posterior: m.posterior });
+  return state.islandPair;
+}
+function islandLink() {
+  if (!state.feed?.campaign) return '';
+  const n = islandPool().length, made = savedChoices().length;
+  return `<p class="island-link"><button class="text-button" data-nav="desert-island">Desert island</button> <span>${n < 2 ? 'Check off two texts to play' : made ? `${plural(made, 'choice')} so far` : 'Which text would you keep?'}</span></p>`;
+}
+function islandContent() {
+  const m = islandModel(), tab = state.islandTab;
+  const tabs = `<div class="filters island-tabs" role="group" aria-label="Desert island shows">${[['choose', 'Choose'], ['results', 'Results']].map(([key, label]) =>
+    `<button data-island-tab="${key}" class="filter ${tab === key ? 'active' : ''}" aria-pressed="${tab === key}">${label}</button>`).join('')}</div>`;
+  const status = `<span class="rank-status" aria-live="polite">${esc(state.islandStatus)}</span>`;
+  const count = `${plural(m.used, 'choice')}${m.choices.length > m.used ? ` (${m.choices.length - m.used} more set aside: a text in them is no longer checked off)` : ''}`;
+  let body;
+  if (m.pool.length < 2) body = '<section class="empty compact"><h2>Check off two texts first.</h2><p>The game compares texts you have read. Check off at least two and come back.</p></section>';
+  else if (tab === 'results') {
+    const settled = `${m.single} of ${plural(m.rows.length, 'text')} ${m.single === 1 ? 'has' : 'have'} one likely star; on average a text’s likely range spans ${m.width.toFixed(1)} stars.`;
+    body = `<p class="rank-note">${m.used ? `From ${count}. ${settled}` : 'No choices yet, so every text sits in the middle (3 ★) and could land anywhere.'}</p>
+      <ol class="rank-list island-results">${m.rows.map(r => islandRow(currentWork(r.id), r, state.islandTip === r.id)).join('')}</ol>`;
+  } else {
+    const [a, b] = islandPair(m);
+    body = `<h2 class="island-question">Which one would you take to a desert island?</h2>
+      <div class="island-pair">${islandCard(currentWork(a), b, state.islandTip === a)}<span class="island-or" aria-hidden="true">or</span>${islandCard(currentWork(b), a, state.islandTip === b)}</div>
+      <div class="rank-bar island-bar"><span class="island-count">${count}</span>${status}</div>
+      <div class="island-actions"><button class="secondary" data-action="island-skip">Skip, I cannot decide</button><button class="secondary" data-action="island-undo" ${m.choices.length ? '' : 'disabled'}>Undo last choice</button></div>`;
+  }
+  return `<section class="feed-intro ranking-intro"><div><p class="eyebrow">Desert island · only you see your choices</p><h1>Desert island</h1>
+    <p class="intro-sub">Two texts you have read. Keep one. After enough choices a ranking appears, with suggested stars and how sure it is.</p></div></section>
+    ${islandHelp()}${tabs}${body}
+    <p><button class="secondary" data-nav="">Back to readings</button></p>`;
+}
+// "How this works", closed until opened (kept open across redraws, like "How it works").
+function islandHelp() {
+  const open = state.openDetails.has('island-help') ? 'open' : '';
+  return `<details class="help island-help" data-details="island-help" ${open}><summary>How this works</summary>
+    <p>You see two texts you have checked off. Tap the one you would take to a desert island. Each choice is one more piece of evidence about which texts you value most. Not sure? Skip records nothing. Undo takes your last choice back.</p>
+    <p>Every text starts equal: your stars play no part. The ranking is worked out afresh from all your choices together (Bayesian inference), so their order does not matter, and it says how sure it is: the ± after a text’s strength is its uncertainty, which shrinks as you choose more.</p>
+    <p>The suggested stars follow the ranking on a bell curve: the top gets 5, the bottom 1, the middle 3. “Likely 2 to 4 ★” means the text lands there 8 times in 10, given your choices so far. The next pair is one your answer will tell the most about.</p>
+    <p>Desert island never changes your stars; they stay as you set them. Only you see your choices and results: not the other members, not the organiser.</p></details>`;
+}
+function renderIsland() { shell(islandContent()); }
+function paintIsland() {
+  const main = root.querySelector('#main');
+  if (state.view !== 'island' || !main) return;
+  morph(main, fragment(`<main id="main">${islandContent()}</main>`));
+}
+let islandTimer = 0, islandSeq = 0;
+// A choice, a skip or an undo: the new history is kept on the device at once
+// and written to the account half a second after the last one.
+function setChoices(choices) {
+  state.islandPending = choices;
+  store.set(localKey('island', 'choices'), JSON.stringify(choices));
+  state.islandStatus = 'Saving…';
+  clearTimeout(islandTimer);
+  islandTimer = setTimeout(() => saveIsland().catch(e => notify(e.message, true)), 500);
+}
+async function saveIsland() {
+  clearTimeout(islandTimer); islandTimer = 0;
+  const choices = state.islandPending || savedChoices(), seq = ++islandSeq, clubId = state.clubId, generation = state.generation;
+  let onDevice = !state.feed?.desertIsland, failed = null;
+  if (!onDevice) {
+    try { await api(`/clubs/${clubId}/desert-island`, { method: 'POST', body: { choices } }); if (state.feed?.desertIsland && clubId === state.clubId) state.feed.desertIsland = { choices }; }
+    catch (e) { if (/Not available/.test(e.message)) { onDevice = true; if (state.feed) state.feed.desertIsland = null; } else failed = e; }
+  }
+  if (generation !== state.generation || seq !== islandSeq) return;
+  if (!failed) state.islandPending = null;
+  state.islandStatus = failed ? 'Not saved to your account yet; kept on this device.' : onDevice ? 'Saved on this device.' : 'Saved.';
+  const s = root.querySelector('.island-bar .rank-status');
+  if (s) s.textContent = state.islandStatus;
+  if (failed) notify(failed.message || 'Could not save. Please try again.', true);
+}
+function chooseIsland(winner, loser) {
+  if (!currentWork(winner) || !currentWork(loser)) return;
+  setChoices(addChoice(savedChoices(), winner, loser, Date.now()));
+  state.islandLast = pairKey(winner, loser); state.islandPair = null; state.islandTip = null;
+  paintIsland();
+  root.querySelector('.island-choose')?.focus();
+}
+function skipIsland() {
+  const [a, b] = state.islandPair || [];
+  if (a && b) state.islandLast = pairKey(a, b);
+  state.islandPair = null; state.islandStatus = ''; state.islandTip = null;
+  paintIsland();
+  root.querySelector('.island-choose')?.focus();
+  notify('Skipped. Nothing recorded.');
+}
+// Undo takes the newest choice back and shows that pair again.
+// A tapped ⓘ shows its description until it is tapped again, another is
+// tapped, Escape, a tap elsewhere or a choice. Toggled in place, kept in
+// state.islandTip so a redraw keeps it. It never chooses the card.
+function setIslandTip(id) {
+  state.islandTip = id;
+  for (const box of root.querySelectorAll('[data-island-tipbox]')) {
+    const open = box.dataset.islandTipbox === id;
+    box.classList.toggle('tip-open', open);
+    box.classList.remove('tip-closed');
+    box.querySelector('[data-island-tip]')?.setAttribute('aria-expanded', String(open));
+  }
+}
+document.addEventListener('click', event => {
+  if (!state.islandTip || event.target.closest?.('[data-island-tip]')) return;
+  setIslandTip(null);
+});
+// Escape also hides a description shown by hover or focus until the ⓘ is
+// entered or focused again.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || state.view !== 'island') return;
+  if (state.islandTip) setIslandTip(null);
+  for (const t of root.querySelectorAll('[data-island-tip]:hover, [data-island-tip]:focus')) t.closest('[data-island-tipbox]').classList.add('tip-closed');
+});
+const reopenIslandTip = event => {
+  const t = event.target.closest?.('[data-island-tip]');
+  if (t && !t.contains(event.relatedTarget)) t.closest('[data-island-tipbox]')?.classList.remove('tip-closed');
+};
+document.addEventListener('focusin', reopenIslandTip);
+document.addEventListener('pointerover', reopenIslandTip);
+function undoIsland() {
+  const choices = savedChoices(), last = choices.at(-1);
+  if (!last) return;
+  setChoices(choices.slice(0, -1));
+  state.islandPair = currentWork(last.w) && currentWork(last.l) ? [last.w, last.l] : null;
+  state.islandLast = null; state.islandTip = null;
+  paintIsland();
+  notify(`Last choice undone: ${currentWork(last.w)?.title ?? 'a text'} over ${currentWork(last.l)?.title ?? 'a text'}.`);
+}
 
 // ---------- refresh and actions, keeping the page steady around the card in use
 function anchor(id) {
@@ -1366,6 +1528,9 @@ async function run(event) {
   if (button.dataset.playDay) return listen(Number(button.dataset.playDay), button.dataset.playWork || null);
   if (button.dataset.playerClose !== undefined) { stopPlayer(); return; }
   if (button.dataset.news !== undefined) { showNews(); return; }
+  if (button.dataset.islandPick) return chooseIsland(button.dataset.islandPick, button.dataset.islandOther);
+  if (button.dataset.islandTip) { setIslandTip(state.islandTip === button.dataset.islandTip ? null : button.dataset.islandTip); return; }
+  if (button.dataset.islandTab) { state.islandTab = button.dataset.islandTab; state.islandTip = null; paintIsland(); return; }
   if (button.dataset.rankTip) { setRankTip(state.rankTip === button.dataset.rankTip ? null : button.dataset.rankTip); return; }
   if (button.dataset.reactOpen) {
     const id = button.dataset.reactOpen, author = button.dataset.author, key = `${id}|${author}`;
@@ -1438,6 +1603,8 @@ async function run(event) {
     }
     case 'retry': return signedIn(state.user, state.demoToken);
     case 'save-ranking': return saveRanking();
+    case 'island-skip': return skipIsland();
+    case 'island-undo': return undoIsland();
     case 'refresh': { const a = anchor(null); await refresh(); settle(a); notify('Up to date: the latest responses are shown.'); return; }
     case 'advance': await api('/demo/advance', { method: 'POST' }); await refresh(); notify('Demo moved forward one day.'); return;
   }
@@ -1476,7 +1643,7 @@ document.addEventListener('focusout', event => {
 document.addEventListener('change', event => {
   if (event.target.id !== 'club-select') return;
   flushDrafts().finally(() => {
-    state.generation++; state.clubId = event.target.value; state.drafts.clear(); state.ratingDrafts.clear(); state.organiser = null; closeReader();
+    state.generation++; state.clubId = event.target.value; state.islandPending = null; state.islandPair = null; state.islandLast = null; state.drafts.clear(); state.ratingDrafts.clear(); state.organiser = null; closeReader();
     queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
     state.rankPending = null; state.rankStatus = ''; clearTimeout(rankTimer); rankTimer = 0;
     store.set(`daily-dose-club:${state.user.uid}`, state.clubId);

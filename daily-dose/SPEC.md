@@ -155,12 +155,71 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   device only; the device always keeps a copy, used when the account copy is
   unavailable. Cost: one listener on one's own document; per save, one write
   for the order and one per text whose stars change.
+- Desert island, a ranking game for every member (not only organisers), opened
+  from "Desert island" in the progress strip (address `#desert-island`), with
+  "Back to readings". It shows two texts the member has checked off, side by
+  side (stacked on a phone): type, day, title and author. Each card has an
+  ⓘ button for the text's description, closed at first so the cards stay
+  compact, as on My ranking: hover or keyboard focus shows it on a desktop, a
+  tap opens and closes it on a phone (as do Escape, a tap elsewhere, another
+  ⓘ or a choice); the results list has the same ⓘ by each title. A tap on the
+  ⓘ never chooses: only the card's own button does.
+  The question: "Which one would you take to a desert island?" A tap on a card
+  chooses it; "Skip, I cannot decide" records nothing and shows another pair;
+  "Undo last choice" takes the newest choice back and shows that pair again.
+  At least two checked-off texts are needed. Each member sees only their own
+  choices and results. "How this works", closed until opened (like "How it
+  works" on the reading page), says in plain words what a choice does, that
+  every text starts equal, that the ranking comes from all the choices
+  together, what the likely star range means, that the game never changes
+  one's stars, and that nobody else, the organiser included, sees the choices.
+  The model is a Bayesian Bradley-Terry: each text has a strength theta_i with
+  the same prior for every text, theta_i ~ N(0, 1), independent (flat: the
+  member's stars play no part), and a choice of i over j has the likelihood
+  P(i over j) = logistic(theta_i - theta_j). Every choice is one more
+  observation. The posterior is fitted afresh from the whole history (so the
+  order of the choices does not matter): Newton's method to the most probable
+  strengths, then the Laplace approximation (a normal with the inverse Hessian
+  as covariance). A text no longer checked off drops out; its old choices stay
+  stored but do not count while it is out.
+  The next pair is chosen actively: each pair is worth the variance its answer
+  is expected to remove from the gap between the two, q v^2 / (1 + q v), with
+  q = p (1 - p), p = P(i over j) at the posterior mean and v the posterior
+  variance of theta_i - theta_j. So uncertain, informative pairs come first and
+  a text with few comparisons (a wide posterior) comes up soon. The pick is
+  random among the best eight, in proportion to worth, and never the pair just
+  shown (unless it is the only one).
+  "Results" lists the texts by posterior mean, each with suggested stars from
+  its place on My ranking's bell curve stretched to 1 to 5 instead of 2 to 5:
+  stars = round(1 + 4 (z(i) - z_min) / (z_max - z_min)), halves up, so the top
+  gets 5, the bottom 1, the middle 3 (texts with equal means share their mean
+  place, so with no choices every text gets 3). Beside them: the member's own
+  current stars, the likely range (the middle 80 % of 400 draws from the
+  posterior, each draw ranked and mapped the same way; seeded by the member and
+  the history, so it does not change between redraws), the strength with its
+  posterior SD, and how many choices and wins. A line above says how many
+  choices count and how settled the list is (texts with a single likely star,
+  the mean width of the ranges). Desert island never writes a rating: there is
+  no apply button, the stars are only suggested.
+  Stored as `desertIsland/{uid}`: `choices` = the list of { w: chosen text id,
+  l: the other, at: the client's time in ms }, oldest first, and `updatedAt`.
+  Only the owner reads or writes it (the organiser has no bypass); at most 5000
+  choices (the newest are kept); the newest choice must be in shape (two
+  different text ids, an integer time), as rules cannot check every entry;
+  the client validates them all (Firestore-enforced where it can be). Until
+  the rules are deployed, the choices are kept on this device only; the device
+  always keeps a copy, used when the account copy is unavailable. Cost: one
+  listener on one's own document; one write of the whole list half a second
+  after the last choice (a skip writes nothing). Computing takes a
+  few to tens of milliseconds in the browser (225 texts and 2000 choices:
+  about 60 ms), once per history.
 - Descriptions: each text has a short description, a refresher of at most
   280 Unicode code points (one tweet) on what it is about and what stands
   out, in English like the texts, written from the text itself. It is shown
   only to a reader who has checked the text off: on the reading page, under
   the byline of the text's card, from the moment of the checkmark (Mark as
-  unread hides it again); and on My ranking as a tooltip on each text's
+  unread hides it again); behind an ⓘ on Desert island's cards and results;
+  and on My ranking as a tooltip on each text's
   title (marked ⓘ), so the list stays one line per text. The tooltip shows
   on hover or keyboard focus, and a tap on the title opens it on a phone
   and closes it again (as do Escape, a tap elsewhere, another title or a

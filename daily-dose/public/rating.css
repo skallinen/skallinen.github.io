@@ -60,3 +60,45 @@
 .rank-score.score-high { color: #1f4a2c; background: #e3efe2; }
 .rank-score.score-mid { color: #6a4a0c; background: #f6ecd3; }
 .rank-score.score-low { color: #7d2518; background: #f6e2dc; }
+
+/* Desert island (every member): two texts side by side, stacked on a phone;
+   a tap on a card chooses it. The results reuse the ranking list's rows. */
+.island-tabs { margin: 0 0 1rem; }
+.island-question { font: normal 1.5rem/1.25 var(--serif, Georgia, serif); margin: .5rem 0 1rem; }
+.island-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: .75rem; margin-bottom: 1rem; }
+.island-or { align-self: center; font: italic 1.125rem var(--serif, Georgia, serif); color: var(--muted, #4f4d44); }
+.island-card { position: relative; display: flex; flex-direction: column; border: 1.5px solid var(--line-strong, #b9b19f); border-radius: .5rem; background: var(--card, #fffdf8); box-shadow: 0 2px 3px #3224140a; }
+/* The big button chooses the card; the ⓘ in its corner only shows the description. */
+.island-choose { flex: 1 1 auto; display: flex; flex-direction: column; gap: .4rem; text-align: left; min-height: 8rem; padding: 1.1rem 3.25rem 1.1rem 1.25rem; border: 0; border-radius: .5rem; background: none; color: var(--ink, #23231d); cursor: pointer; font: inherit; }
+.island-card .genre { font-size: .875rem; }
+.island-title { font: normal 1.375rem/1.25 var(--serif, Georgia, serif); }
+.island-author { font-size: 1rem; color: var(--muted, #4f4d44); }
+@media (hover: hover) { .island-card:has(.island-choose:hover) { border-color: var(--accent, #9a3726); background: var(--accent-wash, #f6e9e2); } }
+.island-choose:focus-visible { outline: 3px solid #b0513a; outline-offset: 2px; }
+.island-card:has(.island-choose:active) { border-color: var(--accent, #9a3726); }
+.island-info { width: var(--tap, 2.75rem); height: var(--tap, 2.75rem); padding: 0; border: 0; border-radius: 50%; background: none; color: var(--muted, #4f4d44); font-size: 1.25rem; line-height: 1; cursor: help; flex: 0 0 auto; }
+.island-card > .island-info { position: absolute; top: .4rem; right: .4rem; }
+.island-info:focus-visible { outline: 3px solid #b0513a; outline-offset: 1px; }
+.tip-open > .island-info, .tip-open .island-info { color: var(--accent, #9a3726); }
+@media (hover: hover) { .island-info:hover { color: var(--accent, #9a3726); } }
+/* Collapsed by default: shown while the ⓘ is tapped open, hovered or focused. */
+.island-tip { display: none; font: .9375rem/1.45 var(--sans, system-ui, sans-serif); color: var(--ink, #23231d); }
+.island-card > .island-tip { padding: 0 1.25rem 1.1rem; }
+.island-row .island-tip { position: absolute; z-index: 5; left: .5rem; right: .5rem; top: calc(100% - .25rem); padding: .6rem .75rem; border: 1px solid var(--line-strong, #b9b19f); border-radius: .375rem; background: var(--card, #fffdf8); box-shadow: 0 .25rem 1rem #23231d26; }
+.tip-open .island-tip, .island-info:focus-visible + .island-tip { display: block; }
+@media (hover: hover) { .island-info:hover + .island-tip { display: block; } }
+.tip-closed .island-tip { display: none !important; }
+.island-row-title { display: flex; align-items: center; gap: .25rem; }
+.island-row-title .island-info { margin: -.5rem 0; }
+.island-count { font-size: 1.0625rem; color: var(--muted, #4f4d44); }
+.island-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 0 0 1.5rem; }
+.island-actions .secondary:disabled { opacity: .5; cursor: default; }
+.island-stats { font-variant-numeric: tabular-nums; }
+.island-row .rank-score { align-self: flex-start; }
+@media (max-width: 40rem) {
+  .island-pair { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+  .island-or { justify-self: center; }
+  .island-choose { min-height: 0; }
+}
+.island-link { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; }
+.island-link span { color: var(--muted, #4f4d44); font-size: 1.0625rem; }

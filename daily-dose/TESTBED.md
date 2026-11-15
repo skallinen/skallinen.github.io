@@ -324,6 +324,45 @@ description is unreadable, nobody writes one); unit tests 51 of 51 (4 new in
 `test/description.test.mjs`, one of which checks the private file). The tour
 was not run.
 
+## Desert island check
+
+`testbed/check-desert-island.mjs` checks Desert island (SPEC.md, "Desert
+island") at 390 px with touch (`CHECK_WIDTH` to change) and at 1280 px with a
+mouse, against a freshly started or reset bed (descriptions seeded):
+
+```sh
+scripts/testbed.sh start
+CHROME=~/.nix-profile/bin/google-chrome-stable node testbed/check-desert-island.mjs   # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Mikko (a member, not the organiser) sees "Desert island" in the progress
+strip, checks off five texts and rates two, opens `#desert-island`: two cards,
+the descriptions closed behind ⓘ (a tap opens one and records no choice; a tap
+elsewhere, Escape and a second tap close it), "How this works" closed until
+opened. With no choices every text is at 3 stars, likely 1 to 5. Twelve choices
+by a fixed taste (never the same pair twice in a row, "Saved." to the account),
+a Skip that records nothing, an Undo that brings the pair back; the results put
+his favourite first at 5 stars and his least liked last at 1, with his own
+stars, a likely range and strength ± SD on each row; his ratings are unchanged.
+A second device sees his 13 choices; Grace sees none of them. On the desktop
+the cards sit side by side and hovering the ⓘ shows the description. It writes
+to the bed: reset before a rerun.
+
+2026-11-15, Desert island: `check-desert-island.mjs` green (58 ok); unit
+tests 69 of 69 (14 new in `test/desert-island.test.mjs`); rules suite 31 of 31
+(3 new for `desertIsland`). The tour and the other checks were not rerun.
+Before the new rules were in the emulator the check stopped at "Saved.": the
+page said "Saved on this device.", the device-copy path working as meant.
+
+On the VM `lsof` is missing, so `scripts/testbed.sh start` cannot see busy
+ports: with an old bed still running (here one from 12.11.) it starts no
+emulators, seeds the running ones and keeps their old rules, since the rules
+file does not hot-reload over the Mac share. Check `ss -ltnp` first; to load
+the current rules into a running emulator, PUT `testbed/.run/firestore.rules`
+to `http://127.0.0.1:8290/emulator/v1/projects/demo-daily-dose:securityRules`
+as `{ rules: { files: [{ name, content }] } }`.
+
 ## Volume Three
 
 `VOLUME3=1` on `start`/`reset` adds Days 51 to 75 from the private

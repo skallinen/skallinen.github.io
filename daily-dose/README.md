@@ -62,6 +62,19 @@ whose stars change are written, and those writes use the existing rules for
 one's own row. Until the `rankings` rules are deployed, the client keeps the
 order on the device only (`localStorage`).
 
+**Desert island (every member).** A pairwise ranking game (SPEC.md, "Desert
+island"), opened from the progress strip (`#desert-island`): of two texts the
+member has checked off, which would they take to a desert island? The choices
+are stored in `dailyDose/{club}/desertIsland/{uid}` (`{ choices: [{ w, l, at }],
+updatedAt }`, at most 5000), which rules let only its owner read or write.
+`client/desert-island.mjs` fits a Bayesian Bradley-Terry model to the whole
+history (flat N(0, 1) prior, Newton to the MAP, Laplace covariance, 400 seeded
+posterior draws for the star ranges), chooses the next pair actively, and maps
+places to 1 to 5 stars on My ranking's bell curve (`quantileScore` in
+`client/ranking.mjs`). It never writes a rating. Until the `desertIsland`
+rules are deployed, the client keeps the choices on the device only
+(`localStorage`).
+
 For each text, a reader checks it off, chooses a whole-star rating from 0 to 5,
 writes a nonblank thought of at most 140 Unicode code points, then chooses
 **Finish & reveal**. This explicitly submits the response and immediately unlocks

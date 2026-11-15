@@ -5,8 +5,9 @@ import { esc } from './text.mjs';
 // `works/{work}` document, which the rules let members read only once the
 // text is released, so a coming text's description is never readable early.
 // It is shown only to a reader who has checked the text off: on its card in
-// the readings, and as a tooltip on the title in My ranking (which lists
-// only checked-off texts; client/ranking.mjs).
+// the readings, as a tooltip on the title in My ranking (which lists
+// only checked-off texts; client/ranking.mjs), and behind an ⓘ in Desert
+// island (client/desert-island.mjs).
 // The texts and their descriptions are never in this repository.
 
 export const DESCRIPTION_MAX = 280;

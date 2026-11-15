@@ -202,6 +202,32 @@
           && request.resource.data.order is list && request.resource.data.order.size() <= 225
           && request.resource.data.order.toSet().size() == request.resource.data.order.size();
       }
+      // Desert island (SPEC.md): one private document per member, { choices:
+      // [{ w, l, at }], updatedAt }, the member's own pairwise choices (text w
+      // chosen over text l, at = the client's time in ms). Only the owner reads
+      // or writes it; the organiser has no bypass. Rules cannot loop over a
+      // list, so only the newest choice's shape is checked here (each was the
+      // newest once); the client validates them all. No ratings are written.
+      match /desertIsland/{uid} {
+        function newestChoice() {
+          return request.resource.data.choices[request.resource.data.choices.size() - 1];
+        }
+        allow get: if doseMember(club) && request.auth.uid == uid;
+        allow list, delete: if false;
+        allow create, update: if doseMember(club) && request.auth.uid == uid
+          && request.resource.data.keys().hasAll(['choices', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['choices', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.choices is list && request.resource.data.choices.size() <= 5000
+          && (request.resource.data.choices.size() == 0
+            || (newestChoice() is map
+              && newestChoice().keys().hasAll(['w', 'l', 'at'])
+              && newestChoice().keys().hasOnly(['w', 'l', 'at'])
+              && newestChoice().w is string && newestChoice().w.matches('^[A-Za-z0-9-]{1,40}$')
+              && newestChoice().l is string && newestChoice().l.matches('^[A-Za-z0-9-]{1,40}$')
+              && newestChoice().w != newestChoice().l
+              && newestChoice().at is int));
+      }
       match /gates/{work} {
         // Retired shared gates remain untouched, inaccessible and unused.
         allow read, write: if false;

@@ -2,6 +2,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { scheduleDates, localDate } from './calendar.mjs';
 import { isReaction, tally, reactionsTo } from './reactions.mjs';
 import { programmeDays, MAX_TEXTS } from './volumes.mjs';
+import { validChoices } from './desert-island.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
@@ -34,6 +35,9 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   // And for My ranking (rankings/{uid}): until its rules are deployed, the
   // order lives on the device only.
   let rankingOff = false;
+  // And for Desert island (desertIsland/{uid}): until its rules are deployed,
+  // the choices live on the device only.
+  let islandOff = false;
   function unwatch(key) { watches.get(key)?.stop?.(); watches.delete(key); }
   function listen(e) {
     e.stop = onSnapshot(e.ref, { includeMetadataChanges: true }, snap => {
@@ -89,6 +93,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   const seenRef = c => doc(programRef(c), 'seen', user().uid);
   // Private to its owner: My ranking, the order of the texts one has rated.
   const rankingRef = c => doc(programRef(c), 'rankings', user().uid);
+  // Private to its owner: Desert island, the pairwise choices one has made.
+  const islandRef = c => doc(programRef(c), 'desertIsland', user().uid);
   async function clock(c, fresh = false) {
     if (fresh || !clocks.has(c)) {
       const ref = doc(programRef(c), 'sessions', user().uid);
@@ -235,12 +241,39 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     const want = JSON.stringify(order);
     if (!await settled(`rank:${c}`, snap => JSON.stringify(snap.data()?.order) === want)) unwatch(`rank:${c}`);
   }
+  // Desert island: { choices } (null when never saved), or null while the
+  // rules do not allow it. One listener on one's own document, for every member.
+  async function islandDoc(c) {
+    if (islandOff) return null;
+    try { const snap = await watch(`island:${c}`, islandRef(c)); return { choices: snap.exists() && Array.isArray(snap.data().choices) ? snap.data().choices : null }; }
+    catch (e) {
+      if (!noAccess(e)) throw e;
+      unwatch(`island:${c}`); islandOff = true;
+      return null;
+    }
+  }
+  // The whole history is written each time (an undo removes the newest).
+  async function saveIsland(c, { choices } = {}) {
+    if (!validChoices(choices)) throw new Error('Unknown choices.');
+    if (islandOff) throw new Error('Not available here yet.');
+    const list = choices.map(({ w, l, at }) => ({ w, l, at }));
+    try { await setDoc(islandRef(c), { choices: list, updatedAt: serverTimestamp() }); }
+    catch (e) {
+      if (noAccess(e)) { islandOff = true; unwatch(`island:${c}`); throw new Error('Not available here yet.'); }
+      throw e;
+    }
+    // Compared field by field: Firestore may hand the maps' keys back in another order.
+    const flat = l => Array.isArray(l) ? l.map(x => `${x?.w}>${x?.l}@${x?.at}`).join(',') : null, want = flat(list);
+    if (!await settled(`island:${c}`, snap => flat(snap.data()?.choices) === want)) unwatch(`island:${c}`);
+  }
   async function feed(c) {
     const ctx = await context(c), p = ctx.p;
     const base = { club: ctx.club, me: { uid: user().uid, name: user().displayName }, organizer: ctx.organizer, now: ctx.now, edition: p.edition, days: [], personal: { completed: 0, onTime: 0, catchUp: 0 } };
     base.seen = await seenWorks(c);
     // My ranking is organiser-only for now (SPEC.md): nobody else even reads it.
     base.ranking = ctx.organizer ? await rankingDoc(c) : null;
+    // Desert island is for every member, each reading only their own.
+    base.desertIsland = await islandDoc(c);
     if (!p.startDate) return { ...base, campaign: null };
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
     base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: programmeDays(p), editable: ctx.now < millis(p.boundaries[0]) };
@@ -406,7 +439,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   }
   return {
     pause, resume,
-    reset() { for (const w of watches.values()) w.stop?.(); watches.clear(); clocks.clear(); healed.clear(); texts.clear(); reactionsOff = false; seenOff = false; rankingOff = false; },
+    reset() { for (const w of watches.values()) w.stop?.(); watches.clear(); clocks.clear(); healed.clear(); texts.clear(); reactionsOff = false; seenOff = false; rankingOff = false; islandOff = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -425,6 +458,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
       if (parts[2] === 'seen' && options.method === 'POST') return markSeen(c, options.body);
       if (parts[2] === 'ranking' && options.method === 'POST') return saveRanking(c, options.body);
+      if (parts[2] === 'desert-island' && options.method === 'POST') return saveIsland(c, options.body);
       if (parts[2] === 'works' && parts[4] === 'reactions' && options.method === 'POST') return react(c, id, options.body);
       if (parts[2] === 'works' && options.method === 'POST') return act(c, id, options.body);
       // A text does not change while it is being read: fetch it once per page.
