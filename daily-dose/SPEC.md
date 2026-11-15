@@ -231,6 +231,78 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   (a member could read a released text's description early with developer
   tools; it gives away no more than the text, which they can already open).
   Descriptions and texts are never in the public repository.
+- Fewer live connections (15.11.2026). Why: the page kept about three live
+  Firestore listeners per released text (one's own row, the club's responses,
+  the reactions): 477 on Day 53. Whenever they all started at once (a load,
+  the network coming back, the page shown again) the first save waited behind
+  them, and typing and Finish & reveal got slower day by day on a phone. Now
+  the page listens only where a member can see the difference.
+  Part A, the club's responses and the reactions (the thoughts, stars,
+  finished readers and emojis under a text one has finished):
+  - Live, as before: the texts of the current day; every text whose card is
+    on screen (from 200 px before it scrolls in until it has scrolled out)
+    or whose text is open in the reader.
+  - Every other finished text: fetched once when the page loads, no
+    listener. Fetched again when its card comes on screen (it turns live
+    within about a second and its card is redrawn in place if anything
+    changed), when Refresh is chosen (all of them, and the message "Up to
+    date" waits for that), on a reload, and after the page was hidden for
+    five minutes or more (in the background; the feed on screen is served
+    at once from what the page has, then redrawn once if anything changed).
+  - One's own action on a text that is not live (a reaction, Save changes)
+    shows at once, as before: the next feed reads that text again.
+  Decisions, feature by feature (every reader of these data across texts):
+  - The cards of the feed: live for today and on screen, one fetch for the
+    rest. Reason: nobody reads a card that is not on screen.
+  - The count on your name: one fetch at load for older texts, live for
+    today's and those on screen. Reason: reactions are stored per text and
+    reacting member, so no single query can ask for "reactions to me"; the
+    only way to keep the count live on every text is a listener per text,
+    which is the thing being removed. The count is right at every load,
+    every Refresh, every return to the page after five minutes, and at once
+    for today's texts.
+  - The organiser's roster, Stars view (the stars the others gave, from the
+    viewer's own feed): the same data, so the same rule.
+  - One's own grid (Checked off and Stars), "Today: n of 3 read", the Unread
+    count, My ranking and Desert island read only one's own rows and one's
+    own documents: they stay live on every text.
+  - The Organiser page's checkmarks were already one fetch per opening.
+    There are no other views across texts (no themes or summary pages).
+  What a member can see differently, and nothing else: on an older text
+  that is not on screen, another member's new thought, edited thought,
+  changed stars, new finished reader ("Finished: n on the day") or reaction
+  used to appear within 30 seconds; it now appears when the card comes on
+  screen, on Refresh, on a reload or on returning after five minutes. The
+  same holds for the count on one's name when the reaction is to a thought
+  on an older text, and for the roster's Stars cells of older texts.
+  Unchanged: the reveal gate (Firestore decides, per text, exactly as
+  before; a fetch asks the same query a listener did), the fallbacks when
+  access is lost (another tab marked the text unread: the fetch is refused,
+  the page reads one's own row again and locks the card) and when the
+  deployed rules do not know reactions.
+  Part B, one's own rows in one query instead of a listener per text. A row
+  carries its owner and club (`uid`, `club`: "the stamp"), written by the
+  client on every create and update once the switch is on, and by
+  `scripts/backfill-read-uids.mjs` for the rows that exist. The query is the
+  collection group `reads` where `uid` is the asker and `club` the club;
+  rules allow it only with both equalities, only for the asker's own uid and
+  only for a current member of that club (Firestore-enforced; it returns
+  the asker's own drafts, which were always theirs to read, and never
+  anyone else's row: only the owner can write a row's stamp and only as the
+  row's own uid and club). A stamped row stays stamped. It needs the
+  composite index in `firestore/daily-dose.indexes.json`.
+  The client uses the query only when the programme says so (`readsByUid:
+  true` on `dailyDose/{club}`, set by the backfill script's `--enable`) and
+  Firestore accepts it; otherwise, or when it is refused or fails (older
+  rules, no index yet), it keeps to a listener per text and writes no stamp.
+  With the query on, a text missing from it is asked once by its own
+  listener, which closes when there is no row and stays only for a row
+  without the stamp (written by a page still running older code), so
+  nothing is missed whatever the order of deployment. So the order is:
+  client, rules and index, backfill, switch; each step works without the
+  next, and the switch can be turned off again. The old rules refuse a
+  stamped row, so once rows are stamped the rules must not go back before
+  the stamps are removed (`--disable`, then `--remove`).
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
