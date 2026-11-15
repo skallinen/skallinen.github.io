@@ -369,3 +369,61 @@ as `{ rules: { files: [{ name, content }] } }`.
 `webapp/data/volume-3.json` next to the anthology (or `VOLUME3=path`), with the
 same plan as `scripts/seed-volume-three.mjs`; `DAY1_OFFSET=52` makes today Day 53.
 Without it the bed stays at 50 days, which the checks above expect (`OF 50`).
+
+## Fewer live connections check
+
+`testbed/check-fewer-listeners.mjs` checks "Fewer live connections" (SPEC.md)
+at phone width on a bed with a busy club: `testbed/seed-finished.mjs` makes
+every member finish every text of the earlier days, with hearts (the state the
+slowness of 15.11.2026 was found in; `STAMP=1` writes the rows with their
+stamp, `FILL_DAYS=n` fills fewer days).
+
+```sh
+VOLUME3=1 DAY1_OFFSET=52 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/check-fewer-listeners.mjs      # BROWSER=webkit; CHECK_SHOTS=dir keeps screenshots
+EMULATOR=127.0.0.1:8290 CLUB=testbed-club node scripts/backfill-read-uids.mjs --enable --apply   # then reseed and run it again: the one query
+scripts/testbed.sh stop
+```
+
+Mikko's page keeps far fewer listeners than three per card (counted at the
+network: listen targets added minus removed). Today is live: Grace's thought
+and her heart on his reach him by themselves. An old card he is not looking
+at does not change for 35 s after Grace edits and reacts there; when he
+scrolls to it, it shows both within seconds and is live while on screen.
+Refresh and a reload bring the count on his name up to date for old texts.
+His own reaction and Save changes on an old card show at once, Grace sees his
+heart, the reader opens, Mark as unread locks an old card and finishing again
+unlocks it, and Desert island saves a choice. It writes to the bed: reseed
+(`scripts/testbed.sh reset`, then the seed) before running it again.
+
+
+2026-11-15, fewer live connections: `check-fewer-listeners.mjs` green in
+Chromium and WebKit, with a listener per text for one's own rows (part A)
+and with the one query switched on (parts A and B). The seven older checks
+(reactions, news, stars, my-stars, ranking, descriptions, desert-island) green
+both ways on reset beds. Rules suite 41 of 41 (10 new). Unit tests 69 of 69.
+The legacy demo e2e still fails 4 of 4, on `master` too.
+
+Measured the same day on the busy bed (Day 53, Volume Three, Mikko, Playwright
+WebKit at 390 px, three runs each, medians; listeners and documents counted at
+the network, saves timed in the page from "Saving draft…" to "Draft saved
+privately."; "reconnect" is the network off for 20 s, "resume" is the page
+hidden long enough to close its listeners):
+
+| | `master` | `fix-typing-slowness` | part A | parts A and B |
+|---|---|---|---|---|
+| Listeners open after a load | 477 | 477 | 165 | 7 |
+| Listen targets opened during the load | 481 | 481 | 481 | 323 |
+| Feed shown after sign-in | 9.9 s | 1.9 s | 1.6 s | 1.4 s |
+| Documents from the server, full load | 2515 | 2515 | 2515 | 2515 |
+| First save after a reconnect | 12.1 s | 0.08 s | 0.11 s | 0.15 s |
+| Documents from the server, reconnect | 2671 | 2671 | 487 | 645 |
+| First save after a resume | 13.2 s | 0.08 s | 0.09 s | 0.16 s |
+| Documents from the server, resume | 2671 | 2671 | 2671 | 2829 |
+| A save with nothing else going on | 0.13 s | 0.09 s | 0.10 s | 0.15 s |
+
+The emulator sends every listened document again on a reconnect and on a
+resume (no saving from resume tokens), so the last document rows say what is
+asked for again, not what production would bill. On a resume the older texts
+are fetched again in the background, which is why that row does not fall.
+Not measured: a real phone, and production.
