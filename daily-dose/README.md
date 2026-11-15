@@ -108,6 +108,44 @@ listeners per released text; by Day 53 a draft save or Finish & reveal waited
 hidden for five minutes closes its listeners and reopens them when shown again,
 paying only for changed documents within 30 minutes; each text is fetched once
 per page load.
+
+**Fewer live connections** (SPEC.md has the contract). The page listens to the
+club's responses and the reactions only for today's texts and for the cards on
+screen (`client/app.mjs` watches the cards with an IntersectionObserver and
+tells the backend, `attend`); every other finished text is fetched once
+(`getDocsFromServer`, the same queries, so the rules decide exactly as
+before) and fetched again when its card comes on screen, on Refresh, on a
+reload and after the page was hidden for five minutes. One's own rows come
+from a listener per text, or, once `readsByUid` is switched on, from one
+collection group query on `reads` by the rows' stamp (`uid`, `club`), with a
+listener only for a row that lacks the stamp. `backend.stats()` lists the open
+listeners (used by the rules suite). Going live, in this order; each step
+works without the next:
+
+1. Deploy the client (`npm run build:pages`, push). With the old rules it
+   uses a listener per text for one's own rows; part A is already in effect.
+2. Deploy the rules (`scripts/update-rules.mjs`, as for every fragment
+   change) and create the index in `firestore/daily-dose.indexes.json`
+   (collection group `reads`: `uid` ascending, `club` ascending) in the
+   Firebase console or with `gcloud firestore indexes composite create
+   --collection-group=reads --query-scope=COLLECTION_GROUP
+   --field-config=field-path=uid,order=ascending
+   --field-config=field-path=club,order=ascending`. Do not deploy the file
+   with `firebase deploy --only firestore:indexes`: this repo does not hold
+   the other apps' indexes, and that command would offer to delete them.
+   Wait until the index is built.
+3. `node scripts/backfill-read-uids.mjs` (dry run: counts), then `--apply`.
+4. `node scripts/backfill-read-uids.mjs --enable --apply` switches the one
+   query on for every page at its next feed. `--disable --apply` switches it
+   off again. Run the dry run again a few days later: pages still running
+   older code write rows without the stamp, which the client finds anyway
+   (a listener each) and a second `--apply` stamps.
+
+Rolling back: the client alone can go back at any time. The switch can go off
+at any time. The rules must not go back to the old fragment while any row is
+stamped (the old rules refuse every write to a stamped row): first
+`--disable --apply`, let open pages reload, then `--remove --apply`, then the
+old rules.
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old
@@ -272,6 +310,14 @@ so it shows 50 days until the seed runs and 75 after. The grids draw Days 51 to
 keeps the rust scale on rated cells. The rules allow 225 texts in completions,
 seen and rankings (was 150); deploy them with `scripts/update-rules.mjs` before
 anyone can check off a 151st text, that is before Day 51.
+- `scripts/backfill-read-uids.mjs`: stamps the response rows with their owner
+  and club (`uid`, `club`) for the one query of "Fewer live connections", and
+  holds its switch (`--enable`, `--disable`) and its undo (`--remove`). Dry run
+  by default. It reads and writes those two fields only. `EMULATOR=host:port
+  PROJECT=demo-... CLUB=...` points it at an emulator (the rules suite and the
+  test bed use it so).
+- `firestore/daily-dose.indexes.json`: the one composite index Daily Dose
+  needs (see "Fewer live connections" above for how to create it).
 - `scripts/firebase-operator.mjs`: local operator tooling using the existing
   Firebase CLI credential in memory. It is not imported into the browser bundle.
 

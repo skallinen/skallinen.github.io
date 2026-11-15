@@ -303,6 +303,10 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   next, and the switch can be turned off again. The old rules refuse a
   stamped row, so once rows are stamped the rules must not go back before
   the stamps are removed (`--disable`, then `--remove`).
+  Measured on the test bed (Day 53, a member who has finished every earlier
+  text, WebKit at phone size, 15.11.2026): 477 listeners open after a load
+  before; 165 with part A; 7 with parts A and B at the top of the page, 15
+  with today's poem finished and an old card on screen.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
