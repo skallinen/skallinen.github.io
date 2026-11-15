@@ -1,8 +1,11 @@
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion, arrayRemove, Timestamp, query, where } from 'firebase/firestore';
+import { doc, collection, collectionGroup, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion, arrayRemove, Timestamp, query, where } from 'firebase/firestore';
 import { scheduleDates } from '../client/calendar.mjs';
 import { createFirestoreBackend } from '../client/firestore.mjs';
 
@@ -803,4 +806,378 @@ test('browser adapter without desert island rules: the feed says so (null) and a
       await assert.rejects(alice.request('/clubs/club/desert-island', { method: 'POST', body: { choices: [] } }), /Not available/);
     } finally { alice.reset(); }
   } finally { await old.cleanup(); }
+});
+
+// ---------- Fewer live connections (SPEC.md)
+// A programme on its third day: `past` is Day 1, `old` Day 2, `today` Day 3.
+async function threeDays(d, extra = {}) {
+  const now = Date.now(), day = 86400000;
+  await updateDoc(doc(d, base), { startDate: new Date(now - 2 * day).toISOString().slice(0, 10), timezone: 'UTC',
+    boundaries: Array.from({ length: 51 }, (_, i) => Timestamp.fromMillis(now - 2 * day - 3600000 + i * day)), ...extra });
+  for (const [id, n] of [['past', 1], ['old', 2], ['today', 3]])
+    await setDoc(workRef(d, id), { id, day: n, category: 'poem', title: `Text ${id}`, author: 'Author', country: 'Finland', year: '2026', minutes: 1,
+      openAt: Timestamp.fromMillis(now - (3 - n) * day - 3600000), closeAt: Timestamp.fromMillis(now - (3 - n) * day - 3600000 + day), revealedAt: null });
+}
+const backendFor = (uid, d = db(uid)) => createFirestoreBackend(null, () => ({ uid, displayName: uid }), d._delegate);
+const feedWork = async (client, id, options) => (await client.request('/clubs/club/feed', options)).days.flatMap(d => d.works).find(w => w.id === id);
+const thoughtOf = (work, author) => work.collective?.comments.find(c => c.uid === author);
+const kinds = (client, kind) => client.stats().listeners.filter(k => k.startsWith(`${kind}:`)).map(k => k.split(':').at(-1)).sort();
+const pause = ms => new Promise(r => setTimeout(r, ms));
+async function until(check, message, tries = 60) {
+  for (let i = 0; i < tries; i++) { if (await check()) return; await pause(50); }
+  assert.fail(message);
+}
+const finishAll = async (client, uid) => {
+  for (const id of ['past', 'old', 'today']) {
+    const act = body => client.request(`/clubs/club/works/${id}`, { method: 'POST', body });
+    await act({ action: 'complete' }); await act({ action: 'rate', rating: 4 }); await act({ action: 'submit', comment: `${uid} on ${id}` });
+  }
+};
+
+test('fewer connections: only today\'s texts and those on screen are listened to; older ones are fetched once and refreshed on open, on Refresh and after a pause', { timeout: 40000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const alice = backendFor('alice'), bob = backendFor('bob');
+  let changes = 0;
+  alice.onChange(() => { changes++; });
+  try {
+    await finishAll(alice, 'alice'); await finishAll(bob, 'bob');
+    let w = await feedWork(alice, 'past');
+    assert.equal(w.revealed, true);
+    assert.equal(thoughtOf(w, 'bob').text, 'bob on past');
+    // Live: today's text only. The two older ones were fetched once.
+    await alice.request('/clubs/club/feed');
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    assert.deepEqual(kinds(alice, 'rx'), ['today']);
+    assert.deepEqual(alice.stats().fetched, ['rx:club:old', 'rx:club:past', 'shared:club:old', 'shared:club:past']);
+    // Today stays live: Bob's reaction to Alice's thought arrives by itself.
+    await bob.request('/clubs/club/works/today/reactions', { method: 'POST', body: { author: 'alice', emoji: 'heart', on: true } });
+    await until(async () => (await feedWork(alice, 'today')).collective.toMe.length === 1, 'today\'s reaction did not arrive live');
+    // An older text does not update by itself: Bob reacts and edits there.
+    await bob.request('/clubs/club/works/past/reactions', { method: 'POST', body: { author: 'alice', emoji: 'wow', on: true } });
+    await bob.request('/clubs/club/works/past', { method: 'POST', body: { action: 'submit', comment: 'bob changed his mind' } });
+    await pause(400);
+    w = await feedWork(alice, 'past');
+    assert.deepEqual(w.collective.toMe, []);
+    assert.equal(thoughtOf(w, 'bob').text, 'bob on past');
+    // The card comes on screen: it turns live and shows both.
+    assert.equal(alice.attend('club', ['past']), true);
+    assert.equal(alice.attend('club', ['past']), false);
+    w = await feedWork(alice, 'past');
+    assert.deepEqual(w.collective.toMe, ['bob:wow']);
+    assert.equal(thoughtOf(w, 'bob').text, 'bob changed his mind');
+    assert.deepEqual(kinds(alice, 'shared'), ['past', 'today']);
+    assert.deepEqual(kinds(alice, 'rx'), ['past', 'today']);
+    // While on screen it is live.
+    await bob.request('/clubs/club/works/past/reactions', { method: 'POST', body: { author: 'alice', emoji: 'think', on: true } });
+    await until(async () => (await feedWork(alice, 'past')).collective.toMe.length === 2, 'a reaction to a text on screen did not arrive live');
+    // Off screen again: the listener closes, what it showed stays.
+    alice.attend('club', []);
+    w = await feedWork(alice, 'past');
+    assert.deepEqual(w.collective.toMe, ['bob:think', 'bob:wow']);
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    assert.deepEqual(kinds(alice, 'rx'), ['today']);
+    // Her own reaction and her own Save changes on a text that is not live show at once.
+    await alice.request('/clubs/club/works/old/reactions', { method: 'POST', body: { author: 'bob', emoji: 'like', on: true } });
+    w = await feedWork(alice, 'old');
+    assert.deepEqual(thoughtOf(w, 'bob').reactions, [{ key: 'like', count: 1, mine: true, names: [] }]);
+    await alice.request('/clubs/club/works/old', { method: 'POST', body: { action: 'submit', comment: 'alice, second thoughts' } });
+    w = await feedWork(alice, 'old');
+    assert.equal(thoughtOf(w, 'alice').text, 'alice, second thoughts');
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    // Refresh fetches the older texts again.
+    await bob.request('/clubs/club/works/old/reactions', { method: 'POST', body: { author: 'alice', emoji: 'laugh', on: true } });
+    await pause(300);
+    assert.deepEqual((await feedWork(alice, 'old')).collective.toMe, []);
+    assert.deepEqual((await feedWork(alice, 'old', { fresh: true })).collective.toMe, ['bob:laugh']);
+    // Hidden long enough to close the listeners, then shown: the next feed
+    // serves what it has and fetches in the background; the app is told once.
+    changes = 0;
+    alice.pause();
+    assert.deepEqual(alice.stats().listeners, []);
+    await bob.request('/clubs/club/works/old/reactions', { method: 'POST', body: { author: 'alice', emoji: 'moved', on: true } });
+    alice.resume();
+    assert.deepEqual((await feedWork(alice, 'old')).collective.toMe, ['bob:laugh']);
+    await until(() => changes === 1, 'the app was not told about the background fetch');
+    assert.deepEqual((await feedWork(alice, 'old')).collective.toMe, ['bob:laugh', 'bob:moved']);
+    await pause(300);
+    assert.equal(changes, 1);
+    // Mark as unread on an older text hides the others again, fetched copy and all.
+    await alice.request('/clubs/club/works/old', { method: 'POST', body: { action: 'unread' } });
+    w = await feedWork(alice, 'old');
+    assert.equal(w.revealed, false);
+    assert.equal('collective' in w, false);
+    assert.equal(alice.stats().fetched.some(k => k.endsWith(':old')), false);
+  } finally { alice.reset(); bob.reset(); }
+});
+
+test('fewer connections: another tab undoing a response on an older text is noticed on Refresh, and the text recovers', { timeout: 20000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const alice = backendFor('alice'), bob = backendFor('bob');
+  try {
+    await finishAll(alice, 'alice'); await finishAll(bob, 'bob');
+    assert.equal((await feedWork(bob, 'past')).collective.readers.length, 2);
+    // Bob's other tab marks the older text unread while this page is hidden
+    // (its listeners closed), so this page still believes he has finished:
+    // the fetch is refused, and the page reads his own row again.
+    bob.pause();
+    await updateDoc(rowRef(db('bob'), 'past', 'bob'), { status: 'reading', completedAt: null, submittedAt: null, updatedAt: serverTimestamp() });
+    let w = await feedWork(bob, 'past', { fresh: true });
+    bob.resume();
+    assert.equal(w.revealed, false);
+    assert.equal('collective' in w, false);
+    assert.equal(w.mine.comment, 'bob on past');
+    const act = body => bob.request('/clubs/club/works/past', { method: 'POST', body });
+    await act({ action: 'complete' }); await act({ action: 'submit', comment: 'bob again' });
+    w = await feedWork(bob, 'past');
+    assert.equal(w.revealed, true);
+    assert.equal(w.collective.readers.length, 2);
+  } finally { alice.reset(); bob.reset(); }
+});
+
+// ---------- One's own rows in one query: the stamp (uid, club), the collection group rule
+const stampOf = async (uid, w = 'today') => { const d = (await getDoc(rowRef(db(uid), w, uid))).data(); return [d?.uid, d?.club]; };
+const mineQuery = (asker, uid = asker, club = 'club') => query(collectionGroup(db(asker), 'reads'), where('uid', '==', uid), where('club', '==', club));
+const stampAll = () => env.withSecurityRulesDisabled(async ctx => {
+  const d = ctx.firestore();
+  for (const w of ['today', 'past', 'old']) for (const r of (await getDocs(collection(d, `${base}/works/${w}/reads`))).docs) await updateDoc(r.ref, { uid: r.id, club: 'club' });
+});
+
+test('stamp: a row may carry its own uid and club, both or neither, never another\'s, and keeps them', async () => {
+  const fresh = extra => ({ status: 'reading', startedAt: serverTimestamp(), completedAt: null, joinedOnDay: true, comment: '', commentAt: null, updatedAt: serverTimestamp(), ...extra });
+  await assertFails(setDoc(rowRef(db('bob'), 'today', 'bob'), fresh({ uid: 'alice', club: 'club' })));
+  await assertFails(setDoc(rowRef(db('bob'), 'today', 'bob'), fresh({ uid: 'bob', club: 'other' })));
+  await assertFails(setDoc(rowRef(db('bob'), 'today', 'bob'), fresh({ uid: 'bob' })));
+  await assertFails(setDoc(rowRef(db('bob'), 'today', 'bob'), fresh({ club: 'club' })));
+  await assertFails(setDoc(rowRef(db('bob'), 'today', 'bob'), fresh({ uid: 7, club: 'club' })));
+  await assertSucceeds(setDoc(rowRef(db('bob'), 'today', 'bob'), fresh({ uid: 'bob', club: 'club' })));
+  // Without the stamp, as older pages write it: still accepted, and stampable later.
+  await assertSucceeds(setDoc(rowRef(db('cara'), 'today', 'cara'), fresh({})));
+  const cara = rowRef(db('cara'), 'today', 'cara');
+  await assertFails(updateDoc(cara, { status: 'done', completedAt: serverTimestamp(), uid: 'bob', club: 'club', updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(cara, { status: 'done', completedAt: serverTimestamp(), uid: 'cara', club: 'club', updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(cara, { rating: 3, updatedAt: serverTimestamp() }));
+  assert.deepEqual(await stampOf('cara'), ['cara', 'club']);
+  // Stamped stays stamped, and nobody else can stamp or restamp it.
+  await assertFails(setDoc(cara, { status: 'done', startedAt: (await getDoc(cara)).data().startedAt, completedAt: (await getDoc(cara)).data().completedAt, joinedOnDay: true, comment: '', commentAt: null, rating: 3, updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(cara, { uid: 'alice', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(rowRef(db('alice'), 'today', 'cara'), { uid: 'alice', club: 'club', updatedAt: serverTimestamp() }));
+});
+
+test('own rows in one query: a member lists her own stamped rows, drafts included, and nobody else\'s by any query', async () => {
+  await submit('alice'); await submit('bob'); await action('cara', 'today', 'reading'); await action('alice', 'past', 'done', false);
+  await stampAll();
+  const mine = await assertSucceeds(getDocs(mineQuery('alice')));
+  assert.deepEqual(mine.docs.map(d => d.ref.path).sort(), [`${base}/works/past/reads/alice`, `${base}/works/today/reads/alice`]);
+  // Cara has not finished anything: her own draft row is hers to list, nothing more.
+  assert.deepEqual((await assertSucceeds(getDocs(mineQuery('cara')))).docs.map(d => d.ref.path), [`${base}/works/today/reads/cara`]);
+  // Anyone else's rows, by any shape of query on the collection group.
+  await assertFails(getDocs(mineQuery('alice', 'bob')));
+  await assertFails(getDocs(mineQuery('cara', 'alice')));
+  await assertFails(getDocs(collectionGroup(db('alice'), 'reads')));
+  await assertFails(getDocs(query(collectionGroup(db('alice'), 'reads'), where('club', '==', 'club'))));
+  await assertFails(getDocs(query(collectionGroup(db('alice'), 'reads'), where('uid', '==', 'alice'))));
+  await assertFails(getDocs(query(collectionGroup(db('alice'), 'reads'), where('uid', 'in', ['alice', 'bob']), where('club', '==', 'club'))));
+  await assertFails(getDocs(query(collectionGroup(db('alice'), 'reads'), where('uid', '>=', 'a'), where('club', '==', 'club'))));
+  await assertFails(getDocs(query(collectionGroup(db('alice'), 'reads'), where('status', '==', 'done'))));
+  await assertFails(getDocs(query(collectionGroup(db('alice'), 'reads'), where('submittedAt', '>=', Timestamp.fromMillis(0)))));
+  // The per-text guarantees are as they were: no listing of a text's rows, drafts never.
+  await assertFails(getDocs(collection(db('cara'), `${base}/works/today/reads`)));
+  await assertFails(getDocs(query(collection(db('cara'), `${base}/works/today/reads`), where('uid', '==', 'alice'), where('club', '==', 'club'))));
+  await assertFails(getDocs(query(collection(db('alice'), `${base}/works/today/reads`), where('uid', '==', 'cara'), where('club', '==', 'club'))));
+  await assertFails(getDoc(rowRef(db('alice'), 'today', 'cara')));
+  await assertFails(getDoc(rowRef(db('cara'), 'today', 'alice')));
+  // Signed out, a stranger, and a member of another club asking for this one.
+  await assertFails(getDocs(mineQuery(null, 'alice')));
+  await assertFails(getDocs(mineQuery('outsider')));
+  await assertFails(getDocs(mineQuery('alice', 'alice', 'no-such-club')));
+});
+
+test('own rows in one query: a member who has left the club lists nothing, her own old rows included', async () => {
+  await submit('cara'); await stampAll();
+  assert.equal((await assertSucceeds(getDocs(mineQuery('cara')))).size, 1);
+  // Bookrank removes the membership document: access ends at once.
+  await env.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), 'clubs/club/members/cara')));
+  await assertFails(getDocs(mineQuery('cara')));
+  // Removed from the programme's participants, membership document still there: also nothing.
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'clubs/club/members/cara'), { display_name: 'cara' });
+    await updateDoc(doc(ctx.firestore(), base), { participantUids: ['alice', 'bob'] });
+  });
+  await assertFails(getDocs(mineQuery('cara')));
+});
+
+test('own rows in one query: a collection called reads elsewhere in the database is not opened by the rule', async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'elsewhere/x/reads/alice'), { uid: 'alice', club: 'club', secret: 'OTHER APP' });
+    await setDoc(doc(ctx.firestore(), 'elsewhere/x/reads/bob'), { uid: 'bob', club: 'club', secret: 'OTHER APP' });
+  });
+  // The rule is about the fields, so Alice's query reaches a foreign row stamped
+  // with her own uid and a club she belongs to, and only such a row: nobody
+  // but an administrator can have written one. Never another member's.
+  await assertFails(getDoc(doc(db('alice'), 'elsewhere/x/reads/alice')));
+  await assertFails(getDocs(collection(db('alice'), 'elsewhere/x/reads')));
+  await assertFails(getDocs(query(collection(db('alice'), 'elsewhere/x/reads'), where('uid', '==', 'bob'), where('club', '==', 'club'))));
+  await assertFails(setDoc(doc(db('alice'), 'elsewhere/x/reads/alice'), { uid: 'alice', club: 'club' }));
+});
+
+const run = promisify(execFile);
+const backfill = (...args) => run(process.execPath, [fileURLToPath(new URL('../scripts/backfill-read-uids.mjs', import.meta.url)), ...args],
+  { env: { ...process.env, EMULATOR: '127.0.0.1:8189', PROJECT: projectId, CLUB: 'club' } });
+
+test('backfill script: a dry run writes nothing; --apply stamps every row and nothing else; --enable and --disable switch the query; --remove undoes it', { timeout: 40000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  await submit('alice'); await submit('bob', 'past'); await action('cara', 'old', 'reading', false);
+  const before = (await getDoc(rowRef(db('alice'), 'today', 'alice'))).data();
+  let out = JSON.parse((await backfill()).stdout);
+  assert.deepEqual([out.rows, out.stamped, out.unstamped, out.plan.stamp, out.apply], [3, 0, 3, 3, false]);
+  assert.deepEqual(await stampOf('alice'), [undefined, undefined]);
+  assert.equal(JSON.stringify(out).includes('alice finished'), false);
+  await backfill('--apply');
+  assert.deepEqual(await stampOf('alice'), ['alice', 'club']);
+  assert.deepEqual(await stampOf('bob', 'past'), ['bob', 'club']);
+  assert.deepEqual(await stampOf('cara', 'old'), ['cara', 'club']);
+  const after = (await getDoc(rowRef(db('alice'), 'today', 'alice'))).data();
+  const { uid, club, ...rest } = after;
+  assert.deepEqual(Object.keys(rest).sort(), Object.keys(before).sort());
+  assert.ok(after.updatedAt.isEqual(before.updatedAt));
+  assert.equal(after.comment, before.comment);
+  assert.equal((await getDoc(doc(db('alice'), base))).data().readsByUid, undefined);
+  // A second run finds nothing to do; a row written meanwhile without the stamp is picked up.
+  await action('cara', 'today', 'reading');
+  out = JSON.parse((await backfill()).stdout);
+  assert.deepEqual([out.rows, out.stamped, out.unstamped], [4, 3, 1]);
+  await backfill('--enable', '--apply');
+  assert.deepEqual(await stampOf('cara'), ['cara', 'club']);
+  assert.equal((await getDoc(doc(db('alice'), base))).data().readsByUid, true);
+  // Members go on writing their stamped rows under the rules.
+  await assertSucceeds(updateDoc(rowRef(db('alice'), 'today', 'alice'), { rating: 2, updatedAt: serverTimestamp() }));
+  // Removing needs the switch off first.
+  await assert.rejects(backfill('--remove', '--apply'), /--disable first/);
+  assert.deepEqual(await stampOf('alice'), ['alice', 'club']);
+  await backfill('--disable', '--remove', '--apply');
+  assert.equal((await getDoc(doc(db('alice'), base))).data().readsByUid, false);
+  for (const [u, w] of [['alice', 'today'], ['bob', 'past'], ['cara', 'old'], ['cara', 'today']]) assert.deepEqual(await stampOf(u, w), [undefined, undefined]);
+  assert.equal((await getDoc(rowRef(db('alice'), 'today', 'alice'))).data().comment, before.comment);
+});
+
+test('browser adapter, own rows in one query: one listener instead of one per text; unstamped rows are still found; writes carry the stamp', { timeout: 40000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore(), { readsByUid: true }));
+  // Rows from before the backfill: Alice has checked off `past` and is reading `old`.
+  await action('alice', 'past', 'done', false); await action('alice', 'old', 'reading', false);
+  const alice = backendFor('alice'), phone = backendFor('alice'), bob = backendFor('bob');
+  try {
+    let f = await alice.request('/clubs/club/feed');
+    const status = (feed, id) => feed.days.flatMap(d => d.works).find(w => w.id === id).mine?.status ?? null;
+    assert.deepEqual(['past', 'old', 'today'].map(id => status(f, id)), ['done', 'reading', null]);
+    assert.deepEqual(alice.stats().ownQuery, ['club']);
+    // Unstamped rows keep their own listener; a text with no row keeps none.
+    assert.deepEqual(kinds(alice, 'own'), ['old', 'past']);
+    // Every write stamps the row, which then arrives by the one query.
+    await alice.request('/clubs/club/works/old', { method: 'POST', body: { action: 'complete' } });
+    await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'complete' } });
+    assert.deepEqual(await stampOf('alice', 'old'), ['alice', 'club']);
+    assert.deepEqual(await stampOf('alice', 'today'), ['alice', 'club']);
+    f = await alice.request('/clubs/club/feed');
+    assert.deepEqual(['past', 'old', 'today'].map(id => status(f, id)), ['done', 'done', 'done']);
+    assert.deepEqual(kinds(alice, 'own'), ['past']);
+    assert.equal(f.personal.completed, 3);
+    // After the backfill no row needs a listener of its own.
+    await stampAll();
+    await until(async () => { await alice.request('/clubs/club/feed'); return kinds(alice, 'own').length === 0; }, 'the per-text listener stayed after the backfill');
+    assert.deepEqual(['past', 'old', 'today'].map(id => status(f, id)), ['done', 'done', 'done']);
+    // Her other device sees her writes, drafts included, through its own one query.
+    await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'rate', rating: 5 } });
+    await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'comment', comment: 'ALICE PRIVATE DRAFT' } });
+    assert.equal((await feedWork(alice, 'today')).mine.comment, 'ALICE PRIVATE DRAFT');
+    assert.equal((await feedWork(phone, 'today')).mine.comment, 'ALICE PRIVATE DRAFT');
+    assert.deepEqual(kinds(phone, 'own'), []);
+    await phone.request('/clubs/club/works/today', { method: 'POST', body: { action: 'submit', comment: 'ALICE SHARED' } });
+    await until(async () => (await feedWork(alice, 'today')).revealed === true, 'the other device\'s submission did not arrive');
+    // Bob sees nothing of Alice's drafts, and only his own rows; the reveal gate is as it was.
+    await alice.request('/clubs/club/works/past', { method: 'POST', body: { action: 'comment', comment: 'ALICE DRAFT ON PAST' } });
+    const b = await bob.request('/clubs/club/feed');
+    assert.equal(JSON.stringify(b).includes('ALICE'), false);
+    assert.deepEqual(['past', 'old', 'today'].map(id => status(b, id)), [null, null, null]);
+    assert.deepEqual(kinds(bob, 'own'), []);
+    assert.deepEqual(kinds(bob, 'shared'), []);
+    // Mark as unread and Undo go through the stamped row.
+    await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'unread' } });
+    let w = await feedWork(alice, 'today');
+    assert.deepEqual([w.revealed, w.mine.status, w.mine.comment], [false, 'reading', 'ALICE SHARED']);
+    await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'restore' } });
+    assert.equal((await feedWork(alice, 'today')).mine.status, 'done');
+    // A row another page wrote without the stamp (older code) is found on Refresh.
+    await action('bob', 'old', 'done', false);
+    assert.equal(status(await bob.request('/clubs/club/feed'), 'old'), null);
+    assert.equal(status(await bob.request('/clubs/club/feed', { fresh: true }), 'old'), 'done');
+    assert.deepEqual(kinds(bob, 'own'), ['old']);
+  } finally { alice.reset(); phone.reset(); bob.reset(); }
+});
+
+// The rules as they are live before this change: no collection group rule, no stamp.
+const rulesBeforeStamp = fullRules
+  .replace(/match \/\{path=\*\*\}\/reads\/\{uid\} \{[\s\S]*?\n    \}\n/, '')
+  .replaceAll(", 'uid', 'club'])", '])')
+  .replace(/\n\s*\/\/ The owner's stamp[\s\S]*?d\.get\('club', club\) == club/, '')
+  .replace(/\n\s*\/\/ A stamped row stays stamped[^\n]*/, '')
+  .replace(/\n\s*&& \(!\('uid' in resource\.data\) \|\| 'uid' in request\.resource\.data\)/, '');
+
+test('browser adapter, deploy order: with the switch on but the old rules, and with the new rules but the switch off, everything works by a listener per text and nothing is stamped', { timeout: 40000 }, async () => {
+  for (const marker of ['path=**', "'uid'", "'club'", 'stamped']) assert.equal(rulesBeforeStamp.includes(marker), false, marker);
+  const old = await initializeTestEnvironment({ projectId: 'demo-daily-dose-old', firestore: { host: '127.0.0.1', port: 8189, rules: rulesBeforeStamp } });
+  const seed = async (e, extra) => {
+    await e.withSecurityRulesDisabled(async ctx => {
+      const d = ctx.firestore();
+      // What the round before left behind.
+      for (const path of ['completions', ...['today', 'past', 'old'].flatMap(w => [`works/${w}/reads`, `works/${w}/reactions`])])
+        for (const r of (await getDocs(collection(d, `${base}/${path}`))).docs) await deleteDoc(r.ref);
+      await setDoc(doc(d, 'clubs/club'), { name: 'Test club', member_uids: ['alice', 'bob'] });
+      for (const u of ['alice', 'bob']) await setDoc(doc(d, `clubs/club/members/${u}`), { display_name: u });
+      await setDoc(doc(d, base), { organizerUids: ['alice'], participantUids: ['alice', 'bob'], dayWorkIds: [{ ids: ['today', 'past', 'old'] }] });
+      await threeDays(d, extra);
+    });
+  };
+  try {
+    for (const [e, extra, label] of [[old, { readsByUid: true }, 'old rules, switch on'], [old, {}, 'old rules, switch off'], [env, {}, 'new rules, switch off'], [env, { readsByUid: false }, 'new rules, switched off again']]) {
+      await seed(e, extra);
+      const alice = backendFor('alice', e.authenticatedContext('alice').firestore()), bob = backendFor('bob', e.authenticatedContext('bob').firestore());
+      try {
+        // The old rules refuse a stamped row outright: this is why the switch comes last.
+        if (e === old) await assertFails(setDoc(rowRef(e.authenticatedContext('bob').firestore(), 'old', 'bob'), { status: 'reading', startedAt: serverTimestamp(), completedAt: null, joinedOnDay: false, comment: '', commentAt: null, updatedAt: serverTimestamp(), uid: 'bob', club: 'club' }));
+        await finishAll(alice, 'alice'); await finishAll(bob, 'bob');
+        const f = await alice.request('/clubs/club/feed');
+        assert.equal(f.personal.completed, 3, label);
+        const w = f.days.flatMap(d => d.works).find(x => x.id === 'past');
+        assert.equal(thoughtOf(w, 'bob').text, 'bob on past', label);
+        assert.deepEqual(alice.stats().ownQuery, [], label);
+        assert.deepEqual(kinds(alice, 'own'), ['old', 'past', 'today'], label);
+        assert.deepEqual(kinds(alice, 'shared'), ['today'], label);
+        const row = (await getDoc(rowRef(e.authenticatedContext('alice').firestore(), 'today', 'alice'))).data();
+        assert.equal('uid' in row || 'club' in row, false, label);
+        await alice.request('/clubs/club/works/today', { method: 'POST', body: { action: 'unread' } });
+        assert.equal((await feedWork(alice, 'today')).revealed, false, label);
+      } finally { alice.reset(); bob.reset(); }
+    }
+  } finally { await old.cleanup(); }
+});
+
+test('browser adapter: switching the one query on and off under an open page changes the listeners, not what is shown', { timeout: 40000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const alice = backendFor('alice');
+  try {
+    await finishAll(alice, 'alice');
+    const done = async () => (await alice.request('/clubs/club/feed')).personal.completed;
+    assert.equal(await done(), 3);
+    assert.deepEqual(kinds(alice, 'own'), ['old', 'past', 'today']);
+    await backfill('--enable', '--apply');
+    await until(async () => { await done(); return alice.stats().ownQuery.length === 1 && kinds(alice, 'own').length === 0; }, 'the page did not move to the one query');
+    assert.equal(await done(), 3);
+    await alice.request('/clubs/club/works/past', { method: 'POST', body: { action: 'unread' } });
+    assert.equal(await done(), 2);
+    await backfill('--disable', '--apply');
+    await until(async () => { await done(); return alice.stats().ownQuery.length === 0 && kinds(alice, 'own').length === 3; }, 'the page did not go back to a listener per text');
+    assert.equal(await done(), 2);
+    await alice.request('/clubs/club/works/past', { method: 'POST', body: { action: 'restore' } });
+    assert.equal(await done(), 3);
+  } finally { alice.reset(); }
 });

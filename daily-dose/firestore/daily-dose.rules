@@ -20,6 +20,19 @@
     function doseSubmitted(c, w) {
       return get(/databases/$(database)/documents/dailyDose/$(c)/works/$(w)/reads/$(request.auth.uid)).data.get('submittedAt', null) is timestamp;
     }
+    // One's own rows on every text, in one query instead of a listener per
+    // text (SPEC.md, "Fewer live connections"): the collection group `reads`
+    // where uid == the asker and club == a club the asker is a member of.
+    // Rows carry `uid` and `club` (the stamp) for this; the row rules below
+    // let only the owner write them and only with the row's own uid and club,
+    // so the query can never return anyone else's row. It returns drafts too:
+    // they are the asker's own, readable by get already. Nothing else is
+    // granted here: no get, no write, and no list without both equalities.
+    match /{path=**}/reads/{uid} {
+      allow list: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && doseMember(resource.data.club);
+    }
     match /dailyDose/{club} {
       allow get: if doseMember(club);
       allow list, create, delete: if false;
@@ -59,7 +72,11 @@
         match /reads/{uid} {
           function rowShape(d) {
             return d.keys().hasAll(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
-              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'undoCompletedAt'])
+              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'uid', 'club'])
+              // The owner's stamp (see the collection group rule below): both
+              // fields or neither, and only ever the row's own uid and club.
+              && ('uid' in d) == ('club' in d)
+              && d.get('uid', uid) == uid && d.get('club', club) == club
               && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt is timestamp)
               && d.status in ['reading', 'done'] && d.startedAt is timestamp
               && d.joinedOnDay is bool && d.comment is string && d.comment.matches('(?s)^.{0,140}$')
@@ -81,7 +98,7 @@
             return (old.status == 'withdrawn' && starts(d))
               || (old.status == 'reading' && d.status == 'done'
                 && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
-                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt'])
+                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'uid', 'club'])
                 && d.get('submittedAt', null) == null && d.get('undoCompletedAt', null) == null
                 // A fresh checkmark, or Undo of "Mark as unread" within five minutes,
                 // which restores the checkmark time that unread set aside.
@@ -89,11 +106,11 @@
                   || (old.get('undoCompletedAt', null) is timestamp && d.completedAt == old.undoCompletedAt
                     && request.time < old.updatedAt + duration.value(5, 'm'))))
               || (old.status == 'done' && d.status == 'reading' && d.completedAt == null && d.get('submittedAt', null) == null
-                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt'])
+                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'uid', 'club'])
                 && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt == old.completedAt))
               || (old.status == 'done' && d.status == 'done' && d.completedAt == old.completedAt
                 && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
-                && d.diff(old).affectedKeys().hasOnly(['comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt'])
+                && d.diff(old).affectedKeys().hasOnly(['comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'uid', 'club'])
                 && (d.get('submittedAt', null) == old.get('submittedAt', null) || d.get('submittedAt', null) == null
                   || (old.get('submittedAt', null) == null && d.submittedAt == request.time))
                 && ((d.comment == old.comment && d.commentAt == old.commentAt) || d.commentAt == request.time));
@@ -105,8 +122,10 @@
             && resource.data.submittedAt >= timestamp.date(1970, 1, 1);
           allow create: if doseMember(club) && request.auth.uid == uid && doseReleased(club, work)
             && rowShape(request.resource.data) && starts(request.resource.data);
+          // A stamped row stays stamped: the owner's one query depends on it.
           allow update: if doseMember(club) && request.auth.uid == uid && doseReleased(club, work)
-            && rowShape(request.resource.data) && changes(request.resource.data, resource.data);
+            && rowShape(request.resource.data) && changes(request.resource.data, resource.data)
+            && (!('uid' in resource.data) || 'uid' in request.resource.data);
           allow delete: if false;
         }
         // Emoji reactions to the submitted thoughts on this text: one document
