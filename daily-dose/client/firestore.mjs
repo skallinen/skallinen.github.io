@@ -113,7 +113,9 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
       e.pending = getDocsFromServer(ref).then(snap => {
         if (had && !wait && !sameDocs(e.snap, snap)) dirty = true;
         e.snap = snap; e.error = null;
-      }, error => { e.error = error; if (had && !wait) dirty = true; })
+        // A refusal changes what the feed shows (the text locks); a failed
+        // fetch (no network) does not, and is tried again by the next feed.
+      }, error => { e.error = error; if (had && !wait && noAccess(error)) dirty = true; })
         // One call for the whole round of background fetches, when the last one is in.
         .finally(() => { e.pending = null; if (!--inFlight && dirty) { dirty = false; changed(); } });
     }

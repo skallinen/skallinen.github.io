@@ -10,7 +10,7 @@
 //   node scripts/backfill-read-uids.mjs                     # dry run: how many rows lack the stamp
 //   node scripts/backfill-read-uids.mjs --apply             # stamp them
 //   node scripts/backfill-read-uids.mjs --enable --apply    # stamp, then switch the one query on (programme field readsByUid: true)
-//   node scripts/backfill-read-uids.mjs --disable --apply   # switch it off again (clients go back to a listener per text)
+//   node scripts/backfill-read-uids.mjs --disable --apply   # switch it off again (clients go back to a listener per text); stamps nothing
 //   node scripts/backfill-read-uids.mjs --remove --apply    # take the stamps off (only before rolling the rules back; needs --disable first)
 //
 // Order in production: rules and index first (the old rules refuse a stamped
@@ -91,7 +91,8 @@ async function commit(writes) {
 const before = await rows(), counted = count(before);
 // A stamp that is not the row's own uid and club can only come from outside the rules: stop and look.
 if (counted.wrong) throw new Error(`${counted.wrong} rows carry a stamp that is not their own uid and club; nothing was written.`);
-const todo = remove ? before.filter(r => r.has.uid != null) : before.filter(r => r.has.uid == null);
+// --disable alone only turns the switch; it leaves the rows as they are.
+const todo = remove ? before.filter(r => r.has.uid != null) : disable ? [] : before.filter(r => r.has.uid == null);
 console.log(JSON.stringify({ target: emulator ? `emulator ${emulator}` : 'PRODUCTION', project, club, readsByUid: enabled, ...counted,
   plan: { [remove ? 'removeStampFrom' : 'stamp']: todo.length, readsByUid: enable ? true : disable || remove ? false : 'unchanged' }, apply }, null, 1));
 if (remove && enabled && !disable) throw new Error('The one query is switched on (readsByUid). Run with --disable first, and let open pages reload, before removing the stamps.');

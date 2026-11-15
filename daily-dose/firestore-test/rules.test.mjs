@@ -1054,7 +1054,13 @@ test('backfill script: a dry run writes nothing; --apply stamps every row and no
   // Removing needs the switch off first.
   await assert.rejects(backfill('--remove', '--apply'), /--disable first/);
   assert.deepEqual(await stampOf('alice'), ['alice', 'club']);
-  await backfill('--disable', '--remove', '--apply');
+  // Switching off alone leaves the rows alone.
+  await action('bob', 'today', 'reading');
+  await backfill('--disable', '--apply');
+  assert.equal((await getDoc(doc(db('alice'), base))).data().readsByUid, false);
+  assert.deepEqual(await stampOf('bob'), [undefined, undefined]);
+  assert.deepEqual(await stampOf('alice'), ['alice', 'club']);
+  await backfill('--remove', '--apply');
   assert.equal((await getDoc(doc(db('alice'), base))).data().readsByUid, false);
   for (const [u, w] of [['alice', 'today'], ['bob', 'past'], ['cara', 'old'], ['cara', 'today']]) assert.deepEqual(await stampOf(u, w), [undefined, undefined]);
   assert.equal((await getDoc(rowRef(db('alice'), 'today', 'alice'))).data().comment, before.comment);
@@ -1124,7 +1130,8 @@ const rulesBeforeStamp = fullRules
 
 test('browser adapter, deploy order: with the switch on but the old rules, and with the new rules but the switch off, everything works by a listener per text and nothing is stamped', { timeout: 40000 }, async () => {
   for (const marker of ['path=**', "'uid'", "'club'", 'stamped']) assert.equal(rulesBeforeStamp.includes(marker), false, marker);
-  const old = await initializeTestEnvironment({ projectId: 'demo-daily-dose-old', firestore: { host: '127.0.0.1', port: 8189, rules: rulesBeforeStamp } });
+  // Its own project, so nothing is left in the one the older tests use.
+  const old = await initializeTestEnvironment({ projectId: 'demo-daily-dose-before-stamp', firestore: { host: '127.0.0.1', port: 8189, rules: rulesBeforeStamp } });
   const seed = async (e, extra) => {
     await e.withSecurityRulesDisabled(async ctx => {
       const d = ctx.firestore();
