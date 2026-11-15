@@ -237,6 +237,39 @@ function shell(content) {
     <main id="main">${content}</main><footer class="site-footer"><span>One poem. One story. One essay.</span><span>Read at your own pace. Come back tomorrow.</span></footer>`;
   fitTextareas();
   watchNews();
+  watchCards();
+}
+
+// ---------- the cards on screen (SPEC.md, "Fewer live connections")
+// The club's thoughts and reactions under an older text are kept up to date
+// only while its card is on screen or its text is open in the reader; the
+// app tells the backend which those are. A card that has just come on screen
+// is brought up to date and redrawn in place if anything on it changed.
+let cardObserver = null, attendTimer = 0;
+const onScreen = new Set();
+function queueAttend() { clearTimeout(attendTimer); attendTimer = setTimeout(attendCards, 700); }
+function watchCards() {
+  if (!backend?.attend || !('IntersectionObserver' in window)) return;
+  cardObserver ||= new IntersectionObserver(entries => {
+    for (const e of entries) { if (e.isIntersecting) onScreen.add(e.target.dataset.work); else onScreen.delete(e.target.dataset.work); }
+    queueAttend();
+  }, { rootMargin: '200px 0px' });
+  cardObserver.disconnect();
+  onScreen.clear();
+  for (const el of root.querySelectorAll('article.reading-card[data-work]')) cardObserver.observe(el);
+  queueAttend();
+}
+async function attendCards() {
+  const clubId = state.clubId;
+  if (!clubId || !state.feed || !backend?.attend) return;
+  const ids = [...onScreen];
+  if (reader.open && readerId && !ids.includes(readerId)) ids.push(readerId);
+  if (!backend.attend(clubId, ids)) return;
+  const shared = id => JSON.stringify(currentWork(id)?.collective ?? null);
+  const before = new Map(ids.map(id => [id, shared(id)]));
+  await refresh({ render: false }).catch(() => {});
+  if (clubId !== state.clubId || state.view !== 'feed') return;
+  for (const id of ids) if (shared(id) !== before.get(id)) redrawCard(id);
 }
 
 // ---------- the count on your name: new reactions to your own thoughts
@@ -974,11 +1007,12 @@ function settle(a) {
 
 // A refresh that started earlier never overwrites the result of a later one.
 let refreshSeq = 0, refreshShown = 0;
-async function refresh({ quiet = false, render: draw = true } = {}) {
+// `fresh` (the Refresh button) also fetches again what is fetched only once.
+async function refresh({ quiet = false, render: draw = true, fresh = false } = {}) {
   if (!state.clubId) return;
   const generation = state.generation;
   const clubId = state.clubId, seq = ++refreshSeq;
-  const feed = await api(`/clubs/${clubId}/feed`);
+  const feed = await api(`/clubs/${clubId}/feed`, fresh ? { fresh: true } : {});
   if (generation !== state.generation || clubId !== state.clubId || seq < refreshShown) return;
   refreshShown = seq;
   state.feed = feed;
@@ -1472,6 +1506,7 @@ async function openReading(id, { push = true } = {}) {
   if (!reader.open) {
     document.documentElement.classList.add('reader-open');
     reader.showModal();
+    queueAttend();
     if (push) history.pushState({ reader: id }, '', location.href);
     else history.replaceState({ ...(history.state || {}), reader: id }, '', location.href);
   }
@@ -1605,7 +1640,7 @@ async function run(event) {
     case 'save-ranking': return saveRanking();
     case 'island-skip': return skipIsland();
     case 'island-undo': return undoIsland();
-    case 'refresh': { const a = anchor(null); await refresh(); settle(a); notify('Up to date: the latest responses are shown.'); return; }
+    case 'refresh': { const a = anchor(null); await refresh({ fresh: true }); settle(a); notify('Up to date: the latest responses are shown.'); return; }
     case 'advance': await api('/demo/advance', { method: 'POST' }); await refresh(); notify('Demo moved forward one day.'); return;
   }
 }
@@ -1697,7 +1732,11 @@ try {
   else {
     const app = initializeApp(state.config.firebase);
     state.auth = getAuth(app);
-    if (firestoreMode) backend = createFirestoreBackend(app, () => state.user);
+    if (firestoreMode) {
+      backend = createFirestoreBackend(app, () => state.user);
+      // Older texts fetched again in the background (after the page was hidden a while) brought something new.
+      backend.onChange(() => { if (state.user && state.clubId && !document.hidden && !reader.open && state.view === 'feed') refresh({ quiet: true }).catch(() => {}); });
+    }
     onAuthStateChanged(state.auth, user => signedIn(user));
   }
 } catch (error) { root.innerHTML = `<main class="empty"><h1>We couldn’t open the reading room.</h1><p>${esc(error.message)}</p><a href="./">Try again</a></main>`; }
