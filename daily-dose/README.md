@@ -100,10 +100,14 @@ unlock the discussion again. Previously seen information cannot be unseen.
 
 Firestore listeners cache data; the 30-second UI refresh picks up other readers'
 new submissions. Shared listeners are discarded when access is revoked.
-The cache is in IndexedDB, shared by all tabs (memory if IndexedDB is missing),
-so a reload or a new tab within 30 minutes resumes its listeners and pays only
-for changed documents. A page hidden for five minutes closes its listeners and
-reopens them when shown again; each text is fetched once per page load.
+The cache is in memory, with LRU garbage collection, so a reload or a new tab
+reads the feed from the server again. It was in IndexedDB (16.10. to 15.11.2026),
+but there every listener costs IndexedDB work, and the feed holds about three
+listeners per released text; by Day 53 a draft save or Finish & reveal waited
+10 seconds or more behind them after a load, a reconnect or a resume. A page
+hidden for five minutes closes its listeners and reopens them when shown again,
+paying only for changed documents within 30 minutes; each text is fetched once
+per page load.
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old

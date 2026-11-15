@@ -1,4 +1,4 @@
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, memoryLocalCache, memoryLruGarbageCollector, doc, collection, query, where, onSnapshot, getDocFromServer, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, serverTimestamp, deleteField, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { scheduleDates, localDate } from './calendar.mjs';
 import { isReaction, tally, reactionsTo } from './reactions.mjs';
 import { programmeDays, MAX_TEXTS } from './volumes.mjs';
@@ -8,14 +8,21 @@ import { dayNumber, validateComment, validateRating, ratingSummary } from '../se
 const millis = t => t?.toMillis?.() ?? null;
 const noAccess = e => e.code === 'permission-denied';
 
-// The cache lives in IndexedDB, shared by every tab, so a reload or a new tab
-// resumes its listeners and pays only for documents changed since (within
-// Firestore's 30-minute resume window) instead of re-reading everything.
-// Without IndexedDB (some private windows), or if the app already has a
-// Firestore instance, it is the in-memory cache as before.
+// The cache lives in memory, with LRU garbage collection: a listener closed
+// while the page is hidden (pause) keeps its documents and resume token (not
+// collected until the cache passes its size limit), so
+// reopening it within Firestore's 30-minute window pays only for documents
+// changed meanwhile. It is not kept in IndexedDB (persistentLocalCache) any
+// more: there every listener costs IndexedDB work, and the feed holds about
+// three listeners per released text (own row, club responses, reactions;
+// some 480 by Day 53). Whenever they all start at once (page load, the
+// network coming back, resume) a draft save or Finish & reveal waited behind
+// them: 10 to 12 s in WebKit on the Mac at Day 53, 2 s at Day 31, none at
+// Day 11 (not measured on a phone). The cost: a reload or a new tab re-reads
+// the feed from the server. If the app already has a Firestore instance, it
+// is used as it is.
 export function openFirestore(app) {
-  if (typeof indexedDB === 'undefined') return getFirestore(app);
-  try { return initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+  try { return initializeFirestore(app, { localCache: memoryLocalCache({ garbageCollector: memoryLruGarbageCollector() }) }); }
   catch { return getFirestore(app); }
 }
 
