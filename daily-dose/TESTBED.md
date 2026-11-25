@@ -499,3 +499,65 @@ Saves are unchanged: a save after a return still waits behind the 183
 own-row listeners reopening (part B, one query, is what removes those).
 On `master` the older card's thoughts were already on the page.
 Not measured: a real phone, production.
+
+## Typing check
+
+`testbed/check-typing.mjs` checks how long a key takes to reach the screen
+in the thought box, in Chromium at 390 px (`CHECK_WIDTH=1280` for the
+desktop) with a phone's CPU (4x slower, `TYPING_CPU`) and network (150 ms,
+1.6 Mbit/s), on the busy bed at Day 61:
+
+```sh
+VOLUME3=1 DAY1_OFFSET=60 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/check-typing.mjs               # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Mikko types 60 characters into today's essay, a key every 100 ms, three
+times: with nothing else going on, through the 30-second refresh (fired
+after the tenth key; the page's own timer is held back so it cannot land
+elsewhere), and right after a draft save started. Per key it times the
+keydown to just after the next paint (`requestAnimationFrame`, then a
+message). 95% of keys must take under 50 ms and every key under 200 ms (the
+Web Vitals line for a slow response to input). The box keeps every
+character and the focus, the count and the hint follow, the draft saves
+privately and is back after a reload. It writes Mikko's draft on that text.
+
+2026-11-26, typing (Arno, 25.11.: "typing the thought is slow on the
+phone"). Measured before changing anything (scratch
+`testbed/.run/measure-typing.mjs`, same settings and seeds as the "Today
+first" table, Mikko at Day 61; two runs each on the production-shaped and
+the busy club, so four per column; median of the runs' medians, then the
+range of the runs' 95th percentiles and the longest single key; "early" is
+typing as soon as today's box is there, while the earlier days still
+arrive on the branch):
+
+| Key to screen, ms | `master` | `daily-dose-today-first` |
+|---|---|---|
+| Box usable after sign-in | 13.5 to 21.3 s | 3.3 to 3.8 s |
+| Early: median, 95%, longest | 13, 19 to 34, 60 | 11, 50 to 60, 133 |
+| Nothing else going on | 14, 17 to 25, 62 | 10, 13 to 22, 31 |
+| Through the 30-second refresh | 12, 18 to 31, 79 | 11, 14 to 24, 90 |
+| Right after a draft save | 13, 16 to 26, 28 | 10, 14 to 15, 23 |
+
+Playwright WebKit (no CPU or network slowdown available there), one run per
+club: 11 to 13 ms median and at most 42 ms on both. Where the time goes
+(branch, 4x CPU, 60 keys with the app's input handler on, then stopped
+before it, three times each): the handler adds 1 to 3 ms of main thread
+per key (two extra layouts, about 0.5 ms; script about 0.3 ms; the
+localStorage write too small to show), and the median key reaches the screen 0 to 1 ms
+later. Most of the 9 to 10 ms is waiting for the next frame. So typing was
+already fast and nothing in the client was changed: `fitTextarea`, the
+count, the hint and the device copy stay per key. The slowness phones felt
+is the load (13 to 21 s before the box on `master`) and the work queued
+behind the old listeners, which "Fewer live connections" and "Today first"
+remove. What is left on the branch: during the first seconds, while the
+earlier days are added below, a few keys take 50 to 130 ms; one key per
+30-second refresh takes up to 90 ms. Both stay under 200 ms. Not measured:
+a real phone.
+Checks the same day on the branch: `check-typing.mjs` green at 390 and 1280
+px (26 ok each; the longest key 78 and 88 ms, through the refresh);
+today-first at 390 and 1280, fewer-listeners in Chromium and WebKit, stars,
+my-stars, desert-island, reactions, news and the tour green; ranking failed
+once on an emulator "400 (Bad Request)" console line and passed twice on
+rerun. Rules suite 43 of 43, unit tests 69 of 69.

@@ -165,7 +165,9 @@ the earlier days below a few at a time, and a changed outline (midnight, a
 filter) draws the page again when nobody is typing. Going live: `npm run
 build:pages` and push, nothing else. Rolling back: push the previous client
 (`assets/app.js`, `index.html`); there is nothing on the server to undo.
-Measured before and after: TESTBED.md, "Today first check".
+Measured before and after: TESTBED.md, "Today first check". Typing in the
+thought box was measured on both (26.11.2026, TESTBED.md "Typing check"):
+already fast, so the input handler is unchanged.
 
 No background job or publication trigger is required.
 
