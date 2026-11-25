@@ -818,7 +818,7 @@ async function threeDays(d, extra = {}) {
     await setDoc(workRef(d, id), { id, day: n, category: 'poem', title: `Text ${id}`, author: 'Author', country: 'Finland', year: '2026', minutes: 1,
       openAt: Timestamp.fromMillis(now - (3 - n) * day - 3600000), closeAt: Timestamp.fromMillis(now - (3 - n) * day - 3600000 + day), revealedAt: null });
 }
-const backendFor = (uid, d = db(uid)) => createFirestoreBackend(null, () => ({ uid, displayName: uid }), d._delegate);
+const backendFor = (uid, d = db(uid), options) => createFirestoreBackend(null, () => ({ uid, displayName: uid }), d._delegate, options);
 const feedWork = async (client, id, options) => (await client.request('/clubs/club/feed', options)).days.flatMap(d => d.works).find(w => w.id === id);
 const thoughtOf = (work, author) => work.collective?.comments.find(c => c.uid === author);
 const kinds = (client, kind) => client.stats().listeners.filter(k => k.startsWith(`${kind}:`)).map(k => k.split(':').at(-1)).sort();
@@ -931,7 +931,126 @@ test('fewer connections: another tab undoing a response on an older text is noti
     w = await feedWork(bob, 'past');
     assert.equal(w.revealed, true);
     assert.equal(w.collective.readers.length, 2);
+    // The reactions, refused together with the responses, were not taken for rules without them.
+    assert.equal(w.collective.reactable, true);
   } finally { alice.reset(); bob.reset(); }
+});
+
+// ---------- Today first (SPEC.md): with no recent days, `past` and `old` are older texts.
+test('today first: an older text\'s thoughts are not read at load or on a return; on screen, Refresh, the Stars roster and one\'s own action read them', { timeout: 40000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const writer = backendFor('alice'), bob = backendFor('bob');
+  const pages = [];
+  const page = () => { const p = backendFor('alice', db('alice'), { recentDays: 0 }); pages.push(p); return p; };
+  try {
+    await finishAll(writer, 'alice'); await finishAll(bob, 'bob');
+    await bob.request('/clubs/club/works/old/reactions', { method: 'POST', body: { author: 'alice', emoji: 'heart', on: true } });
+    // A cold load: one's own rows for every text, the club's data for today's only.
+    const alice = page();
+    let changes = 0;
+    alice.onChange(() => { changes++; });
+    let feed = await alice.request('/clubs/club/feed');
+    const byId = f => Object.fromEntries(f.days.flatMap(d => d.works).map(w => [w.id, w]));
+    let w = byId(feed);
+    for (const id of ['past', 'old']) {
+      assert.equal(w[id].mine.status, 'done', `${id}: her own row is there`);
+      assert.equal(w[id].revealed, true);
+      assert.equal(w[id].later, true, `${id}: the club's thoughts are not read yet`);
+      assert.equal('collective' in w[id], false);
+    }
+    assert.equal(thoughtOf(w.today, 'bob').text, 'bob on today');
+    assert.equal(feed.loading, undefined);
+    assert.deepEqual(alice.stats().fetched, []);
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    assert.deepEqual(kinds(alice, 'rx'), ['today']);
+    assert.deepEqual(kinds(alice, 'own'), ['old', 'past', 'today']);
+    // The card comes on screen: read and live.
+    assert.equal(alice.attend('club', ['old']), true);
+    w = await feedWork(alice, 'old');
+    assert.equal(thoughtOf(w, 'bob').text, 'bob on old');
+    assert.deepEqual(w.collective.toMe, ['bob:heart']);
+    assert.deepEqual(kinds(alice, 'shared'), ['old', 'today']);
+    // Off screen again: it keeps what it showed, without a listener.
+    alice.attend('club', []);
+    w = await feedWork(alice, 'old');
+    assert.equal(thoughtOf(w, 'bob').text, 'bob on old');
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    assert.deepEqual(alice.stats().fetched, ['rx:club:old', 'shared:club:old']);
+    // A return after five minutes reads none of the older texts again.
+    alice.pause();
+    await bob.request('/clubs/club/works/old/reactions', { method: 'POST', body: { author: 'alice', emoji: 'think', on: true } });
+    alice.resume();
+    w = byId(await alice.request('/clubs/club/feed'));
+    assert.deepEqual(w.old.collective.toMe, ['bob:heart']);
+    assert.equal(w.past.later, true);
+    await pause(500);
+    assert.equal(changes, 0, 'nothing was fetched in the background');
+    // Refresh reads every finished text, the older ones too.
+    w = byId(await alice.request('/clubs/club/feed', { fresh: true }));
+    assert.deepEqual(w.old.collective.toMe, ['bob:heart', 'bob:think']);
+    assert.equal(thoughtOf(w.past, 'bob').text, 'bob on past');
+    // The Stars roster (`all`): every finished text not read yet, once; what the page has is enough.
+    const organiser = page();
+    w = byId(await organiser.request('/clubs/club/feed', { all: true }));
+    assert.deepEqual(w.past.collective.readers.map(r => r.uid).sort(), ['alice', 'bob']);
+    assert.deepEqual(w.old.collective.readers.map(r => r.uid).sort(), ['alice', 'bob']);
+    assert.deepEqual(organiser.stats().fetched, ['rx:club:old', 'rx:club:past', 'shared:club:old', 'shared:club:past']);
+    // One's own action on an older card read earlier and off screen now shows
+    // at once: a reaction, Save changes (no listener carries them).
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    await alice.request('/clubs/club/works/past/reactions', { method: 'POST', body: { author: 'bob', emoji: 'like', on: true } });
+    w = await feedWork(alice, 'past');
+    assert.deepEqual(thoughtOf(w, 'bob').reactions, [{ key: 'like', count: 1, mine: true, names: [] }]);
+    await alice.request('/clubs/club/works/old', { method: 'POST', body: { action: 'submit', comment: 'alice, later thoughts' } });
+    w = await feedWork(alice, 'old');
+    assert.equal(thoughtOf(w, 'alice').text, 'alice, later thoughts');
+    assert.equal(thoughtOf(w, 'bob').text, 'bob on old');
+    assert.deepEqual(kinds(alice, 'shared'), ['today']);
+    // Mark as unread on a text never read locks it, as before.
+    const fourth = page();
+    await fourth.request('/clubs/club/works/past', { method: 'POST', body: { action: 'unread' } });
+    w = await feedWork(fourth, 'past');
+    assert.equal(w.revealed, false);
+    assert.equal('collective' in w, false);
+    assert.equal(w.later, undefined);
+    // Finishing it again reads the others, although it is not on screen.
+    await fourth.request('/clubs/club/works/past', { method: 'POST', body: { action: 'complete' } });
+    await fourth.request('/clubs/club/works/past', { method: 'POST', body: { action: 'submit', comment: 'alice, once more' } });
+    w = await feedWork(fourth, 'past');
+    assert.equal(w.revealed, true);
+    assert.deepEqual(w.collective.readers.map(r => r.uid).sort(), ['alice', 'bob']);
+  } finally { writer.reset(); bob.reset(); for (const p of pages) p.reset(); }
+});
+
+test('today first: the first feed holds today and the recent days complete, the rest as placeholders; the next feed is complete', { timeout: 20000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const writer = backendFor('alice'), bob = backendFor('bob');
+  const first = backendFor('alice', db('alice'), { recentDays: 1 }), recent = backendFor('alice');
+  try {
+    await finishAll(writer, 'alice'); await finishAll(bob, 'bob');
+    // One recent day: today (Day 3) and `old` (Day 2) complete, `past` (Day 1) a placeholder.
+    let feed = await first.request('/clubs/club/feed', { early: true });
+    const byId = f => Object.fromEntries(f.days.flatMap(d => d.works).map(x => [x.id, x]));
+    let w = byId(feed);
+    assert.equal(feed.loading, true);
+    assert.deepEqual(feed.days.map(d => d.number), [3, 2, 1]);
+    assert.equal(w.past.loading, true);
+    assert.equal('mine' in w.past, false);
+    assert.equal(w.past.title, 'Text past');
+    for (const id of ['today', 'old']) { assert.equal(w[id].loading, undefined); assert.equal(w[id].mine.status, 'done'); assert.ok(w[id].collective, id); }
+    // `old` is recent: fetched once, no listener.
+    assert.deepEqual(first.stats().fetched, ['rx:club:old', 'shared:club:old']);
+    feed = await first.request('/clubs/club/feed');
+    w = byId(feed);
+    assert.equal(feed.loading, undefined);
+    assert.equal(w.past.loading, undefined);
+    assert.equal(w.past.mine.status, 'done');
+    assert.equal(w.past.later, true);
+    // With the two recent days of the app, every text of a three-day programme is in the first feed.
+    feed = await recent.request('/clubs/club/feed', { early: true });
+    assert.equal(feed.loading, undefined);
+    assert.ok(feed.days.flatMap(d => d.works).every(x => x.collective));
+  } finally { writer.reset(); bob.reset(); first.reset(); recent.reset(); }
 });
 
 // ---------- One's own rows in one query: the stamp (uid, club), the collection group rule

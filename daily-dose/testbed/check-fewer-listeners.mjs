@@ -7,8 +7,9 @@
 // today's poem; Grace finishes it too and reacts: both reach him by
 // themselves (today is live). Grace then edits her thought and reacts on an
 // old text far down the page: nothing changes for Mikko until he scrolls to
-// that card, which then shows both. Refresh and a reload bring the count on
-// his name up to date for old texts he is not looking at. He reacts on an old
+// that card, which then shows both. Refresh brings the count on his name up
+// to date for old texts he is not looking at; a reload does not read them
+// (Today first). He reacts on an old
 // card and Grace sees it; he opens an old text; Mark as unread hides an old
 // card's thoughts and finishing again brings them back; Desert island works.
 // With the one query switched on (scripts/backfill-read-uids.mjs --enable) the
@@ -63,6 +64,8 @@ async function signIn(name) {
   await chooser.getByText(name, { exact: true }).click();
   await page.getByText(/^OF (50|75)$/).waitFor({ timeout: 120000 });
   await page.locator('article[data-work]').first().waitFor({ timeout: 120000 });
+  // Today first: the earlier days follow the first draw.
+  await page.waitForFunction(() => !document.querySelector('.feed-loading'), null, { timeout: 120000 });
   return page;
 }
 const card = (page, id) => page.locator(`article[data-work="${id}"]`);
@@ -97,7 +100,7 @@ try {
   // Old texts, far down the page: the poems of Days 1 to 5.
   const [OLD, OLD2, OLD3, OLD4, OLD5] = ['P01', 'P02', 'P03', 'P04', 'P05'];
   expect(cards >= 15 && await card(mikko, OLD5).count() === 1, `Mikko signed in at ${WIDTH} px: ${cards} cards, the old ones among them`);
-  expect(await thought(mikko, OLD, 'Grace Okafor').count() === 1, 'an old card he has not scrolled to already holds the club\'s thoughts (fetched once at load)');
+  expect(await thought(mikko, OLD, 'Grace Okafor').count() === 0 && await card(mikko, OLD).locator('.loading-thoughts').count() === 1, 'an old card he has not scrolled to holds no thoughts yet (Today first: read when it comes on screen)');
   await mikko.waitForTimeout(4000);
   const listeners = await live(mikko);
   expect(listeners > 0 && listeners <= cards + 30, `the page keeps ${listeners} listeners open for ${cards} cards (it was about three per card)`);
@@ -145,16 +148,23 @@ try {
   await pill(mikko, OLD, 'Mikko Saarinen', 'laugh').waitFor({ timeout: 45000 });
   ok('while the old card is on screen, Grace\'s next reaction arrives by itself');
 
-  // Refresh and a reload bring old texts up to date without looking at them.
+  // Refresh brings old texts up to date without looking at them; a reload
+  // reads only today's and the two days before (Today first, SPEC.md).
   await toTop(mikko);
   await mikko.waitForTimeout(3000);
+  const refresh = async () => {
+    await mikko.evaluate(() => document.querySelector('button[data-action="refresh"]').click());
+    await mikko.locator('#toast', { hasText: /Up to date/ }).waitFor({ timeout: 60000 });
+    await mikko.evaluate(() => { document.querySelector('#toast').textContent = ''; });
+  };
+  // Every text read once, so the count includes the seed's older hearts.
+  await refresh();
   const seen = await news(mikko);
   await show(grace, OLD2);
   await react(grace, OLD2, 'Mikko Saarinen', 'surprised');
   await pill(grace, OLD2, 'Mikko Saarinen', 'wow').waitFor();
   await mikko.waitForTimeout(1500);
-  await mikko.evaluate(() => document.querySelector('button[data-action="refresh"]').click());
-  await mikko.locator('#toast', { hasText: /Up to date/ }).waitFor({ timeout: 60000 });
+  await refresh();
   expect(await news(mikko) === seen + 1, `Refresh: the count goes from ${seen} to ${seen + 1} for a reaction on an old text he is not looking at`);
   await show(grace, OLD3);
   await react(grace, OLD3, 'Mikko Saarinen', 'moved');
@@ -163,8 +173,13 @@ try {
   await mikko.reload();
   await mikko.getByText(/^OF (50|75)$/).waitFor({ timeout: 120000 });
   await mikko.locator('article[data-work]').first().waitFor({ timeout: 120000 });
+  await mikko.waitForFunction(() => document.querySelectorAll('article[data-work]').length > 15 && !document.querySelector('.feed-loading'), null, { timeout: 60000 });
+  await mikko.waitForTimeout(3000);
+  const reloaded = await news(mikko);
+  expect(reloaded < seen + 2, `a reload reads no old text: the count is ${reloaded}, without the reactions on ${OLD2} and ${OLD3}`);
+  await refresh();
   await mikko.waitForFunction(n => Number(document.querySelector('header button[data-news]')?.getAttribute('aria-label')?.match(/^(\d+)/)?.[1] || 0) === n, seen + 2, { timeout: 30000 });
-  ok(`a reload: the count is ${seen + 2}`);
+  ok(`Refresh after the reload: the count is ${seen + 2}`);
   // The count leads to an old thought.
   await badge(mikko).click();
   await mikko.locator('#toast', { hasText: /new reactions? to your thought on/ }).waitFor({ timeout: 15000 });
