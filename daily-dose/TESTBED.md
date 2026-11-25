@@ -464,8 +464,14 @@ ranking, desert-island, reactions, news green; `scripts/tour.sh` headless
 at 390x844 on its own bed, every beat ran (23). `check-descriptions.mjs`
 fails now and then on a console line "400 (Bad Request)" from a
 transaction commit the SDK retries (`documents:commit`): 2 of 2 runs on
-`master`, 1 of 2 on this branch, so not from this change. Rules suite 43
-of 43 (2 new), unit tests 69 of 69.
+`master`, 1 of 2 on this branch, so not from this change. A second
+emulator 400 came up in later runs of `check-today-first.mjs`: Grace's write
+stream ended by the SDK a minute after her last write
+(`Write/channel?...TYPE=terminate`, empty body; it reopens on the next
+write, nothing visible). A probe (finish, react, idle 90 s) saw it in 1 of 2
+runs on this branch and 0 of 2 on `master`, too few to call it unrelated;
+the check tolerates exactly these two requests and fails on any other.
+Rules suite 43 of 43 (2 new), unit tests 69 of 69.
 
 Measured the same day (scratch `testbed/.run/measure4.mjs`, Mikko at Day 61,
 Chromium at 390 px with 4x CPU and a phone network, 150 ms and 1.6 Mbit/s

@@ -32,7 +32,13 @@ async function shot(page, name) { if (SHOTS) await page.screenshot({ path: join(
 async function signIn(name, { slow = false } = {}) {
   const context = await browser.newContext({ viewport: { width: WIDTH, height: 800 }, hasTouch: WIDTH < 700, deviceScaleFactor: 2 });
   const page = await context.newPage();
-  page.on('console', m => { if (m.type() === 'error' && !m.location()?.url?.includes('/podcast/')) errors.push(`${name}: ${m.text()}`); });
+  // Two 400s from the emulator are not errors here (TESTBED.md): a transaction
+  // commit the SDK retries (seen on `master` too), and the end of a write stream
+  // the SDK closes after a minute idle (`TYPE=terminate`). Any other failed
+  // request is.
+  const benign = r => r.status() === 400 && /documents:commit|TYPE=terminate/.test(r.url());
+  page.on('response', r => { if (r.status() >= 400 && !r.url().includes('/podcast/') && !benign(r)) errors.push(`${name}: HTTP ${r.status()} ${r.url().slice(0, 120)}`); });
+  page.on('console', m => { if (m.type() === 'error' && !m.location()?.url?.includes('/podcast/') && !/Failed to load resource/.test(m.text())) errors.push(`${name}: ${m.text()}`); });
   page.on('pageerror', e => errors.push(`${name}: ${e.message}`));
   const cdp = await context.newCDPSession(page);
   if (slow) { await cdp.send('Network.enable'); await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.6e6 / 8, uploadThroughput: 0.75e6 / 8 }); }
