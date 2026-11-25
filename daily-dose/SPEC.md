@@ -242,27 +242,33 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   - Live, as before: the texts of the current day; every text whose card is
     on screen (from 200 px before it scrolls in until it has scrolled out)
     or whose text is open in the reader.
-  - Every other finished text: fetched once when the page loads, no
-    listener. Fetched again when its card comes on screen (it turns live
-    within about a second and its card is redrawn in place if anything
-    changed), when Refresh is chosen (all of them, and the message "Up to
-    date" waits for that), on a reload, and after the page was hidden for
-    five minutes or more (in the background; the feed on screen is served
-    at once from what the page has, then redrawn once if anything changed).
+  - Every other finished text: no listener. Since 25.11.2026 ("Today
+    first" below) only the two days before today are fetched when the page
+    loads; the older ones are fetched when their card comes on screen (it
+    turns live within about a second and its card is redrawn in place if
+    anything changed) and when Refresh is chosen (all of them, and the
+    message "Up to date" waits for that). After the page was hidden for
+    five minutes or more, the two days before today are fetched again in
+    the background (the feed on screen is served at once from what the
+    page has, then redrawn where anything changed); older texts are not.
   - One's own action on a text that is not live (a reaction, Save changes)
     shows at once, as before: the next feed reads that text again.
   Decisions, feature by feature (every reader of these data across texts):
   - The cards of the feed: live for today and on screen, one fetch for the
     rest. Reason: nobody reads a card that is not on screen.
-  - The count on your name: one fetch at load for older texts, live for
-    today's and those on screen. Reason: reactions are stored per text and
-    reacting member, so no single query can ask for "reactions to me"; the
-    only way to keep the count live on every text is a listener per text,
-    which is the thing being removed. The count is right at every load,
-    every Refresh, every return to the page after five minutes, and at once
-    for today's texts.
+  - The count on your name: live for today's texts and those on screen;
+    since 25.11.2026 the two days before today are fetched at load and
+    after a return, older texts only when their card has been on screen
+    or after Refresh ("Today first"). Reason: reactions are stored per
+    text and reacting member, so no single query can ask for "reactions
+    to me"; the only way to keep the count right on every text is to read
+    every text, which is the thing being removed. The count is right at
+    once for today's texts, at every load and return for the two days
+    before, and on every text after Refresh.
   - The organiser's roster, Stars view (the stars the others gave, from the
-    viewer's own feed): the same data, so the same rule.
+    viewer's own feed): the same data. Opening the Stars view fetches once
+    every finished text the page has not read yet; its cells show as
+    loading until then.
   - One's own grid (Checked off and Stars), "Today: n of 3 read", the Unread
     count, My ranking and Desert island read only one's own rows and one's
     own documents: they stay live on every text.
@@ -272,9 +278,9 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   that is not on screen, another member's new thought, edited thought,
   changed stars, new finished reader ("Finished: n on the day") or reaction
   used to appear within 30 seconds; it now appears when the card comes on
-  screen, on Refresh, on a reload or on returning after five minutes. The
-  same holds for the count on one's name when the reaction is to a thought
-  on an older text, and for the roster's Stars cells of older texts.
+  screen or on Refresh (and, for the two days before today, on a reload
+  or on returning after five minutes). The same holds for the count on
+  one's name when the reaction is to a thought on an older text.
   Unchanged: the reveal gate (Firestore decides, per text, exactly as
   before; a fetch asks the same query a listener did), the fallbacks when
   access is lost (another tab marked the text unread: the fetch is refused,
@@ -307,6 +313,64 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   text, WebKit at phone size, 15.11.2026): 477 listeners open after a load
   before; 165 with part A; 7 with parts A and B at the top of the page, 15
   with today's poem finished and an old card on screen.
+- Today first (25.11.2026). Why: at Day 61 a load, or a return after five
+  minutes away, still asked Firestore about 550 questions (one's own row,
+  the club's responses and the reactions, for each of 183 texts, the last
+  two only after the first had answered), and the page drew nothing until
+  every text had answered: 14 s on a phone-like network (4x CPU, 150 ms,
+  1.6 Mbit/s, test bed) for a club shaped like the real one, 22 s for a
+  busy one. Now the page asks for what is on screen first and the rest on
+  demand.
+  - The page is drawn as soon as today's texts and the two days before are
+    ready, their cards complete (one's own row, the club's thoughts, the
+    reactions). The older days follow below once one's own rows for them
+    have arrived (a second or two); until then the page ends with "Loading
+    earlier days…", the grids draw those days as loading (an outlined pale
+    cell), "n older texts waiting" says "Loading your earlier days…" and the
+    Unread filter shows no count. Nothing counted over all texts is shown
+    from part of them: My ranking and Desert island say "Loading your
+    texts…" until all are in. A reload while reading, or a page opened on
+    My ranking, Desert island or the Organiser page, waits for every text
+    as before.
+  - One's own rows are read for every text, as before (a listener each, or
+    the one query of part B), so checkmarks, one's own stars, thoughts and
+    drafts, the grid, "Today: n of 3 read", the Unread count, My ranking
+    and Desert island are exactly as before once the page is complete.
+  - The club's responses and the reactions on a finished text, by day:
+    today's are live (as before); the two days before today are fetched
+    once at load, again on Refresh and after a return (in the background);
+    an older text is read only when its card comes on screen (it then turns
+    live, as in part A), when Refresh is chosen, when the organiser opens
+    the roster's Stars view (once, the texts not read yet), or after one's
+    own action on it (a reaction, Save changes, Finish & reveal). Until
+    then its card shows "Loading the club's thoughts…" where the thoughts
+    go; a card that has been read keeps what it showed when it scrolled
+    away, until it comes on screen again. Own row first, then the
+    responses and the reactions together (they were one after the other).
+  - Unchanged: the reveal rule and the rules (each read asks exactly the
+    query it asked before, so Firestore decides as before), the data, the
+    fallbacks (access lost on another tab, rules without reactions).
+  - What a member can see differently: an older card scrolled to quickly
+    shows "Loading the club's thoughts…" for about a second on a phone;
+    the count on one's name counts reactions on today's texts, the two
+    days before, the cards one has had on screen since the page loaded,
+    and, after Refresh, every text, so a reaction to a thought of one's
+    own on an older text shows only once that card has been on screen or
+    after Refresh (it used to show after a reload or a return).
+- Redraw only what changed (25.11.2026). The 30-second refresh, the
+  background fetch after a return, a card coming on screen and closing the
+  reader used to draw every card again (0.5 to 0.8 s of frozen page at 4x
+  CPU on Day 61, test bed). Now each card is compared with what is on the
+  page and redrawn in place only when it differs (focus, the caret and open
+  details survive, as with any one-card redraw); when nothing changed,
+  nothing is touched. The card being typed in (focus in a text field
+  inside it) is left as it is and brought up to date by a later refresh.
+  The whole page is drawn again only when its outline changes (a new day
+  at midnight, another filter, a card the filter now shows or hides), and
+  not while someone is typing (it waits for a later refresh). The earlier
+  days of "Today first" are added below the cards already there, a few
+  days at a time, without touching them. Thought boxes are sized in one
+  pass (all heights read, then all set), not one layout per box.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
