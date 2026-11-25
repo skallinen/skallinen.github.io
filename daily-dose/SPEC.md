@@ -68,7 +68,7 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   follows your account across devices; this device also keeps a copy, and a
   reaction seen in either is not new. Until the rules for `seen` are deployed,
   the device copy alone is used. Cost: no extra reads of reactions (the feed
-  already listens to them for every finished text), one listener on your own
+  already reads them with the thoughts), one listener on your own
   `seen` document, one write per text you look at while it has news.
 - Timing words: "on the day" = checked off on the text's own date in the club's
   timezone; "catch-up" = checked off later. Used everywhere, defined in "How it works".

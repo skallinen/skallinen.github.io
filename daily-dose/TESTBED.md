@@ -390,7 +390,8 @@ network: listen targets added minus removed). Today is live: Grace's thought
 and her heart on his reach him by themselves. An old card he is not looking
 at does not change for 35 s after Grace edits and reacts there; when he
 scrolls to it, it shows both within seconds and is live while on screen.
-Refresh and a reload bring the count on his name up to date for old texts.
+Refresh brings the count on his name up to date for old texts; since "Today
+first" (25.11.) a reload reads only today's and the two days before.
 His own reaction and Save changes on an old card show at once, Grace sees his
 heart, the reader opens, Mark as unread locks an old card and finishing again
 unlocks it, and Desert island saves a choice. It writes to the bed: reseed
@@ -427,3 +428,68 @@ resume (no saving from resume tokens), so the last document rows say what is
 asked for again, not what production would bill. On a resume the older texts
 are fetched again in the background, which is why that row does not fall.
 Not measured: a real phone, and production.
+
+## Today first check
+
+`testbed/check-today-first.mjs` checks "Today first" and "Redraw only what
+changed" (SPEC.md) in Chromium at 390 px (`CHECK_WIDTH=1280` for the
+desktop), on a busy bed at Day 61:
+
+```sh
+VOLUME3=1 DAY1_OFFSET=60 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/check-today-first.mjs          # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Mikko signs in on a phone-like network (150 ms, 1.6 Mbit/s): the first draw
+holds today and the two days before (9 cards) with "Loading earlier days…"
+below, loading cells in the grid, "Loading your earlier days…" and no count
+on Unread; then all 183 cards, each with his own checkmark, the grid
+complete, "No older texts waiting.", Unread (0). An old card off screen says
+the club's thoughts are loading; one from two days ago already has them;
+scrolled to, the old card shows them. With nothing new, 35 s (one 30-second
+refresh) change nothing on the page (a MutationObserver on `#main`) and
+replace no card element. Grace finishing today's poem redraws that card
+only. While he types in that card through a refresh, the box, focus, text
+and caret stay and Grace's new heart waits; once he leaves the box the heart
+appears and his unsaved text is still there. Closing the reader keeps every
+card element. It writes to the bed: reseed before a rerun.
+
+2026-11-25, today first: `check-today-first.mjs` green at 390 and 1280 px
+(14 ok each); `check-fewer-listeners.mjs` green in Chromium and WebKit (27
+ok; its sign-in now waits for the earlier days, and the count steps take a
+Refresh first: a reload no longer reads old texts, the count went from 365
+to 10 on the busy bed and back to 365 on Refresh); stars, my-stars,
+ranking, desert-island, reactions, news green; `scripts/tour.sh` headless
+at 390x844 on its own bed, every beat ran (23). `check-descriptions.mjs`
+fails now and then on a console line "400 (Bad Request)" from a
+transaction commit the SDK retries (`documents:commit`): 2 of 2 runs on
+`master`, 1 of 2 on this branch, so not from this change. Rules suite 43
+of 43 (2 new), unit tests 69 of 69.
+
+Measured the same day (scratch `testbed/.run/measure4.mjs`, Mikko at Day 61,
+Chromium at 390 px with 4x CPU and a phone network, 150 ms and 1.6 Mbit/s
+down; two runs each, both shown; "production-shaped" is
+`testbed/.run/seed-prodlike.mjs`, the club as it was measured in production
+on 25.11., checked texts per member 181, 166, 58, 58, 6; "busy" is
+`seed-finished.mjs`; requests are listen targets added; "return" is the
+page hidden until its listeners close, then shown; long tasks from the
+browser's longtask entries):
+
+| | master, production-shaped | branch, production-shaped | master, busy | branch, busy |
+|---|---|---|---|---|
+| Requests at load | 553 | 205 | 553 | 205 |
+| Requests on return | 549 | 201 | 549 | 201 |
+| First feed (today usable) | 14.2 s, 13.7 s | 3.8 s, 3.3 s | 21.7 s, 21.8 s | 3.8 s, 3.5 s |
+| Full feed (all 183 cards) | 14.2 s, 13.8 s | 6.3 s, 5.8 s | 21.7 s, 21.9 s | 6.2 s, 6.0 s |
+| Documents and kB at load | 902, 921 kB | 392, 423 kB | 2899, 2131 kB | 463, 467 kB |
+| Long tasks, 35 s idle | 585 ms, 563 ms | 74 ms, 72 ms | 937 ms, 868 ms | 82 ms, 74 ms |
+| Longest task after return | 1.8 s, 1.9 s | 0.48 s, 0.46 s | 2.9 s, 2.7 s | 0.47 s, 0.46 s |
+| Save, warm | 1.26 s, 1.20 s | 1.23 s, 1.22 s | 1.22 s, 1.25 s | 1.22 s, 1.25 s |
+| Save after return | 2.51 s, 2.51 s | 2.64 s, 2.54 s | 2.48 s, 2.51 s | 2.60 s, 2.59 s |
+| Older card scrolled to: thoughts shown | 0.06 s, 0.07 s | 0.85 s, 0.86 s | 0.11 s, 0.10 s | 0.85 s, 0.85 s |
+
+Saves are unchanged: a save after a return still waits behind the 183
+own-row listeners reopening (part B, one query, is what removes those).
+On `master` the older card's thoughts were already on the page.
+Not measured: a real phone, production.

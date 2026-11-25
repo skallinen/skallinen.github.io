@@ -99,23 +99,22 @@ against the time unread set aside in the private row). Any later checkmark recor
 unlock the discussion again. Previously seen information cannot be unseen.
 
 Firestore listeners cache data; the 30-second UI refresh picks up other readers'
-new submissions. Shared listeners are discarded when access is revoked.
+new submissions and redraws only the cards that changed. Shared listeners are discarded when access is revoked.
 The cache is in memory, with LRU garbage collection, so a reload or a new tab
 reads the feed from the server again. It was in IndexedDB (16.10. to 15.11.2026),
 but there every listener costs IndexedDB work, and the feed holds about three
 listeners per released text; by Day 53 a draft save or Finish & reveal waited
 10 seconds or more behind them after a load, a reconnect or a resume. A page
 hidden for five minutes closes its listeners and reopens them when shown again,
-paying only for changed documents within 30 minutes; each text is fetched once
-per page load.
+paying only for changed documents within 30 minutes.
 
 **Fewer live connections** (SPEC.md has the contract). The page listens to the
 club's responses and the reactions only for today's texts and for the cards on
 screen (`client/app.mjs` watches the cards with an IntersectionObserver and
-tells the backend, `attend`); every other finished text is fetched once
+tells the backend, `attend`); the two days before today are fetched once
 (`getDocsFromServer`, the same queries, so the rules decide exactly as
-before) and fetched again when its card comes on screen, on Refresh, on a
-reload and after the page was hidden for five minutes. One's own rows come
+before), and older texts are read only when their card comes on screen or on
+Refresh ("Today first" below). One's own rows come
 from a listener per text, or, once `readsByUid` is switched on, from one
 collection group query on `reads` by the rows' stamp (`uid`, `club`), with a
 listener only for a row that lacks the stamp. `backend.stats()` lists the open
@@ -146,6 +145,28 @@ at any time. The rules must not go back to the old fragment while any row is
 stamped (the old rules refuse every write to a stamped row): first
 `--disable --apply`, let open pages reload, then `--remove --apply`, then the
 old rules.
+
+**Today first, and redraw only what changed** (25.11.2026, SPEC.md has the
+contract). Client only: no rules, index, data or backfill; every read is one
+of the queries above. The backend's feed takes `early` (the first draw:
+today and the two days before complete, the other texts as placeholders with
+`loading: true`, and `feed.loading`; it opens only those days' own rows, the
+complete feed asked next opens the rest), `all` (the roster's Stars view:
+every finished text not read yet, once) and `fresh` (Refresh). A finished
+older text whose thoughts the page has not read comes back with `later: true`
+and no `collective`; its card says the thoughts are loading until it comes on
+screen. `createFirestoreBackend(app, user, db, { recentDays })` says how many
+days before today are fetched at load (2). One's own reaction, Save changes
+or Finish & reveal on a text that is not live marks it to be read again from
+the server at the next feed (`again`). In `client/app.mjs`, `drawn` holds what
+each card was drawn with; `paintFeed` compares every card's HTML with it and
+morphs only the ones that differ (not the one being typed in), `growFeed` adds
+the earlier days below a few at a time, and a changed outline (midnight, a
+filter) draws the page again when nobody is typing. Going live: `npm run
+build:pages` and push, nothing else. Rolling back: push the previous client
+(`assets/app.js`, `index.html`); there is nothing on the server to undo.
+Measured before and after: TESTBED.md, "Today first check".
+
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old
@@ -188,7 +209,8 @@ writer's own list for one author (`last`). Rules: read and write only for
 members who have submitted their own response to that text (the same test as
 reading the thoughts), only one's own document, only the seven keys without
 repeats, a new reaction only on a thought that is submitted now, never a
-delete. The client reads one listener per revealed text. Keys and emojis live
+delete. The client reads them per revealed text as it reads the thoughts (live for
+today's and the cards on screen, see "Fewer live connections"). Keys and emojis live
 in `client/reactions.mjs` (the rules repeat the keys; `test/reactions.test.mjs`
 checks they agree).
 
@@ -204,8 +226,9 @@ at the top shows how many reactions are new (SPEC.md defines new and looked).
 Tap it to go to the thought; scrolling to the thought yourself clears it too,
 per text. Data: `dailyDose/{club}/seen/{uid}`, private to its owner,
 `{ works: { workId: ['reactorUid:key'] }, last, updatedAt }`, one text per
-write (merge). The feed computes the count from the reaction listeners it
-already has, so it costs one extra listener (your own `seen` document) and a
+write (merge). The feed computes the count from the reactions it has already
+read (today's, the two days before, the cards on screen, all after Refresh),
+so it costs one extra listener (your own `seen` document) and a
 write per text you look at. Until the `seen` rules are deployed, the client
 keeps the record on the device only (`localStorage`); it always keeps that copy
 too, and counts a reaction as seen if either copy has it.
