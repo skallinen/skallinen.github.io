@@ -49,8 +49,20 @@ const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
 const icons = { poem: '✳', story: '⌑', essay: '≋' };
 const idNumber = n => String(n).padStart(2, '0');
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const allWorks = () => state.feed?.days.flatMap(d => d.works) || [];
-const currentWork = id => allWorks().find(w => w.id === id);
+// The texts whose own row is in (Today first: a first feed holds placeholders,
+// `loading`, for the older days until the complete one arrives), kept per feed.
+let worksOf = { feed: null, list: [], byId: new Map() };
+function loadedWorks() {
+  if (worksOf.feed !== state.feed) {
+    const list = (state.feed?.days.flatMap(d => d.works) || []).filter(w => !w.loading);
+    worksOf = { feed: state.feed, list, byId: new Map(list.map(w => [w.id, w])) };
+  }
+  return worksOf;
+}
+const allWorks = () => loadedWorks().list;
+const currentWork = id => loadedWorks().byId.get(id);
+// Still waiting for one's own rows on the older days (Today first, SPEC.md).
+const loadingFeed = () => !!state.feed?.loading;
 // "Europe/Helsinki" -> "Helsinki time"; one friendly label for the club clock.
 export const zoneLabel = zone => !zone || zone === 'UTC' || zone === 'Etc/UTC' ? 'UTC' : `${zone.split('/').pop().replace(/_/g, ' ')} time`;
 const timing = onTime => onTime ? 'on the day' : 'catch-up';
@@ -247,12 +259,13 @@ function shell(content) {
 // is brought up to date and redrawn in place if anything on it changed.
 let cardObserver = null, attendTimer = 0;
 const onScreen = new Set();
-function queueAttend() { clearTimeout(attendTimer); attendTimer = setTimeout(attendCards, 700); }
+// A card that has no thoughts yet (Today first) is asked for sooner.
+function queueAttend(ms = 700) { clearTimeout(attendTimer); attendTimer = setTimeout(attendCards, ms); }
 function watchCards() {
   if (!backend?.attend || !('IntersectionObserver' in window)) return;
   cardObserver ||= new IntersectionObserver(entries => {
     for (const e of entries) { if (e.isIntersecting) onScreen.add(e.target.dataset.work); else onScreen.delete(e.target.dataset.work); }
-    queueAttend();
+    queueAttend(entries.some(e => e.isIntersecting && e.target.querySelector('.loading-thoughts')) ? 200 : 700);
   }, { rootMargin: '200px 0px' });
   cardObserver.disconnect();
   onScreen.clear();
@@ -265,11 +278,8 @@ async function attendCards() {
   const ids = [...onScreen];
   if (reader.open && readerId && !ids.includes(readerId)) ids.push(readerId);
   if (!backend.attend(clubId, ids)) return;
-  const shared = id => JSON.stringify(currentWork(id)?.collective ?? null);
-  const before = new Map(ids.map(id => [id, shared(id)]));
-  await refresh({ render: false }).catch(() => {});
-  if (clubId !== state.clubId || state.view !== 'feed') return;
-  for (const id of ids) if (shared(id) !== before.get(id)) redrawCard(id);
+  // The feed again (the new cards are live now); only what changed is redrawn.
+  await refresh({ quiet: true }).catch(() => {});
 }
 
 // ---------- the count on your name: new reactions to your own thoughts
@@ -365,11 +375,16 @@ async function signedIn(user, demoToken = null) {
     if (!state.clubId) {
       shell(`<section class="empty"><p class="eyebrow">YOUR READING ROOM</p><h1>No club yet.</h1><p>Join your book club in Bookrank, then come back here.</p><button class="secondary" data-action="retry">Check membership again</button></section>`);
     } else {
-      await refresh({ render: false });
+      // Today first (SPEC.md): the readings are drawn once today's texts and
+      // the recent days are in, the earlier days follow. A reload while
+      // reading, and the other views, wait for every text.
+      const open = history.state?.reader;
+      const early = !!backend && routeFromUrl().view === 'feed' && !open;
+      await refresh({ render: false, early });
       restoreDrafts();
       applyRoute();
+      if (state.feed?.loading) refresh({ quiet: true }).catch(() => {});
       // A reload while reading reopens the text at the same place.
-      const open = history.state?.reader;
       if (open && state.view === 'feed' && currentWork(open)) await openReading(open, { push: false });
     }
   } catch (error) {
@@ -404,12 +419,40 @@ function progressLines(feed) {
   const older = feed.days.filter(d => !d.today).flatMap(d => d.works).filter(w => w.mine?.status !== 'done').length;
   const lines = [];
   if (today) lines.push(`<strong>Today:</strong> ${today.works.filter(w => w.mine?.status === 'done').length} of ${today.works.length} read.`);
-  lines.push(older ? `${plural(older, 'older text')} waiting.` : 'No older texts waiting.');
+  // Never a count from part of the texts (Today first).
+  lines.push(feed.loading ? 'Loading your earlier days…' : older ? `${plural(older, 'older text')} waiting.` : 'No older texts waiting.');
   return lines.map(l => `<p>${l}</p>`).join('');
 }
 
+// What the feed on the page was drawn from (Redraw only what changed, SPEC.md):
+// its outline (see feedOutline), each card's HTML by text id, the progress
+// strip and the filter bar. Null when the page shows no feed.
+let drawn = null;
+const drawCard = work => { const html = workCard(work); drawn?.cards.set(work.id, html); return html; };
+// The days and cards the filter shows, older days still loading left out.
+const shownDays = feed => feed.days.map(d => ({ ...d, works: d.works.filter(w => !w.loading && shown(w)) })).filter(d => d.works.length);
+// Everything that, when it changes, needs the whole page drawn again (or, for
+// the earlier days arriving, more cards added below): the day, the filter,
+// the parts above the cards, and which cards are shown in which order.
+function feedOutline(feed) {
+  const c = feed.campaign;
+  const head = JSON.stringify([state.view, state.filter, c?.currentDay, c?.totalDays, c?.editable, c?.today, c?.startDate, feed.organizer, feed.podcast?.feed ?? null]);
+  const ids = shownDays(feed).flatMap(d => [`day:${d.number}`, ...d.works.map(w => w.id)]);
+  return { head, ids, loading: !!feed.loading, key: `${head}|${ids.join(',')}|${!!feed.loading}` };
+}
+function feedHtml(feed, days = shownDays(feed)) {
+  const campaign = feed.campaign, zone = zoneLabel(campaign.timezone), total = campaign.totalDays ?? 50;
+  const next = campaign.currentDay >= 1 && campaign.currentDay < total && ['all', 'unread'].includes(state.filter)
+    ? `<section class="day-group upcoming" aria-labelledby="day-next"><div class="day-heading"><h2 id="day-next">Day ${idNumber(campaign.currentDay + 1)} <span>${dateLabel(addDays(campaign.today, 1))}</span></h2>
+      <span><span aria-hidden="true">◷ </span>Opens tomorrow at 00:00, ${esc(zone)}</span></div></section>` : '';
+  const empty = feed.loading ? '' : `<section class="empty compact"><h2>${campaign.currentDay < 1 ? 'Your reading room is ready.' : state.filter === 'unread' ? 'Nothing left to read.' : 'Nothing here yet.'}</h2><p>${campaign.currentDay < 1 ? `Day 1 opens on ${dateLabel(campaign.startDate)}, ${esc(zone)}.` : state.filter === 'unread' ? 'You have checked off every open text. Choose All readings to revisit one.' : 'Choose another filter.'}</p></section>`;
+  return `${next}${days.map(daySection).join('') || empty}${feed.loading ? feedLoading : ''}`;
+}
+const feedLoading = '<section class="feed-loading" aria-live="polite"><p>Loading earlier days…</p></section>';
+
 function render() {
   const feed = state.feed;
+  drawn = null;
   if (!feed) return;
   if (state.view === 'organiser' && state.organiser) return renderOrganiser();
   if (state.view === 'ranking' && feed.campaign) return renderRanking();
@@ -424,20 +467,18 @@ function render() {
   const total = campaign.totalDays ?? 50;
   const activeDay = Math.max(0, Math.min(total, campaign.currentDay));
   const hero = campaign.currentDay < 1 ? `We begin ${dateLabel(campaign.startDate)}.` : campaign.currentDay > total ? 'The pages stay open.' : 'Make a little room.';
-  const filteredDays = feed.days.map(d => ({ ...d, works: d.works.filter(shown) })).filter(d => d.works.length);
-  const next = campaign.currentDay >= 1 && campaign.currentDay < total && ['all', 'unread'].includes(state.filter)
-    ? `<section class="day-group upcoming" aria-labelledby="day-next"><div class="day-heading"><h2 id="day-next">Day ${idNumber(campaign.currentDay + 1)} <span>${dateLabel(addDays(campaign.today, 1))}</span></h2>
-      <span><span aria-hidden="true">◷ </span>Opens tomorrow at 00:00, ${esc(zone)}</span></div></section>` : '';
+  drawn = { cards: new Map(), outline: feedOutline(feed) };
+  const strip = drawn.strip = personalStrip(feed), filters = drawn.filters = filterBar();
   shell(`<section class="feed-intro"><div><p class="eyebrow">${esc(feed.club.name)}</p><h1>${hero}</h1>
     <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > total ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
     <div class="day-seal${volumeThree(activeDay) ? ' v3' : ''}" aria-label="Day ${activeDay} of ${total}"><span>DAY</span><strong>${idNumber(activeDay)}</strong><small>OF ${total}</small></div></section>
-    ${personalStrip(feed)}
+    ${strip}
     ${podcastLine(feed)}
     ${howItWorks(zone)}
     ${feed.organizer && campaign.editable ? scheduleForm(campaign) : ''}
     ${state.config.demo ? `<div class="demo-tools"><span>Preview the reveal with another participant.</span><button class="text-button" data-action="logout">Switch person</button>${feed.organizer ? '<button class="text-button" data-action="advance">Advance demo one day →</button>' : ''}</div>` : ''}
-    <div class="feed-toolbar">${filterBar()}<button class="text-button refresh" data-action="refresh">Refresh</button></div>
-    <div class="feed">${next}${filteredDays.map(daySection).join('') || `<section class="empty compact"><h2>${campaign.currentDay < 1 ? 'Your reading room is ready.' : state.filter === 'unread' ? 'Nothing left to read.' : 'Nothing here yet.'}</h2><p>${campaign.currentDay < 1 ? `Day 1 opens on ${dateLabel(campaign.startDate)}, ${esc(zone)}.` : state.filter === 'unread' ? 'You have checked off every open text. Choose All readings to revisit one.' : 'Choose another filter.'}</p></section>`}</div>`);
+    <div class="feed-toolbar">${filters}<button class="text-button refresh" data-action="refresh">Refresh</button></div>
+    <div class="feed">${feedHtml(feed)}</div>`);
 }
 
 // Which cards the current filter shows. Checked-off cards stay in Unread
@@ -449,12 +490,12 @@ function personalStrip(feed) {
 }
 function filterBar() {
   const unreadCount = allWorks().filter(w => w.mine?.status !== 'done').length;
-  const labels = { all: 'All readings', unread: `Unread (${unreadCount})`, poem: 'Poems', story: 'Stories', essay: 'Essays' };
+  const labels = { all: 'All readings', unread: loadingFeed() ? 'Unread' : `Unread (${unreadCount})`, poem: 'Poems', story: 'Stories', essay: 'Essays' };
   return `<div class="filters" role="group" aria-label="Filter readings">${FILTERS.map(key => `<button data-filter="${key}" class="filter ${state.filter === key ? 'active' : ''}" aria-pressed="${state.filter === key}">${labels[key]}</button>`).join('')}</div>`;
 }
 
 function daySection(day) {
-  return `<section class="day-group" aria-labelledby="day-${day.number}"><div class="day-heading"><h2 id="day-${day.number}">Day ${idNumber(day.number)} <span>${day.today ? 'Today' : dateLabel(day.date)}</span></h2><span>${day.today ? 'On the day until midnight' : 'Catch-up'}</span></div>${listenBar(day.number)}${day.works.map(workCard).join('')}</section>`;
+  return `<section class="day-group" aria-labelledby="day-${day.number}"><div class="day-heading"><h2 id="day-${day.number}">Day ${idNumber(day.number)} <span>${day.today ? 'Today' : dateLabel(day.date)}</span></h2><span>${day.today ? 'On the day until midnight' : 'Catch-up'}</span></div>${listenBar(day.number)}${day.works.map(drawCard).join('')}</section>`;
 }
 
 // "Read again" only for a text that is checked off; a text read to its end but
@@ -513,6 +554,9 @@ function lockedHint(work) {
 function reveal(work) {
   const collective = work.collective;
   if (!work.revealed) return `<p class="locked" id="locked-${work.id}"><span aria-hidden="true">◇</span><span class="locked-text">${esc(state.pending.has(work.id) ? 'Sharing your response…' : lockedHint(work))}</span></p>`;
+  // Today first: an older text whose thoughts the page has not read yet. They
+  // are read when the card comes on screen (or on Refresh).
+  if (!collective) return '<p class="locked loading-thoughts"><span aria-hidden="true">◇</span><span class="locked-text">Loading the club’s thoughts…</span></p>';
   const others = collective.readers.filter(r => r.uid !== state.feed.me.uid).length;
   const detailsKey = `readers:${work.id}`;
   // "Finished" here, "checked off" on the organiser page: different measures, different words.
@@ -542,7 +586,7 @@ function workCard(work) {
     </div>
     ${keptDraft ? '<p class="reading-status">Your rating and thought are kept as a private draft. Check the text off again to finish.</p>' : ''}
     ${done ? ratingControl(work, false, ratingDraft(work.id)) : ''}
-    ${done && rankingAllowed() ? rankLine(rankScores(currentRanking()).get(work.id)) : ''}
+    ${done && rankingAllowed() ? rankLine(currentScores().get(work.id)) : ''}
     ${done ? commentForm(work) : ''}
     <div class="reveal-section">${reveal(work)}</div>
   </article>`;
@@ -573,30 +617,46 @@ const orgMark = x => x
 // or "coming" (a later day). On the day and catch-up are the checkmark times the
 // organiser page already reads (server time against the day's local midnight).
 const GRID_ROWS = [['poem', 'P'], ['story', 'S'], ['essay', 'E']];
-const CELL_WORDS = { on: 'on the day', late: 'catch-up', none: 'not checked off', coming: 'coming' };
+const CELL_WORDS = { on: 'on the day', late: 'catch-up', none: 'not checked off', coming: 'coming', waiting: 'loading' };
 // The roster's Stars view: the same grid, a cell per text coloured by the stars
 // the member gave (0 to 5). Only texts the viewer has finished themselves show
 // stars, because only those reveal the others' ratings in the feed; the
 // organiser sees nothing a member would not. "locked" = you have not finished it.
 const STAR_WORDS = { s0: '0 stars', s1: '1 star', s2: '2 stars', s3: '3 stars', s4: '4 stars', s5: '5 stars',
-  none: 'not finished', locked: 'you have not finished it', coming: 'coming' };
+  none: 'not finished', locked: 'you have not finished it', coming: 'coming', waiting: 'loading' };
 const checkKind = checks => work => { const x = checks[work.id]; return x ? (x.onTime ? 'on' : 'late') : 'none'; };
 // The ratings the viewer can see, uid -> work id -> stars, from the feed's revealed texts.
 function visibleStars(feed) {
-  const seen = new Map(), stars = {};
+  const seen = new Map(), stars = {}, later = new Set();
   for (const w of feed.days.flatMap(d => d.works)) {
-    if (!w.revealed || !w.collective) continue;
+    // Not read yet (Today first): the Stars view reads them, loading until then.
+    if (w.loading || (w.revealed && !w.collective)) { later.add(w.id); continue; }
+    if (!w.revealed) continue;
     seen.set(w.id, true);
     for (const r of w.collective.readers) if (r.rating != null) (stars[r.uid] ??= {})[w.id] = r.rating;
   }
-  return { seen, stars };
+  return { seen, stars, later };
 }
-const starKind = (vis, uid) => work => !vis.seen.has(work.id) ? 'locked'
+const starKind = (vis, uid) => work => vis.later.has(work.id) ? 'waiting' : !vis.seen.has(work.id) ? 'locked'
   : vis.stars[uid]?.[work.id] != null ? `s${vis.stars[uid][work.id]}` : 'none';
+// The roster's Stars view needs the others' stars on every text one has
+// finished: those the page has not read yet are read once, then it is drawn again.
+let starsLoad = null;
+function loadStars() {
+  if (starsLoad || !state.feed || !visibleStars(state.feed).later.size) return;
+  const generation = state.generation;
+  starsLoad = (async () => {
+    if (loadingFeed()) await refresh({ render: false });
+    await refresh({ render: false, all: true });
+  })().then(() => {
+    starsLoad = null;
+    if (generation === state.generation && state.view === 'organiser' && state.organiser && state.rosterView === 'stars') renderOrganiser();
+  }, e => { notify(e.message, true); setTimeout(() => { starsLoad = null; }, 30000); });
+}
 // The member's own Stars view: their own rating on each text they have finished.
 // Their own stars are never hidden from them, so there is no locked cell.
 const MY_STAR_WORDS = { s0: '0 stars', s1: '1 star', s2: '2 stars', s3: '3 stars', s4: '4 stars', s5: '5 stars',
-  none: 'no stars yet', coming: 'coming' };
+  none: 'no stars yet', coming: 'coming', waiting: 'loading' };
 const myStarKind = work => work.mine?.status === 'done' && work.mine.rating != null ? `s${work.mine.rating}` : 'none';
 // The "Checked off" / "Stars" switch, shared by the roster and the member's own
 // grid; `attr` is the data attribute the click handler reads.
@@ -617,7 +677,8 @@ function gridCells(c, days, kindOf) {
     const n = i + 1;
     if (!(c.currentDay >= n)) return { n, cat, kind: 'coming' };
     const work = byDay.get(n)?.works.find(w => w.category === cat);
-    return { n, cat, work, kind: work ? kindOf(work) : 'none' };
+    // A text whose own row is not in yet (Today first) draws as loading.
+    return { n, cat, work, kind: !work ? 'none' : work.loading ? 'waiting' : kindOf(work) };
   }));
 }
 function progressGrid(c, days, kindOf, label, words = CELL_WORDS) {
@@ -689,7 +750,9 @@ function renderOrganiser() {
       <span class="legend-item"><span class="mark late" aria-hidden="true">✓</span> checked off as catch-up</span><span class="legend-item"><span class="mark none" aria-hidden="true"></span> not yet</span></p>
     ${past.map(dayTable).join('')}` : '';
   const vis = state.rosterView === 'stars' && state.feed ? visibleStars(state.feed) : null;
+  if (vis?.later.size) loadStars();
   const starCount = uid => {
+    if (vis.later.size) return 'Loading the stars you can see…';
     const given = Object.values(vis.stars[uid] || {});
     return given.length ? `${plural(given.length, 'rating')} you can see, average ${(given.reduce((a, b) => a + b, 0) / given.length).toFixed(1)}` : 'No ratings you can see';
   };
@@ -725,9 +788,19 @@ function savedRanking() {
   return Array.isArray(local) ? local : null;
 }
 const currentRanking = () => rankOrder(rankable(), savedRanking(), state.feed?.me?.uid || '');
+// The scores each card shows, computed once for the same texts, stars and saved order
+// (every card asked for the whole ranking again).
+let scoresOf = { key: null, scores: null };
+function currentScores() {
+  const items = rankable(), saved = savedRanking(), uid = state.feed?.me?.uid || '';
+  const key = `${uid}|${items.map(x => `${x.id}:${x.rating}`).join(',')}|${saved ? saved.join(',') : '-'}`;
+  if (scoresOf.key !== key) scoresOf = { key, scores: rankScores(rankOrder(items, saved, uid)) };
+  return scoresOf.scores;
+}
 const ratingOf = id => currentWork(id)?.mine?.rating ?? null;
 function rankingLink() {
   if (!rankingAllowed()) return '';
+  if (loadingFeed()) return '<p class="rank-link"><button class="text-button" data-nav="ranking">My ranking</button> <span>Loading your texts…</span></p>';
   const n = rankable().length;
   return `<p class="rank-link"><button class="text-button" data-nav="ranking">My ranking</button> <span>${n ? `${plural(n, 'rated text')}, in your order` : 'Rate texts to rank them'}</span></p>`;
 }
@@ -742,7 +815,9 @@ function rankingContent() {
     ${order.length ? `<ol class="rank-list">${items}</ol>` : '<section class="empty compact"><h2>Nothing rated yet.</h2><p>Check a text off and give it stars; it appears here.</p></section>'}
     <p><button class="secondary" data-nav="">Back to readings</button></p>`;
 }
-function renderRanking() { shell(rankingContent()); }
+// Never drawn from part of the texts (Today first): the complete feed draws it.
+const loadingView = () => shell(`<section class="loading">Loading your texts…</section>`);
+function renderRanking() { if (loadingFeed()) return loadingView(); shell(rankingContent()); }
 // Redraw the list in place (the handle being moved keeps its focus).
 function paintRanking() {
   const main = root.querySelector('#main');
@@ -872,6 +947,7 @@ function islandPair(m) {
 }
 function islandLink() {
   if (!state.feed?.campaign) return '';
+  if (loadingFeed()) return '<p class="island-link"><button class="text-button" data-nav="desert-island">Desert island</button> <span>Loading your texts…</span></p>';
   const n = islandPool().length, made = savedChoices().length;
   return `<p class="island-link"><button class="text-button" data-nav="desert-island">Desert island</button> <span>${n < 2 ? 'Check off two texts to play' : made ? `${plural(made, 'choice')} so far` : 'Which text would you keep?'}</span></p>`;
 }
@@ -908,10 +984,11 @@ function islandHelp() {
     <p>The suggested stars follow the ranking on a bell curve: the top gets 5, the bottom 1, the middle 3. “Likely 2 to 4 ★” means the text lands there 8 times in 10, given your choices so far. The next pair is one your answer will tell the most about.</p>
     <p>Desert island never changes your stars; they stay as you set them. Only you see your choices and results: not the other members, not the organiser.</p></details>`;
 }
-function renderIsland() { shell(islandContent()); }
+function renderIsland() { if (loadingFeed()) return loadingView(); shell(islandContent()); }
 function paintIsland() {
   const main = root.querySelector('#main');
   if (state.view !== 'island' || !main) return;
+  if (loadingFeed()) return loadingView();
   morph(main, fragment(`<main id="main">${islandContent()}</main>`));
 }
 let islandTimer = 0, islandSeq = 0;
@@ -1007,24 +1084,126 @@ function settle(a) {
 
 // A refresh that started earlier never overwrites the result of a later one.
 let refreshSeq = 0, refreshShown = 0;
-// `fresh` (the Refresh button) also fetches again what is fetched only once.
-async function refresh({ quiet = false, render: draw = true, fresh = false } = {}) {
+// `fresh` (the Refresh button) also fetches again what is fetched only once;
+// `early` (the first draw) returns once today's texts and the recent days are
+// in; `all` (the roster's Stars view) reads every finished text not read yet.
+// On the feed, only what changed is drawn again (paintFeed); `quiet` is kept
+// for the other views, which are drawn again only when nobody is typing.
+async function refresh({ quiet = false, render: draw = true, fresh = false, early = false, all = false } = {}) {
   if (!state.clubId) return;
   const generation = state.generation;
   const clubId = state.clubId, seq = ++refreshSeq;
-  const feed = await api(`/clubs/${clubId}/feed`, fresh ? { fresh: true } : {});
+  const feed = await api(`/clubs/${clubId}/feed`, fresh ? { fresh: true } : all ? { all: true } : early ? { early: true } : {});
   if (generation !== state.generation || clubId !== state.clubId || seq < refreshShown) return;
+  // A first feed never replaces a complete one.
+  if (feed.loading && state.feed && !state.feed.loading) return;
   refreshShown = seq;
+  const wasLoading = loadingFeed();
   state.feed = feed;
   if (Number.isFinite(feed.now)) state.clockOffset = feed.now - Date.now();
   // Writes still on their way stay visible over the server's older state.
   for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
   for (const w of allWorks()) applyReactions(w);
+  // The older days have arrived: their unsent drafts come back too.
+  if (wasLoading && !feed.loading) restoreDrafts();
   if (!draw || state.view === 'organiser' || (state.view === 'ranking' && state.dragging)) return;
-  if (!quiet || !document.activeElement?.matches('textarea,input,select')) {
+  if (state.view === 'feed') { paintFeed(); return; }
+  if (!quiet || !typing()) render();
+}
+const typing = () => !!document.activeElement?.matches?.('textarea,input,select');
+
+// ---------- Redraw only what changed (SPEC.md)
+// The feed on the page is compared with the feed in hand: a card whose HTML
+// differs from what it was drawn with is redrawn in place (morph), and
+// nothing else is touched. The card being typed in waits for a later
+// refresh. A changed outline (a new day, a filter, a card shown or hidden)
+// draws the page again, unless someone is typing; the earlier days arriving
+// after the first draw are added below instead (growFeed).
+function paintFeed() {
+  const feed = state.feed, list = root.querySelector('.feed');
+  if (!feed?.campaign || !drawn || !list) { if (!typing()) { const a = anchor(document.activeElement?.closest('[data-work]')?.dataset.work); render(); settle(a); } return; }
+  if (drawn.growing) return;
+  const outline = feedOutline(feed);
+  if (outline.key !== drawn.outline.key) {
+    const old = drawn.outline;
+    if (old.loading && outline.head === old.head && old.ids.every((id, i) => outline.ids[i] === id)) { growFeed(list, outline); return; }
+    if (typing()) return;
     const a = anchor(document.activeElement?.closest('[data-work]')?.dataset.work);
     render(); settle(a);
+    return;
   }
+  const busy = typing() ? document.activeElement.closest('[data-work]')?.dataset.work : null;
+  const changed = [];
+  for (const d of shownDays(feed)) for (const w of d.works) {
+    if (w.id === busy) continue;
+    const html = workCard(w);
+    if (html !== drawn.cards.get(w.id)) changed.push([w.id, html]);
+  }
+  redrawCards(changed);
+}
+// Morph the given cards ([id, html]), keeping the card in use where it is on
+// screen, then the strip, the filters and the count on one's name.
+function redrawCards(list, { keep = null } = {}) {
+  const el = id => root.querySelector(`[data-work="${CSS.escape(id)}"]`);
+  // The card to hold still: the one in use, else the first one on screen.
+  const hold = keep || document.activeElement?.closest?.('[data-work]')?.dataset.work
+    || (list.length ? [...root.querySelectorAll('article.reading-card[data-work]')].find(c => c.getBoundingClientRect().bottom > 0)?.dataset.work : null);
+  const a = anchor(hold);
+  const boxes = [];
+  for (const [id, html] of list) {
+    const card = el(id);
+    if (!card) continue;
+    morph(card, fragment(html));
+    drawn?.cards.set(id, html);
+    boxes.push(...card.querySelectorAll('textarea[data-draft]'));
+  }
+  fitTextareas(boxes);
+  if (list.length) settle(a);
+  paintChrome(list.length > 0);
+}
+// The progress strip and the filter bar, only when they differ; the count on
+// one's name; and, when anything was redrawn (`cards`: some card was), the
+// watch on one's own thoughts with news.
+function paintChrome(cards = true) {
+  const feed = state.feed;
+  if (!feed?.campaign) return;
+  const strip = personalStrip(feed), filters = filterBar();
+  const s = root.querySelector('.personal-strip'), f = root.querySelector('.feed-toolbar .filters');
+  let changed = cards;
+  if (s && (!drawn || drawn.strip !== strip)) { morph(s, fragment(strip)); if (drawn) drawn.strip = strip; changed = true; }
+  if (f && (!drawn || drawn.filters !== filters)) { morph(f, fragment(filters)); if (drawn) drawn.filters = filters; changed = true; }
+  paintMe();
+  if (changed) watchNews();
+}
+// Today first: the earlier days, added below the cards already on the page a
+// few days at a time (so the page never freezes for long), then the
+// placeholder goes. Nothing above is touched.
+async function growFeed(list, outline) {
+  const feed = state.feed, mark = drawn;
+  mark.growing = true;
+  try {
+    const have = new Set(mark.outline.ids.filter(k => k.startsWith('day:')));
+    const days = shownDays(feed).filter(d => !have.has(`day:${d.number}`));
+    const placeholder = () => list.querySelector('.feed-loading');
+    for (let i = 0; i < days.length; i += 6) {
+      if (drawn !== mark || !list.isConnected) return;
+      const html = days.slice(i, i + 6).map(daySection).join('');
+      const at = placeholder();
+      if (at) at.insertAdjacentHTML('beforebegin', html); else list.insertAdjacentHTML('beforeend', html);
+      const added = days.slice(i, i + 6).flatMap(d => d.works.map(w => list.querySelector(`[data-work="${CSS.escape(w.id)}"]`))).filter(Boolean);
+      fitTextareas(added.flatMap(c => [...c.querySelectorAll('textarea[data-draft]')]));
+      for (const c of added) cardObserver?.observe(c);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    if (drawn !== mark || !list.isConnected) return;
+    placeholder()?.remove();
+    mark.outline = outline;
+  } finally { mark.growing = false; }
+  // Nothing at all to show (Unread, everything read): the page says so.
+  if (!outline.ids.length && !typing()) { render(); return; }
+  paintChrome();
+  // Whatever changed on the earlier cards meanwhile.
+  if (state.feed !== feed) paintFeed();
 }
 
 function focusAfter(id, selector) {
@@ -1061,16 +1240,15 @@ function redrawCard(id, { focus } = {}) {
   }
   if (card) {
     const top = card.getBoundingClientRect().top;
-    morph(card, fragment(workCard(work)));
-    for (const el of card.querySelectorAll('textarea[data-draft]')) fitTextarea(el);
+    const html = workCard(work);
+    morph(card, fragment(html));
+    drawn?.cards.set(id, html);
+    fitTextareas(card.querySelectorAll('textarea[data-draft]'));
     const moved = card.getBoundingClientRect().top - top;
     if (moved) window.scrollBy(0, moved);
     if (focus) focusAfter(id, focus);
   }
-  const strip = root.querySelector('.personal-strip'), filters = root.querySelector('.feed-toolbar .filters');
-  if (strip) morph(strip, fragment(personalStrip(state.feed)));
-  if (filters) morph(filters, fragment(filterBar()));
-  paintMe(); watchNews();
+  paintChrome();
 }
 
 // ---------- saving: a tap shows its result at once, the write follows
@@ -1528,7 +1706,8 @@ function readerClosed() {
   if (history.state?.reader) { ignorePop = true; history.back(); }
   if (toast.parentElement !== document.body) document.body.append(toast);
   if (state.view === 'feed' && id) {
-    render();
+    // Only the cards that changed (the one just read, at least) are drawn again.
+    paintFeed();
     const card = document.querySelector(`[data-work="${CSS.escape(id)}"]`);
     card?.scrollIntoView({ block: 'center' });
     card?.focus({ preventScroll: true });
@@ -1724,8 +1903,16 @@ function fitTextarea(el) {
   el.style.height = 'auto';
   el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
 }
-function fitTextareas() { for (const el of document.querySelectorAll('textarea[data-draft]')) fitTextarea(el); }
-addEventListener('resize', () => { cancelAnimationFrame(fitTextareas.frame); fitTextareas.frame = requestAnimationFrame(fitTextareas); });
+// Many boxes at once: every height is read in one layout, then all are set
+// (one layout per box, as fitTextarea alone does, froze a phone for a while).
+function fitTextareas(list = document.querySelectorAll('textarea[data-draft]')) {
+  const boxes = [...list];
+  if (!boxes.length) return;
+  for (const el of boxes) el.style.height = 'auto';
+  const heights = boxes.map(el => el.scrollHeight + el.offsetHeight - el.clientHeight);
+  boxes.forEach((el, i) => { el.style.height = `${heights[i]}px`; });
+}
+addEventListener('resize', () => { cancelAnimationFrame(fitTextareas.frame); fitTextareas.frame = requestAnimationFrame(() => fitTextareas()); });
 try {
   state.config = firestoreMode ? { demo: false, firebase: firebaseConfig } : await api('/config');
   if (state.config.demo) login();
@@ -1740,7 +1927,9 @@ try {
     onAuthStateChanged(state.auth, user => signedIn(user));
   }
 } catch (error) { root.innerHTML = `<main class="empty"><h1>We couldn’t open the reading room.</h1><p>${esc(error.message)}</p><a href="./">Try again</a></main>`; }
-setInterval(() => { if (state.user && state.clubId && !document.hidden && !reader.open && state.view === 'feed') refresh({ quiet: true }).catch(() => {}); }, 30000);
+// Every 30 s: what changed is redrawn, nothing else (SPEC.md, "Redraw only
+// what changed"). A page still waiting for its earlier days tries again here too.
+setInterval(() => { if (state.user && state.clubId && !document.hidden && !reader.open && (state.view === 'feed' || loadingFeed())) refresh({ quiet: true }).catch(() => {}); }, 30000);
 // A page hidden for five minutes closes its Firestore listeners, and showing
 // it reopens them; the feed keeps what it has meanwhile. Short tab switches
 // keep them open, because reopening costs at least a read per listener.

@@ -29,7 +29,9 @@ export function openFirestore(app) {
 
 // Firestore enforces per-reader disclosure. Only a submitted reader can query
 // other submitted responses; drafts never enter that query or its snapshots.
-export function createFirestoreBackend(app, user, db = openFirestore(app)) {
+// `recentDays`: how many days before today count as recent ("Today first" in
+// SPEC.md): drawn first with today's, their club data fetched at load.
+export function createFirestoreBackend(app, user, db = openFirestore(app), { recentDays = 2 } = {}) {
   const watches = new Map(), clocks = new Map(), healed = new Set(), texts = new Map();
   // True while the page is hidden: listeners are closed (see pause).
   let paused = false;
@@ -48,11 +50,15 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   let islandOff = false;
   // Fewer live connections (SPEC.md). The club's responses and the reactions
   // on a text are listened to only while the text is today's or on screen
-  // (`attended`, told by the app). Every other finished text is fetched once
-  // and kept here (`once`: key -> { ref, snap, pending, stale, error }),
-  // then fetched again when it is marked stale: Refresh, or the page shown
-  // again after its listeners were closed (pause).
-  const attended = new Map(), once = new Map();
+  // (`attended`, told by the app). The recent days are fetched once and kept
+  // here (`once`: key -> { ref, snap, pending, stale, error }), then fetched
+  // again when marked stale: Refresh, or the page shown again after its
+  // listeners were closed (pause). An older text keeps here what its
+  // listener last showed; it is read again only by Refresh (Today first).
+  // Today first (SPEC.md): an older text is not read at all until its card
+  // comes on screen, Refresh, the Stars roster or one's own action on it
+  // (`again`: keys to read from the server at the next feed).
+  const attended = new Map(), once = new Map(), again = new Set();
   // Called when a fetch in the background has brought newer data than the
   // last feed showed, so the app can ask for the feed again.
   let changed = () => {}, inFlight = 0, dirty = false;
@@ -64,6 +70,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   function unwatch(key) { watches.get(key)?.stop?.(); watches.delete(key); }
   // Drop a key altogether: its listener and its one-time copy.
   function forget(key) { unwatch(key); once.delete(key); }
+  // Drop it and read it from the server at the next feed, live or not.
+  function reread(key) { forget(key); again.add(key); }
   function listen(e) {
     e.stop = onSnapshot(e.ref, { includeMetadataChanges: true }, snap => {
       if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
@@ -96,7 +104,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     paused = false;
     for (const e of watches.values()) if (!e.stop && !e.error) listen(e);
     // What was fetched once may be old by now, and a text may have got a row
-    // from another device: the next feed fetches again, in the background.
+    // from another device: the next feed fetches the recent days again, in
+    // the background; older texts wait until they are on screen or Refresh.
     for (const e of once.values()) e.stale = true;
     norow.clear();
   }
@@ -134,18 +143,35 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     return e.snap;
   }
   const sameDocs = (a, b) => a.size === b.size && a.docs.every((d, i) => d.id === b.docs[i].id && d.data().updatedAt?.isEqual?.(b.docs[i].data().updatedAt));
-  // A query's documents: from a listener when the text is live, otherwise
-  // from one fetch. A text that stops being live hands its listener's last
-  // snapshot over and closes the listener; one that becomes live keeps its
-  // copy until the listener has delivered.
-  async function read(key, ref, live, wait = false) {
-    if (live) { const snap = await watch(key, ref); once.delete(key); return snap; }
+  // A query's documents, read the way `how` says (see `howToRead`):
+  // 'live' from a listener; 'fetch' from one fetch, kept, a stale copy served
+  // at once and fetched again in the background; 'wait' fetched again and
+  // waited for; 'copy' only what the page already has, null when nothing
+  // (Today first: an older text off screen). A text that stops being live
+  // hands its listener's last snapshot over and closes the listener; one
+  // that becomes live keeps its copy until the listener has delivered.
+  async function read(key, ref, how) {
+    if (how === 'live') { const snap = await watch(key, ref); once.delete(key); return snap; }
     const w = watches.get(key);
     if (w && (w.error || !w.snap)) return watch(key, ref);
     if (w) { once.set(key, { ref, snap: w.snap, error: null, pending: null, stale: false }); unwatch(key); }
-    return fetched(key, ref, wait);
+    if (how === 'copy') {
+      const e = once.get(key);
+      if (e?.snap) return e.snap;
+      return e?.pending ? fetched(key, ref) : null;
+    }
+    return fetched(key, ref, how === 'wait');
   }
   const isLive = (c, w, ctx) => w.day === ctx.day || !!attended.get(c)?.has(w.id);
+  // Today and the `recentDays` before it (of the programme's last day, once
+  // it has ended): drawn first, their club data fetched at load.
+  const isRecent = (w, ctx) => w.day >= ctx.last - recentDays;
+  // How a finished text's club data (responses, reactions) is read, per key.
+  function howToRead(key, live, recent, ctx) {
+    if (live) return 'live';
+    if (ctx.fresh || again.has(key)) return 'wait';
+    return recent ? 'fetch' : 'copy';
+  }
   // The app says which texts are on screen (or open in the reader). True when
   // a text was added, so the app asks for the feed again and gets it live.
   function attend(c, ids) {
@@ -188,6 +214,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     return t.server + performance.now() - t.local - 1000;
   }
   async function context(c) {
+    // The clock is asked at the same time (it was asked after these three): one round trip less.
+    const time = clock(c).then(now => ({ now }), error => ({ error }));
     const [ps, ms, cs] = await Promise.all([watch(`p:${c}`, programRef(c)), watch(`m:${c}`, collection(db, 'clubs', c, 'members')), watch(`c:${c}`, doc(db, 'clubs', c))]);
     if (!ps.exists() || !ms.docs.some(d => d.id === user().uid)) throw new Error('Your book-club membership could not be confirmed.');
     const p = ps.data(), members = new Map(ms.docs.map(d => [d.id, { name: d.data().display_name || 'Book club member' }]));
@@ -199,7 +227,11 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
       try { await updateDoc(programRef(c), { participantUids: ids }); p.participantUids = ids; }
       catch (e) { if (!noAccess(e)) throw e; }
     }
-    return { p, members, organizer, before, club: { id: c, name: cs.data().name }, now: await clock(c) };
+    let t = await time;
+    // Refused before the membership was confirmed (a member just admitted by the sync above): ask again.
+    if (t.error && noAccess(t.error)) { clocks.delete(c); t = { now: await clock(c, true) }; }
+    if (t.error) throw t.error;
+    return { p, members, organizer, before, club: { id: c, name: cs.data().name }, now: t.now };
   }
   // One's own rows on every text of this club, in one query: the collection
   // group `reads` by the stamp (uid and club) that rows carry once the rules
@@ -248,34 +280,69 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   }
   const submittedQuery = (c, id) => query(collection(workRef(c, id), 'reads'), where('submittedAt', '>=', Timestamp.fromMillis(0)));
   const mine = (r, w) => r ? { status: r.status, onTime: r.completedAt != null && millis(r.completedAt) < millis(w.closeAt), completedAt: millis(r.completedAt), comment: r.comment, rating: r.rating ?? null, submittedAt: millis(r.submittedAt), joinedOnDay: r.joinedOnDay } : null;
-  async function project(c, w, ctx) {
+  // A text's card before one's own row is known: what the works query says.
+  function cardOf(w, ctx) {
     const { openAt, closeAt, revealedAt, ...meta } = w;
+    return { ...meta, closeAt: millis(closeAt), date: localDate(millis(openAt), ctx.p.timezone) };
+  }
+  async function project(c, w, ctx) {
+    const { closeAt } = w;
     const own = await ownRow(c, w.id, ctx.mine);
     ctx.rows.set(w.id, own);
     const ownData = own.exists() ? own.data() : null;
     const revealed = ownData?.status === 'done' && ownData.submittedAt != null;
-    const result = { ...meta, closeAt: millis(closeAt), date: localDate(millis(openAt), ctx.p.timezone), mine: mine(ownData, w), revealed, revealReason: revealed ? null : 'submit-your-response' };
-    if (!revealed) { forget(`shared:${c}:${w.id}`); forget(`rx:${c}:${w.id}`); }
+    const result = { ...cardOf(w, ctx), mine: mine(ownData, w), revealed, revealReason: revealed ? null : 'submit-your-response' };
+    const sharedKey = `shared:${c}:${w.id}`, rxKey = `rx:${c}:${w.id}`;
+    if (!revealed) { forget(sharedKey); forget(rxKey); }
     else {
-      const live = isLive(c, w, ctx);
-      let rows;
-      try { rows = await read(`shared:${c}:${w.id}`, submittedQuery(c, w.id), live, ctx.fresh); }
-      catch (e) {
+      const live = isLive(c, w, ctx), recent = isRecent(w, ctx);
+      const how = key => {
+        const h = howToRead(key, live, recent, ctx);
+        // The Stars roster: every finished text once; what the page has is enough.
+        return h === 'copy' && ctx.all && !once.get(key)?.snap && !watches.get(key)?.snap ? 'wait' : h;
+      };
+      const rxHow = how(rxKey);
+      // What this page already had of the reactions, by listener or by one fetch.
+      const rxBefore = watches.get(rxKey)?.snap || once.get(rxKey)?.snap;
+      // The responses and the reactions together: both are readable exactly
+      // when one's own response is submitted (they were read one after the other).
+      const [sharedRead, rxRead] = await Promise.allSettled([read(sharedKey, submittedQuery(c, w.id), how(sharedKey)),
+        reactionsOff ? null : read(rxKey, collection(workRef(c, w.id), 'reactions'), rxHow)]);
+      again.delete(sharedKey); again.delete(rxKey);
+      if (sharedRead.status === 'rejected') {
+        const e = sharedRead.reason;
         if (!noAccess(e)) throw e;
         // Another tab may have undone this response. Discard shared snapshots.
-        forget(`shared:${c}:${w.id}`);
+        forget(sharedKey); forget(rxKey);
         const latest = await getDocFromServer(ownRef(c, w.id));
         setOwn(c, w.id, latest); ctx.rows.set(w.id, latest);
         result.mine = mine(latest.exists() ? latest.data() : null, w);
         result.revealed = false; result.revealReason = 'submit-your-response';
         return result;
       }
+      const rows = sharedRead.value;
+      // Today first: an older text off screen that this page has not read.
+      // Its card says the club's thoughts are loading.
+      if (!rows) { result.later = true; return result; }
       const done = rows.docs.map(d => ({ uid: d.id, ...d.data() })).filter(r => r.status === 'done' && r.submittedAt != null && ctx.members.has(r.uid));
       const onTime = r => millis(r.completedAt) < millis(closeAt);
       // Stable order: newest first submission first. Later edits never reorder the list.
       done.sort((a, b) => millis(b.submittedAt) - millis(a.submittedAt) || a.uid.localeCompare(b.uid));
       const edited = r => millis(r.commentAt) > millis(r.submittedAt);
-      const reactions = await reactionDocs(c, w.id, live, ctx.fresh);
+      let reactions = null;
+      if (rxRead.status === 'fulfilled' && rxRead.value) reactions = rxRead.value.docs.map(d => ({ uid: d.id, on: d.data().on || {} }));
+      else if (rxRead.status === 'fulfilled' && !reactionsOff && rxHow === 'copy') {
+        // Responses in hand but no reactions yet (a race with a background
+        // fetch): read them now, so the card never shows thoughts without them.
+        reactions = await reactionDocs(c, w.id, 'wait');
+      } else if (rxRead.status === 'rejected') {
+        if (!noAccess(rxRead.reason)) throw rxRead.reason;
+        // Refused while the responses were allowed: a read that never
+        // delivered anything means the deployed rules do not know reactions
+        // yet; one that worked before lost access in a race: skip it this time.
+        forget(rxKey);
+        if (!rxBefore) reactionsOff = true;
+      }
       result.collective = { ratings: ratingSummary(done), revealedAt: millis(ownData.submittedAt), onTime: done.filter(onTime).length, catchUp: done.filter(r => !onTime(r)).length,
         readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(r.completedAt), onTime: onTime(r), rating: r.rating ?? null })),
         comments: done.filter(r => r.comment)
@@ -289,12 +356,12 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
   }
   // Everyone's reaction documents for one text, readable exactly when the
   // shared responses are. Null when reactions are unavailable (see reactionsOff).
-  async function reactionDocs(c, id, live, wait) {
+  async function reactionDocs(c, id, how) {
     if (reactionsOff) return null;
     const key = `rx:${c}:${id}`;
     // What this page already had of them, by listener or by one fetch.
     const before = watches.get(key)?.snap || once.get(key)?.snap;
-    try { return (await read(key, collection(workRef(c, id), 'reactions'), live, wait)).docs.map(d => ({ uid: d.id, on: d.data().on || {} })); }
+    try { return (await read(key, collection(workRef(c, id), 'reactions'), how)).docs.map(d => ({ uid: d.id, on: d.data().on || {} })); }
     catch (e) {
       if (!noAccess(e)) throw e;
       // A read that never delivered anything was refused outright: the
@@ -321,7 +388,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     // the next feed reads the reactions from the server again.
     const key = `rx:${c}:${id}`;
     const has = snap => !!snap.docs.find(d => d.id === user().uid)?.data().on?.[author]?.includes(emoji);
-    if (!await settled(key, snap => has(snap) === on)) forget(key);
+    if (!await settled(key, snap => has(snap) === on)) reread(key);
   }
   // Which reactions to one's own thoughts one has seen, per text: { workId: [pairs] }.
   // One listener on one's own document; null while the rules do not allow it.
@@ -398,34 +465,59 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     const flat = l => Array.isArray(l) ? l.map(x => `${x?.w}>${x?.l}@${x?.at}`).join(',') : null, want = flat(list);
     if (!await settled(`island:${c}`, snap => flat(snap.data()?.choices) === want)) unwatch(`island:${c}`);
   }
-  async function feed(c, fresh = false) {
+  // `fresh` (Refresh): every finished text's club data is read from the
+  // server and waited for. `all` (the Stars roster): every finished text not
+  // read yet is read once. `early` (the first draw, Today first in SPEC.md):
+  // returns once today's texts and the recent days are complete; the other
+  // texts are placeholders (`loading: true`, no `mine`) and `loading` is
+  // true. The app then asks again, without `early`, for the complete feed;
+  // the listeners and fetches opened by this one serve it.
+  async function feed(c, fresh = false, { early = false, all = false } = {}) {
     const ctx = await context(c), p = ctx.p;
-    // Refresh: everything fetched once is fetched again, and waited for.
-    ctx.fresh = fresh; ctx.rows = new Map();
+    ctx.fresh = fresh; ctx.all = all; ctx.rows = new Map();
     if (fresh) { for (const e of once.values()) e.stale = true; norow.clear(); }
     const base = { club: ctx.club, me: { uid: user().uid, name: user().displayName }, organizer: ctx.organizer, now: ctx.now, edition: p.edition, days: [], personal: { completed: 0, onTime: 0, catchUp: 0 } };
-    base.seen = await seenWorks(c);
-    // My ranking is organiser-only for now (SPEC.md): nobody else even reads it.
-    base.ranking = ctx.organizer ? await rankingDoc(c) : null;
-    // Desert island is for every member, each reading only their own.
-    base.desertIsland = await islandDoc(c);
-    if (!p.startDate) return { ...base, campaign: null };
+    // One's own documents, asked together (they were asked one after the
+    // other) and alongside the released texts below.
+    const own = Promise.all([seenWorks(c),
+      // My ranking is organiser-only for now (SPEC.md): nobody else even reads it.
+      ctx.organizer ? rankingDoc(c) : null,
+      // Desert island is for every member, each reading only their own.
+      islandDoc(c)]);
+    own.catch(() => {});
+    const ownDocs = async () => { [base.seen, base.ranking, base.desertIsland] = await own; };
+    if (!p.startDate) { await ownDocs(); return { ...base, campaign: null }; }
     const today = localDate(ctx.now, p.timezone), day = dayNumber(p.startDate, today);
     base.campaign = { startDate: p.startDate, timezone: p.timezone, currentDay: day, today, totalDays: programmeDays(p), editable: ctx.now < millis(p.boundaries[0]) };
     // The private podcast (see client/podcast.mjs): members only, released days only.
     const pod = p.podcast;
     if (typeof pod?.feed === 'string') base.podcast = { feed: pod.feed, pattern: typeof pod.pattern === 'string' ? pod.pattern : null,
       episodes: (Array.isArray(pod.episodes) ? pod.episodes : []).filter(e => Number.isInteger(e?.day) && e.day <= Math.min(day, programmeDays(p))) };
-    if (day < 1) return base;
+    if (day < 1) { await ownDocs(); return base; }
     const cutoff = p.boundaries[Math.min(day, programmeDays(p)) - 1];
-    ctx.day = day; ctx.mine = await mineRows(c, p);
+    ctx.day = day; ctx.last = Math.min(day, programmeDays(p));
     // The released texts' query changes at midnight: close yesterday's.
     const worksKey = `works:${c}:${millis(cutoff)}`;
     for (const k of [...watches.keys()]) if (k.startsWith(`works:${c}:`) && k !== worksKey) unwatch(k);
-    const snapshot = await watch(worksKey, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff)));
-    const works = await Promise.all(snapshot.docs.map(d => project(c, d.data(), ctx)));
-    heal(c, snapshot.docs.map(d => d.data()), ctx.rows).catch(e => console.warn('Completion record not repaired', e));
-    for (let n = Math.min(programmeDays(p), day); n >= 1; n--) {
+    const [snapshot, mineMap] = await Promise.all([watch(worksKey, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff))), mineRows(c, p)]);
+    ctx.mine = mineMap;
+    const docs = snapshot.docs.map(d => d.data());
+    let works;
+    if (early) {
+      // Only the first days are asked for here, so their answers do not
+      // share the line with the older rows; the complete feed asked next
+      // opens the rest.
+      const first = docs.map(w => isRecent(w, ctx));
+      const done = await Promise.all(docs.filter((_, i) => first[i]).map(w => project(c, w, ctx)));
+      let k = 0;
+      works = docs.map((w, i) => first[i] ? done[k++] : { ...cardOf(w, ctx), loading: true });
+      if (first.some(f => !f)) base.loading = true;
+    } else {
+      works = await Promise.all(docs.map(w => project(c, w, ctx)));
+      heal(c, docs, ctx.rows).catch(e => console.warn('Completion record not repaired', e));
+    }
+    await ownDocs();
+    for (let n = ctx.last; n >= 1; n--) {
       const entries = works.filter(w => w.day === n).sort((a, b) => ['poem','story','essay'].indexOf(a.category) - ['poem','story','essay'].indexOf(b.category));
       if (entries.length) base.days.push({ number: n, date: entries[0].date, today: n === day, works: entries });
       for (const w of entries) if (w.mine?.status === 'done') { base.personal.completed++; base.personal[w.mine.onTime ? 'onTime' : 'catchUp']++; }
@@ -568,12 +660,14 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     // listener is already open, so this costs no extra round trip. Only if it
     // stays silent is the row read from the server, as before.
     const fresh = d => d?.exists() && !(seen && d.data().updatedAt?.isEqual?.(seen));
-    const ownKey = `own:${c}:${id}`, sharedKey = `shared:${c}:${id}`;
-    if (!isShared) forget(`rx:${c}:${id}`);
-    const shared = !wasShared || !isShared ? forget(sharedKey)
+    const ownKey = `own:${c}:${id}`, sharedKey = `shared:${c}:${id}`, rxKey = `rx:${c}:${id}`;
+    if (!isShared) forget(rxKey);
+    // Just shared (Finish & reveal): the next feed reads the others, live or not.
+    if (!wasShared && isShared) { reread(sharedKey); reread(rxKey); }
+    const shared = !isShared ? forget(sharedKey) : !wasShared ? null
       // Still shared (a rating or Save changes): the open query updates
       // itself; a text that is not live is read again by the next feed.
-      : settled(sharedKey, q => fresh(q.docs.find(d => d.id === user().uid))).then(ok => { if (!ok) forget(sharedKey); });
+      : settled(sharedKey, q => fresh(q.docs.find(d => d.id === user().uid))).then(ok => { if (!ok) reread(sharedKey); });
     norow.delete(ownKey);
     // The stamped row arrives in the one query; an unstamped one by its own listener.
     const carried = stamp ? settled(mineKey(c), q => fresh(q.docs.find(d => d.ref.path === ownRef(c, id).path))) : settled(ownKey, fresh);
@@ -591,7 +685,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
     // For tests and measurements: the open listeners and the one-time copies, by key.
     stats() { return { listeners: [...watches].filter(([, e]) => e.stop).map(([k]) => k).sort(), fetched: [...once.keys()].sort(), ownQuery: [...watches.keys()].filter(k => k.startsWith('mine:')).map(k => k.slice(5)) }; },
     reset() { for (const w of watches.values()) w.stop?.(); watches.clear(); clocks.clear(); healed.clear(); texts.clear(); reactionsOff = false; seenOff = false; rankingOff = false; islandOff = false;
-      attended.clear(); once.clear(); mineOff.clear(); norow.clear(); newer.clear(); dirty = false; },
+      attended.clear(); once.clear(); again.clear(); mineOff.clear(); norow.clear(); newer.clear(); dirty = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -605,7 +699,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app)) {
       }
       const parts = url.split('/').filter(Boolean), c = parts[1], id = parts[3];
       if (parts[0] !== 'clubs') throw new Error('Unknown request.');
-      if (parts[2] === 'feed') return feed(c, options.fresh === true);
+      if (parts[2] === 'feed') return feed(c, options.fresh === true, { early: options.early === true, all: options.all === true });
       if (parts[2] === 'organiser') return organiser(c);
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
       if (parts[2] === 'seen' && options.method === 'POST') return markSeen(c, options.body);

@@ -165,6 +165,10 @@ textarea::placeholder { color: #6d6a60; }
 .reveal-section { margin: 0 -1.75rem; padding: 1rem 1.75rem 1.1rem; background: var(--wash); border-top: 1px solid var(--line); }
 .locked { display: flex; gap: .6rem; align-items: baseline; color: var(--ink); font-size: 1.0625rem; line-height: 1.5; margin: 0; }
 .locked > span { font-size: 1.1rem; color: var(--muted); }
+/* Today first (SPEC.md): what is still on its way, quiet and in the same places. */
+.locked.loading-thoughts { color: var(--muted); }
+.feed-loading { padding: 1.5rem 0 2rem; text-align: center; color: var(--muted); font: 1.125rem var(--serif); }
+.feed-loading p { margin: 0; }
 .reveal-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; margin: .1rem 0 .5rem; }
 .reveal-heading .eyebrow { color: var(--muted); }
 .reveal-heading > span:last-child { font-size: 1rem; color: var(--ink); }
@@ -261,6 +265,7 @@ input, select { border: 1.5px solid var(--line-strong); background: #fff; border
 .cell.late { background: var(--cell-late); }
 .cell.none { background: var(--cell-none); box-shadow: inset 0 0 0 1px var(--cell-none-edge); }
 .cell.coming { background: var(--cell-coming); }
+.cell.waiting { background: transparent; box-shadow: inset 0 0 0 1px var(--cell-coming); }
 .roster-axis { grid-auto-rows: auto; margin: .25rem 0 0; }
 .roster-axis .tick { font-size: .9375rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .roster-axis .tick.end { text-align: right; }
