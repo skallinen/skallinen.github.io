@@ -14,6 +14,8 @@ import { results, nextPair, pairKey, addChoice, validChoice, drawSeed, islandCar
 import { startDrag, step } from './drag.mjs';
 import { VOLUME_THREE, volumeThree } from './volumes.mjs';
 import { COPY_KEY, paintCopy, usableCopy, OUTBOX_ACTIONS, outboxEntries, notConnected, retryDelay } from './outbox.mjs';
+// The server clock as last measured, kept for a page that starts offline (SPEC.md, "Counted when it was done").
+const CLOCK_KEY = 'daily-dose-clock';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -1272,7 +1274,7 @@ async function refresh({ quiet = false, render: draw = true, fresh = false, earl
   refreshShown = seq;
   const wasLoading = loadingFeed();
   state.feed = feed;
-  if (Number.isFinite(feed.now)) state.clockOffset = feed.now - Date.now();
+  if (Number.isFinite(feed.now)) { state.clockOffset = feed.now - Date.now(); store.set(CLOCK_KEY, String(Math.round(state.clockOffset))); }
   // Writes still on their way stay visible over the server's older state.
   for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
   for (const w of allWorks()) applyReactions(w);
@@ -1505,7 +1507,7 @@ async function drain(id, q) {
 // The server clock as the backend last measured it: only for the expected
 // "on the day" / "catch-up" of a checkmark, which the server then confirms.
 const serverNow = () => Date.now() + state.clockOffset;
-const expectOnTime = w => w.closeAt != null ? serverNow() < w.closeAt : !!state.feed?.days.find(d => d.works.some(x => x.id === w.id))?.today;
+const expectOnTime = (w, at = serverNow()) => w.closeAt != null ? at < w.closeAt : !!state.feed?.days.find(d => d.works.some(x => x.id === w.id))?.today;
 function hideShared(w) { w.revealed = false; w.revealReason = 'submit-your-response'; delete w.collective; }
 // After finishing, one's own entry in the club's view changes with one's own
 // rating and thought; everybody else's stays as the server sent it.
@@ -1526,7 +1528,7 @@ function expectation(id, payload) {
     case 'complete':
     case 'restore': {
       const back = payload.action === 'restore' ? state.undone.get(id) : null;
-      const completedAt = back?.completedAt ?? serverNow(), onTime = back ? back.onTime : w0 ? expectOnTime(w0) : false;
+      const completedAt = back?.completedAt ?? payload.writtenAt ?? serverNow(), onTime = back ? back.onTime : w0 ? expectOnTime(w0, completedAt) : false;
       return w => {
         if (w.mine?.status === 'done') return;
         const kept = w.mine?.status === 'reading' ? w.mine : { comment: '', rating: null };
@@ -1566,6 +1568,9 @@ const draftNote = id => hasDraft(id) ? ' Your rating and thought are kept as a p
 // `quiet` for a step of "Save changes", which has its own message;
 // `resumed` for a write an earlier page left in the outbox (`k` its key there).
 function act(id, payload, { focus, undo = true, message, quiet = false, resumed = false, k = null } = {}) {
+  // A check off records when it was made here, by the server clock as last
+  // known; it counts at that time even if it is sent later (Firestore only).
+  if (payload.action === 'complete' && backend && !('writtenAt' in payload)) payload = { ...payload, writtenAt: Math.round(serverNow()) };
   const before = currentWork(id), generation = state.generation;
   const wasRevealed = before?.revealed, oldRating = before?.mine?.rating ?? null, wasDone = before?.mine?.status === 'done';
   if (['complete', 'restore'].includes(payload.action) && state.filter === 'unread') state.sticky.add(id);
@@ -2136,6 +2141,7 @@ try {
     state.auth = getAuth(app);
     if (firestoreMode) {
       backend = createFirestoreBackend(app, () => state.user);
+      { const kept = Number(store.get(CLOCK_KEY)); if (Number.isFinite(kept) && Math.abs(kept) < 7 * 86400000) state.clockOffset = kept; }
       // Older texts fetched again in the background (after the page was hidden a while) brought something new.
       backend.onChange(() => { if (state.user && state.clubId && !document.hidden && !reader.open && state.view === 'feed') refresh({ quiet: true }).catch(() => {}); });
       // Today's cards from the copy on this phone, before sign-in answers.

@@ -60,3 +60,25 @@ export function draftConflict(row, { comment, base, at } = {}) {
   if (theirs === base.trim() || theirs === String(comment ?? '').trim()) return null;
   return Number.isFinite(row?.commentAt) && Number.isFinite(at) && row.commentAt > at ? 'theirs' : 'mine';
 }
+
+// ---------- counted when it was done (SPEC.md, "Counted when it was done")
+// A check off carries the time it was made on the phone (`writtenAt`), so one
+// made offline before midnight and sent after it still counts on the day. The
+// rules accept it only on the checkmark itself, never after the server's time
+// of the checkmark and at most this long before it: a phone clock set back can
+// move a checkmark back by a day at most.
+export const WRITTEN_WINDOW_MS = 24 * 3600000;
+// Kept inside the window by this much, so a write on its way is not refused.
+const WRITTEN_MARGIN_MS = 10 * 60000;
+// The phone time to send with a check off, given when it was made (`at`, by
+// the server clock as the page knew it then) and the server's time now: never
+// later than now (a phone clock running ahead), and none when the window has
+// passed (then it counts when it arrives, as before).
+export function writtenAtFor(at, now) {
+  if (!Number.isFinite(at) || !Number.isFinite(now)) return null;
+  if (at < now - WRITTEN_WINDOW_MS + WRITTEN_MARGIN_MS) return null;
+  return Math.min(Math.round(at), Math.floor(now));
+}
+// The time a checkmark counts at: its phone time when it has one, else the
+// server's. Works for Firestore rows (Timestamps) and plain numbers alike.
+export const countedAt = row => row?.writtenAt ?? row?.completedAt ?? null;
