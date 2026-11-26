@@ -249,7 +249,10 @@ Desert island:
    live connections" part B (the stamp and the one query), which allow
    only one's own rows and stay unused until its index, backfill and
    switch.
-3. `npm run build:pages` (if not already built) and push.
+3. Push the client: `git push origin dd-release:master` (dd-release starts
+   at c995282, the live master, so this is a fast-forward; its pages are
+   built, `app.js?v=release-2611-1`). Check that Pages has built and the
+   served `assets/app.js` matches the branch.
 4. Rolling back: the client by pushing the previous one; the rules by
    releasing the rollback ruleset (or `update-rules.mjs` with the new live
    rules as the backup and this fragment as the old one, putting the 772bc9b
