@@ -5,7 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, collection, collectionGroup, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion, arrayRemove, Timestamp, query, where } from 'firebase/firestore';
+import { doc, collection, collectionGroup, getDoc, getDocs, setDoc, updateDoc, deleteField, deleteDoc, writeBatch, serverTimestamp, arrayUnion, arrayRemove, Timestamp, query, where } from 'firebase/firestore';
 import { scheduleDates } from '../client/calendar.mjs';
 import { createFirestoreBackend } from '../client/firestore.mjs';
 
@@ -937,7 +937,7 @@ test('fewer connections: another tab undoing a response on an older text is noti
 });
 
 // ---------- Today first (SPEC.md): with no recent days, `past` and `old` are older texts.
-test('today first: an older text\'s thoughts are not read at load or on a return; on screen, Refresh, the Stars roster and one\'s own action read them', { timeout: 40000 }, async () => {
+test('today first: an older text\'s own row and thoughts are not read at load or on a return; on screen, Refresh, the Stars roster and one\'s own action read them', { timeout: 40000 }, async () => {
   await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
   const writer = backendFor('alice'), bob = backendFor('bob');
   const pages = [];
@@ -945,7 +945,8 @@ test('today first: an older text\'s thoughts are not read at load or on a return
   try {
     await finishAll(writer, 'alice'); await finishAll(bob, 'bob');
     await bob.request('/clubs/club/works/old/reactions', { method: 'POST', body: { author: 'alice', emoji: 'heart', on: true } });
-    // A cold load: one's own rows for every text, the club's data for today's only.
+    // A cold load: one's own row and the club's data for today's text only;
+    // the older texts' checkmarks come from the completion record.
     const alice = page();
     let changes = 0;
     alice.onChange(() => { changes++; });
@@ -953,17 +954,21 @@ test('today first: an older text\'s thoughts are not read at load or on a return
     const byId = f => Object.fromEntries(f.days.flatMap(d => d.works).map(w => [w.id, w]));
     let w = byId(feed);
     for (const id of ['past', 'old']) {
-      assert.equal(w[id].mine.status, 'done', `${id}: her own row is there`);
-      assert.equal(w[id].revealed, true);
-      assert.equal(w[id].later, true, `${id}: the club's thoughts are not read yet`);
+      assert.equal(w[id].mine.status, 'done', `${id}: the checkmark, from the record`);
+      assert.equal(w[id].mine.onTime, false, `${id}: checked off today, catch-up`);
+      assert.equal(w[id].mine.rating, null, `${id}: no stars without the row`);
+      assert.equal(w[id].partial, true, `${id}: her own row is not read yet`);
       assert.equal('collective' in w[id], false);
     }
+    assert.deepEqual(feed.personal, { completed: 3, onTime: 1, catchUp: 2 });
     assert.equal(thoughtOf(w.today, 'bob').text, 'bob on today');
     assert.equal(feed.loading, undefined);
     assert.deepEqual(alice.stats().fetched, []);
     assert.deepEqual(kinds(alice, 'shared'), ['today']);
     assert.deepEqual(kinds(alice, 'rx'), ['today']);
-    assert.deepEqual(kinds(alice, 'own'), ['old', 'past', 'today']);
+    assert.deepEqual(kinds(alice, 'own'), ['today']);
+    assert.deepEqual(kinds(alice, 'cmp'), ['club']);
+    assert.deepEqual(alice.stats().rows, []);
     // The card comes on screen: read and live.
     assert.equal(alice.attend('club', ['old']), true);
     w = await feedWork(alice, 'old');
@@ -982,7 +987,7 @@ test('today first: an older text\'s thoughts are not read at load or on a return
     alice.resume();
     w = byId(await alice.request('/clubs/club/feed'));
     assert.deepEqual(w.old.collective.toMe, ['bob:heart']);
-    assert.equal(w.past.later, true);
+    assert.equal(w.past.partial, true);
     await pause(500);
     assert.equal(changes, 0, 'nothing was fetched in the background');
     // Refresh reads every finished text, the older ones too.
@@ -1045,12 +1050,67 @@ test('today first: the first feed holds today and the recent days complete, the 
     assert.equal(feed.loading, undefined);
     assert.equal(w.past.loading, undefined);
     assert.equal(w.past.mine.status, 'done');
-    assert.equal(w.past.later, true);
+    assert.equal(w.past.partial, true);
     // With the two recent days of the app, every text of a three-day programme is in the first feed.
     feed = await recent.request('/clubs/club/feed', { early: true });
     assert.equal(feed.loading, undefined);
     assert.ok(feed.days.flatMap(d => d.works).every(x => x.collective));
   } finally { writer.reset(); bob.reset(); first.reset(); recent.reset(); }
+});
+
+// ---------- Own rows on demand (SPEC.md): counts from the record, rows only where needed
+test('own rows on demand: every row once for the views that need them; a row written off screen is kept; another device\'s checkmark drops the kept row; needed texts are live; a legacy checkmark is repaired once its row is read', { timeout: 40000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const writer = backendFor('alice'), bob = backendFor('bob'), other = backendFor('alice');
+  const pages = [];
+  const page = () => { const p = backendFor('alice', db('alice'), { recentDays: 0 }); pages.push(p); return p; };
+  const byId = f => Object.fromEntries(f.days.flatMap(d => d.works).map(x => [x.id, x]));
+  try {
+    await finishAll(writer, 'alice'); await finishAll(bob, 'bob');
+    const alice = page();
+    let w = byId(await alice.request('/clubs/club/feed'));
+    assert.equal(w.past.partial, true);
+    // My ranking, Desert island, the Stars grid: every row, one fetch each, no listener.
+    w = byId(await alice.request('/clubs/club/feed', { own: true }));
+    for (const id of ['past', 'old']) { assert.equal(w[id].partial, undefined); assert.equal(w[id].mine.rating, 4); assert.equal(w[id].revealed, true); }
+    assert.deepEqual(alice.stats().rows, ['own:club:old', 'own:club:past']);
+    assert.deepEqual(kinds(alice, 'own'), ['today']);
+    // The next plain feed keeps them.
+    w = byId(await alice.request('/clubs/club/feed'));
+    assert.equal(w.past.mine.rating, 4);
+    // A ranking save rates a text off screen: the page shows the new stars at once.
+    await alice.request('/clubs/club/works/past', { method: 'POST', body: { action: 'rate', rating: 5 } });
+    w = byId(await alice.request('/clubs/club/feed'));
+    assert.equal(w.past.mine.rating, 5);
+    assert.deepEqual(kinds(alice, 'own'), ['today']);
+    // Another device marks an older text unread: the record says so, the kept row is dropped.
+    await other.request('/clubs/club/works/old', { method: 'POST', body: { action: 'unread' } });
+    await until(async () => { const x = byId(await alice.request('/clubs/club/feed')).old; return x.partial === true && x.mine == null; }, 'the record did not override the kept row');
+    // A text the app needs (an unsent draft on this device) is read live wherever its card is.
+    alice.need('club', ['old']);
+    w = byId(await alice.request('/clubs/club/feed'));
+    assert.equal(w.old.partial, undefined);
+    assert.equal(w.old.mine.status, 'reading');
+    assert.equal(w.old.mine.comment, 'alice on old');
+    assert.deepEqual(kinds(alice, 'own'), ['old', 'today']);
+    alice.need('club', []);
+    // A legacy checkmark (a done row with no record entry): drawn as not checked
+    // off until its row is read; then the record is repaired.
+    await env.withSecurityRulesDisabled(ctx => updateDoc(checksRef(ctx.firestore(), 'alice'), { 'works.old': deleteField(), last: 'old' }));
+    await other.request('/clubs/club/works/old', { method: 'POST', body: { action: 'restore' } }).catch(() => {});
+    await env.withSecurityRulesDisabled(ctx => updateDoc(checksRef(ctx.firestore(), 'alice'), { 'works.old': deleteField(), last: 'old' }));
+    assert.equal((await getDoc(rowRef(db('alice'), 'old', 'alice'))).data().status, 'done');
+    const cold = page();
+    w = byId(await cold.request('/clubs/club/feed'));
+    assert.equal(w.old.partial, true);
+    assert.equal(w.old.mine, null);
+    cold.attend('club', ['old']);
+    w = byId(await cold.request('/clubs/club/feed'));
+    assert.equal(w.old.mine.status, 'done');
+    await until(async () => (await getDoc(checksRef(db('alice'), 'alice'))).data().works.old != null, 'the legacy checkmark was not repaired');
+    const healedAt = (await getDoc(checksRef(db('alice'), 'alice'))).data().works.old;
+    assert.ok(healedAt.isEqual((await getDoc(rowRef(db('alice'), 'old', 'alice'))).data().completedAt));
+  } finally { writer.reset(); bob.reset(); other.reset(); for (const p of pages) p.reset(); }
 });
 
 // ---------- One's own rows in one query: the stamp (uid, club), the collection group rule

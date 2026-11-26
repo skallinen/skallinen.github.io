@@ -172,6 +172,24 @@ is already typed (TESTBED.md "Typing by length"): the delay does not grow
 with the text, for key presses, a word at a time, keyboard composition and
 autocorrect, also with another member writing meanwhile.
 
+**Own rows on demand** (26.11.2026, SPEC.md has the contract and the
+decision). Client only: no rules, index, data or backfill. The progress
+counts, the Unread count, the Checked off grid and Desert island's pool
+come from the one completion record (`completions/{uid}`, a listener on
+one's own document), not from one listener per text. One's own row is
+read only for today's texts, the two days before, the cards on screen
+(the same IntersectionObserver as part A), the text open in the reader
+and texts with an unsent draft on this device (`backend.need`); a card
+drawn without its row has `partial: true` and says "Loading your
+response…". `feed` takes `own` (every row, one fetch each, kept): My
+ranking, Desert island and the member's Stars grid ask for it when
+opened, and the organiser's page asks for it once after the first draw
+(the rank line on cards); `all` and `fresh` include it. A row the page has kept is dropped
+when the record says its checkmark changed. The record's repair compares
+only the rows read, each text once per page. Chosen over part B, whose
+backfill makes the rules one-way. Going live: `npm run build:pages` and
+push, nothing else. Rolling back: push the previous client.
+
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old

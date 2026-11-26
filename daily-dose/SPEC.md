@@ -374,6 +374,68 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   days of "Today first" are added below the cards already there, a few
   days at a time, without touching them. Thought boxes are sized in one
   pass (all heights read, then all set), not one layout per box.
+- Own rows on demand (26.11.2026). Why: after "Today first" a load, or a
+  return after five minutes away, still opened one listener per released
+  text for one's own row (183 of 205 requests at Day 61), and the first
+  save after a return waited about 2.5 s behind them. Now the page reads
+  one's own rows only where it shows or needs what only the row holds.
+  Decision (26.11.2026, Sami approved the step at 09:19): read the
+  checkmarks from the one completion record (`completions/{uid}`: text id
+  to checkmark time, written with every checkmark since Day 1, readable
+  only by its owner and the organiser) instead of the rows. Alternative not
+  taken: part B (one query on the stamped rows, above), already built
+  behind its switch, because its backfill makes the rules one-way. No
+  rules, index or data change.
+  - One listener on one's own completion record. From it come, for every
+    text: checked off or not, the time, on the day or catch-up. So the
+    progress counts, "Today: n of 3 read", "n older texts waiting", the
+    Unread filter and its count, the Checked off grid and Desert island's
+    pool are exactly as before, with no row read.
+  - One's own row is read (a listener) for today's texts, the two days
+    before (their cards are drawn complete first, as in Today first), every
+    card on screen (as in part A: from 200 px before it scrolls in), the
+    text open in the reader, and every text with an unsent thought or stars
+    kept on this device (so the draft comes back as before). A card that
+    leaves the screen keeps the row it showed, without a listener; that
+    copy is dropped when the record says its checkmark changed (another
+    device), and the card is then drawn from the record again.
+  - Every other card is drawn from the record: title, byline, the read
+    button and, if checked off, "Checked off on the day" or "as catch-up";
+    where the stars, the thought and the club's thoughts go it says
+    "Loading your response…" until the card comes on screen (about a
+    second on a phone). It has no buttons that need the row (Mark as
+    unread, stars, the thought) until then.
+  - Views that need every text's own stars read every row once (a fetch
+    each, kept, no listener), showing "Loading your texts…" until then: My
+    ranking, Desert island (its results show one's own stars), the member's
+    own Stars grid (cells loading), the organiser's Stars roster (as
+    before, which also reads the club data it lacks) and Refresh (which
+    also makes the count on one's name cover every text, as before). My
+    ranking is organiser-only and its line on each card ("Your ranking: ★
+    3.7, 4th of 12") needs every rating, so the organiser's page reads
+    every row once in the background after the first draw (fetches, no
+    listeners, so a return does not reopen them); until then the line waits.
+  - A row written on a text without a listener (a ranking save sets the
+    stars of texts off screen) is read once after the write and kept, so
+    the new stars show at once.
+  - The repair of the record (rows from before it existed, or written by an
+    older client): every row the page reads is compared with the record
+    once per page and the record is corrected from it, as before (the rules
+    accept only the row's own value). It used to compare every row at each
+    load; now only the rows read (today's, the two days before, the cards
+    that came on screen, all of them after a view that reads them all). The
+    record has been written with each checkmark since Day 1 (26.9.2026), so
+    a gap should not exist; if one does, that text shows as not checked
+    off, and counts so, until its card has been on screen once.
+  - Unchanged: the reveal rule and the rules, the data, part A and Today
+    first for the club's data, the fallbacks. If the record cannot be read
+    (rules without it), every row is read as before. With part B switched
+    on, the one query brings every row and the record is not used for them.
+  - What a member sees differently: an older card scrolled to quickly shows
+    "Loading your response…" for about a second; the organiser's rank line
+    on cards comes a few seconds after the load; Desert island and the own
+    Stars grid say "Loading your texts…" for a
+    moment the first time they are opened on a page.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
