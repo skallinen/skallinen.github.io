@@ -561,3 +561,42 @@ today-first at 390 and 1280, fewer-listeners in Chromium and WebKit, stars,
 my-stars, desert-island, reactions, news and the tour green; ranking failed
 once on an emulator "400 (Bad Request)" console line and passed twice on
 rerun. Rules suite 43 of 43, unit tests 69 of 69.
+
+## Own rows on demand: measured
+
+"Own rows on demand" (SPEC.md) is measured with the same scratch probe as
+"Today first" (`testbed/.run/measure4.mjs`, not committed: Mikko at Day 61,
+390 px, Chromium at 4x CPU, 150 ms, 1.6 Mbit/s down; requests are Firestore
+listen targets added), on c995282 (before) and this branch (after), a
+production-shaped club (prod) and a busy one (busy), one run each,
+26.11.2026:
+
+| | before prod | after prod | before busy | after busy |
+| --- | --- | --- | --- | --- |
+| requests at load | 205 | 31 | 205 | 31 |
+| listeners open after load | 189 | 16 | 189 | 16 |
+| documents / kB at load | 392 / 423 | 218 / 241 | 463 / 467 | 289 / 285 |
+| first feed / full feed (s) | 3.4 / 6.1 | 3.8 / 3.8 | 3.5 / 6.0 | 3.8 / 3.8 |
+| requests on return (5 min hidden) | 201 | 28 | 201 | 28 |
+| documents on return | 572 | 400 | 643 | 471 |
+| save warm / first save after return (s) | 1.21 / 2.57 | 1.28 / 1.32 | 1.26 / 2.55 | 1.27 / 1.45 |
+| longest task after return (ms) | 441 | 61 | 447 | 70 |
+| older card shows its thoughts (s) | 0.84 | 0.81 | 0.85 | 0.83 |
+
+The 31 at load: the programme, members, club, clock, works, the record,
+seen and desert island (8), own rows of today and the two days before (9),
+the two days before's thoughts and reactions (12), and one of those cards
+on screen turning live (2). With one recent day instead of two it would be
+about 22. A save itself still takes about 1.2 s on this network (a
+transaction: read, then commit), the same before and after; the wait
+behind the old listeners after a return is gone.
+
+Checks on this branch, 26.11.2026: rules suite 44 of 44 (1 new: rows only
+for the views that need them, a row written off screen kept, another
+device's checkmark drops the kept row, needed texts live, a legacy
+checkmark repaired once its row is read); `check-fewer-listeners.mjs` green
+in Chromium and WebKit (27 ok; its limit is now 40 listeners at load, it
+saw 16); `check-today-first.mjs` green at 390 and 1280 px (13 ok: the first
+draw is now usually the complete feed, its cards added a few days at a
+time, and the check accepts that or the early draw); typing, stars,
+my-stars, ranking, desert-island and reactions green.

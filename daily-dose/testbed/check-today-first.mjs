@@ -92,8 +92,15 @@ try {
     cards: document.querySelectorAll('article[data-work]').length, progress: document.querySelector('.personal-strip')?.innerText || '',
     unread: document.querySelector('[data-filter="unread"]')?.innerText, days: [...document.querySelectorAll('.day-group:not(.upcoming) h2')].map(h => h.id) }));
   await shot(mikko, 'first-draw');
-  expect(early.loadingLine && early.cards === 9 && early.days.join() === 'day-61,day-60,day-59', `first draw after ${(first / 1000).toFixed(1)} s on a phone network: today and the two days before (${early.cards} cards), "Loading earlier days…" below`);
-  expect(early.waiting > 0 && /Loading your earlier days/.test(early.progress) && early.unread === 'Unread', `meanwhile ${early.waiting} grid cells are drawn as loading, the strip says "Loading your earlier days…" and Unread has no count`);
+  // Own rows on demand (SPEC.md): the complete feed needs no row per text, so
+  // it usually comes with the first draw (its cards added below a few days at
+  // a time); if the first draw is the early one, it holds today and the two
+  // days before, and says the rest is loading.
+  if (!early.loadingLine) expect(early.cards >= 9 && early.days[0] === 'day-61', `first draw after ${(first / 1000).toFixed(1)} s on a phone network: already the complete feed (${early.cards} of 183 cards drawn so far, own rows on demand), nothing loading`);
+  else {
+    expect(early.loadingLine && early.cards === 9 && early.days.join() === 'day-61,day-60,day-59', `first draw after ${(first / 1000).toFixed(1)} s on a phone network: today and the two days before (${early.cards} cards), "Loading earlier days…" below`);
+    expect(early.waiting > 0 && /Loading your earlier days/.test(early.progress) && early.unread === 'Unread', `meanwhile ${early.waiting} grid cells are drawn as loading, the strip says "Loading your earlier days…" and Unread has no count`);
+  }
   await full(mikko);
   const whole = Date.now() - mikko.t0;
   const done = await mikko.evaluate(() => ({ cards: document.querySelectorAll('article[data-work]').length, done: document.querySelectorAll('article[data-work].is-done').length,
