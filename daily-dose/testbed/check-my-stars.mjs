@@ -67,6 +67,9 @@ try {
   await page.getByText(/^OF 50$/).waitFor({ timeout: 30000 });
   expect(await sw.locator('[aria-pressed="true"]').textContent() === 'Stars', 'Stars kept after a reload');
   await sw.getByRole('button', { name: 'Checked off' }).click();
+  // Since "The box at first paint" a reload draws today from the copy on the
+  // phone first; the earlier days' cells say loading until the feed is in.
+  for (let i = 0; i < 300 && !['on', 'late'].includes(await cellKind(0, 1)); i++) await page.waitForTimeout(100);
   expect(['on', 'late'].includes(await cellKind(0, 1)), 'back on Checked off: Day 1 poem is a checkmark cell');
   expect(!errors.length, `no console errors${errors.length ? ': ' + errors.join('; ') : ''}`);
 } catch (e) { console.error(`  FAIL  ${e.message}`); process.exitCode = 1; }

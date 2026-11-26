@@ -1368,6 +1368,8 @@ function paintFeed() {
     return;
   }
   const busy = typing() ? document.activeElement.closest('[data-work]')?.dataset.work : null;
+  // The cards drawn from the copy on this phone are compared now (see growFeed).
+  drawn.cached = false;
   const changed = [];
   for (const d of shownDays(feed)) for (const w of d.works) {
     if (w.id === busy) continue;
@@ -1438,8 +1440,10 @@ async function growFeed(list, outline) {
   if (!outline.ids.length && !typing()) { render(); return; }
   paintChrome();
   // Whatever changed on the earlier cards meanwhile, and the cards drawn from
-  // the copy on this phone, now that the live data is in.
-  if (state.feed !== feed || mark.cached) { mark.cached = false; paintFeed(); }
+  // the copy on this phone, now that the live data is in. `cached` stays set
+  // until paintFeed has compared the cards: the complete feed may arrive while
+  // the early one is being added and need a second growFeed first.
+  if (state.feed !== feed || mark.cached) paintFeed();
 }
 
 function focusAfter(id, selector) {
