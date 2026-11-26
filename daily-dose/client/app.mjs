@@ -13,6 +13,7 @@ import { descriptionHtml } from './description.mjs';
 import { results, nextPair, pairKey, addChoice, validChoice, drawSeed, islandCard, islandRow } from './desert-island.mjs';
 import { startDrag, step } from './drag.mjs';
 import { VOLUME_THREE, volumeThree } from './volumes.mjs';
+import { COPY_KEY, paintCopy, usableCopy, OUTBOX_ACTIONS, outboxEntries, notConnected, retryDelay } from './outbox.mjs';
 
 const root = document.querySelector('#app');
 const reader = document.querySelector('#reader');
@@ -42,7 +43,15 @@ const state = { config: null, auth: null, user: null, demoToken: null, clubs: []
   // in a row), choices not yet saved to the account, the save line, the tab.
   islandPair: null, islandLast: null, islandPending: null, islandStatus: '', islandTab: 'choose',
   // The text whose description a tap on its ⓘ has opened in Desert island.
-  islandTip: null };
+  islandTip: null,
+  // The copy on this phone is on screen and sign-in has not answered yet
+  // (SPEC.md, "The box at first paint"): { uid, displayName } of its member.
+  paint: null,
+  // Texts with a write waiting on this phone (the outbox), and texts whose
+  // draft met a different thought from one's other device ('mine' or 'theirs').
+  unsent: new Set(), conflicts: new Map() };
+// Whoever the page is for: the signed-in member, or the member of the copy.
+const who = () => state.user || state.paint;
 const dateLabel = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 const timeLabel = (ms, zone) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', timeZone: zone }).format(new Date(ms));
 const category = { poem: 'Poem', story: 'Story', essay: 'Essay' };
@@ -74,7 +83,7 @@ const store = {
   del(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } },
   json(k) { try { return JSON.parse(localStorage.getItem(k)) || null; } catch { return null; } },
 };
-const localKey = (kind, id) => `daily-dose-${kind}:${state.user?.uid}:${state.clubId}:${id}`;
+const localKey = (kind, id) => `daily-dose-${kind}:${who()?.uid}:${state.clubId}:${id}`;
 
 // ---------- toasts: dark, readable, always at the bottom above the safe area,
 // so they never cover the header buttons (Sign out, Organiser) or the Refresh link.
@@ -173,32 +182,162 @@ async function saveDraft(id) {
   clearTimeout(saveTimers.get(id)); saveTimers.delete(id);
   const work = currentWork(id), text = state.drafts.get(id);
   if (!work || text == null) return;
-  if (work.revealed || work.mine?.status !== 'done') { draftStatus(id); return; }
+  heldDrafts.delete(id);
+  // Finished, or Finish & reveal on its way: the thought goes with it, never as a draft.
+  if (work.revealed || work.mine?.status !== 'done' || work.mine.submittedAt != null || state.pending.has(id)) { draftStatus(id); return; }
   if (Array.from(text).length > 140) { draftStatus(id, 'Too long to save to your account. It is kept on this device.'); return; }
-  if (text.trim() === serverComment(id)) { store.del(localKey('draft', id)); draftStatus(id, 'Draft saved privately.'); return; }
-  const clubId = state.clubId;
-  const run = api(`/clubs/${clubId}/works/${id}`, { method: 'POST', body: { action: 'comment', comment: text } })
-    .then(() => {
+  if (text.trim() === serverComment(id)) { store.del(localKey('draft', id)); store.del(localKey('draftmeta', id)); draftStatus(id, 'Draft saved privately.'); return; }
+  // Not connected (still signing in, or no network): the draft waits in its
+  // device copy and is sent when the page is connected (the outbox).
+  if (!connected()) { holdDraft(id); return; }
+  // After the check-off or stars still on their way for this text.
+  const ahead = queuedOps(id);
+  if (ahead.length) { await Promise.allSettled(ahead.map(op => op.done)); return saveDraft(id); }
+  // One draft save per text at a time: the next one starts from what the
+  // last one left on the server (its `base`), so it is never taken for a
+  // thought from another device.
+  if (saving.has(id)) { await saving.get(id); return saveDraft(id); }
+  const clubId = state.clubId, metaKey = localKey('draftmeta', id), meta = store.json(metaKey);
+  // Where this draft began (the thought the server had then) and when it was
+  // last typed: the backend tells a thought saved from another device apart.
+  const body = { action: 'comment', comment: text, ...(backend && typeof meta?.base === 'string' && Number.isFinite(meta.at) ? { base: meta.base, at: meta.at } : {}) };
+  const run = api(`/clubs/${clubId}/works/${id}`, { method: 'POST', body })
+    .then(result => {
       if (clubId !== state.clubId) return;
+      draftTries = 0; heldDrafts.delete(id);
       const w = currentWork(id);
+      if (result?.conflict === 'theirs') { takeTheirs(id, result.theirs); return; }
+      if (result?.conflict) noteConflict(id, 'mine');
       if (w?.mine) w.mine.comment = text.trim();
-      if (state.drafts.get(id) === text) store.del(localKey('draft', id));
+      if (state.drafts.get(id) === text) { store.del(localKey('draft', id)); store.del(metaKey); }
+      // Typed on meanwhile: the server now has this text, the rest follows.
+      else { const m = store.json(metaKey); if (m) store.set(metaKey, JSON.stringify({ ...m, base: text.trim() })); }
       draftStatus(id, 'Draft saved privately.');
     })
-    .catch(() => draftStatus(id, 'Not saved to your account yet. It is kept on this device.'))
-    .finally(() => { if (saving.get(id) === run) saving.delete(id); });
+    .catch(error => {
+      if (notConnected(error, { signedIn: !!state.user, online: navigator.onLine !== false })) holdDraft(id);
+      else draftStatus(id, 'Not saved to your account yet. It is kept on this device.');
+    })
+    .finally(() => { clearTimeout(slow); if (saving.get(id) === run) saving.delete(id); });
   saving.set(id, run);
   draftStatus(id, 'Saving draft…');
+  // A save still under way after a few seconds is waiting for the network
+  // (Firestore keeps it until it can send): the line says so.
+  const slow = setTimeout(() => { if (saving.get(id) === run) { heldDrafts.add(id); draftStatus(id, OUTBOX_LINE); } }, SLOW_SAVE_MS);
   return run;
 }
 async function flushDrafts() {
   for (const id of [...saveTimers.keys()]) saveDraft(id);
   await Promise.allSettled([...saving.values()]);
 }
+// What the line under the thought box says when nothing is happening.
+const OUTBOX_LINE = 'Saved on this phone, sending when connected.', SLOW_SAVE_MS = 5000;
+function statusLine(id) {
+  if (heldDrafts.has(id) || state.unsent.has(id)) return OUTBOX_LINE;
+  return unsavedShared(id) ? 'Unsaved changes. Choose Save changes to share them.' : '';
+}
 function draftStatus(id, text) {
   const el = document.querySelector(`#draft-status-${CSS.escape(id)}`);
   if (!el) return;
-  el.textContent = text ?? (unsavedShared(id) ? 'Unsaved changes. Choose Save changes to share them.' : '');
+  el.textContent = text ?? statusLine(id);
+}
+
+// ---------- the outbox (SPEC.md, "Outbox for saves")
+// Connected: signed in (not only drawn from the copy on this phone) and online.
+const connected = () => !!state.user && navigator.onLine !== false;
+// Drafts that could not be sent: tried again after a wait, at once when the
+// network comes back or sign-in answers.
+const heldDrafts = new Set();
+let draftTimer = 0, draftTries = 0;
+function holdDraft(id) {
+  heldDrafts.add(id);
+  draftStatus(id, OUTBOX_LINE);
+  if (!draftTimer) draftTimer = setTimeout(() => { draftTimer = 0; draftTries++; retryDrafts(); }, retryDelay(draftTries));
+}
+function retryDrafts() {
+  clearTimeout(draftTimer); draftTimer = 0;
+  const ids = [...heldDrafts];
+  heldDrafts.clear();
+  for (const id of ids) saveDraft(id);
+}
+// Every write waiting for a try, woken at once (see waitToRetry).
+const wakers = new Set();
+function waitToRetry(attempt) {
+  return new Promise(resolve => {
+    const done = () => { clearTimeout(t); wakers.delete(done); resolve(); };
+    const t = setTimeout(done, retryDelay(attempt));
+    wakers.add(done);
+  });
+}
+function wake() {
+  if (!connected()) return;
+  for (const w of [...wakers]) w();
+  retryDrafts();
+}
+addEventListener('online', () => wake());
+// One's other device saved a different thought: the newer typing wins. This
+// one ('mine', it was written) or theirs ('theirs', it stays and is shown).
+function noteConflict(id, which) {
+  state.conflicts.set(id, which);
+  redrawCard(id);
+}
+function takeTheirs(id, text) {
+  const w = currentWork(id);
+  if (w?.mine) w.mine.comment = text;
+  const box = document.querySelector(`textarea[data-draft="${CSS.escape(id)}"]`);
+  // Being typed in right now: the text in the box is the newer one after all.
+  if (box && box === document.activeElement) {
+    store.set(localKey('draftmeta', id), JSON.stringify({ base: text, at: serverNow() }));
+    noteConflict(id, 'mine');
+    queueDraftSave(id);
+    return;
+  }
+  state.drafts.delete(id); store.del(localKey('draft', id)); store.del(localKey('draftmeta', id));
+  noteConflict(id, 'theirs');
+}
+const CONFLICT_NOTE = { mine: 'Your other device saved a different thought. The one here is newer, so it is kept.',
+  theirs: 'Your other device saved a different thought later. It is shown here instead.' };
+// The writes kept across a reload (OUTBOX_ACTIONS in client/outbox.mjs), from
+// the queues below and those of texts not drawn yet (`heldOps`), in order.
+let heldOps = [], outboxFor = null;
+const outboxKey = () => `daily-dose-outbox:${who()?.uid}:${state.clubId}`;
+function saveOutbox() {
+  if (!who()?.uid || !state.clubId) return;
+  const list = [...heldOps];
+  for (const [id, q] of queues) for (const op of [q.running, ...q.waiting]) {
+    if (op && OUTBOX_ACTIONS.includes(op.payload.action) && op.generation === state.generation && op.clubId === state.clubId) list.push({ id, k: op.k, payload: op.payload });
+  }
+  if (list.length) store.set(outboxKey(), JSON.stringify(list)); else store.del(outboxKey());
+}
+// The writes left in the outbox by an earlier page go into the queues again,
+// each once, as soon as its text is on the page.
+function resumeOutbox() {
+  const key = outboxKey();
+  if (outboxFor !== key) { outboxFor = key; heldOps = outboxEntries(store.json(key)); }
+  const now = heldOps.filter(e => currentWork(e.id));
+  // Once every text is in, a write for a text that is not there is dropped.
+  heldOps = state.user && !loadingFeed() ? [] : heldOps.filter(e => !currentWork(e.id));
+  for (const e of now) act(e.id, e.payload, { resumed: true, k: e.k }).catch(error => notify(error.message, true));
+  saveOutbox();
+}
+
+// ---------- the copy on this phone (SPEC.md, "The box at first paint")
+// Today's three cards, kept after every load and every change, drawn at the
+// next load before sign-in and the network answer. Cleared on sign-out.
+function savePaint() {
+  const me = who();
+  if (!backend || !me || !state.feed) return;
+  const copy = paintCopy(state.feed, { uid: me.uid, name: me.displayName || '', clubId: state.clubId, clubs: state.clubs });
+  if (copy) store.set(COPY_KEY, JSON.stringify(copy));
+}
+function paintFromCopy() {
+  const copy = store.json(COPY_KEY);
+  if (!usableCopy(copy) || history.state?.reader || routeFromUrl().view !== 'feed') return;
+  state.paint = { uid: copy.uid, displayName: copy.name };
+  state.clubs = copy.clubs || []; state.clubId = copy.clubId; state.feed = copy.feed;
+  restoreDrafts();
+  applyRoute();
+  resumeOutbox();
 }
 
 // ---------- routing: the filter and the organiser page live in the URL
@@ -241,11 +380,11 @@ function shell(content) {
   const views = firestoreMode && state.feed?.organizer
     ? `<div class="nav-views">${[['', 'Readings', 'feed'], ['organiser', 'Organiser', 'organiser']].map(([hash, label, view]) =>
       `<button class="nav-button ${state.view === view ? 'active' : ''}" data-nav="${hash}" ${state.view === view ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</div>` : '';
-  const name = state.user ? esc(state.user.displayName || state.user.name || 'you') : '';
+  const me = who(), name = me ? esc(me.displayName || me.name || 'you') : '';
   root.innerHTML = `${state.config?.demo ? '<div class="demo-banner">LOCAL DEMO · fictional participants · no real club data</div>' : ''}
-    <header class="site-header">${brand}${state.user ? `<nav aria-label="Account">
+    <header class="site-header">${brand}${me ? `<nav aria-label="Account">
     ${state.clubs.length > 1 ? `<label class="sr-only" for="club-select">Book club</label><select id="club-select">${state.clubs.map(c => `<option value="${esc(c.id)}" ${c.id === state.clubId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
-    ${views}<div class="account"><span class="me">${meMarker(state.user.displayName || state.user.name || 'you', newsCount())}<span class="user-name"><span class="signed-in-as">Signed in as </span><strong>${name}</strong></span></span><button class="nav-button sign-out" data-action="logout">Sign out</button></div></nav>` : ''}</header>
+    ${views}<div class="account"><span class="me">${meMarker(me.displayName || me.name || 'you', newsCount())}<span class="user-name"><span class="signed-in-as">Signed in as </span><strong>${name}</strong></span></span><button class="nav-button sign-out" data-action="logout">Sign out</button></div></nav>` : ''}</header>
     <main id="main">${content}</main><footer class="site-footer"><span>One poem. One story. One essay.</span><span>Read at your own pace. Come back tomorrow.</span></footer>`;
   fitTextareas();
   watchNews();
@@ -274,7 +413,7 @@ function watchCards() {
 }
 async function attendCards() {
   const clubId = state.clubId;
-  if (!clubId || !state.feed || !backend?.attend) return;
+  if (!clubId || !state.feed || !backend?.attend || !state.user) return;
   const ids = [...onScreen];
   if (reader.open && readerId && !ids.includes(readerId)) ids.push(readerId);
   if (!backend.attend(clubId, ids)) return;
@@ -289,7 +428,7 @@ async function attendCards() {
 // text was on screen for a second, or the count took you there.
 let seenHere = { key: null, works: {} };
 function deviceSeen() {
-  const key = state.user && state.clubId ? `daily-dose-seen:${state.user.uid}:${state.clubId}` : null;
+  const key = who() && state.clubId ? `daily-dose-seen:${who().uid}:${state.clubId}` : null;
   if (seenHere.key !== key) seenHere = { key, works: (key && store.json(key)) || {} };
   return seenHere.works;
 }
@@ -297,7 +436,7 @@ const news = () => state.feed ? newReactions(allWorks(), state.feed.seen, device
 const newsCount = () => news().reduce((n, x) => n + x.count, 0);
 const newsFor = id => news().find(x => x.id === id)?.count || 0;
 function paintMe() {
-  const el = root.querySelector('.me-marker'), name = state.user ? state.user.displayName || state.user.name || 'you' : '';
+  const el = root.querySelector('.me-marker'), name = who() ? who().displayName || who().name || 'you' : '';
   if (el) morph(el, fragment(meMarker(name, newsCount())));
 }
 function markSeen(id) {
@@ -353,25 +492,40 @@ function login() {
     <div class="welcome-rule"><span><strong>75</strong> days</span><span><strong>225</strong> readings</span><span><strong>140</strong> characters per thought</span></div></section>`);
 }
 
+let signInTimer = 0;
 async function signedIn(user, demoToken = null) {
+  clearTimeout(signInTimer);
+  // The copy on this phone is on screen and this is its member (SPEC.md, "The
+  // box at first paint"): the page stays as it is (the box being typed in,
+  // the writes waiting) and is brought up to date when the feed arrives.
+  const adopt = !!user && !demoToken && state.paint?.uid === user.uid;
   backend?.reset();
-  if (reader.open) reader.close();
-  reader.innerHTML = '';
-  stopPlayer();
-  state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.organiser = null;
-  state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
-  queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
-  state.rankPending = null; state.rankStatus = ''; clearTimeout(rankTimer); rankTimer = 0;
-  state.islandPending = null; state.islandStatus = ''; state.islandPair = null; state.islandLast = null; state.islandTip = null; clearTimeout(islandTimer); islandTimer = 0;
+  if (adopt) state.user = user;
+  else {
+    // Signed out, or someone else: the copy goes (descriptions are members-only).
+    if (state.paint || !user) store.del(COPY_KEY);
+    state.paint = null; outboxFor = null; heldOps = []; heldDrafts.clear(); state.unsent.clear(); state.conflicts.clear();
+    if (reader.open) reader.close();
+    reader.innerHTML = '';
+    stopPlayer();
+    state.generation++; state.user = user; state.demoToken = demoToken; state.feed = null; state.organiser = null;
+    state.drafts.clear(); state.ratingDrafts.clear(); state.sticky.clear(); state.openDetails.clear(); state.confirmUnread = null;
+    queues.clear(); state.pending.clear(); state.undone.clear(); reacting.clear(); state.reactOpen = null;
+    state.rankPending = null; state.rankStatus = ''; clearTimeout(rankTimer); rankTimer = 0;
+    state.islandPending = null; state.islandStatus = ''; state.islandPair = null; state.islandLast = null; state.islandTip = null; clearTimeout(islandTimer); islandTimer = 0;
+  }
   if (!user) { state.clubs = []; state.clubId = null; login(); return; }
-  shell('<section class="loading">Finding your book club…</section>');
+  if (!adopt) shell('<section class="loading">Finding your book club…</section>');
   try {
     const generation = state.generation;
     const data = await api('/clubs');
     if (generation !== state.generation) return;
     state.clubs = data.clubs;
     const stored = store.get(`daily-dose-club:${user.uid}`);
-    state.clubId = data.clubs.find(c => c.id === stored)?.id || data.clubs[0]?.id;
+    const clubId = data.clubs.find(c => c.id === stored)?.id || data.clubs[0]?.id;
+    // The copy was of another club: start as without it.
+    if (adopt && clubId !== state.clubId) { state.paint = null; return signedIn(user); }
+    state.clubId = clubId;
     if (!state.clubId) {
       shell(`<section class="empty"><p class="eyebrow">YOUR READING ROOM</p><h1>No club yet.</h1><p>Join your book club in Bookrank, then come back here.</p><button class="secondary" data-action="retry">Check membership again</button></section>`);
     } else {
@@ -381,13 +535,31 @@ async function signedIn(user, demoToken = null) {
       const open = history.state?.reader;
       const early = !!backend && routeFromUrl().view === 'feed' && !open;
       await refresh({ render: false, early });
+      if (generation !== state.generation) return;
       restoreDrafts();
-      applyRoute();
+      if (adopt && state.paint) {
+        // From the copy to the live page: only what changed is drawn again,
+        // never the box being typed in.
+        state.paint = null;
+        resumeOutbox();
+        if (state.view === 'feed') paintFeed(); else applyRoute();
+        queueAttend();
+      } else { resumeOutbox(); applyRoute(); }
+      savePaint();
+      wake();
       if (state.feed?.loading) refresh({ quiet: true }).catch(() => {});
       // A reload while reading reopens the text at the same place.
       if (open && state.view === 'feed' && currentWork(open)) await openReading(open, { push: false });
     }
   } catch (error) {
+    // Not connected yet: the copy stays on screen and the page tries again
+    // (at once when the network comes back).
+    if (adopt && state.paint && state.user === user) {
+      const again = () => { removeEventListener('online', again); clearTimeout(signInTimer); if (state.paint && state.user === user) signedIn(user); };
+      addEventListener('online', again);
+      signInTimer = setTimeout(again, 5000);
+      return;
+    }
     shell(`<section class="empty"><h1>We couldn’t open your club.</h1><p>${esc(error.message)}</p><button class="secondary" data-action="retry">Try again</button></section>`);
   }
 }
@@ -467,7 +639,7 @@ function render() {
   const total = campaign.totalDays ?? 50;
   const activeDay = Math.max(0, Math.min(total, campaign.currentDay));
   const hero = campaign.currentDay < 1 ? `We begin ${dateLabel(campaign.startDate)}.` : campaign.currentDay > total ? 'The pages stay open.' : 'Make a little room.';
-  drawn = { cards: new Map(), outline: feedOutline(feed) };
+  drawn = { cards: new Map(), outline: feedOutline(feed), cached: !!feed.cached };
   const strip = drawn.strip = personalStrip(feed), filters = drawn.filters = filterBar();
   shell(`<section class="feed-intro"><div><p class="eyebrow">${esc(feed.club.name)}</p><h1>${hero}</h1>
     <p class="intro-sub">${campaign.currentDay < 1 ? 'Your first three readings will open at midnight.' : campaign.currentDay > total ? 'Catch up, revisit a favourite, and keep the conversation going.' : 'Three readings. A moment to yourself. A thought to share.'}</p></div>
@@ -537,7 +709,7 @@ function commentForm(work) {
     <p id="hint-${work.id}" class="form-hint" aria-live="polite">${reasons.join(' ')}</p>
     <div class="comment-controls"><span id="count-${work.id}" class="char-count ${count > 140 ? 'over' : ''}">${count} / 140</span>
     <button class="save-button primary" type="submit" aria-disabled="${reasons.length > 0}" ${pending ? 'disabled' : ''}>${work.revealed ? 'Save changes' : 'Finish & reveal'}</button></div>
-    <p id="draft-status-${work.id}" class="draft-status" aria-live="polite">${unsavedShared(work.id) ? 'Unsaved changes. Choose Save changes to share them.' : ''}</p></form>`;
+    <p id="draft-status-${work.id}" class="draft-status" aria-live="polite">${statusLine(work.id)}</p>${state.conflicts.has(work.id) ? `<p id="draft-note-${work.id}" class="draft-status draft-note" role="status">${CONFLICT_NOTE[state.conflicts.get(work.id)]}</p>` : ''}</form>`;
 }
 
 // The hint under an unfinished card names only the steps still to do.
@@ -1104,8 +1276,10 @@ async function refresh({ quiet = false, render: draw = true, fresh = false, earl
   // Writes still on their way stay visible over the server's older state.
   for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
   for (const w of allWorks()) applyReactions(w);
-  // The older days have arrived: their unsent drafts come back too.
-  if (wasLoading && !feed.loading) restoreDrafts();
+  // The older days have arrived: their unsent drafts come back too, and the
+  // outbox's writes for them.
+  if (wasLoading && !feed.loading) { restoreDrafts(); if (outboxFor) resumeOutbox(); }
+  savePaint();
   if (!draw || state.view === 'organiser' || (state.view === 'ranking' && state.dragging)) return;
   if (state.view === 'feed') { paintFeed(); return; }
   if (!quiet || !typing()) render();
@@ -1202,8 +1376,9 @@ async function growFeed(list, outline) {
   // Nothing at all to show (Unread, everything read): the page says so.
   if (!outline.ids.length && !typing()) { render(); return; }
   paintChrome();
-  // Whatever changed on the earlier cards meanwhile.
-  if (state.feed !== feed) paintFeed();
+  // Whatever changed on the earlier cards meanwhile, and the cards drawn from
+  // the copy on this phone, now that the live data is in.
+  if (state.feed !== feed || mark.cached) { mark.cached = false; paintFeed(); }
 }
 
 function focusAfter(id, selector) {
@@ -1262,38 +1437,66 @@ function redrawCard(id, { focus } = {}) {
 const queues = new Map();
 const queuedOps = id => { const q = queues.get(id); return q ? [q.running, ...q.waiting].filter(Boolean) : []; };
 
-function enqueue(id, payload, apply) {
+// The outbox (SPEC.md, "Outbox for saves"): a write that cannot reach the
+// server (no network, or the page drawn from the copy on this phone and not
+// signed in yet) stays at the head of its queue and is tried again, at once
+// when the network comes back; check-off, stars, Finish & reveal, Mark as
+// unread and its Undo are also kept on this phone (saveOutbox), so a reload
+// sends them too.
+function enqueue(id, payload, apply, k = null) {
   let q = queues.get(id);
   if (!q) queues.set(id, q = { running: null, waiting: [] });
   const tail = q.waiting.at(-1);
-  if (payload.action === 'rate' && tail?.payload.action === 'rate') { tail.payload = payload; tail.apply = apply; return tail.done; }
-  const op = { payload, apply, clubId: state.clubId, generation: state.generation };
+  if (payload.action === 'rate' && tail?.payload.action === 'rate') { tail.payload = payload; tail.apply = apply; saveOutbox(); return tail.done; }
+  const op = { payload, apply, clubId: state.clubId, generation: state.generation, k: k || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}` };
   op.done = new Promise((resolve, reject) => { op.resolve = resolve; op.reject = reject; });
   q.waiting.push(op);
+  saveOutbox();
   if (!q.running) drain(id, q);
   return op.done;
+}
+function markUnsent(id, on) {
+  if (state.unsent.has(id) === on) return;
+  if (on) state.unsent.add(id); else state.unsent.delete(id);
+  redrawCard(id);
 }
 
 async function drain(id, q) {
   while (q.waiting.length) {
     const op = q.running = q.waiting.shift();
     const current = () => op.generation === state.generation && op.clubId === state.clubId;
-    try {
-      await api(`/clubs/${op.clubId}/works/${id}`, { method: 'POST', body: op.payload });
-      // The last write in the queue brings the server's view back: the real
-      // checkmark time, the club's responses after Finish & reveal.
-      if (!q.waiting.length && current()) {
-        await refresh({ render: false }).catch(() => {});
-        if (!q.waiting.length) { q.running = null; redrawCard(id); }
+    for (let attempt = 0; ; attempt++) {
+      let failure = null;
+      try {
+        if (!connected()) throw Object.assign(new Error('Not connected.'), { code: 'unavailable' });
+        // Still under way after a few seconds: waiting for the network (see saveDraft).
+        const slow = setTimeout(() => { if (current()) markUnsent(id, true); }, SLOW_SAVE_MS);
+        try { await api(`/clubs/${op.clubId}/works/${id}`, { method: 'POST', body: op.payload }); } finally { clearTimeout(slow); }
+      } catch (error) { failure = error; }
+      if (failure && current() && notConnected(failure, { signedIn: !!state.user, online: navigator.onLine !== false })) {
+        markUnsent(id, true);
+        await waitToRetry(attempt);
+        if (current()) continue;
       }
-      q.running = null;
-      op.resolve();
-    } catch (error) {
-      const dropped = q.waiting.splice(0);
-      if (current()) { await refresh({ render: false }).catch(() => {}); q.running = null; redrawCard(id); }
-      q.running = null;
-      op.reject(error);
-      for (const d of dropped) d.reject(error);
+      if (!failure) {
+        // The last write in the queue brings the server's view back: the real
+        // checkmark time, the club's responses after Finish & reveal.
+        if (!q.waiting.length && current()) {
+          state.unsent.delete(id);
+          await refresh({ render: false }).catch(() => {});
+          if (!q.waiting.length) { q.running = null; redrawCard(id); }
+        }
+        q.running = null;
+        if (current()) saveOutbox();
+        op.resolve();
+      } else {
+        const dropped = q.waiting.splice(0);
+        if (current()) { state.unsent.delete(id); await refresh({ render: false }).catch(() => {}); q.running = null; redrawCard(id); saveOutbox(); }
+        q.running = null;
+        op.reject(failure);
+        for (const d of dropped) d.reject(failure);
+      }
+      break;
     }
   }
   if (queues.get(id) === q) queues.delete(id);
@@ -1360,20 +1563,22 @@ const draftNote = id => hasDraft(id) ? ' Your rating and thought are kept as a p
 // The card changes at once; the returned promise settles when the server has
 // the write (and rejects after the card has gone back, so callers show the error).
 // `undo: false` for actions that are themselves an Undo (no Undo of the Undo);
-// `quiet` for a step of "Save changes", which has its own message.
-function act(id, payload, { focus, undo = true, message, quiet = false } = {}) {
+// `quiet` for a step of "Save changes", which has its own message;
+// `resumed` for a write an earlier page left in the outbox (`k` its key there).
+function act(id, payload, { focus, undo = true, message, quiet = false, resumed = false, k = null } = {}) {
   const before = currentWork(id), generation = state.generation;
   const wasRevealed = before?.revealed, oldRating = before?.mine?.rating ?? null, wasDone = before?.mine?.status === 'done';
   if (['complete', 'restore'].includes(payload.action) && state.filter === 'unread') state.sticky.add(id);
   if (payload.action === 'unread' && wasDone) state.undone.set(id, { ...before.mine });
   const apply = expectation(id, payload);
   if (payload.action === 'submit') state.pending.add(id);
-  const saved = enqueue(id, payload, apply);
+  const saved = enqueue(id, payload, apply, k);
   if (before) apply(before);
   redrawCard(id, { focus });
+  savePaint();
 
   const undoWith = (label, next, text) => undo ? { action: { label, run: () => act(id, next, { undo: false, message: text }).catch(e => notify(e.message, true)) } } : {};
-  if (quiet) { /* the caller speaks */ }
+  if (quiet || resumed) { /* the caller speaks, or it was said on the earlier page */ }
   else if (message) notify(typeof message === 'function' ? message() : message);
   else if (payload.action === 'complete' && !wasDone) {
     notify(`Checked off ${currentWork(id)?.mine?.onTime ? 'on the day' : 'as catch-up'}.`, undoWith('Undo', { action: 'unread' }, () => `Undone. Not checked off.${draftNote(id)}`));
@@ -1387,9 +1592,9 @@ function act(id, payload, { focus, undo = true, message, quiet = false } = {}) {
 
   return saved.then(() => {
     if (generation !== state.generation || payload.action !== 'submit') return;
-    state.pending.delete(id);
+    state.pending.delete(id); state.conflicts.delete(id);
     // A thought typed while this one was being sent stays as the newer draft.
-    if (state.drafts.get(id) === payload.comment) { state.drafts.delete(id); store.del(localKey('draft', id)); }
+    if (state.drafts.get(id) === payload.comment) { state.drafts.delete(id); store.del(localKey('draft', id)); store.del(localKey('draftmeta', id)); }
     redrawCard(id);
     if (!quiet) notify(wasRevealed ? 'Changes saved and shared.' : 'Response shared. Other finished readers’ responses are now visible.');
   }, error => {
@@ -1738,6 +1943,9 @@ async function run(event) {
   const button = event.target.closest('button');
   if (!button || button.disabled || button.closest('dialog.confirm') || button.classList.contains('toast-action')) return;
   if (button.dataset.close !== undefined) { closeReader(); return; }
+  // Drawn from the copy on this phone, not signed in yet: texts, Refresh and
+  // the Organiser page need the server.
+  if (!state.user && state.paint && (button.dataset.read || button.dataset.nav === 'organiser' || button.dataset.action === 'refresh')) { notify('Still connecting. Try again in a moment.'); return; }
   if (button.dataset.read) return openReading(button.dataset.read);
   if (button.dataset.playDay) return listen(Number(button.dataset.playDay), button.dataset.playWork || null);
   if (button.dataset.playerClose !== undefined) { stopPlayer(); return; }
@@ -1809,6 +2017,8 @@ async function run(event) {
       if (unsaved.length && !await confirmDialog({ title: 'Sign out?', ok: 'Sign out', cancel: 'Stay signed in',
         message: `${plural(unsaved.length, 'thought')} not saved to your account yet. ${unsaved.length === 1 ? 'It stays' : 'They stay'} on this device and will be here when you sign in again on it.` })) return;
       closeReader();
+      // The copy of today's cards goes with the account (descriptions are members-only).
+      store.del(COPY_KEY);
       state.drafts.clear(); state.ratingDrafts.clear();
       history.replaceState(null, '', location.pathname + location.search);
       state.filter = 'all'; state.view = 'feed';
@@ -1836,7 +2046,10 @@ document.addEventListener('input', event => {
   if (!id) return;
   const value = event.target.value;
   state.drafts.set(id, value);
-  if (value.trim() === serverComment(id)) store.del(localKey('draft', id)); else store.set(localKey('draft', id), value);
+  // The device copy, and where and when it was typed (the outbox's conflict test).
+  const metaKey = localKey('draftmeta', id);
+  if (value.trim() === serverComment(id)) { store.del(localKey('draft', id)); store.del(metaKey); }
+  else { store.set(localKey('draft', id), value); store.set(metaKey, JSON.stringify({ base: store.json(metaKey)?.base ?? serverComment(id), at: serverNow() })); }
   const work = currentWork(id), form = event.target.closest('form');
   const count = Array.from(value).length, reasons = work ? missing(work, value) : [];
   form.querySelector('.char-count').textContent = `${count} / 140`;
@@ -1893,7 +2106,9 @@ document.addEventListener('submit', async event => {
 window.addEventListener('beforeunload', event => {
   saveProgress();
   const unsent = allWorks().some(w => unsavedShared(w.id) || (!w.revealed && Array.from(state.drafts.get(w.id) ?? '').length > 140));
-  if (!saveTimers.size && !saving.size && !queues.size && !reacting.size && !unsent && !rankTimer) return;
+  // Writes in the outbox are kept on this phone and sent by the next page; others are not.
+  const leaving = [...queues.values()].some(q => [q.running, ...q.waiting].some(op => op && !OUTBOX_ACTIONS.includes(op.payload.action)));
+  if (!saveTimers.size && !saving.size && !leaving && !reacting.size && !unsent && !rankTimer) return;
   for (const id of [...saveTimers.keys()]) saveDraft(id);
   event.preventDefault(); event.returnValue = '';
 });
@@ -1923,6 +2138,8 @@ try {
       backend = createFirestoreBackend(app, () => state.user);
       // Older texts fetched again in the background (after the page was hidden a while) brought something new.
       backend.onChange(() => { if (state.user && state.clubId && !document.hidden && !reader.open && state.view === 'feed') refresh({ quiet: true }).catch(() => {}); });
+      // Today's cards from the copy on this phone, before sign-in answers.
+      paintFromCopy();
     }
     onAuthStateChanged(state.auth, user => signedIn(user));
   }
@@ -1937,5 +2154,5 @@ let pauseTimer = 0;
 document.addEventListener('visibilitychange', () => {
   clearTimeout(pauseTimer);
   if (document.hidden) pauseTimer = setTimeout(() => backend?.pause?.(), 5 * 60 * 1000);
-  else backend?.resume?.();
+  else { backend?.resume?.(); wake(); }
 });

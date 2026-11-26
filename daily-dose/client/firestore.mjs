@@ -3,6 +3,7 @@ import { scheduleDates, localDate } from './calendar.mjs';
 import { isReaction, tally, reactionsTo } from './reactions.mjs';
 import { programmeDays, MAX_TEXTS } from './volumes.mjs';
 import { validChoices } from './desert-island.mjs';
+import { draftConflict } from './outbox.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
@@ -591,7 +592,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   }
   async function act(c, id, payload, retry = true) {
     if (!['start','complete','restore','unread','comment','rate','submit'].includes(payload.action)) throw new Error('Unknown reading action.');
-    if (Object.keys(payload).some(k => !['action','comment','rating'].includes(k)) || ('rating' in payload && payload.action !== 'rate')) throw new Error('Unexpected reading fields.');
+    if (Object.keys(payload).some(k => !['action','comment','rating','base','at'].includes(k)) || ('rating' in payload && payload.action !== 'rate')
+      || (('base' in payload || 'at' in payload) && payload.action !== 'comment')) throw new Error('Unexpected reading fields.');
     const comment = ['comment','submit'].includes(payload.action) ? validateComment(payload.comment) : null;
     const rating = payload.action === 'rate' ? validateRating(payload.rating) : null;
     const now = await clock(c) + 1000;
@@ -602,11 +604,15 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     const stamp = !!(program && await mineRows(c, program));
     // What the committed attempt saw and wrote (a transaction may run twice).
     let seen = null, wrote = false, wasShared = false, isShared = false;
+    // A draft from the outbox (SPEC.md, "Outbox for saves"): another device of
+    // one's own may have saved a different thought meanwhile; the newer typing wins.
+    let conflict = null, theirs = null;
+    const draft = payload.action === 'comment' && typeof payload.base === 'string' ? { comment, base: payload.base, at: Number(payload.at) } : null;
     try {
       await runTransaction(db, async tx => {
         const [ws, rs, cs] = await Promise.all([tx.get(workRef(c, id)), tx.get(ownRef(c, id)), tx.get(completionRef(c))]);
         const w = ws.data(), row = rs.exists() ? rs.data() : null;
-        seen = row?.updatedAt ?? null; wrote = false;
+        seen = row?.updatedAt ?? null; wrote = false; conflict = null; theirs = null;
         wasShared = row?.status === 'done' && row.submittedAt != null;
         let next;
         if (payload.action === 'start' || (payload.action === 'complete' && (!row || row.status === 'withdrawn'))) {
@@ -634,6 +640,10 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
           next = { ...row, comment, commentAt: comment === row.comment ? row.commentAt : serverTimestamp(), submittedAt: row.submittedAt || serverTimestamp() };
         } else {
           if (row?.status !== 'done') throw new Error('Check off the reading before posting a comment.');
+          conflict = draft && draftConflict({ comment: row.comment ?? '', commentAt: millis(row.commentAt) }, draft);
+          if (conflict) theirs = row.comment ?? '';
+          // The other device's thought is newer: it stays, nothing is written.
+          if (conflict === 'theirs') return;
           next = { ...row, comment, commentAt: serverTimestamp() };
         }
         if (next.rating == null || !next.comment.trim()) next.submittedAt = null;
@@ -653,7 +663,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
       if (retry && noAccess(e)) { await clock(c, true); return act(c, id, payload, false); }
       throw e;
     }
-    if (!wrote) return;
+    const result = conflict ? { conflict, theirs } : undefined;
+    if (!wrote) return result;
     // A completed write can resolve before the listeners deliver its snapshot,
     // and the next feed() reads the listeners. So wait here until they carry
     // this write (its updatedAt replaces the one the transaction read): the
@@ -677,6 +688,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
       setOwn(c, id, await getDocFromServer(ownRef(c, id)));
     });
     await Promise.all([shared, own]);
+    return result;
   }
   return {
     pause, resume, attend,
