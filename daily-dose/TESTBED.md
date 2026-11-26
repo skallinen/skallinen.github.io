@@ -616,3 +616,31 @@ Checks the same day on this change: `check-today-first.mjs` (14 ok),
 refresh) and `check-fewer-listeners.mjs` in Chromium (27 ok) green, each
 on a fresh seed; rules suite 44 of 44 (1 new), unit tests 76 of 76 (7 new
 in `test/outbox.test.mjs`). The tour and the older checks were not rerun.
+
+## Backdate check
+
+`testbed/check-backdate.mjs` checks "Counted when it was done" (SPEC.md) in
+Chromium at 390 px (`CHECK_WIDTH`), on the busy bed at Day 61:
+
+```sh
+VOLUME3=1 DAY1_OFFSET=60 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/check-backdate.mjs             # CLOSE_IN=45 (seconds)
+scripts/testbed.sh stop
+```
+
+Today's poem is made to close `CLOSE_IN` seconds after the start (standing
+in for midnight). Grace loads, goes offline and checks it off ("Checked
+off on the day" at once; the outbox entry carries the time she made it),
+reloads with the emulators out of reach (the card still says on the day),
+and once the poem has closed they come back and the check off is sent. The
+row must hold the server's time after the close and her phone time before
+it, "joined on the day", and her completion record the phone time; after a
+fresh load the card says "Checked off on the day". Too old, ahead of the
+server and on any write but the checkmark: the rules suite. It writes to
+the bed: reseed before a rerun.
+
+2026-11-26, first run green (10 ok): checked off 44 s before the close,
+sent 22.4 s after the emulators came back (the outbox's retry wait), the
+server time 24 s after the close, the phone time 44 s before it. Before
+this change the same check off counted as catch-up (SPEC.md, "Outbox for
+saves", as it was).

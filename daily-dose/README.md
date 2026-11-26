@@ -192,6 +192,55 @@ keys left in `localStorage` are ignored by it (the outbox's writes not yet
 sent would then be lost, as before this change). Checked on the test bed:
 TESTBED.md, "First paint and outbox check".
 
+**Counted when it was done** (26.11.2026, SPEC.md has the contract and the
+alternatives). A check off carries the time it was made on the phone
+(`writtenAt`, `client/outbox.mjs` `writtenAtFor`, kept in the outbox entry);
+the backend's transaction writes it beside the server's `completedAt`, and
+everything that says on the day or catch-up uses `countedAt` (the phone time
+when there is one). The completion record holds the counted time. The
+server clock measured at load is kept in `localStorage` (`daily-dose-clock`)
+for a page opened offline. **This needs a rules change**
+(`firestore/daily-dose.rules`: `writtenAt`, `undoWrittenAt`, the 24-hour
+window, "joined on the day" and the completion record by the counted time),
+tested in the rules suite. A client with the old rules still works: the
+check off is refused with a phone time and sent again without one (counted
+on arrival, as before), so the order is safe either way; rules first is
+still the order, so the first offline check offs already count.
+
+Going live, rules first, from a checkout of the release branch on the Mac
+(`daily-dose/`), with a backup of the live release as for Volume Three and
+Desert island:
+
+1. Back up the live rules and the fragment now live (that of commit
+   772bc9b, Desert island, the last rules deployed; `update-rules.mjs`
+   stops if that fragment is not found exactly once in the live rules):
+   `cd ~/common/projects/daily-dose/rules-backups && node fetch-live.mjs
+   firestore-before-backdate-YYYY-MM-DD.rules && git -C
+   ~/common/projects/skallinen.github.io show
+   772bc9b:daily-dose/firestore/daily-dose.rules >
+   firestore-before-backdate-YYYY-MM-DD.fragment.rules` (it prints the live
+   ruleset name: note it, it is the rollback).
+2. Dry run, then apply: `node scripts/update-rules.mjs
+   ~/common/projects/daily-dose/rules-backups/firestore-before-backdate-YYYY-MM-DD.rules
+   ~/common/projects/daily-dose/rules-backups/firestore-before-backdate-YYYY-MM-DD.fragment.rules`
+   (prints `validated: true`), then the same with `--apply` (prints the new
+   ruleset and the rollback). This also brings the dormant rules of "Fewer
+   live connections" part B (the stamp and the one query), which allow
+   only one's own rows and stay unused until its index, backfill and
+   switch.
+3. `npm run build:pages` (if not already built) and push.
+4. Rolling back: the client by pushing the previous one; the rules by
+   releasing the rollback ruleset (or `update-rules.mjs` with the new live
+   rules as the backup and this fragment as the old one, putting the 772bc9b
+   fragment back). Rows written meanwhile keep `writtenAt`; the old rules
+   then refuse later writes to those rows until it is removed, so roll the
+   rules back only together with a cleanup, or not at all (the client
+   alone can go back safely). A tab still running the old client cannot
+   Mark as unread a check off made by the new one (it keeps `writtenAt` on
+   an unread row, which the rules refuse); a reload fixes it.
+
+Checked on the test bed: TESTBED.md, "Backdate check".
+
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old
