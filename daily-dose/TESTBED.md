@@ -656,3 +656,85 @@ saw 16); `check-today-first.mjs` green at 390 and 1280 px (13 ok: the first
 draw is now usually the complete feed, its cards added a few days at a
 time, and the check accepts that or the early draw); typing, stars,
 my-stars, ranking, desert-island and reactions green.
+## First paint and outbox check
+
+`testbed/check-first-paint.mjs` checks "The box at first paint" and
+"Outbox for saves" (SPEC.md) in Chromium at 390 px (`CHECK_WIDTH`), on the
+busy bed at Day 61:
+
+```sh
+VOLUME3=1 DAY1_OFFSET=60 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/check-first-paint.mjs          # CHECK_SHOTS=dir keeps screenshots
+scripts/testbed.sh stop
+```
+
+Mikko loads once (the copy of today's cards is on the phone, without the
+club's thoughts), then reloads with every request to the emulators held
+back (`SLOW_MS`, 1500 ms each): the box must be there and take keys within
+1 s of the reload, and keep his text, focus and caret when the live data
+arrives; the draft is then saved. The same with the emulators out of
+reach (Playwright aborts their requests; the page itself still loads, as
+there is no service worker): the line says "Saved on this phone, sending
+when connected.", and once they are back the page connects by itself and
+saves the draft. Offline (`setOffline`), he finishes today's story:
+"Sharing your response…"; it is in the outbox, survives a reload with the
+emulators out of reach, and is shared once they are back; Grace finishes
+the story and sees his thought. Two pages of his own: a draft typed
+offline on the phone meets a later save on the laptop (the laptop's stays
+and is put in the phone's box, with "Your other device saved a different
+thought later. It is shown here instead."), then the phone types after
+the laptop's save (the phone's is written, with "Your other device saved
+a different thought. The one here is newer, so it is kept."). Signing out
+removes the copy. It writes to the bed: reseed before a rerun.
+
+2026-11-26, first paint and outbox: `check-first-paint.mjs` green at 390 px
+(22 ok). Measured in that run (Chromium, Mikko at Day 61, ms from the start
+of the reload): with every emulator request held back 1500 ms the box was
+there after 39 ms and took the first key at 83 ms; the live data came 23.4 s
+after the reload (with that delay on each of its requests) and his text,
+focus and caret were still in the box. With the emulators cut off: box at
+35 ms, first key at 80 ms; once they were back the page connected by itself
+after 5.1 s and the waiting draft was saved after 5.2 s. Finish & reveal
+made offline and kept across a reload was shared 4.9 s after the emulators
+came back. Before the box at first paint the box came only after sign-in
+and the feed (3.3 to 3.8 s on the phone-like network, "Typing check"
+above), and not at all without a network. Not measured: a real phone.
+Two earlier runs of the check failed while it was being written. In the
+first, the live data never arrived within 180 s after the slow reload;
+the cause was not found (that step passed in a separate probe, 26 s, and
+in both runs since, on a version that also lets only one draft save per
+text run at a time). In the second, a save waiting in Firestore's offline
+queue kept saying "Saving draft…"; it now shows the outbox line after 5 s.
+Checks the same day on this change: `check-today-first.mjs` (14 ok),
+`check-typing.mjs` (26 ok; median key 15 ms, longest 95 ms through the
+refresh) and `check-fewer-listeners.mjs` in Chromium (27 ok) green, each
+on a fresh seed; rules suite 44 of 44 (1 new), unit tests 76 of 76 (7 new
+in `test/outbox.test.mjs`). The tour and the older checks were not rerun.
+
+## Backdate check
+
+`testbed/check-backdate.mjs` checks "Counted when it was done" (SPEC.md) in
+Chromium at 390 px (`CHECK_WIDTH`), on the busy bed at Day 61:
+
+```sh
+VOLUME3=1 DAY1_OFFSET=60 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/check-backdate.mjs             # CLOSE_IN=45 (seconds)
+scripts/testbed.sh stop
+```
+
+Today's poem is made to close `CLOSE_IN` seconds after the start (standing
+in for midnight). Grace loads, goes offline and checks it off ("Checked
+off on the day" at once; the outbox entry carries the time she made it),
+reloads with the emulators out of reach (the card still says on the day),
+and once the poem has closed they come back and the check off is sent. The
+row must hold the server's time after the close and her phone time before
+it, "joined on the day", and her completion record the phone time; after a
+fresh load the card says "Checked off on the day". Too old, ahead of the
+server and on any write but the checkmark: the rules suite. It writes to
+the bed: reseed before a rerun.
+
+2026-11-26, first run green (10 ok): checked off 44 s before the close,
+sent 22.4 s after the emulators came back (the outbox's retry wait), the
+server time 24 s after the close, the phone time 44 s before it. Before
+this change the same check off counted as catch-up (SPEC.md, "Outbox for
+saves", as it was).

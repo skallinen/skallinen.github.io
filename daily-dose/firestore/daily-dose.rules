@@ -72,12 +72,21 @@
         match /reads/{uid} {
           function rowShape(d) {
             return d.keys().hasAll(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'updatedAt'])
-              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'uid', 'club'])
+              && d.keys().hasOnly(['status', 'startedAt', 'completedAt', 'joinedOnDay', 'comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'writtenAt', 'undoWrittenAt', 'uid', 'club'])
               // The owner's stamp (see the collection group rule below): both
               // fields or neither, and only ever the row's own uid and club.
               && ('uid' in d) == ('club' in d)
               && d.get('uid', uid) == uid && d.get('club', club) == club
               && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt is timestamp)
+              // When the checkmark was made on the phone (SPEC.md, "Counted when
+              // it was done"): only on a checked-off row, never after the
+              // server's checkmark time and at most 24 hours before it. A new
+              // checkmark's server time is request.time (see changes), so a
+              // phone can move its checkmark back by 24 hours at most.
+              && (d.get('writtenAt', null) == null || (d.writtenAt is timestamp && d.status == 'done'
+                && d.completedAt is timestamp && d.writtenAt <= d.completedAt
+                && d.writtenAt > d.completedAt - duration.value(24, 'h')))
+              && (d.get('undoWrittenAt', null) == null || d.undoWrittenAt is timestamp)
               && d.status in ['reading', 'done'] && d.startedAt is timestamp
               && d.joinedOnDay is bool && d.comment is string && d.comment.matches('(?s)^.{0,140}$')
               && (d.get('rating', null) == null || (d.rating is int && d.rating >= 0 && d.rating <= 5))
@@ -88,26 +97,30 @@
           }
           function starts(d) {
             return d.status in ['reading', 'done'] && d.startedAt == request.time
-              && d.joinedOnDay == (request.time < doseWork(club, work).closeAt)
+              && d.joinedOnDay == (d.get('writtenAt', request.time) < doseWork(club, work).closeAt)
               && d.comment == '' && d.commentAt == null
               && d.get('rating', null) == null && d.get('submittedAt', null) == null
-              && d.get('undoCompletedAt', null) == null
+              && d.get('undoCompletedAt', null) == null && d.get('undoWrittenAt', null) == null
               && ((d.status == 'reading' && d.completedAt == null) || (d.status == 'done' && d.completedAt == request.time));
           }
           function changes(d, old) {
             return (old.status == 'withdrawn' && starts(d))
               || (old.status == 'reading' && d.status == 'done'
                 && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
-                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'uid', 'club'])
+                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'writtenAt', 'undoWrittenAt', 'uid', 'club'])
                 && d.get('submittedAt', null) == null && d.get('undoCompletedAt', null) == null
-                // A fresh checkmark, or Undo of "Mark as unread" within five minutes,
-                // which restores the checkmark time that unread set aside.
+                && d.get('undoWrittenAt', null) == null
+                // A fresh checkmark (its phone time, if any, bounded in rowShape),
+                // or Undo of "Mark as unread" within five minutes, which restores
+                // the checkmark time and phone time that unread set aside.
                 && (d.completedAt == request.time
                   || (old.get('undoCompletedAt', null) is timestamp && d.completedAt == old.undoCompletedAt
+                    && d.get('writtenAt', null) == old.get('undoWrittenAt', null)
                     && request.time < old.updatedAt + duration.value(5, 'm'))))
               || (old.status == 'done' && d.status == 'reading' && d.completedAt == null && d.get('submittedAt', null) == null
-                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'uid', 'club'])
-                && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt == old.completedAt))
+                && d.diff(old).affectedKeys().hasOnly(['status', 'completedAt', 'submittedAt', 'updatedAt', 'undoCompletedAt', 'writtenAt', 'undoWrittenAt', 'uid', 'club'])
+                && (d.get('undoCompletedAt', null) == null || d.undoCompletedAt == old.completedAt)
+                && (d.get('undoWrittenAt', null) == null || d.undoWrittenAt == old.get('writtenAt', null)))
               || (old.status == 'done' && d.status == 'done' && d.completedAt == old.completedAt
                 && d.startedAt == old.startedAt && d.joinedOnDay == old.joinedOnDay
                 && d.diff(old).affectedKeys().hasOnly(['comment', 'commentAt', 'rating', 'submittedAt', 'updatedAt', 'uid', 'club'])
@@ -163,7 +176,9 @@
       // Completion records: one per member, a map of work id to checkmark time.
       // The organiser may read them to see who has checked which text off and
       // when; they never contain ratings, thoughts, drafts or reading progress.
-      // Every change must equal the owner's own private row after the write.
+      // Every change must equal the owner's own private row after the write:
+      // the time the checkmark counts at, which is its phone time (writtenAt)
+      // when the row has one, else the server's checkmark time.
       match /completions/{uid} {
         function doseRowAfter(w) {
           return getAfter(/databases/$(database)/documents/dailyDose/$(club)/works/$(w)/reads/$(uid)).data;
@@ -181,7 +196,8 @@
           && request.resource.data.works.diff(doseChecks()).affectedKeys().hasOnly([request.resource.data.last])
           && ((request.resource.data.last in request.resource.data.works
               && doseRowAfter(request.resource.data.last).status == 'done'
-              && request.resource.data.works[request.resource.data.last] == doseRowAfter(request.resource.data.last).completedAt)
+              && request.resource.data.works[request.resource.data.last]
+                == doseRowAfter(request.resource.data.last).get('writtenAt', doseRowAfter(request.resource.data.last).completedAt))
             || (!(request.resource.data.last in request.resource.data.works)
               && doseRowAfter(request.resource.data.last).status != 'done'));
         allow delete: if false;

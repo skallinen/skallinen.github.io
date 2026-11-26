@@ -3,6 +3,7 @@ import { scheduleDates, localDate } from './calendar.mjs';
 import { isReaction, tally, reactionsTo } from './reactions.mjs';
 import { programmeDays, MAX_TEXTS } from './volumes.mjs';
 import { validChoices } from './desert-island.mjs';
+import { draftConflict, writtenAtFor, countedAt } from './outbox.mjs';
 import { dayNumber, validateComment, validateRating, ratingSummary } from '../server/domain.mjs';
 
 const millis = t => t?.toMillis?.() ?? null;
@@ -281,7 +282,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   // A row agrees with the record when both say the same about its checkmark.
   const agrees = (snap, at) => {
     const d = snap.exists() ? snap.data() : null;
-    return d?.status === 'done' ? !!at && !!d.completedAt?.isEqual?.(at) : !at;
+    return d?.status === 'done' ? !!at && !!countedAt(d)?.isEqual?.(at) : !at;
   };
   // One's own row on one text, without the one query (part B off): a listener
   // for today's texts, the recent days, the cards on screen and the texts the
@@ -334,7 +335,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     if (m && !m.error) newer.set(key, { snap: latest, base: m.snap });
   }
   const submittedQuery = (c, id) => query(collection(workRef(c, id), 'reads'), where('submittedAt', '>=', Timestamp.fromMillis(0)));
-  const mine = (r, w) => r ? { status: r.status, onTime: r.completedAt != null && millis(r.completedAt) < millis(w.closeAt), completedAt: millis(r.completedAt), comment: r.comment, rating: r.rating ?? null, submittedAt: millis(r.submittedAt), joinedOnDay: r.joinedOnDay } : null;
+  const mine = (r, w) => r ? { status: r.status, onTime: r.completedAt != null && millis(countedAt(r)) < millis(w.closeAt), completedAt: millis(countedAt(r)), comment: r.comment, rating: r.rating ?? null, submittedAt: millis(r.submittedAt), joinedOnDay: r.joinedOnDay } : null;
   // A text's card before one's own row is known: what the works query says.
   function cardOf(w, ctx) {
     const { openAt, closeAt, revealedAt, ...meta } = w;
@@ -389,7 +390,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
       // Its card says the club's thoughts are loading.
       if (!rows) { result.later = true; return result; }
       const done = rows.docs.map(d => ({ uid: d.id, ...d.data() })).filter(r => r.status === 'done' && r.submittedAt != null && ctx.members.has(r.uid));
-      const onTime = r => millis(r.completedAt) < millis(closeAt);
+      const onTime = r => millis(countedAt(r)) < millis(closeAt);
       // Stable order: newest first submission first. Later edits never reorder the list.
       done.sort((a, b) => millis(b.submittedAt) - millis(a.submittedAt) || a.uid.localeCompare(b.uid));
       const edited = r => millis(r.commentAt) > millis(r.submittedAt);
@@ -408,7 +409,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
         if (!rxBefore) reactionsOff = true;
       }
       result.collective = { ratings: ratingSummary(done), revealedAt: millis(ownData.submittedAt), onTime: done.filter(onTime).length, catchUp: done.filter(r => !onTime(r)).length,
-        readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(r.completedAt), onTime: onTime(r), rating: r.rating ?? null })),
+        readers: done.map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, completedAt: millis(countedAt(r)), onTime: onTime(r), rating: r.rating ?? null })),
         comments: done.filter(r => r.comment)
           .map(r => ({ uid: r.uid, name: ctx.members.get(r.uid).name, text: r.comment, at: millis(r.commentAt), submittedAt: millis(r.submittedAt), edited: edited(r), onTime: onTime(r),
             ...(reactions ? { reactions: tally(reactions, r.uid, ctx.members, user().uid) } : {}) })),
@@ -610,7 +611,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     for (const w of todo) {
       const row = rows.get(w.id);
       const data = row?.exists() ? row.data() : null;
-      const want = data?.status === 'done' ? data.completedAt : null;
+      const want = data?.status === 'done' ? countedAt(data) : null;
       const have = record[w.id] ?? null;
       if (want ? have?.isEqual?.(want) : have == null) continue;
       if (!data) continue; // the rules verify every change against the private row
@@ -667,10 +668,16 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   }
   async function act(c, id, payload, retry = true) {
     if (!['start','complete','restore','unread','comment','rate','submit'].includes(payload.action)) throw new Error('Unknown reading action.');
-    if (Object.keys(payload).some(k => !['action','comment','rating'].includes(k)) || ('rating' in payload && payload.action !== 'rate')) throw new Error('Unexpected reading fields.');
+    if (Object.keys(payload).some(k => !['action','comment','rating','base','at','writtenAt'].includes(k)) || ('rating' in payload && payload.action !== 'rate')
+      || (('base' in payload || 'at' in payload) && payload.action !== 'comment')
+      || ('writtenAt' in payload && (payload.action !== 'complete' || !Number.isFinite(payload.writtenAt)))) throw new Error('Unexpected reading fields.');
     const comment = ['comment','submit'].includes(payload.action) ? validateComment(payload.comment) : null;
     const rating = payload.action === 'rate' ? validateRating(payload.rating) : null;
     const now = await clock(c) + 1000;
+    // A check off counts at the time it was made on the phone (SPEC.md,
+    // "Counted when it was done"), within the rules' window.
+    const written = payload.action === 'complete' ? writtenAtFor(payload.writtenAt, now) : null;
+    const writtenAt = written == null ? null : Timestamp.fromMillis(written);
     // With one's own rows in one query, every write carries the stamp the
     // query finds rows by. (No programme listener yet: no stamp, and the row
     // is found by its own listener, as before.)
@@ -678,29 +685,34 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     const stamp = !!(program && await mineRows(c, program));
     // What the committed attempt saw and wrote (a transaction may run twice).
     let seen = null, wrote = false, wasShared = false, isShared = false, checked = null;
+    // A draft from the outbox (SPEC.md, "Outbox for saves"): another device of
+    // one's own may have saved a different thought meanwhile; the newer typing wins.
+    let conflict = null, theirs = null;
+    const draft = payload.action === 'comment' && typeof payload.base === 'string' ? { comment, base: payload.base, at: Number(payload.at) } : null;
     try {
       await runTransaction(db, async tx => {
         const [ws, rs, cs] = await Promise.all([tx.get(workRef(c, id)), tx.get(ownRef(c, id)), tx.get(completionRef(c))]);
         const w = ws.data(), row = rs.exists() ? rs.data() : null;
-        seen = row?.updatedAt ?? null; wrote = false; checked = null;
+        seen = row?.updatedAt ?? null; wrote = false; checked = null; conflict = null; theirs = null;
         wasShared = row?.status === 'done' && row.submittedAt != null;
         let next;
         if (payload.action === 'start' || (payload.action === 'complete' && (!row || row.status === 'withdrawn'))) {
           if (payload.action === 'start' && row && row.status !== 'withdrawn') return;
           next = { status: payload.action === 'start' ? 'reading' : 'done', startedAt: serverTimestamp(), completedAt: payload.action === 'complete' ? serverTimestamp() : null,
-            joinedOnDay: now < millis(w.closeAt), comment: '', commentAt: null, submittedAt: null };
+            joinedOnDay: (payload.action === 'complete' && writtenAt ? written : now) < millis(w.closeAt), comment: '', commentAt: null, submittedAt: null };
+          if (payload.action === 'complete' && writtenAt) next.writtenAt = writtenAt;
         } else if (payload.action === 'complete') {
           if (row?.status === 'done') return;
-          next = { ...row, status: 'done', completedAt: serverTimestamp(), undoCompletedAt: null };
+          next = { ...row, status: 'done', completedAt: serverTimestamp(), undoCompletedAt: null, writtenAt, undoWrittenAt: null };
         } else if (payload.action === 'restore') {
           // Undo of "Mark as unread": the original checkmark time comes back, so
           // "on the day" stays on the day. Rules allow it for five minutes.
           if (row?.status === 'done') return;
           if (!row?.undoCompletedAt) throw new Error('This checkmark can no longer be restored. Check the text off again.');
-          next = { ...row, status: 'done', completedAt: row.undoCompletedAt, undoCompletedAt: null };
+          next = { ...row, status: 'done', completedAt: row.undoCompletedAt, undoCompletedAt: null, writtenAt: row.undoWrittenAt ?? null, undoWrittenAt: null };
         } else if (payload.action === 'unread') {
           if (row?.status !== 'done') return;
-          next = { ...row, status: 'reading', completedAt: null, submittedAt: null, undoCompletedAt: row.completedAt };
+          next = { ...row, status: 'reading', completedAt: null, submittedAt: null, undoCompletedAt: row.completedAt, writtenAt: null, undoWrittenAt: row.writtenAt ?? null };
         } else if (payload.action === 'rate') {
           if (row?.status !== 'done') throw new Error('Check off the reading before rating it.');
           next = { ...row, rating };
@@ -710,9 +722,15 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
           next = { ...row, comment, commentAt: comment === row.comment ? row.commentAt : serverTimestamp(), submittedAt: row.submittedAt || serverTimestamp() };
         } else {
           if (row?.status !== 'done') throw new Error('Check off the reading before posting a comment.');
+          conflict = draft && draftConflict({ comment: row.comment ?? '', commentAt: millis(row.commentAt) }, draft);
+          if (conflict) theirs = row.comment ?? '';
+          // The other device's thought is newer: it stays, nothing is written.
+          if (conflict === 'theirs') return;
           next = { ...row, comment, commentAt: serverTimestamp() };
         }
         if (next.rating == null || !next.comment.trim()) next.submittedAt = null;
+        // The phone time and its set-aside copy are written only when there is one.
+        for (const k of ['writtenAt', 'undoWrittenAt']) if (next[k] == null) delete next[k];
         next.updatedAt = serverTimestamp();
         if (stamp) { next.uid = user().uid; next.club = c; }
         tx.set(ownRef(c, id), next);
@@ -721,16 +739,21 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
         const wasDone = row?.status === 'done', isDone = next.status === 'done';
         if (wasDone !== isDone || (isDone && next.completedAt !== row.completedAt)) {
           const record = { ...(cs.exists() ? cs.data().works || {} : {}) };
-          if (next.status === 'done') record[id] = next.completedAt; else delete record[id];
+          if (next.status === 'done') record[id] = countedAt(next); else delete record[id];
           tx.set(completionRef(c), { works: record, last: id });
           checked = isDone;
         }
       });
     } catch (e) {
+      // Refused with a phone time (rules older than this page, or a time the
+      // rules do not accept): the check off is sent again without one and
+      // counts when it arrives, as before.
+      if (writtenAt && noAccess(e)) { const { writtenAt: _, ...plain } = payload; await clock(c, true); return act(c, id, plain, retry); }
       if (retry && noAccess(e)) { await clock(c, true); return act(c, id, payload, false); }
       throw e;
     }
-    if (!wrote) return;
+    const result = conflict ? { conflict, theirs } : undefined;
+    if (!wrote) return result;
     // A completed write can resolve before the listeners deliver its snapshot,
     // and the next feed() reads the listeners. So wait here until they carry
     // this write (its updatedAt replaces the one the transaction read): the
@@ -759,6 +782,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     // counts from it (it is open, so this costs no round trip).
     const counted = checked == null ? null : settled(`cmp:${c}`, snap => (snap.data()?.works?.[id] != null) === checked);
     await Promise.all([shared, own, counted]);
+    return result;
   }
   return {
     pause, resume, attend, need,
