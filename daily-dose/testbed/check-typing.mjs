@@ -108,6 +108,17 @@ try {
   await page.reload();
   await page.locator(`textarea[data-draft="${ID}"]`).waitFor({ timeout: 120000 });
   expect(await page.locator(`textarea[data-draft="${ID}"]`).inputValue() === TEXT, 'after a reload the draft is back in the box');
+  // Past the limit: the box keeps the text, and every hint says to shorten it.
+  const long = page.locator(`textarea[data-draft="${ID}"]`);
+  await long.click();
+  await page.keyboard.press('End');
+  await page.keyboard.insertText(' '.padEnd(90, 'x'));
+  const over = Array.from(await long.inputValue()).length;
+  expect(over === 150, 'past the limit the box keeps all 150 characters');
+  expect(await form.locator('.char-count').textContent() === '150 / 140' && await form.locator('.form-hint').textContent() === 'Shorten by 10 characters.', 'past the limit the count is 150 / 140 and the hint says to shorten by 10');
+  expect(/shorten your thought to 140 characters/.test(await page.locator(`#locked-${ID} .locked-text`).textContent()), 'past the limit the hint under the card says to shorten the thought, not that it is ready');
+  await status.filter({ hasText: 'Too long to save to your account' }).waitFor({ timeout: 10000 });
+  ok('past the limit the draft is kept on this device, not saved to the account');
   expect(errors.length === 0, `no console errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);
   console.log('All checks passed.');
 } catch (error) {
