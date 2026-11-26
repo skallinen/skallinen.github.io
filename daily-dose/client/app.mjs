@@ -545,7 +545,9 @@ function lockedHint(work) {
   const steps = [];
   if (work.mine?.status !== 'done') steps.push('check it off');
   if (work.mine?.rating == null) steps.push('choose your stars');
-  if (!draftText(work).trim()) steps.push('write a thought');
+  const draft = draftText(work);
+  if (!draft.trim()) steps.push('write a thought');
+  else if (Array.from(draft).length > 140) steps.push('shorten your thought to 140 characters');
   if (!steps.length) return 'Ready. Choose “Finish & reveal” above to share your response and see the others.';
   const list = steps.length > 1 ? `${steps.slice(0, -1).join(', ')} and ${steps.at(-1)}` : steps[0];
   return `To see the others, ${list}, then choose “Finish & reveal”.`;
