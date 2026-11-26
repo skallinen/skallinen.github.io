@@ -13,8 +13,12 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
 - Opening a text records private progress, not a completed read or submission.
   The reader remembers the scroll position per text on the device.
   There is no shared group to join, no withdrawal, and nobody blocks anyone else.
-- Check off as read records server time. Completion on the assigned local day
-  is on time; a later completion is catch-up. No client timestamps or backdating.
+- Check off as read records server time, and beside it the time the check off
+  was made on the phone, which the server accepts only within 24 hours before
+  its own time and never after it ("Counted when it was done" below). A
+  checkmark counts at its phone time when it has one, else at the server time:
+  on the assigned local day is on time; later is catch-up. No other client
+  timestamps, and no backdating beyond that window.
 - To unlock responses for a text, complete it, select an integer 0–5-star rating,
   write a nonblank thought of at most 140 Unicode code points and explicitly
   choose “Finish & reveal”. Zero counts; an absent rating does not.
@@ -425,10 +429,10 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
     reveal says "Sharing your response…" until the server has it; the others'
     thoughts appear then. A write the server refuses (the rules, or the
     text is not checked off any more) goes back with its error, as before.
-  - The server decides exactly as before: the same transaction, the same
-    rules, the server clock. A check off is timed when it reaches the
-    server, so one made offline before midnight and sent after it counts
-    as catch-up.
+  - The server decides as before (the same transaction, the same rules)
+    except for the time a check off counts at: since "Counted when it was
+    done" (below), one made offline before midnight and sent after it
+    counts on the day.
   - Two devices of one's own: a draft carries the thought the server had
     when it was begun on this device and when it was last typed. If the
     row now holds a different thought that is neither (saved from one's
@@ -442,6 +446,53 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
     Finish & reveal and Save changes are explicit: they always write their
     thought. Drafts kept by an older page carry no starting thought and
     are written as before.
+- Counted when it was done (26.11.2026). Why: Sami 10:41, "can we record
+  when it was written and backdate to that?" With the outbox a check off
+  made offline before midnight and sent after it counted as catch-up,
+  because the server timed it on arrival.
+  - A check off records the time it was made on the phone, by the server
+    clock as the page last measured it (the clock check at load; the
+    measurement is kept on the phone, so a page opened offline has it too),
+    and the outbox keeps that time with the write across a reload. The
+    server stores it in the private row as `writtenAt`, beside its own time
+    (`completedAt`, unchanged: always the server's). The checkmark counts at
+    `writtenAt` when there is one, else at `completedAt`: on the day or
+    catch-up, the count on one's name, the club's "Finished: n on the day",
+    "joined on the day" for a text first opened by the check off, and the
+    completion record the organiser reads (which holds the counted time).
+  - The rules accept `writtenAt` only on a checked-off row, only when the
+    checkmark itself is written (a new server time, or Undo of Mark as
+    unread restoring the one set aside), never after the server's time and
+    at most 24 hours before it. It cannot be added, moved or kept by any
+    other write. Mark as unread sets it aside with the checkmark
+    (`undoWrittenAt`) and Undo brings back exactly that.
+  - Why 24 hours: it covers the cases that happen (a phone offline over an
+    evening and a night, on a flight or at a cottage, sent the next
+    morning or afternoon) and is the most a member can move a checkmark
+    back by setting the phone clock back or by writing to Firestore
+    directly: at most a day, so yesterday's text can be claimed "on the
+    day" up to 24 hours after its midnight. Nothing else depends on it (the
+    texts, the thoughts and their privacy do not), and a member could
+    already check off without reading. 12 hours would refuse a check off
+    made at 23:30 and sent after 11:30 the next day; a week would let the
+    "on the day" mark mean little.
+  - The page sends the phone time capped at the server's time (a phone
+    clock running ahead counts at the server time) and none when it is
+    more than 23 hours 50 minutes old (then it counts when it arrives, as
+    before). If the server refuses it (rules older than the page), the
+    check off is sent again without it.
+  - Old rows, without `writtenAt`, count at `completedAt` as before; nothing
+    is migrated. Finish & reveal needs the checkmark first, so its "on the
+    day" is the checkmark's; `submittedAt` stays the server's time (it
+    orders the club's thoughts).
+  - Alternatives not taken: (a) trust the phone time with no bound (a
+    member could mark any day "on the day"); (b) only the server time, as
+    before (an offline check off before midnight is catch-up: the
+    complaint); (c) the phone time replacing `completedAt` (the server's own
+    time would be lost, and old checks of the rules on `completedAt ==
+    request.time` would have to change everywhere); (d) bound the phone
+    time by the text's day instead of a window (rules cannot see which day
+    the member was offline on; a window is simple and the same for all).
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
@@ -449,8 +500,9 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   relocks the discussion for its owner. Rating/comment drafts are retained.
   Before finishing it acts at once with an Undo. Undo restores the original
   checkmark time (so on the day stays on the day): unread sets the cleared time
-  aside in the private row (`undoCompletedAt`), and rules accept restoring exactly
-  that time within five minutes; a new row can never carry one.
+  aside in the private row (`undoCompletedAt`, and its phone time in
+  `undoWrittenAt`), and rules accept restoring exactly that time within five
+  minutes; a new row can never carry one.
   Previously viewed information cannot be unseen. A subsequent checkmark uses
   a new server timestamp and the reader must submit again.
 - Legacy checkmarks/ratings/comments remain intact as private, unsubmitted drafts.
