@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { paintCopy, usableCopy, outboxEntries, notConnected, retryDelay, draftConflict, OUTBOX_ACTIONS } from '../client/outbox.mjs';
+import { paintCopy, usableCopy, outboxEntries, notConnected, retryDelay, draftConflict, OUTBOX_ACTIONS, writtenAtFor, countedAt, WRITTEN_WINDOW_MS } from '../client/outbox.mjs';
 
 const campaign = { startDate: '2026-11-25', timezone: 'Europe/Helsinki', currentDay: 2, today: '2026-11-26', totalDays: 75, editable: false };
 const card = (id, day, category, extra = {}) => ({ id, day, category, minutes: 3, title: `Title ${id}`, author: 'A. Author', country: 'Finland', year: '2001',
@@ -83,4 +83,26 @@ test('a draft meets a different thought from one\'s other device: the newer typi
   // A draft without a base (kept by an older page) is written as before.
   assert.equal(draftConflict({ comment: 'laptop', commentAt: 300 }, { comment: 'phone' }), null);
   assert.equal(draftConflict({ comment: '', commentAt: null }, { comment: 'phone', base: '', at: 1 }), null);
+});
+
+test('counted when it was done: the phone time sent with a check off stays inside the window and never runs ahead', () => {
+  const now = Date.UTC(2026, 10, 26, 22, 30), hour = 3600000;
+  // Made offline before midnight, sent after it: sent as made.
+  assert.equal(writtenAtFor(now - 2 * hour, now), now - 2 * hour);
+  // A phone clock ahead of the server: held back to now (never after the server).
+  assert.equal(writtenAtFor(now + hour, now), now);
+  // Older than the window less its margin: none, it counts when it arrives.
+  assert.equal(WRITTEN_WINDOW_MS, 24 * hour);
+  assert.equal(writtenAtFor(now - 23.5 * hour, now), now - 23.5 * hour);
+  assert.equal(writtenAtFor(now - 24 * hour + 60000, now), null);
+  assert.equal(writtenAtFor(now - 30 * hour, now), null);
+  assert.equal(writtenAtFor(undefined, now), null);
+  assert.equal(writtenAtFor('soon', now), null);
+});
+
+test('counted when it was done: a checkmark counts at its phone time when it has one, else the server time', () => {
+  assert.equal(countedAt({ completedAt: 5, writtenAt: 3 }), 3);
+  assert.equal(countedAt({ completedAt: 5 }), 5);
+  assert.equal(countedAt({ completedAt: 5, writtenAt: null }), 5);
+  assert.equal(countedAt(null), null);
 });

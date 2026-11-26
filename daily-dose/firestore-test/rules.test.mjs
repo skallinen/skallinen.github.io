@@ -1340,3 +1340,109 @@ test('browser adapter, outbox: a draft meeting a thought from one\'s other devic
     assert.equal(await comment(), 'finished');
   } finally { phone.reset(); laptop.reset(); }
 });
+
+// Counted when it was done (SPEC.md): a check off may carry the time it was
+// made on the phone (writtenAt), never after the server's time and at most
+// 24 hours before it, only on the checkmark itself.
+test('counted when it was done: a checkmark may carry its phone time up to 24 hours back, never ahead, and nothing else may carry one', async () => {
+  const hour = 3600000, at = ms => Timestamp.fromMillis(Date.now() + ms);
+  await action('bob', 'today', 'reading');
+  const ref = rowRef(db('bob'), 'today', 'bob');
+  const check = writtenAt => ({ status: 'done', completedAt: serverTimestamp(), writtenAt, updatedAt: serverTimestamp() });
+  // Ahead of the server, or more than 24 hours back: refused.
+  await assertFails(updateDoc(ref, check(at(10 * 60000))));
+  await assertFails(updateDoc(ref, check(at(-25 * hour))));
+  await assertFails(updateDoc(ref, check('yesterday')));
+  // Within the window: accepted, and the server's own time is kept beside it.
+  await assertSucceeds(updateDoc(ref, check(at(-23 * hour))));
+  const row = (await getDoc(ref)).data();
+  assert.ok(row.writtenAt.toMillis() < row.completedAt.toMillis());
+  // Once checked off it cannot be moved, added or given to a later write.
+  await assertFails(updateDoc(ref, { writtenAt: at(-hour), updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { comment: 'a thought', commentAt: serverTimestamp(), writtenAt: at(-2 * hour), updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { comment: 'a thought', commentAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  // Without a check off there is no phone time: not on a row being read,
+  // not on a row that only starts reading, not by Mark as unread keeping it.
+  await assertFails(setDoc(rowRef(db('cara'), 'today', 'cara'), { status: 'reading', startedAt: serverTimestamp(), completedAt: null, joinedOnDay: true,
+    comment: '', commentAt: null, writtenAt: at(-hour), updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { status: 'reading', completedAt: null, submittedAt: null, updatedAt: serverTimestamp() }));
+  // A new row checked off at once may carry one, and "joined on the day"
+  // follows it: the text closed an hour ago, the check off was made before.
+  const fresh = (joinedOnDay, writtenAt) => setDoc(rowRef(db('cara'), 'past', 'cara'), { status: 'done', startedAt: serverTimestamp(), completedAt: serverTimestamp(),
+    joinedOnDay, comment: '', commentAt: null, ...(writtenAt ? { writtenAt } : {}), updatedAt: serverTimestamp() });
+  await assertFails(fresh(true, null));
+  await assertFails(fresh(false, at(-2 * hour)));
+  await assertSucceeds(fresh(true, at(-2 * hour)));
+});
+
+test('counted when it was done: Mark as unread sets the phone time aside and Undo brings back exactly that; the completion record holds the time it counts at', async () => {
+  const hour = 3600000, at = ms => Timestamp.fromMillis(Date.now() + ms);
+  await action('bob', 'today', 'reading');
+  const d = db('bob'), ref = rowRef(d, 'today', 'bob');
+  // The record must hold the phone time when the row has one, not the server's.
+  let b = writeBatch(d);
+  b.update(ref, { status: 'done', completedAt: serverTimestamp(), writtenAt: at(-2 * hour), updatedAt: serverTimestamp() });
+  b.set(checksRef(d, 'bob'), { works: { today: serverTimestamp() }, last: 'today' });
+  await assertFails(b.commit());
+  const written = at(-2 * hour);
+  b = writeBatch(d);
+  b.update(ref, { status: 'done', completedAt: serverTimestamp(), writtenAt: written, updatedAt: serverTimestamp() });
+  b.set(checksRef(d, 'bob'), { works: { today: written }, last: 'today' });
+  await assertSucceeds(b.commit());
+  const row = (await getDoc(ref)).data();
+  // Unread: the phone time goes, and only it may be set aside.
+  const unread = { status: 'reading', completedAt: null, submittedAt: null, undoCompletedAt: row.completedAt, writtenAt: null, updatedAt: serverTimestamp() };
+  await assertFails(updateDoc(ref, { ...unread, undoWrittenAt: at(-20 * hour) }));
+  await assertSucceeds(updateDoc(ref, { ...unread, undoWrittenAt: row.writtenAt }));
+  // Undo: the checkmark time and exactly the phone time set aside.
+  const restore = writtenAt => ({ status: 'done', completedAt: row.completedAt, undoCompletedAt: null, undoWrittenAt: null, writtenAt, updatedAt: serverTimestamp() });
+  await assertFails(updateDoc(ref, restore(at(-20 * hour))));
+  await assertFails(updateDoc(ref, restore(null)));
+  await assertSucceeds(updateDoc(ref, restore(row.writtenAt)));
+  const back = (await getDoc(ref)).data();
+  assert.ok(back.writtenAt.isEqual(row.writtenAt) && back.completedAt.isEqual(row.completedAt));
+  // A fresh checkmark after unread may not keep an old set-aside time.
+  await assertSucceeds(updateDoc(ref, { ...unread, undoWrittenAt: row.writtenAt }));
+  await assertFails(updateDoc(ref, { status: 'done', completedAt: serverTimestamp(), undoCompletedAt: null, updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { status: 'done', completedAt: serverTimestamp(), undoCompletedAt: null, undoWrittenAt: null, updatedAt: serverTimestamp() }));
+});
+
+test('browser adapter, counted when it was done: a check off made before the day closed and sent after counts on the day; too old or ahead counts when it arrives', { timeout: 30000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const hour = 3600000;
+  const phone = backendFor('alice'), organiser = backendFor('alice');
+  const act = (id, body) => phone.request(`/clubs/club/works/${id}`, { method: 'POST', body });
+  const row = async id => (await getDoc(rowRef(db('alice'), id, 'alice'))).data();
+  try {
+    // "old" closed an hour ago: checked off on the phone 90 minutes ago, sent now.
+    await act('old', { action: 'complete', writtenAt: Date.now() - 1.5 * hour });
+    let r = await row('old');
+    assert.ok(r.writtenAt.toMillis() < r.completedAt.toMillis() - hour);
+    assert.equal(r.joinedOnDay, true);
+    let w = await feedWork(phone, 'old', { fresh: true });
+    assert.equal(w.mine.onTime, true);
+    assert.equal(w.mine.completedAt, r.writtenAt.toMillis());
+    const view = await organiser.request('/clubs/club/organiser');
+    assert.equal(view.checks.alice.old.onTime, true);
+    assert.equal(view.checks.alice.old.at, r.writtenAt.toMillis());
+    // Mark as unread and Undo keep it on the day.
+    await act('old', { action: 'unread' });
+    assert.equal((await row('old')).writtenAt, undefined);
+    await act('old', { action: 'restore' });
+    r = await row('old');
+    assert.equal(r.writtenAt.toMillis(), view.checks.alice.old.at);
+    // More than a day back: sent without the phone time, counts now (catch-up).
+    await act('past', { action: 'complete', writtenAt: Date.now() - 30 * hour });
+    r = await row('past');
+    assert.equal(r.writtenAt, undefined);
+    w = await feedWork(phone, 'past', { fresh: true });
+    assert.equal(w.mine.onTime, false);
+    // A phone clock ahead of the server: the time is held back to now, accepted.
+    await act('today', { action: 'complete', writtenAt: Date.now() + hour });
+    r = await row('today');
+    assert.ok(r.writtenAt.toMillis() <= r.completedAt.toMillis());
+    // Only a check off carries one.
+    await assert.rejects(act('today', { action: 'rate', rating: 3, writtenAt: Date.now() }), /Unexpected reading fields/);
+    await assert.rejects(act('today', { action: 'submit', comment: 'x', writtenAt: Date.now() }), /Unexpected reading fields/);
+  } finally { phone.reset(); organiser.reset(); }
+});
