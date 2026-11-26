@@ -594,7 +594,7 @@ a different thought. The one here is newer, so it is kept."). Signing out
 removes the copy. It writes to the bed: reseed before a rerun.
 
 2026-11-26, first paint and outbox: `check-first-paint.mjs` green at 390 px
-(23 ok). Measured in that run (Chromium, Mikko at Day 61, ms from the start
+(22 ok). Measured in that run (Chromium, Mikko at Day 61, ms from the start
 of the reload): with every emulator request held back 1500 ms the box was
 there after 39 ms and took the first key at 83 ms; the live data came 23.4 s
 after the reload (with that delay on each of its requests) and his text,
@@ -611,3 +611,8 @@ the cause was not found (that step passed in a separate probe, 26 s, and
 in both runs since, on a version that also lets only one draft save per
 text run at a time). In the second, a save waiting in Firestore's offline
 queue kept saying "Saving draft…"; it now shows the outbox line after 5 s.
+Checks the same day on this change: `check-today-first.mjs` (14 ok),
+`check-typing.mjs` (26 ok; median key 15 ms, longest 95 ms through the
+refresh) and `check-fewer-listeners.mjs` in Chromium (27 ok) green, each
+on a fresh seed; rules suite 44 of 44 (1 new), unit tests 76 of 76 (7 new
+in `test/outbox.test.mjs`). The tour and the older checks were not rerun.
