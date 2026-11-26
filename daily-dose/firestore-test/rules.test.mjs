@@ -1307,3 +1307,36 @@ test('browser adapter: switching the one query on and off under an open page cha
     assert.equal(await done(), 3);
   } finally { alice.reset(); }
 });
+
+// ---------- Outbox for saves (SPEC.md): a draft from the outbox carries where
+// it began (`base`) and when it was typed (`at`); a different thought saved
+// meanwhile from one's other device is told apart, and the newer typing wins.
+test('browser adapter, outbox: a draft meeting a thought from one\'s other device keeps the newer typing and says so; rules unchanged', { timeout: 30000 }, async () => {
+  await env.withSecurityRulesDisabled(ctx => threeDays(ctx.firestore()));
+  const phone = backendFor('alice'), laptop = backendFor('alice');
+  const act = (client, body) => client.request('/clubs/club/works/today', { method: 'POST', body });
+  const comment = async () => (await getDoc(rowRef(db('alice'), 'today', 'alice'))).data().comment;
+  try {
+    await act(phone, { action: 'complete' });
+    await act(phone, { action: 'comment', comment: 'first' });
+    // No conflict: the row still holds the base, or already this text.
+    assert.equal(await act(phone, { action: 'comment', comment: 'second', base: 'first', at: Date.now() }), undefined);
+    assert.equal(await act(phone, { action: 'comment', comment: 'second', base: 'first', at: Date.now() }), undefined);
+    // The phone began from "second" and was typed before the laptop saved: the laptop's stays.
+    const typed = Date.now() - 60000;
+    await act(laptop, { action: 'comment', comment: 'from the laptop' });
+    assert.deepEqual(await act(phone, { action: 'comment', comment: 'from the phone', base: 'second', at: typed }), { conflict: 'theirs', theirs: 'from the laptop' });
+    assert.equal(await comment(), 'from the laptop');
+    // Typed after the laptop's save: the phone's is written.
+    assert.deepEqual(await act(phone, { action: 'comment', comment: 'from the phone', base: 'second', at: Date.now() + 5000 }), { conflict: 'mine', theirs: 'from the laptop' });
+    assert.equal(await comment(), 'from the phone');
+    // A draft without a base is written as before; base and at belong to drafts only.
+    assert.equal(await act(laptop, { action: 'comment', comment: 'plain' }), undefined);
+    await assert.rejects(act(phone, { action: 'rate', rating: 3, base: 'x' }), /Unexpected reading fields/);
+    await assert.rejects(act(phone, { action: 'submit', comment: 'x', at: 1 }), /Unexpected reading fields/);
+    // Finishing still needs stars, and is not a draft: it writes its thought.
+    await act(phone, { action: 'rate', rating: 3 });
+    await act(phone, { action: 'submit', comment: 'finished' });
+    assert.equal(await comment(), 'finished');
+  } finally { phone.reset(); laptop.reset(); }
+});
