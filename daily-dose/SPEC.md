@@ -18,6 +18,9 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
 - To unlock responses for a text, complete it, select an integer 0–5-star rating,
   write a nonblank thought of at most 140 Unicode code points and explicitly
   choose “Finish & reveal”. Zero counts; an absent rating does not.
+  A longer thought is not cut: the box keeps it (on this device only), the
+  count turns red, and both the hint above the button and the hint under the
+  card say to shorten it; neither says the text is ready to finish.
 - Before submission only one's own response is readable. Afterwards only other
   submitted responses for the same text are readable. This is enforced by
   Firestore, including direct reads and queries, not just hidden by the UI.
