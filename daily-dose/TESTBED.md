@@ -738,3 +738,49 @@ sent 22.4 s after the emulators came back (the outbox's retry wait), the
 server time 24 s after the close, the phone time 44 s before it. Before
 this change the same check off counted as catch-up (SPEC.md, "Outbox for
 saves", as it was).
+
+## Release 26.11.2026 (dd-release)
+
+Branch `dd-release` = c995282 (live) with `daily-dose-today-first` (the hint
+past 140 characters), `dd-own-rows` (own rows on demand) and `dd-first-paint`
+(the box at first paint, the outbox, counted when it was done) merged, and
+one fix found by the merged suite (cards drawn from the copy were not
+compared with the live data when the earlier days were added twice: a box
+kept an old thought until the 30 s refresh). Pages built
+(`app.js?v=release-2611-1`).
+
+Before (c995282) and after (dd-release), the same scratch probe as "Own
+rows on demand: measured" plus a reload (`testbed/.run/measure5.mjs`, not
+committed): Mikko at Day 61, busy club, 390 px, Chromium 4x CPU, 150 ms,
+1.6 Mbit/s, one run each:
+
+| | before | after |
+| --- | --- | --- |
+| requests at load (sign-in) | 205 | 31 |
+| listeners open after load | 189 | 16 |
+| requests on a reload | 205 | 31 |
+| box usable after a reload | 7.6 s | 4.5 s |
+| every card drawn after a reload | 10.2 s | 7.9 s |
+| first save after a return | 2.6 s | 1.3 s |
+| on return: requests | 201 | 28 |
+
+The reload times include downloading the page's script, which the test bed
+serves uncompressed (756 kB, about 3.8 s at 1.6 Mbit/s; GitHub Pages sends
+it compressed, 213 kB, about 1.1 s), so on the live site the box after a
+reload should come at about 1 to 1.5 s instead of about 4.5 s. With the
+emulators slowed instead of the network (check-first-paint) the box takes
+keys 40 to 50 ms after the reload starts.
+
+Results on the merged branch, each check on a fresh seed, all rerun after the fix: unit 78 of 78,
+rules suite 48 of 48; today-first at 390 and 1280 px (13 ok each), typing
+(30 ok; median key 12 to 13 ms, longest 80 ms through the refresh),
+first-paint twice (22 ok), backdate (10 ok), fewer-listeners in Chromium
+and WebKit (27 ok each), stars (14), my-stars (14), ranking (28),
+desert-island (58), reactions (23), news (22), tour (23 beats). Before the
+fix the first-paint laptop step failed twice; my-stars needed to wait for
+the earlier days after its reload (the check, not the page); ranking showed
+an emulator "400 (Bad Request)" console line twice and passed on the run
+after; desert-island once the same (58 ok before, 57 then). Four further runs of ranking and desert-island logging every 400 response saw none (the known emulator flake, also on earlier branches; cause not found). Once, before the fix,
+the live data did not arrive within 180 s after the slow reload in
+first-paint (as once on dd-first-paint, cause not found); it arrived in
+20 to 22 s in the four runs since.
