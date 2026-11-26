@@ -103,7 +103,7 @@ try {
   expect(await thought(mikko, OLD, 'Grace Okafor').count() === 0 && await card(mikko, OLD).locator('.loading-thoughts').count() === 1, 'an old card he has not scrolled to holds no thoughts yet (Today first: read when it comes on screen)');
   await mikko.waitForTimeout(4000);
   const listeners = await live(mikko);
-  expect(listeners > 0 && listeners <= cards + 30, `the page keeps ${listeners} listeners open for ${cards} cards (it was about three per card)`);
+  expect(listeners > 0 && listeners <= 40, `the page keeps ${listeners} listeners open for ${cards} cards (it was about three per card, then one; own rows on demand: at most 40)`);
   const start = await news(mikko);
   await shot(mikko, 'loaded');
 
@@ -232,7 +232,7 @@ try {
   await mikko.locator('article[data-work]').first().waitFor({ timeout: 15000 });
   await mikko.waitForTimeout(4000);
   const end = await live(mikko);
-  expect(end <= cards + 30, `back on the readings the page keeps ${end} listeners open`);
+  expect(end <= 50, `back on the readings the page keeps ${end} listeners open (Desert island read his rows once, without listeners)`);
   await shot(mikko, 'end');
   expect(errors.length === 0, `no console errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);
   console.log('All checks passed.');
