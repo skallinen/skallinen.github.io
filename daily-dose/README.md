@@ -167,7 +167,10 @@ build:pages` and push, nothing else. Rolling back: push the previous client
 (`assets/app.js`, `index.html`); there is nothing on the server to undo.
 Measured before and after: TESTBED.md, "Today first check". Typing in the
 thought box was measured on both (26.11.2026, TESTBED.md "Typing check"):
-already fast, so the input handler is unchanged.
+already fast, so the input handler is unchanged. Measured again by how much
+is already typed (TESTBED.md "Typing by length"): the delay does not grow
+with the text, for key presses, a word at a time, keyboard composition and
+autocorrect, also with another member writing meanwhile.
 
 No background job or publication trigger is required.
 

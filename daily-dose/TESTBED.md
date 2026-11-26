@@ -561,3 +561,60 @@ today-first at 390 and 1280, fewer-listeners in Chromium and WebKit, stars,
 my-stars, desert-island, reactions, news and the tour green; ranking failed
 once on an emulator "400 (Bad Request)" console line and passed twice on
 rerun. Rules suite 43 of 43, unit tests 69 of 69.
+
+## Typing by length
+
+`testbed/measure-typing-length.mjs` measures the delay per input in the
+thought box against how much is already typed. It is a measurement, not a
+pass or fail check. Same busy bed at Day 61:
+
+```sh
+VOLUME3=1 DAY1_OFFSET=60 scripts/testbed.sh start && node testbed/seed-finished.mjs
+node testbed/measure-typing-length.mjs > result.json   # BROWSER=webkit, CPU=8, TRACE=1
+scripts/testbed.sh stop
+```
+
+Mikko types a 188-character thought (past the 140 limit) into today's essay
+at 390 px with touch, in four kinds of input: key presses; a word at a
+time (`insertText`); keyboard composition (a composition update per
+letter, a commit per word, as Android keyboards with suggestions send);
+and autocorrect (composition with a typo, then the word replaced). Every
+sixth word a 1.5 s pause lets the draft save run. Each kind is typed twice:
+alone, and while a second member (`testbed/live-member.mjs`) rewrites a
+thought every 1.5 s on today's and yesterday's texts. The 30-second
+refresh runs as usual. Per input: the `beforeinput` timestamp to just after
+the next paint, and the time in the app's input handler. `TRACE=1` adds a
+Chromium trace and sums main-thread time by kind in thirds of the pass.
+
+2026-11-26 (Sami: "the claim is that the more words you write the slower it
+is"). Chromium, 4x CPU, phone network; median ms per input at 0 to 29
+characters typed, then at 150 to 179; the longest input up to 179:
+
+| Kind | `master` alone | `master` active | branch alone | branch active |
+|---|---|---|---|---|
+| Key presses | 22, 20; 75 | 20, 18; 64 | 12, 11; 34 | 14, 14; 36 |
+| A word at a time | 22, 21; 67 | 20, 21; 88 | 13, 13; 30 | 14, 14; 58 |
+| Composition | 21, 21; 60 | 18, 18; 73 | 11, 13; 40 | 13, 14; 33 |
+| Autocorrect | 21, 21; 58 | 21, 17; 63 | 12, 14; 33 | 15, 15; 36 |
+
+WebKit (no throttling there), key presses and a word at a time: 6 to 13 ms
+median at every length on both, the longest input 22 ms. At 8x CPU (key
+presses and composition, alone and active): `master` 44 to 46 ms median at
+every length, the longest input 200 ms; the branch 26 to 28 ms, the longest
+192 ms.
+The input handler takes 1 to 2 ms per input at the start and at the end.
+Trace (branch, composition, three thirds of the pass): layout 232, 269 and
+231 ms, paint 464, 454 and 456, pre-paint 342, 374 and 357, event handling
+185, 207 and 186: nothing grows with the text. Most of an input's 11 to 22
+ms is the frame (pre-paint and paint of a long page), the same at any
+length. So the claim was not reproduced: in the test bed the delay does not
+grow with the length of the thought, for any kind of input, alone or with
+another member writing. Not measured: a real phone (iOS Safari, a real
+keyboard), which is still the next step.
+
+Past the limit the box keeps every character, the count turns red, the hint
+above the button says "Shorten by N characters." and the draft stays on the
+device ("Too long to save to your account"). The hint under the card still
+said "Ready. Choose “Finish & reveal”" there; it now says to shorten the
+thought (SPEC.md), and `check-typing.mjs` checks it past the limit
+(failed before the change, passes after).
