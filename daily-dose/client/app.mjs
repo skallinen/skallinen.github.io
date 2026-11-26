@@ -63,6 +63,35 @@ const allWorks = () => loadedWorks().list;
 const currentWork = id => loadedWorks().byId.get(id);
 // Still waiting for one's own rows on the older days (Today first, SPEC.md).
 const loadingFeed = () => !!state.feed?.loading;
+// Own rows on demand (SPEC.md): a card whose own row the page has not read is
+// drawn from the completion record (`partial`: its checkmark only). Views that
+// need every text's stars (My ranking, Desert island, the Stars grids) read
+// them all once, showing "Loading" until then.
+const ownMissing = () => allWorks().some(w => w.partial);
+let ownLoad = null;
+function loadOwnRows() {
+  if (ownLoad || !state.feed || (!ownMissing() && !loadingFeed())) return;
+  const generation = state.generation;
+  ownLoad = (async () => {
+    if (loadingFeed()) await refresh({ render: false });
+    if (ownMissing()) await refresh({ render: false, own: true });
+  })().then(() => {
+    ownLoad = null;
+    if (generation !== state.generation) return;
+    if (state.view === 'feed') paintFeed(); else if (state.view !== 'organiser') render();
+  }, e => { notify(e.message, true); setTimeout(() => { ownLoad = null; }, 30000); });
+}
+// The texts whose own row the page needs wherever their card is: an unsent
+// thought or stars kept on this device, and the text open in the reader.
+function neededRows() {
+  const prefixes = ['draft', 'rating'].map(k => `daily-dose-${k}:${state.user?.uid}:${state.clubId}:`), ids = new Set();
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i), p = prefixes.find(x => k?.startsWith(x)); if (p) ids.add(k.slice(p.length)); } } catch { /* storage unavailable */ }
+  for (const id of state.drafts.keys()) ids.add(id);
+  if (readerId) ids.add(readerId);
+  const open = history.state?.reader;
+  if (typeof open === 'string') ids.add(open);
+  return [...ids];
+}
 // "Europe/Helsinki" -> "Helsinki time"; one friendly label for the club clock.
 export const zoneLabel = zone => !zone || zone === 'UTC' || zone === 'Etc/UTC' ? 'UTC' : `${zone.split('/').pop().replace(/_/g, ' ')} time`;
 const timing = onTime => onTime ? 'on the day' : 'catch-up';
@@ -147,6 +176,7 @@ const unsavedShared = id => currentWork(id)?.revealed && ((state.drafts.has(id) 
 
 function restoreDrafts() {
   for (const w of allWorks()) {
+    if (w.partial) continue;
     const saved = store.get(localKey('draft', w.id));
     if (saved == null) continue;
     if (saved.trim() === (w.mine?.comment ?? '')) { store.del(localKey('draft', w.id)); continue; }
@@ -155,6 +185,7 @@ function restoreDrafts() {
   }
   // Stars chosen after finishing but not yet saved.
   for (const w of allWorks()) {
+    if (w.partial) continue;
     const raw = store.get(localKey('rating', w.id));
     if (raw == null) continue;
     let value = null;
@@ -572,6 +603,7 @@ function reveal(work) {
 }
 
 function workCard(work) {
+  if (work.partial) return partialCard(work);
   const done = work.mine?.status === 'done';
   const reading = work.mine?.status === 'reading';
   const keptDraft = reading && (work.mine.rating != null || (work.mine.comment ?? '').trim());
@@ -586,9 +618,26 @@ function workCard(work) {
     </div>
     ${keptDraft ? '<p class="reading-status">Your rating and thought are kept as a private draft. Check the text off again to finish.</p>' : ''}
     ${done ? ratingControl(work, false, ratingDraft(work.id)) : ''}
-    ${done && rankingAllowed() ? rankLine(currentScores().get(work.id)) : ''}
+    ${done && rankingAllowed() && !ownMissing() ? rankLine(currentScores().get(work.id)) : ''}
     ${done ? commentForm(work) : ''}
     <div class="reveal-section">${reveal(work)}</div>
+  </article>`;
+}
+
+// A card whose own row is not in yet (Own rows on demand): the text and its
+// checkmark from the record; the stars, the thought and the club's thoughts
+// load when the card comes on screen (about a second).
+function partialCard(work) {
+  const done = work.mine?.status === 'done';
+  return `<article class="reading-card ${done ? 'is-done' : ''}${playingWork() === work.id ? ' is-playing' : ''}" data-work="${work.id}" tabindex="-1">
+    <div class="work-top"><span class="genre ${work.category}"><span aria-hidden="true">${icons[work.category]}</span>${category[work.category]}</span><span class="reading-time">${work.minutes} min read</span></div>
+    <h3><button class="title-button" data-read="${work.id}">${esc(work.title)}</button></h3>
+    <p class="byline">${esc(work.author)} <span>${esc(work.country)} · ${esc(work.year)}</span></p>
+    ${descriptionHtml(work)}
+    <div class="work-actions"><div class="read-group"><button class="read-button" data-read="${work.id}">${readLabel(work)}</button>${timeLeft(work)}</div>
+      ${done ? `<span class="completion"><span aria-hidden="true">✓</span> Checked off ${work.mine.onTime ? 'on the day' : 'as catch-up'}</span>` : ''}
+    </div>
+    <div class="reveal-section"><p class="locked loading-thoughts"><span aria-hidden="true">◇</span><span class="locked-text">Loading your response…</span></p></div>
   </article>`;
 }
 
@@ -630,7 +679,7 @@ function visibleStars(feed) {
   const seen = new Map(), stars = {}, later = new Set();
   for (const w of feed.days.flatMap(d => d.works)) {
     // Not read yet (Today first): the Stars view reads them, loading until then.
-    if (w.loading || (w.revealed && !w.collective)) { later.add(w.id); continue; }
+    if (w.loading || w.partial || (w.revealed && !w.collective)) { later.add(w.id); continue; }
     if (!w.revealed) continue;
     seen.set(w.id, true);
     for (const r of w.collective.readers) if (r.rating != null) (stars[r.uid] ??= {})[w.id] = r.rating;
@@ -657,7 +706,7 @@ function loadStars() {
 // Their own stars are never hidden from them, so there is no locked cell.
 const MY_STAR_WORDS = { s0: '0 stars', s1: '1 star', s2: '2 stars', s3: '3 stars', s4: '4 stars', s5: '5 stars',
   none: 'no stars yet', coming: 'coming', waiting: 'loading' };
-const myStarKind = work => work.mine?.status === 'done' && work.mine.rating != null ? `s${work.mine.rating}` : 'none';
+const myStarKind = work => work.partial ? 'waiting' : work.mine?.status === 'done' && work.mine.rating != null ? `s${work.mine.rating}` : 'none';
 // The "Checked off" / "Stars" switch, shared by the roster and the member's own
 // grid; `attr` is the data attribute the click handler reads.
 const gridSwitch = (attr, stars) => `<div class="filters roster-switch" role="group" aria-label="${attr === 'roster-view' ? 'Roster shows' : 'Your grid shows'}">${[['checks', 'Checked off'], ['stars', 'Stars']].map(([key, label]) =>
@@ -698,6 +747,7 @@ const rosterGrid = (o, r, vis) => vis
 function myGrid(feed) {
   state.myGridView ??= store.get('daily-dose-my-grid-view') === 'stars' ? 'stars' : 'checks';
   const stars = state.myGridView === 'stars';
+  if (stars && ownMissing()) queueMicrotask(loadOwnRows);
   const checks = Object.fromEntries(feed.days.flatMap(d => d.works).filter(w => w.mine?.status === 'done').map(w => [w.id, { onTime: w.mine.onTime }]));
   const grid = stars ? progressGrid(feed.campaign, feed.days, myStarKind, 'You', MY_STAR_WORDS)
     : progressGrid(feed.campaign, feed.days, checkKind(checks), 'You');
@@ -801,6 +851,7 @@ const ratingOf = id => currentWork(id)?.mine?.rating ?? null;
 function rankingLink() {
   if (!rankingAllowed()) return '';
   if (loadingFeed()) return '<p class="rank-link"><button class="text-button" data-nav="ranking">My ranking</button> <span>Loading your texts…</span></p>';
+  if (ownMissing()) return '<p class="rank-link"><button class="text-button" data-nav="ranking">My ranking</button> <span>Your rated texts, in your order</span></p>';
   const n = rankable().length;
   return `<p class="rank-link"><button class="text-button" data-nav="ranking">My ranking</button> <span>${n ? `${plural(n, 'rated text')}, in your order` : 'Rate texts to rank them'}</span></p>`;
 }
@@ -817,7 +868,7 @@ function rankingContent() {
 }
 // Never drawn from part of the texts (Today first): the complete feed draws it.
 const loadingView = () => shell(`<section class="loading">Loading your texts…</section>`);
-function renderRanking() { if (loadingFeed()) return loadingView(); shell(rankingContent()); }
+function renderRanking() { if (loadingFeed() || ownMissing()) { loadOwnRows(); return loadingView(); } shell(rankingContent()); }
 // Redraw the list in place (the handle being moved keeps its focus).
 function paintRanking() {
   const main = root.querySelector('#main');
@@ -984,11 +1035,11 @@ function islandHelp() {
     <p>The suggested stars follow the ranking on a bell curve: the top gets 5, the bottom 1, the middle 3. “Likely 2 to 4 ★” means the text lands there 8 times in 10, given your choices so far. The next pair is one your answer will tell the most about.</p>
     <p>Desert island never changes your stars; they stay as you set them. Only you see your choices and results: not the other members, not the organiser.</p></details>`;
 }
-function renderIsland() { if (loadingFeed()) return loadingView(); shell(islandContent()); }
+function renderIsland() { if (loadingFeed() || ownMissing()) { loadOwnRows(); return loadingView(); } shell(islandContent()); }
 function paintIsland() {
   const main = root.querySelector('#main');
   if (state.view !== 'island' || !main) return;
-  if (loadingFeed()) return loadingView();
+  if (loadingFeed() || ownMissing()) { loadOwnRows(); return loadingView(); }
   morph(main, fragment(`<main id="main">${islandContent()}</main>`));
 }
 let islandTimer = 0, islandSeq = 0;
@@ -1089,23 +1140,28 @@ let refreshSeq = 0, refreshShown = 0;
 // in; `all` (the roster's Stars view) reads every finished text not read yet.
 // On the feed, only what changed is drawn again (paintFeed); `quiet` is kept
 // for the other views, which are drawn again only when nobody is typing.
-async function refresh({ quiet = false, render: draw = true, fresh = false, early = false, all = false } = {}) {
+async function refresh({ quiet = false, render: draw = true, fresh = false, early = false, all = false, own = false } = {}) {
   if (!state.clubId) return;
   const generation = state.generation;
   const clubId = state.clubId, seq = ++refreshSeq;
-  const feed = await api(`/clubs/${clubId}/feed`, fresh ? { fresh: true } : all ? { all: true } : early ? { early: true } : {});
+  backend?.need?.(clubId, neededRows());
+  const feed = await api(`/clubs/${clubId}/feed`, fresh ? { fresh: true } : all ? { all: true } : own ? { own: true } : early ? { early: true } : {});
   if (generation !== state.generation || clubId !== state.clubId || seq < refreshShown) return;
   // A first feed never replaces a complete one.
   if (feed.loading && state.feed && !state.feed.loading) return;
   refreshShown = seq;
-  const wasLoading = loadingFeed();
+  const wasLoading = loadingFeed(), wasPartial = new Set(allWorks().filter(w => w.partial).map(w => w.id));
   state.feed = feed;
   if (Number.isFinite(feed.now)) state.clockOffset = feed.now - Date.now();
   // Writes still on their way stay visible over the server's older state.
   for (const w of allWorks()) for (const op of queuedOps(w.id)) op.apply(w);
   for (const w of allWorks()) applyReactions(w);
   // The older days have arrived: their unsent drafts come back too.
-  if (wasLoading && !feed.loading) restoreDrafts();
+  // Likewise a card whose own row has just come in (Own rows on demand).
+  if ((wasLoading && !feed.loading) || allWorks().some(w => wasPartial.has(w.id) && !w.partial)) restoreDrafts();
+  // My ranking (organiser only) ranks every rated text, and each card shows
+  // its place: the organiser's page reads every own row once, in the background.
+  if (feed.organizer && !feed.loading && ownMissing()) queueMicrotask(loadOwnRows);
   if (!draw || state.view === 'organiser' || (state.view === 'ranking' && state.dragging)) return;
   if (state.view === 'feed') { paintFeed(); return; }
   if (!quiet || !typing()) render();

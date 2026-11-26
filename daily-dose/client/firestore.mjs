@@ -67,6 +67,15 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   // known to have no row of one's own; rows read from the server that are
   // newer than the query's last snapshot.
   const mineOff = new Set(), norow = new Set(), newer = new Map();
+  // Own rows on demand (SPEC.md): the checkmarks of every text come from the
+  // one completion record; one's own row is read only for today's texts, the
+  // recent days, the cards on screen and the texts the app needs (`need`: an
+  // unsent draft on this device, the text open in the reader), and for every
+  // text when a view needs them all (`own`: My ranking, Desert island, the
+  // Stars grids, Refresh). `rows`: key -> a row read once or kept from a
+  // listener that closed. `recordOff`: clubs whose record could not be read
+  // (every row is then read, as before).
+  const needed = new Map(), rows = new Map(), recordOff = new Set();
   function unwatch(key) { watches.get(key)?.stop?.(); watches.delete(key); }
   // Drop a key altogether: its listener and its one-time copy.
   function forget(key) { unwatch(key); once.delete(key); }
@@ -179,6 +188,9 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     attended.set(c, now);
     return [...now].some(id => !before.has(id));
   }
+  // The texts whose own row the app needs wherever their card is: an unsent
+  // draft or stars kept on this device, the text open in the reader.
+  function need(c, ids) { needed.set(c, new Set(ids)); }
   // Resolves once the listener has delivered a server snapshot passing `test`
   // (true), or false if none arrives in time or the listener is gone.
   function settled(key, test, ms = 4000) {
@@ -254,13 +266,56 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     }
   }
   const NO_ROW = { exists: () => false, data: () => undefined };
+  // The completion record (completions/{uid}: text id -> checkmark time),
+  // one listener on one's own document. Null when it cannot be read: every
+  // row is then read, as before.
+  async function record(c) {
+    if (recordOff.has(c)) return null;
+    try { const snap = await watch(`cmp:${c}`, completionRef(c)); return new Map(Object.entries(snap.exists() ? snap.data().works || {} : {}).filter(([, at]) => at)); }
+    catch (e) {
+      console.warn('Completion record unavailable; reading every own row.', e.code || e);
+      unwatch(`cmp:${c}`); recordOff.add(c);
+      return null;
+    }
+  }
+  // A row agrees with the record when both say the same about its checkmark.
+  const agrees = (snap, at) => {
+    const d = snap.exists() ? snap.data() : null;
+    return d?.status === 'done' ? !!at && !!d.completedAt?.isEqual?.(at) : !at;
+  };
+  // One's own row on one text, without the one query (part B off): a listener
+  // for today's texts, the recent days, the cards on screen and the texts the
+  // app needs; for any other text the row the page already has (kept while
+  // it agrees with the record's checkmark), one fetch when the feed needs
+  // every row (`own`), and otherwise null: the card is drawn from the record.
+  async function ownRowOnDemand(c, w, ctx) {
+    const key = `own:${c}:${w.id}`, at = ctx.record?.get(w.id) ?? null;
+    if (!ctx.record || isLive(c, w, ctx) || isRecent(w, ctx) || needed.get(c)?.has(w.id)) {
+      const snap = await watch(key, ownRef(c, w.id)); rows.delete(key); return snap;
+    }
+    const e = watches.get(key);
+    if (e) {
+      // No longer live: what its listener showed is kept, the listener closes.
+      const snap = e.snap || await watch(key, ownRef(c, w.id)).catch(() => null);
+      unwatch(key);
+      if (snap) rows.set(key, snap);
+    }
+    if (ctx.fresh) rows.delete(key);
+    const kept = rows.get(key);
+    if (kept && (ctx.own || agrees(kept, at))) return kept;
+    rows.delete(key);
+    if (!ctx.own) return null;
+    const snap = await getDocFromServer(ownRef(c, w.id));
+    rows.set(key, snap);
+    return snap;
+  }
   // One's own row on one text. From the one query when it is in use; a text
   // missing there has either no row or a row without the stamp (written
   // before the backfill, or by a page still running older code), so it is
   // asked once by its own listener, which stays only for an unstamped row.
-  async function ownRow(c, id, mine) {
-    const key = `own:${c}:${id}`;
-    if (!mine) return watch(key, ownRef(c, id));
+  async function ownRow(c, w, ctx) {
+    const id = w.id, mine = ctx.mine, key = `own:${c}:${id}`;
+    if (!mine) return ownRowOnDemand(c, w, ctx);
     const n = newer.get(key);
     if (n) { if (n.base === watches.get(mineKey(c))?.snap) return n.snap; newer.delete(key); }
     const row = mine.get(id);
@@ -287,7 +342,16 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   }
   async function project(c, w, ctx) {
     const { closeAt } = w;
-    const own = await ownRow(c, w.id, ctx.mine);
+    const own = await ownRow(c, w, ctx);
+    if (!own) {
+      // Own rows on demand: a text whose row the page has not read is drawn
+      // from the record, which holds its checkmark and nothing else (no
+      // stars, thought or draft); `partial` says so. Whether it was finished
+      // is not known, so its club data are neither read nor dropped.
+      const at = ctx.record.get(w.id);
+      const status = at ? { status: 'done', onTime: millis(at) < millis(closeAt), completedAt: millis(at), comment: '', rating: null, submittedAt: null } : null;
+      return { ...cardOf(w, ctx), mine: status, revealed: false, revealReason: 'submit-your-response', partial: true };
+    }
     ctx.rows.set(w.id, own);
     const ownData = own.exists() ? own.data() : null;
     const revealed = ownData?.status === 'done' && ownData.submittedAt != null;
@@ -472,9 +536,11 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   // texts are placeholders (`loading: true`, no `mine`) and `loading` is
   // true. The app then asks again, without `early`, for the complete feed;
   // the listeners and fetches opened by this one serve it.
-  async function feed(c, fresh = false, { early = false, all = false } = {}) {
+  // `own` (My ranking, Desert island, the member's Stars grid): every own
+  // row is read, once each (Own rows on demand); `fresh` and `all` read them too.
+  async function feed(c, fresh = false, { early = false, all = false, own: ownAll = false } = {}) {
     const ctx = await context(c), p = ctx.p;
-    ctx.fresh = fresh; ctx.all = all; ctx.rows = new Map();
+    ctx.fresh = fresh; ctx.all = all; ctx.own = ownAll || all || fresh; ctx.rows = new Map();
     if (fresh) { for (const e of once.values()) e.stale = true; norow.clear(); }
     const base = { club: ctx.club, me: { uid: user().uid, name: user().displayName }, organizer: ctx.organizer, now: ctx.now, edition: p.edition, days: [], personal: { completed: 0, onTime: 0, catchUp: 0 } };
     // One's own documents, asked together (they were asked one after the
@@ -499,8 +565,8 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     // The released texts' query changes at midnight: close yesterday's.
     const worksKey = `works:${c}:${millis(cutoff)}`;
     for (const k of [...watches.keys()]) if (k.startsWith(`works:${c}:`) && k !== worksKey) unwatch(k);
-    const [snapshot, mineMap] = await Promise.all([watch(worksKey, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff))), mineRows(c, p)]);
-    ctx.mine = mineMap;
+    const [snapshot, mineMap, checks] = await Promise.all([watch(worksKey, query(collection(programRef(c), 'works'), where('openAt', '>=', Timestamp.fromMillis(0)), where('openAt', '<=', cutoff))), mineRows(c, p), record(c)]);
+    ctx.mine = mineMap; ctx.record = mineMap ? null : checks;
     const docs = snapshot.docs.map(d => d.data());
     let works;
     if (early) {
@@ -526,23 +592,33 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
   }
   // Rows written before completion records existed (or by an older client)
   // get their record here, from the owner's own checkmarks. Rules only accept
-  // values equal to the private row, so this cannot forge anything.
+  // values equal to the private row, so this cannot forge anything. Own rows
+  // on demand: only the rows this feed read are compared (today's, the recent
+  // days, the cards on screen; every row when a view read them all), each
+  // text once per page, against the record's listener (one fetch when the
+  // record has no listener). The record has been written with every
+  // checkmark since Day 1, so a gap is rare; one shows wrong only until its
+  // card has been on screen once.
   async function heal(c, works, rows) {
-    if (healed.has(c)) return;
-    healed.add(c);
-    const snap = await getDocFromServer(completionRef(c));
+    const todo = works.filter(w => rows.has(w.id) && !healed.has(`${c}:${w.id}`));
+    if (!todo.length) return;
+    for (const w of todo) healed.add(`${c}:${w.id}`);
+    const live = watches.get(`cmp:${c}`);
+    const snap = live?.snap && live.stop ? live.snap : await getDocFromServer(completionRef(c));
     let exists = snap.exists();
     const record = { ...(exists ? snap.data().works || {} : {}) };
-    for (const w of works) {
+    for (const w of todo) {
       const row = rows.get(w.id);
       const data = row?.exists() ? row.data() : null;
       const want = data?.status === 'done' ? data.completedAt : null;
       const have = record[w.id] ?? null;
       if (want ? have?.isEqual?.(want) : have == null) continue;
       if (!data) continue; // the rules verify every change against the private row
-      if (!exists) { await setDoc(completionRef(c), { works: { [w.id]: want }, last: w.id }); exists = true; }
-      else await updateDoc(completionRef(c), { [`works.${w.id}`]: want ?? deleteField(), last: w.id });
-      if (want) record[w.id] = want; else delete record[w.id];
+      try {
+        if (!exists) { await setDoc(completionRef(c), { works: { [w.id]: want }, last: w.id }); exists = true; }
+        else await updateDoc(completionRef(c), { [`works.${w.id}`]: want ?? deleteField(), last: w.id });
+        if (want) record[w.id] = want; else delete record[w.id];
+      } catch (e) { console.warn('Completion record not repaired for', w.id, e.code || e); }
     }
   }
   // Organiser only: the roster and who has checked each released text off, and
@@ -601,12 +677,12 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     const program = watches.get(`p:${c}`)?.snap?.data();
     const stamp = !!(program && await mineRows(c, program));
     // What the committed attempt saw and wrote (a transaction may run twice).
-    let seen = null, wrote = false, wasShared = false, isShared = false;
+    let seen = null, wrote = false, wasShared = false, isShared = false, checked = null;
     try {
       await runTransaction(db, async tx => {
         const [ws, rs, cs] = await Promise.all([tx.get(workRef(c, id)), tx.get(ownRef(c, id)), tx.get(completionRef(c))]);
         const w = ws.data(), row = rs.exists() ? rs.data() : null;
-        seen = row?.updatedAt ?? null; wrote = false;
+        seen = row?.updatedAt ?? null; wrote = false; checked = null;
         wasShared = row?.status === 'done' && row.submittedAt != null;
         let next;
         if (payload.action === 'start' || (payload.action === 'complete' && (!row || row.status === 'withdrawn'))) {
@@ -647,6 +723,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
           const record = { ...(cs.exists() ? cs.data().works || {} : {}) };
           if (next.status === 'done') record[id] = next.completedAt; else delete record[id];
           tx.set(completionRef(c), { works: record, last: id });
+          checked = isDone;
         }
       });
     } catch (e) {
@@ -673,19 +750,24 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
     const carried = stamp ? settled(mineKey(c), q => fresh(q.docs.find(d => d.ref.path === ownRef(c, id).path))) : settled(ownKey, fresh);
     const own = carried.then(async ok => {
       if (ok) { newer.delete(ownKey); return; }
-      if (!stamp && !watches.has(ownKey)) return;
+      // Own rows on demand: a text without a listener keeps the row just
+      // written (a ranking save rates texts off screen), read once.
+      if (!stamp && !watches.has(ownKey)) { rows.set(ownKey, await getDocFromServer(ownRef(c, id))); return; }
       setOwn(c, id, await getDocFromServer(ownRef(c, id)));
     });
-    await Promise.all([shared, own]);
+    // The record's listener carries a changed checkmark before the next feed
+    // counts from it (it is open, so this costs no round trip).
+    const counted = checked == null ? null : settled(`cmp:${c}`, snap => (snap.data()?.works?.[id] != null) === checked);
+    await Promise.all([shared, own, counted]);
   }
   return {
-    pause, resume, attend,
+    pause, resume, attend, need,
     // The app's function to call when a background fetch brought newer data.
     onChange(fn) { changed = typeof fn === 'function' ? fn : () => {}; },
     // For tests and measurements: the open listeners and the one-time copies, by key.
-    stats() { return { listeners: [...watches].filter(([, e]) => e.stop).map(([k]) => k).sort(), fetched: [...once.keys()].sort(), ownQuery: [...watches.keys()].filter(k => k.startsWith('mine:')).map(k => k.slice(5)) }; },
+    stats() { return { listeners: [...watches].filter(([, e]) => e.stop).map(([k]) => k).sort(), fetched: [...once.keys()].sort(), ownQuery: [...watches.keys()].filter(k => k.startsWith('mine:')).map(k => k.slice(5)), rows: [...rows.keys()].sort() }; },
     reset() { for (const w of watches.values()) w.stop?.(); watches.clear(); clocks.clear(); healed.clear(); texts.clear(); reactionsOff = false; seenOff = false; rankingOff = false; islandOff = false;
-      attended.clear(); once.clear(); again.clear(); mineOff.clear(); norow.clear(); newer.clear(); dirty = false; },
+      attended.clear(); once.clear(); again.clear(); mineOff.clear(); norow.clear(); newer.clear(); needed.clear(); rows.clear(); recordOff.clear(); dirty = false; },
     async request(url, options = {}) {
       if (!user()) throw new Error('Please sign in with your Bookrank account.');
       if (url === '/clubs') {
@@ -699,7 +781,7 @@ export function createFirestoreBackend(app, user, db = openFirestore(app), { rec
       }
       const parts = url.split('/').filter(Boolean), c = parts[1], id = parts[3];
       if (parts[0] !== 'clubs') throw new Error('Unknown request.');
-      if (parts[2] === 'feed') return feed(c, options.fresh === true, { early: options.early === true, all: options.all === true });
+      if (parts[2] === 'feed') return feed(c, options.fresh === true, { early: options.early === true, all: options.all === true, own: options.own === true });
       if (parts[2] === 'organiser') return organiser(c);
       if (parts[2] === 'schedule' && options.method === 'PUT') return schedule(c, options.body);
       if (parts[2] === 'seen' && options.method === 'POST') return markSeen(c, options.body);
