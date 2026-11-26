@@ -169,6 +169,29 @@ Measured before and after: TESTBED.md, "Today first check". Typing in the
 thought box was measured on both (26.11.2026, TESTBED.md "Typing check"):
 already fast, so the input handler is unchanged.
 
+**The box at first paint, and an outbox for saves** (26.11.2026, SPEC.md
+has the contract). Client only: no rules, index, data or backfill. After
+every load the page keeps today's three cards in `localStorage`
+(`daily-dose-paint`: the card details, checkmarks, own stars and thought,
+never the club's thoughts; `client/outbox.mjs`, `paintCopy`) and draws them
+at the next load before Firebase Auth and Firestore answer
+(`paintFromCopy` in `client/app.mjs`), so the thought box takes keys at
+once; `signedIn` then adopts the page and "redraw only what changed"
+brings it up to date without touching the box being typed in. The copy is
+removed on sign-out. The per-text write queues (`enqueue`, `drain`) keep a
+write that cannot reach the server and try it again (2 s doubling to 30 s,
+at once on `online`, on sign-in and when the page is shown); check off,
+stars, Finish & reveal, Mark as unread and its Undo are also kept in
+`localStorage` (`daily-dose-outbox:{uid}:{club}`) and sent by the next
+load. Drafts carry where they began and when they were typed (`base`,
+`at`, client to backend only, not stored); the backend's transaction keeps
+the newer of two devices' thoughts (`draftConflict`) and says which. The
+transactions, the clock check and the rules are unchanged. Going live:
+`npm run build:pages` and push. Rolling back: push the previous client; the
+keys left in `localStorage` are ignored by it (the outbox's writes not yet
+sent would then be lost, as before this change). Checked on the test bed:
+TESTBED.md, "First paint and outbox check".
+
 No background job or publication trigger is required.
 
 Existing Firestore rows without `submittedAt` remain private, with their old

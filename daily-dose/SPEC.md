@@ -371,6 +371,77 @@ and Family Agenda. Node/SQLite is retained only as a local demo/test harness.
   days of "Today first" are added below the cards already there, a few
   days at a time, without touching them. Thought boxes are sized in one
   pass (all heights read, then all set), not one layout per box.
+- The box at first paint (26.11.2026). Why: even with "Today first" the
+  thought box appeared only after sign-in and Firestore had answered (3 to
+  4 s on a phone-like network, longer on a bad one, never without one).
+  - After every load and every change of one's own, the page keeps a copy
+    of today's three cards on the device (browser storage, one copy per
+    device, for the member signed in last): each card's title, author and
+    other details, its description, whether it is checked off, one's own
+    stars and thought, whether one has finished it; and of the earlier
+    days only which texts there are (id, day, kind, title, author), for
+    the grid. Never the club's thoughts, ratings or reactions, never the
+    texts themselves.
+  - At the next load, when that copy is of today in the club's timezone
+    and the page opens on the readings (not on the reader, My ranking,
+    Desert island or the Organiser page), the page draws today's cards
+    from it at once, before sign-in or the network have answered, with
+    the earlier days as loading ("Loading earlier days…") and the club's
+    thoughts on a finished text as "Loading the club's thoughts…". The
+    thought box takes keys at once. Opening a text, Refresh and the
+    Organiser page say "Still connecting. Try again in a moment." until
+    the page is connected.
+  - When sign-in and the feed arrive, only what changed is drawn again
+    ("Redraw only what changed"): the box being typed in is never
+    replaced (text, focus and caret stay), and the earlier days are added
+    below. If sign-in finds another member or none, the copy is dropped
+    and the page starts as before. When the feed cannot be read (no
+    network), the copy stays on screen and the page tries again every
+    5 s, and at once when the network comes back.
+  - Descriptions and titles are members-only, so the copy is removed on
+    "Sign out" and whenever sign-in finds nobody or someone else. A copy
+    from an earlier day is never drawn.
+- Outbox for saves (26.11.2026). Why: every save is a Firestore
+  transaction with a server clock check, which needs the network; on a
+  bad connection a draft said "Not saved to your account yet" and a check
+  off or Finish & reveal failed and went back.
+  - Check off, stars (before finishing; after finishing they still wait
+    for "Save changes") and Finish & reveal (and Save changes) go into an
+    outbox on the device: shown at once as before, then sent in order per
+    text. A write that cannot reach the server (no network, the server out
+    of reach, not signed in yet) is not an error: it stays and is tried
+    again after 2, 4, 8, 16 s and then every 30 s, and at once when the
+    network comes back, when sign-in answers or when the page is shown
+    again. Check off, stars and Finish & reveal are also kept in browser
+    storage, as are Mark as unread and its Undo (so the order holds), and a
+    reload or a closed tab sends them on the next load (after the earlier
+    days have arrived, for a text not drawn yet). Opening a text is tried
+    again but not kept.
+    Drafts wait in their device copy (as before) and are sent the same
+    way, after any check off or stars still waiting for that text.
+  - While something waits (or a save is still under way after 5 s, which
+    means it is waiting for the network), the line under the thought box
+    says "Saved on this phone, sending when connected." and Finish &
+    reveal says "Sharing your response…" until the server has it; the others'
+    thoughts appear then. A write the server refuses (the rules, or the
+    text is not checked off any more) goes back with its error, as before.
+  - The server decides exactly as before: the same transaction, the same
+    rules, the server clock. A check off is timed when it reaches the
+    server, so one made offline before midnight and sent after it counts
+    as catch-up.
+  - Two devices of one's own: a draft carries the thought the server had
+    when it was begun on this device and when it was last typed. If the
+    row now holds a different thought that is neither (saved from one's
+    other device meanwhile), the newer typing wins: when this device's
+    text was typed later it is written and the box says "Your other device
+    saved a different thought. The one here is newer, so it is kept.";
+    when the other device's was saved later it stays, it is put in the box
+    (unless the box is being typed in, which makes this one the newer) and
+    the box says "Your other device saved a different thought later. It is
+    shown here instead." The note stays until Finish & reveal or a reload.
+    Finish & reveal and Save changes are explicit: they always write their
+    thought. Drafts kept by an older page carry no starting thought and
+    are written as before.
 - Editing a submitted response preserves its completion and submission timestamps.
   Removing required feedback revokes submission. The UI requires nonblank
   comments and a rating to submit; clearing stars is available in draft mode.
